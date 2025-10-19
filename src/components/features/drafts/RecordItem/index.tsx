@@ -5,7 +5,6 @@ import styles from './RecordItem.styles';
 
 interface RecordItemProps {
   title: string;
-  body: string;
   updatedAt: Date;
   isBookmarked: boolean;
   onPress: (event: GestureResponderEvent) => void;

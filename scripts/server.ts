@@ -14,6 +14,11 @@ app.use(
   express.static(path.resolve(__dirname, '../src/assets/images')),
 );
 
+app.use(
+  '/records',
+  express.static(path.resolve(__dirname, '../src/assets/record')),
+);
+
 const openapiPath = path.resolve(__dirname, '../api/openapi.yaml');
 
 if (!fs.existsSync(openapiPath)) {
