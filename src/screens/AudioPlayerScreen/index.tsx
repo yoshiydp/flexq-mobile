@@ -20,8 +20,8 @@ import styles from './AudioPlayerScreen.styles';
 interface Track {
   id: string;
   title: string;
-  source: any;
-  artwork?: any;
+  source: string;
+  artwork?: string;
   linkedProjects: string[];
   extention: string;
   updatedAt: Date;
@@ -61,7 +61,7 @@ export default function AudioPlayerScreen() {
     }
 
     const { sound: newSound } = await Audio.Sound.createAsync(
-      tracks[index].source,
+      { uri: tracks[index].source },
       { shouldPlay: autoPlay },
     );
 
@@ -70,8 +70,8 @@ export default function AudioPlayerScreen() {
 
     newSound.setOnPlaybackStatusUpdate((status) => {
       if (!status.isLoaded) return;
-      setPosition(status.positionMillis || 0);
-      setDuration(status.durationMillis || 1);
+      setPosition(status.positionMillis ?? 0);
+      setDuration(status.durationMillis ?? 1);
 
       if (status.didJustFinish && !status.isLooping) {
         setIsPlaying(false);
@@ -95,23 +95,20 @@ export default function AudioPlayerScreen() {
   const handlePlayPause = async () => {
     if (!sound) return;
     const status = await sound.getStatusAsync();
-    if (status.isLoaded) {
-      if (status.isPlaying) {
-        await sound.pauseAsync();
-        setIsPlaying(false);
-      } else {
-        await sound.playAsync();
-        setIsPlaying(true);
-      }
+    if (!status.isLoaded) return;
+
+    if (status.isPlaying) {
+      await sound.pauseAsync();
+      setIsPlaying(false);
+    } else {
+      await sound.playAsync();
+      setIsPlaying(true);
     }
   };
 
   const handleSeek = async (value: number) => {
     if (sound) {
       await sound.setPositionAsync(value);
-      if (!isPlaying) {
-        setIsPlaying(false);
-      }
     }
   };
 
@@ -123,23 +120,22 @@ export default function AudioPlayerScreen() {
   };
 
   const handleLoopToggle = async () => {
-    if (sound) {
-      const newLoop = !isLooping;
-      setIsLooping(newLoop);
-      await sound.setIsLoopingAsync(newLoop);
-    }
+    if (!sound) return;
+    const nextLoop = !isLooping;
+    setIsLooping(nextLoop);
+    await sound.setIsLoopingAsync(nextLoop);
   };
 
-  const handleNext = async () => {
+  const handleNext = () => {
     if (currentIndex < tracks.length - 1) {
-      setCurrentIndex(currentIndex + 1);
+      setCurrentIndex((prev) => prev + 1);
       setShouldAutoPlay(isPlaying);
     }
   };
 
-  const handlePrev = async () => {
+  const handlePrev = () => {
     if (currentIndex > 0) {
-      setCurrentIndex(currentIndex - 1);
+      setCurrentIndex((prev) => prev - 1);
       setShouldAutoPlay(isPlaying);
     }
   };
@@ -153,7 +149,7 @@ export default function AudioPlayerScreen() {
     if (!newTitle.trim()) return;
     closeModal();
     showLoading();
-
+    // TODO: PATCH /tracks/:id {title:newTitle}
     setTimeout(() => {
       hideLoading();
     }, 3000);
@@ -168,10 +164,9 @@ export default function AudioPlayerScreen() {
   };
 
   const onSubmitDeleteTrack = () => {
-    console.log('Delete track:', currentTrack.id);
+    // TODO: DELETE /tracks/:id
     closeModal();
     showLoading();
-
     setTimeout(() => {
       hideLoading();
       handleGoBack();
@@ -190,10 +185,7 @@ export default function AudioPlayerScreen() {
   };
 
   const items: HeaderToolBarButton[] = [
-    {
-      ...HEADER_TOOLBAR_TEMPLATES.back,
-      onPress: handleGoBack,
-    },
+    { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     {
       ...HEADER_TOOLBAR_TEMPLATES.linkedProjects,
       projectItems: currentTrack.linkedProjects,
@@ -201,10 +193,7 @@ export default function AudioPlayerScreen() {
     {
       ...HEADER_TOOLBAR_TEMPLATES.action,
       menuItems: [
-        {
-          label: 'Edit track name',
-          onPress: onPressEdit,
-        },
+        { label: 'Edit track name', onPress: onPressEdit },
         { label: 'Delete', onPress: onPressDeleteConfirm },
       ],
     },
@@ -214,7 +203,11 @@ export default function AudioPlayerScreen() {
     <View style={styles.container}>
       <HeaderToolBar items={items} />
       <ScrollView>
-        <Artwork artwork={currentTrack.artwork} />
+        <Artwork
+          artwork={
+            currentTrack.artwork ? { uri: currentTrack.artwork } : undefined
+          }
+        />
         <View style={styles.infoWrapper}>
           <Text style={styles.title}>{currentTrack.title}</Text>
           <View style={styles.dataInfo}>

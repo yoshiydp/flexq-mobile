@@ -1,12 +1,12 @@
-import { ScrollView } from 'react-native';
+import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import TrackItem from '@/components/features/trackList/TrackItem';
 import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
-import { TRACK_DATA } from '@/data/trackData';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
+import { useFetchTrack } from '@/hooks/useFetchTrack';
 import styles from './TrackListScreen.styles';
 
 export default function TrackListScreen() {
@@ -14,12 +14,32 @@ export default function TrackListScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
 
+  const { tracks, loading, error } = useFetchTrack();
+
   const handleTrackPress = (index: number) => {
     navigation.navigate('AudioPlayer', {
       trackIndex: index,
-      tracks: TRACK_DATA,
+      tracks: tracks,
     });
   };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: 'red', padding: 16 }}>
+          Failed to load tracks.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <HomeTabsScreenTemplate
@@ -36,14 +56,14 @@ export default function TrackListScreen() {
         startAnimation={startListAnimation}
       />
       <ScrollView style={styles.container}>
-        {TRACK_DATA.map((track, index) => (
+        {tracks.map((track, index) => (
           <TrackItem
             key={track.id}
             index={index}
             title={track.title}
             linkedProjects={track.linkedProjects}
             extention={track.extention}
-            updatedAt={new Date(track.updatedAt)}
+            updatedAt={track.updatedAt}
             onPress={() => handleTrackPress(index)}
             startAnimation={startListAnimation}
           />

@@ -1,16 +1,9 @@
-import SampleSource_1 from '@/assets/audio/sample-audio1.mp3';
-import SampleSource_2 from '@/assets/audio/sample-audio2.wav';
-import SampleSource_3 from '@/assets/audio/sample-audio3.wav';
-import Artwork_1 from '@/assets/images/sample/sample-artwork1.jpg';
-import Artwork_2 from '@/assets/images/sample/sample-artwork2.jpg';
-import Artwork_3 from '@/assets/images/sample/sample-artwork3.jpg';
-
 export const TRACK_DATA = [
   {
     id: '1',
     title: 'Track 1',
-    source: SampleSource_1,
-    artwork: Artwork_1,
+    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: [
       'project1',
       'project2',
@@ -27,8 +20,8 @@ export const TRACK_DATA = [
   {
     id: '2',
     title: 'Track 2',
-    source: SampleSource_2,
-    artwork: Artwork_2,
+    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -36,8 +29,8 @@ export const TRACK_DATA = [
   {
     id: '3',
     title: 'Track 3',
-    source: SampleSource_3,
-    artwork: Artwork_3,
+    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -45,8 +38,8 @@ export const TRACK_DATA = [
   {
     id: '4',
     title: 'Track 4',
-    source: SampleSource_1,
-    artwork: Artwork_2,
+    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: [],
     extention: 'MP3',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -54,8 +47,8 @@ export const TRACK_DATA = [
   {
     id: '5',
     title: 'Track 5',
-    source: SampleSource_3,
-    artwork: Artwork_1,
+    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -63,8 +56,8 @@ export const TRACK_DATA = [
   {
     id: '6',
     title: 'Track 6',
-    source: SampleSource_2,
-    artwork: Artwork_3,
+    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -72,8 +65,8 @@ export const TRACK_DATA = [
   {
     id: '7',
     title: 'Track 7',
-    source: SampleSource_1,
-    artwork: Artwork_1,
+    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'MP3',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -81,8 +74,8 @@ export const TRACK_DATA = [
   {
     id: '8',
     title: 'Track 8',
-    source: SampleSource_3,
-    artwork: Artwork_2,
+    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -90,8 +83,8 @@ export const TRACK_DATA = [
   {
     id: '9',
     title: 'Track 9',
-    source: SampleSource_1,
-    artwork: Artwork_3,
+    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'MP3',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -99,8 +92,8 @@ export const TRACK_DATA = [
   {
     id: '10',
     title: 'Track 10',
-    source: SampleSource_2,
-    artwork: Artwork_2,
+    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -108,8 +101,8 @@ export const TRACK_DATA = [
   {
     id: '11',
     title: 'Track 11',
-    source: SampleSource_3,
-    artwork: Artwork_1,
+    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -117,8 +110,8 @@ export const TRACK_DATA = [
   {
     id: '12',
     title: 'Track 12',
-    source: SampleSource_2,
-    artwork: Artwork_2,
+    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
     updatedAt: '2023-10-01T12:00:00Z',
@@ -126,8 +119,8 @@ export const TRACK_DATA = [
   {
     id: '13',
     title: 'Track 13',
-    source: SampleSource_1,
-    artwork: Artwork_3,
+    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'MP3',
     updatedAt: '2023-10-01T12:00:00Z',

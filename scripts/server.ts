@@ -10,6 +10,11 @@ app.use(cors());
 app.use(express.json());
 
 app.use(
+  '/audios',
+  express.static(path.resolve(__dirname, '../src/assets/audio')),
+);
+
+app.use(
   '/images',
   express.static(path.resolve(__dirname, '../src/assets/images')),
 );
