@@ -3,7 +3,7 @@ info:
   title: My API
   version: 1.0.0
 servers:
-  - url: http://192.168.1.7:3000
+  - url: http://localhost:3000
     description: Local Swagger Mock API
 paths:
   /data:
@@ -224,7 +224,7 @@ components:
           isBookmarked: true
     PROFILE_DATA:
       value:
-        thumbnail: http://192.168.1.7:3000/images/sample/profile.jpg
+        thumbnail: http://localhost:3000/images/sample/profile.jpg
         username: User Profile Name
         email: contact@example.com
         socialAccounts:
@@ -29147,85 +29147,85 @@ components:
       value:
         - id: '1'
           title: Track 1
-          source: {}
+          source: http://localhost:3000/records/sample-1.m4a
           updatedAt: '2023-10-01T12:00:00Z'
           isBookmarked: true
         - id: '2'
           title: Track 2
-          source: {}
+          source: http://localhost:3000/records/sample-2.m4a
           updatedAt: '2023-10-02T12:00:00Z'
           isBookmarked: false
         - id: '3'
           title: Track 3
-          source: {}
+          source: http://localhost:3000/records/sample-3.m4a
           updatedAt: '2023-10-03T12:00:00Z'
           isBookmarked: false
         - id: '4'
           title: Track 4
-          source: {}
+          source: http://localhost:3000/records/sample-4.m4a
           updatedAt: '2023-10-04T12:00:00Z'
           isBookmarked: true
         - id: '5'
           title: Track 5
-          source: {}
+          source: http://localhost:3000/records/sample-5.m4a
           updatedAt: '2023-10-05T12:00:00Z'
           isBookmarked: false
         - id: '6'
           title: Track 6
-          source: {}
+          source: http://localhost:3000/records/sample-1.m4a
           updatedAt: '2023-10-06T12:00:00Z'
           isBookmarked: false
         - id: '7'
           title: Track 7
-          source: {}
+          source: http://localhost:3000/records/sample-2.m4a
           updatedAt: '2023-10-07T12:00:00Z'
           isBookmarked: true
         - id: '8'
           title: Track 8
-          source: {}
+          source: http://localhost:3000/records/sample-3.m4a
           updatedAt: '2023-10-08T12:00:00Z'
           isBookmarked: false
         - id: '9'
           title: Track 9
-          source: {}
+          source: http://localhost:3000/records/sample-4.m4a
           updatedAt: '2023-10-09T12:00:00Z'
           isBookmarked: false
         - id: '10'
           title: Track 10
-          source: {}
+          source: http://localhost:3000/records/sample-5.m4a
           updatedAt: '2023-10-10T12:00:00Z'
           isBookmarked: false
         - id: '11'
           title: Track 11
-          source: {}
+          source: http://localhost:3000/records/sample-1.m4a
           updatedAt: '2023-10-11T12:00:00Z'
           isBookmarked: true
         - id: '12'
           title: Track 12
-          source: {}
+          source: http://localhost:3000/records/sample-2.m4a
           updatedAt: '2023-10-12T12:00:00Z'
           isBookmarked: false
         - id: '13'
           title: Track 13
-          source: {}
+          source: http://localhost:3000/records/sample-3.m4a
           updatedAt: '2023-10-13T12:00:00Z'
           isBookmarked: false
         - id: '14'
           title: Track 14
-          source: {}
+          source: http://localhost:3000/records/sample-4.m4a
           updatedAt: '2023-10-14T12:00:00Z'
           isBookmarked: false
         - id: '15'
           title: Track 15
-          source: {}
+          source: http://localhost:3000/records/sample-5.m4a
           updatedAt: '2023-10-15T12:00:00Z'
           isBookmarked: true
     TRACK_DATA:
       value:
         - id: '1'
           title: Track 1
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio1.mp3
+          artwork: http://localhost:3000/images/sample/sample-artwork1.jpg
           linkedProjects:
             - project1
             - project2
@@ -29239,8 +29239,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '2'
           title: Track 2
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio2.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork2.jpg
           linkedProjects:
             - project1
             - project2
@@ -29248,8 +29248,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '3'
           title: Track 3
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio3.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork3.jpg
           linkedProjects:
             - project1
             - project2
@@ -29257,15 +29257,15 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '4'
           title: Track 4
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio1.mp3
+          artwork: http://localhost:3000/images/sample/sample-artwork2.jpg
           linkedProjects: []
           extention: MP3
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '5'
           title: Track 5
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio3.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork1.jpg
           linkedProjects:
             - project1
             - project2
@@ -29273,8 +29273,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '6'
           title: Track 6
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio2.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork3.jpg
           linkedProjects:
             - project1
             - project2
@@ -29282,8 +29282,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '7'
           title: Track 7
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio1.mp3
+          artwork: http://localhost:3000/images/sample/sample-artwork1.jpg
           linkedProjects:
             - project1
             - project2
@@ -29291,8 +29291,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '8'
           title: Track 8
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio3.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork2.jpg
           linkedProjects:
             - project1
             - project2
@@ -29300,8 +29300,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '9'
           title: Track 9
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio1.mp3
+          artwork: http://localhost:3000/images/sample/sample-artwork3.jpg
           linkedProjects:
             - project1
             - project2
@@ -29309,8 +29309,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '10'
           title: Track 10
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio2.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork2.jpg
           linkedProjects:
             - project1
             - project2
@@ -29318,8 +29318,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '11'
           title: Track 11
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio3.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork1.jpg
           linkedProjects:
             - project1
             - project2
@@ -29327,8 +29327,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '12'
           title: Track 12
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio2.wav
+          artwork: http://localhost:3000/images/sample/sample-artwork2.jpg
           linkedProjects:
             - project1
             - project2
@@ -29336,8 +29336,8 @@ components:
           updatedAt: '2023-10-01T12:00:00Z'
         - id: '13'
           title: Track 13
-          source: {}
-          artwork: {}
+          source: http://localhost:3000/audios/sample-audio1.mp3
+          artwork: http://localhost:3000/images/sample/sample-artwork3.jpg
           linkedProjects:
             - project1
             - project2

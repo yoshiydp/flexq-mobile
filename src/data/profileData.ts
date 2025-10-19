@@ -1,5 +1,5 @@
 export const PROFILE_DATA = {
-  thumbnail: 'http://192.168.1.7:3000/images/sample/profile.jpg',
+  thumbnail: 'http://localhost:3000/images/sample/profile.jpg',
   username: 'User Profile Name',
   email: 'contact@example.com',
   socialAccounts: [
