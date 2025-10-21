@@ -19,15 +19,33 @@ export class DefaultService {
         });
     }
     /**
-     * Get memo data
-     * Returns mock data for MEMO_DATA.
+     * Get project data
+     * Returns mock data for PROJECT_DATA.
      * @returns any OK
      * @throws ApiError
      */
-    public static getMemo(): CancelablePromise<any> {
+    public static getProject(): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/data/memo',
+            url: '/data/project',
+        });
+    }
+    /**
+     * Get project detail
+     * Returns a single project by ID.
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getDataProject(
+        id: string,
+    ): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/project/{id}',
+            path: {
+                'id': id,
+            },
         });
     }
     /**
@@ -43,27 +61,15 @@ export class DefaultService {
         });
     }
     /**
-     * Get project data
-     * Returns mock data for PROJECT_DATA.
+     * Get memo data
+     * Returns mock data for MEMO_DATA.
      * @returns any OK
      * @throws ApiError
      */
-    public static getProject(): CancelablePromise<any> {
+    public static getMemo(): CancelablePromise<any> {
         return __request(OpenAPI, {
             method: 'GET',
-            url: '/data/project',
-        });
-    }
-    /**
-     * Get record data
-     * Returns mock data for RECORD_DATA.
-     * @returns any OK
-     * @throws ApiError
-     */
-    public static getRecord(): CancelablePromise<any> {
-        return __request(OpenAPI, {
-            method: 'GET',
-            url: '/data/record',
+            url: '/data/memo',
         });
     }
     /**
@@ -76,6 +82,18 @@ export class DefaultService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/data/track',
+        });
+    }
+    /**
+     * Get record data
+     * Returns mock data for RECORD_DATA.
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getRecord(): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/record',
         });
     }
 }

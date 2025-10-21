@@ -1,19 +1,11 @@
-import Artwork_1 from '@/assets/images/sample/sample-artwork1.jpg';
-import Artwork_2 from '@/assets/images/sample/sample-artwork2.jpg';
-import Artwork_3 from '@/assets/images/sample/sample-artwork3.jpg';
-import SampleAudio_1 from '@/assets/audio/sample-audio1.mp3';
-import SampleAudio_2 from '@/assets/audio/sample-audio2.wav';
-import SampleAudio_3 from '@/assets/audio/sample-audio3.wav';
-import WaveJson from '@/assets/audio/sample-audio1.json';
-
 export const PROJECT_DATA = [
   {
     id: '1',
     projectName: 'Project Title 1',
-    artwork: Artwork_1,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     trackName: 'Track name A',
-    trackSource: SampleAudio_1,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -26,10 +18,10 @@ export const PROJECT_DATA = [
   {
     id: '2',
     projectName: 'Project Title 2',
-    artwork: Artwork_2,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     trackName: 'Track name B',
-    trackSource: SampleAudio_2,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio2.wav',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -42,10 +34,10 @@ export const PROJECT_DATA = [
   {
     id: '3',
     projectName: 'Project Title 3',
-    artwork: Artwork_3,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     trackName: 'Track name C',
-    trackSource: SampleAudio_3,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio3.wav',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -58,10 +50,10 @@ export const PROJECT_DATA = [
   {
     id: '4',
     projectName: 'Project Title 4',
-    artwork: Artwork_1,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     trackName: 'Track name D',
-    trackSource: SampleAudio_1,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -74,10 +66,10 @@ export const PROJECT_DATA = [
   {
     id: '5',
     projectName: 'Project Title 5',
-    artwork: Artwork_2,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     trackName: 'Track name E',
-    trackSource: SampleAudio_3,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio3.wav',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -90,10 +82,10 @@ export const PROJECT_DATA = [
   {
     id: '6',
     projectName: 'Project Title 6',
-    artwork: Artwork_3,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     trackName: 'Track name F',
-    trackSource: SampleAudio_2,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio2.wav',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -106,10 +98,10 @@ export const PROJECT_DATA = [
   {
     id: '7',
     projectName: 'Project Title 7',
-    artwork: Artwork_3,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     trackName: 'Track name G',
-    trackSource: SampleAudio_1,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -122,10 +114,10 @@ export const PROJECT_DATA = [
   {
     id: '8',
     projectName: 'Project Title 8',
-    artwork: Artwork_1,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     trackName: 'Track name H',
-    trackSource: SampleAudio_1,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -138,10 +130,10 @@ export const PROJECT_DATA = [
   {
     id: '9',
     projectName: 'Project Title 9',
-    artwork: Artwork_2,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     trackName: 'Track name I',
-    trackSource: SampleAudio_2,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio2.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -154,19 +146,19 @@ export const PROJECT_DATA = [
   {
     id: '10',
     projectName: 'Project Title 10',
-    artwork: Artwork_3,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     trackName: 'Track name J',
-    trackSource: SampleAudio_3,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio3.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     updatedAt: '2023-10-10T09:00:00Z',
   },
   {
     id: '11',
     projectName: 'Project Title 11',
-    artwork: Artwork_3,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     trackName: 'Track name K',
-    trackSource: SampleAudio_1,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -179,10 +171,10 @@ export const PROJECT_DATA = [
   {
     id: '12',
     projectName: 'Project Title 12',
-    artwork: Artwork_1,
+    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     trackName: 'Track name L',
-    trackSource: SampleAudio_1,
-    waveformJson: WaveJson,
+    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
+    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
     cueButtons: [
       { time: 4500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },

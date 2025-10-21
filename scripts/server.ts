@@ -10,7 +10,7 @@ app.use(cors());
 app.use(express.json());
 
 app.use(
-  '/audios',
+  '/audio',
   express.static(path.resolve(__dirname, '../src/assets/audio')),
 );
 
@@ -20,7 +20,7 @@ app.use(
 );
 
 app.use(
-  '/records',
+  '/record',
   express.static(path.resolve(__dirname, '../src/assets/record')),
 );
 
@@ -47,11 +47,14 @@ swaggerDocument.paths &&
       const example =
         swaggerDocument.components.examples[exampleKey]?.value || {};
 
-      app.get(route, (req, res) => {
+      // ✅ `/data/project/{id}` のような動的パス対応
+      const expressRoute = route.replace('{id}', ':id');
+
+      app.get(expressRoute, (req, res) => {
         res.json(example);
       });
 
-      console.log(`Mock endpoint ready: GET ${route}`);
+      console.log(`Mock endpoint ready: GET ${expressRoute}`);
     }
   });
 

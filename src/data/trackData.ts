@@ -2,7 +2,7 @@ export const TRACK_DATA = [
   {
     id: '1',
     title: 'Track 1',
-    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    source: 'http://localhost:3000/audio/sample-audio1.mp3',
     artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: [
       'project1',
@@ -20,7 +20,7 @@ export const TRACK_DATA = [
   {
     id: '2',
     title: 'Track 2',
-    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    source: 'http://localhost:3000/audio/sample-audio2.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -29,7 +29,7 @@ export const TRACK_DATA = [
   {
     id: '3',
     title: 'Track 3',
-    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    source: 'http://localhost:3000/audio/sample-audio3.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -38,7 +38,7 @@ export const TRACK_DATA = [
   {
     id: '4',
     title: 'Track 4',
-    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    source: 'http://localhost:3000/audio/sample-audio1.mp3',
     artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: [],
     extention: 'MP3',
@@ -47,7 +47,7 @@ export const TRACK_DATA = [
   {
     id: '5',
     title: 'Track 5',
-    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    source: 'http://localhost:3000/audio/sample-audio3.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -56,7 +56,7 @@ export const TRACK_DATA = [
   {
     id: '6',
     title: 'Track 6',
-    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    source: 'http://localhost:3000/audio/sample-audio2.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -65,7 +65,7 @@ export const TRACK_DATA = [
   {
     id: '7',
     title: 'Track 7',
-    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    source: 'http://localhost:3000/audio/sample-audio1.mp3',
     artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'MP3',
@@ -74,7 +74,7 @@ export const TRACK_DATA = [
   {
     id: '8',
     title: 'Track 8',
-    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    source: 'http://localhost:3000/audio/sample-audio3.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -83,7 +83,7 @@ export const TRACK_DATA = [
   {
     id: '9',
     title: 'Track 9',
-    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    source: 'http://localhost:3000/audio/sample-audio1.mp3',
     artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'MP3',
@@ -92,7 +92,7 @@ export const TRACK_DATA = [
   {
     id: '10',
     title: 'Track 10',
-    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    source: 'http://localhost:3000/audio/sample-audio2.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -101,7 +101,7 @@ export const TRACK_DATA = [
   {
     id: '11',
     title: 'Track 11',
-    source: 'http://localhost:3000/audios/sample-audio3.wav',
+    source: 'http://localhost:3000/audio/sample-audio3.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -110,7 +110,7 @@ export const TRACK_DATA = [
   {
     id: '12',
     title: 'Track 12',
-    source: 'http://localhost:3000/audios/sample-audio2.wav',
+    source: 'http://localhost:3000/audio/sample-audio2.wav',
     artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'WAV',
@@ -119,7 +119,7 @@ export const TRACK_DATA = [
   {
     id: '13',
     title: 'Track 13',
-    source: 'http://localhost:3000/audios/sample-audio1.mp3',
+    source: 'http://localhost:3000/audio/sample-audio1.mp3',
     artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
     linkedProjects: ['project1', 'project2'],
     extention: 'MP3',
