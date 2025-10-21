@@ -14,8 +14,11 @@ export default StyleSheet.create({
     width: 120,
     height: 120,
     borderRadius: 4,
-    backgroundColor: COLORS.accent.purple,
     overflow: 'hidden',
+  },
+  artwork: {
+    width: 120,
+    height: 120,
   },
   infoContainer: {
     flex: 1,

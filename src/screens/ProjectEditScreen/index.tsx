@@ -1,5 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { View, Animated, Easing, Dimensions } from 'react-native';
+import {
+  View,
+  Animated,
+  Easing,
+  Dimensions,
+  ActivityIndicator,
+  Text,
+} from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import { Audio } from 'expo-av';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
@@ -24,6 +31,7 @@ import {
 import { CUE_LABELS } from '@/constants/cueLabels';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
+import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import styles from './ProjectEditScreen.styles';
 
 export default function ProjectEditScreen() {
@@ -34,12 +42,55 @@ export default function ProjectEditScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ProjectEdit'>>();
-  const params = (route.params as any) ?? {};
+  const { id } = (route.params as { id: string }) ?? { id: '' };
 
-  const [projectName, setProjectName] = useState(params.projectName ?? '');
-  const [trackSource] = useState(params.trackSource ?? null);
-  const [body, setBody] = useState(params.body ?? '');
-  const [cueButtons, setCueButtons] = useState(params.cueButtons ?? []);
+  const { project, loading, error } = useFetchProjectDetail(id);
+
+  const [projectName, setProjectName] = useState('');
+  const [trackSource, setTrackSource] = useState<string | null>(null);
+  const [body, setBody] = useState('');
+  const [cueButtons, setCueButtons] = useState<CuePointType[]>([]);
+  const [waveformData, setWaveformData] = useState<number[]>([]);
+
+  useEffect(() => {
+    if (!project) return;
+    setProjectName(project.projectName ?? '');
+    setTrackSource(project.trackSource ?? null);
+    setBody((project as any).body ?? '');
+    setCueButtons(() => {
+      const source = project.cueButtons;
+      if (Array.isArray(source) && source.length > 0) return source;
+      return CUE_LABELS.map((label) => ({
+        time: 0,
+        label,
+        isActive: false,
+      }));
+    });
+    console.log(cueButtons);
+  }, [project]);
+
+  useEffect(() => {
+    const loadWaveform = async () => {
+      if (!project?.waveformJson) {
+        setWaveformData([]);
+        return;
+      }
+      try {
+        const res = await fetch(project.waveformJson);
+        const json = await res.json();
+        const data = Array.isArray(json)
+          ? json
+          : Array.isArray(json?.data)
+          ? json.data
+          : [];
+        setWaveformData(data as number[]);
+      } catch (e) {
+        console.warn('Failed to fetch waveformJson:', e);
+        setWaveformData([]);
+      }
+    };
+    loadWaveform();
+  }, [project?.waveformJson]);
 
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
   const animatedHeight = useRef(new Animated.Value(MIN_BODY_HEIGHT)).current;
@@ -78,13 +129,7 @@ export default function ProjectEditScreen() {
     const loadSound = async () => {
       if (!trackSource) return;
       try {
-        const source =
-          typeof trackSource === 'number'
-            ? trackSource
-            : typeof trackSource === 'string'
-            ? { uri: trackSource }
-            : trackSource;
-
+        const source = { uri: trackSource };
         const { sound: createdSound } = await Audio.Sound.createAsync(source, {
           shouldPlay: false,
           volume,
@@ -161,7 +206,7 @@ export default function ProjectEditScreen() {
       Animated.timing(animatedHeight, {
         toValue: nextState ? EXPANDED_BODY_HEIGHT : MIN_BODY_HEIGHT,
         duration: 350,
-        easing: Easing.out(Easing.cubic),
+        easing: Easing.bezier(0.22, 1, 0.36, 1),
         useNativeDriver: false,
       }),
       Animated.timing(gradientOpacity, {
@@ -196,13 +241,22 @@ export default function ProjectEditScreen() {
     });
   };
 
+  const isValidLoaded = async () => {
+    const s = soundRef.current;
+    if (!s) return false;
+    const status = await s.getStatusAsync();
+    return 'isLoaded' in status && status.isLoaded;
+  };
+
   const safeSeekTo = async (ms: number) => {
     if (!soundRef.current || isSeekingRef.current) return;
     isSeekingRef.current = true;
     try {
+      if (!(await isValidLoaded())) return;
       const status = await soundRef.current.getStatusAsync();
-      if (!status.isLoaded) return;
-      if (status.isPlaying) await soundRef.current.pauseAsync();
+      if ('isLoaded' in status && status.isLoaded && status.isPlaying) {
+        await soundRef.current.pauseAsync();
+      }
       await soundRef.current.setPositionAsync(ms);
       await soundRef.current.playAsync();
     } finally {
@@ -288,7 +342,7 @@ export default function ProjectEditScreen() {
   };
 
   const lastTapIndex = useRef<number | null>(null);
-  const tapTimeout = useRef<NodeJS.Timeout | null>(null);
+  const tapTimeout = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const onCueButtonPress = (index: number) => {
     if (lastTapIndex.current === index) {
@@ -348,9 +402,38 @@ export default function ProjectEditScreen() {
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     {
       ...HEADER_TOOLBAR_TEMPLATES.hamburger,
-      onPress: () => navigation.navigate('ProjectSettings', {}),
+      onPress: () =>
+        navigation.navigate('ProjectSettings', {
+          artwork: project?.artwork ? { uri: project.artwork } : undefined,
+          trackSource: project?.trackSource ?? null,
+        }),
     },
   ];
+
+  if (loading) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+  if (error || !project) {
+    return (
+      <View
+        style={[
+          styles.container,
+          { alignItems: 'center', justifyContent: 'center' },
+        ]}
+      >
+        <Text style={{ color: 'red' }}>Failed to load project.</Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -389,7 +472,7 @@ export default function ProjectEditScreen() {
             <View style={[styles.seekBarWrapper]}>
               <WaveformPlayer
                 sound={sound}
-                waveformJson={params.waveformJson?.data ?? []}
+                waveformJson={waveformData}
                 cuePoints={cueButtons}
                 onSeek={handleSeek}
                 onCuePointUpdate={handleCuePointUpdate}

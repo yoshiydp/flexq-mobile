@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
-import { ScrollView } from 'react-native';
+import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
 import ScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import ProjectItem from '@/components/features/projectList/ProjectItem';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
-import { PROJECT_DATA } from '@/data/projectData';
+import { useFetchProject } from '@/hooks/useFetchProject';
 import styles from './ProjectListScreen.styles';
 
 export default function ProjectListScreen() {
@@ -14,25 +14,33 @@ export default function ProjectListScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
 
-  const handleProjectPress = (index: number) => {
-    navigation.navigate('ProjectEdit', {
-      id: PROJECT_DATA[index].id,
-      projectName: PROJECT_DATA[index].projectName,
-      artwork: PROJECT_DATA[index].artwork,
-      trackName: PROJECT_DATA[index].trackName,
-      trackSource: PROJECT_DATA[index].trackSource,
-      waveformJson: PROJECT_DATA[index].waveformJson,
-      cueButtons: PROJECT_DATA[index].cueButtons,
-      tags: PROJECT_DATA[index].tags,
-      updatedAt: new Date(PROJECT_DATA[index].updatedAt),
-    });
-  };
+  const { projects, loading, error } = useFetchProject();
 
   useEffect(() => {
-    PROJECT_DATA.sort((a, b) => {
-      return new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime();
-    });
-  }, []);
+    if (projects.length > 0) {
+      projects.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
+    }
+  }, [projects]);
+
+  const handleProjectPress = (id: string) => {
+    navigation.navigate('ProjectEdit', { id });
+  };
+
+  if (loading) {
+    return (
+      <View style={styles.container}>
+        <ActivityIndicator size="large" />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.container}>
+        <Text style={{ color: 'red' }}>Failed to load projects.</Text>
+      </View>
+    );
+  }
 
   return (
     <ScreenTemplate
@@ -41,16 +49,15 @@ export default function ProjectListScreen() {
       titleAnim2={titleAnim2}
     >
       <ScrollView style={styles.container}>
-        {PROJECT_DATA.map((project, index) => (
+        {projects.map((project) => (
           <ProjectItem
             key={project.id}
-            index={index}
-            artwork={project.artwork}
+            artwork={project.artwork ? { uri: project.artwork } : undefined}
             projectName={project.projectName}
             soundSourceName={project.trackName}
             tags={project.tags}
-            updatedAt={new Date(project.updatedAt)}
-            onPress={() => handleProjectPress(index)}
+            updatedAt={project.updatedAt}
+            onPress={() => handleProjectPress(project.id)}
             startAnimation={startListAnimation}
           />
         ))}

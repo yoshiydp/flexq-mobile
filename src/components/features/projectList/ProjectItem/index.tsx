@@ -5,6 +5,7 @@ import {
   Text,
   Animated,
   Easing,
+  Image,
   GestureResponderEvent,
 } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
@@ -13,7 +14,7 @@ import type { FontAwesomeIconName } from '@/types/iconTypes';
 import styles from './ProjectItem.styles';
 
 interface Props {
-  artwork: { uri: string };
+  artwork: any;
   projectName: string;
   soundSourceName: string;
   tags?: string[];
@@ -63,7 +64,9 @@ export default function ProjectItem({
   return (
     <Animated.View style={{ transform: [{ translateX }], opacity }}>
       <Pressable style={styles.container} onPress={onPress}>
-        <View style={styles.artworkContainer}></View>
+        <View style={styles.artworkContainer}>
+          {artwork && <Image source={artwork} style={styles.artwork} />}
+        </View>
         <View style={styles.infoContainer}>
           <Text style={styles.projectName}>{projectName}</Text>
           <Text style={styles.soundSourceName}>{soundSourceName}</Text>
