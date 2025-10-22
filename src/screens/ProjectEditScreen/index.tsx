@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, type RefObject } from 'react';
 import {
   View,
   Animated,
@@ -14,13 +14,8 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
-import TitleInput from '@/components/features/inputs/TitleInput';
-import BodyInput from '@/components/features/inputs/BodyInput';
-import OverlayToggleButton from '@/components/features/projectEdit/OverlayToggleButton';
-import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
-import CueButtonList from '@/components/features/projectEdit/CueButtonList';
-import PlayerControls from '@/components/features/audioPlayer/PlayerControls';
-import VolumeSlider from '@/components/ui/VolumeSlider';
+import EditView from '@/components/features/projectEdit/EditView';
+import RecView from '@/components/features/projectEdit/RecView';
 import BottomUpButton from '@/components/ui/buttons/BottomUpButton';
 import { useModal } from '@/contexts/ModalContext';
 import { CuePointType } from '@/types/cuePointType';
@@ -46,6 +41,8 @@ export default function ProjectEditScreen() {
 
   const { project, loading, error } = useFetchProjectDetail(id);
 
+  const [isRecMode, setIsRecMode] = useState(false);
+
   const [projectName, setProjectName] = useState('');
   const [trackSource, setTrackSource] = useState<string | null>(null);
   const [body, setBody] = useState('');
@@ -66,7 +63,6 @@ export default function ProjectEditScreen() {
         isActive: false,
       }));
     });
-    console.log(cueButtons);
   }, [project]);
 
   useEffect(() => {
@@ -202,43 +198,45 @@ export default function ProjectEditScreen() {
     const nextState = !isEditingLyrics;
     setIsEditingLyrics(nextState);
 
-    Animated.parallel([
-      Animated.timing(animatedHeight, {
-        toValue: nextState ? EXPANDED_BODY_HEIGHT : MIN_BODY_HEIGHT,
-        duration: 350,
-        easing: Easing.bezier(0.22, 1, 0.36, 1),
-        useNativeDriver: false,
-      }),
-      Animated.timing(gradientOpacity, {
-        toValue: nextState ? 0 : 1,
-        duration: 350,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-      Animated.timing(bottomButtonOpacity, {
-        toValue: nextState ? 0 : 1,
-        duration: 300,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
+    if (!isRecMode) {
       Animated.parallel([
-        Animated.timing(volumeOpacity, {
+        Animated.timing(animatedHeight, {
+          toValue: nextState ? EXPANDED_BODY_HEIGHT : MIN_BODY_HEIGHT,
+          duration: 350,
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
+          useNativeDriver: false,
+        }),
+        Animated.timing(gradientOpacity, {
+          toValue: nextState ? 0 : 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bottomButtonOpacity, {
           toValue: nextState ? 0 : 1,
           duration: 300,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-        Animated.timing(volumeTranslateY, {
-          toValue: nextState ? 40 : 0,
-          duration: 300,
-          easing: Easing.out(Easing.cubic),
-          useNativeDriver: true,
-        }),
-      ]),
-    ]).start(() => {
-      setIsBottomButtonVisible(!nextState);
-      setShowVolumeSlider(!nextState);
-    });
+        Animated.parallel([
+          Animated.timing(volumeOpacity, {
+            toValue: nextState ? 0 : 1,
+            duration: 300,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+          Animated.timing(volumeTranslateY, {
+            toValue: nextState ? 40 : 0,
+            duration: 300,
+            easing: Easing.out(Easing.cubic),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]).start(() => {
+        setIsBottomButtonVisible(!nextState);
+        setShowVolumeSlider(!nextState);
+      });
+    }
   };
 
   const isValidLoaded = async () => {
@@ -437,99 +435,54 @@ export default function ProjectEditScreen() {
 
   return (
     <View style={styles.container}>
-      <HeaderToolBar items={items} />
+      {!isRecMode && <HeaderToolBar items={items} />}
 
       <View style={[styles.content, { height: contentHeight }]}>
-        <View style={styles.editorContainer}>
-          <TitleInput value={projectName} onChangeText={setProjectName} />
-
-          <Animated.View
-            style={[styles.bodyInputWrapper, { height: animatedHeight }]}
-          >
-            <BodyInput
-              editorRef={richText}
-              value={body}
-              onChangeText={setBody}
-              isEditing={isEditingLyrics}
-            />
-            <OverlayToggleButton
-              onPress={handleToggleEditLyrics}
-              gradientOpacity={gradientOpacity}
-              isEditing={isEditingLyrics}
-              extraBottomOffset={BOTTOM_OFFSET}
-            />
-          </Animated.View>
-        </View>
-
-        <Animated.View
-          style={
-            isEditingLyrics
-              ? { transform: [{ translateY: BOTTOM_OFFSET }] }
-              : {}
-          }
-        >
-          {trackSource && (
-            <View style={[styles.seekBarWrapper]}>
-              <WaveformPlayer
-                sound={sound}
-                waveformJson={waveformData}
-                cuePoints={cueButtons}
-                onSeek={handleSeek}
-                onCuePointUpdate={handleCuePointUpdate}
-                onPlaybackFinish={() => setIsPlaying(false)}
-              />
-            </View>
-          )}
-
-          {cueButtons && (
-            <View style={styles.cueButtonListWrapper}>
-              <CueButtonList
-                cueButtons={cueButtons}
-                onPress={onCueButtonPress}
-                onLongPress={handleCueButtonLongPress}
-              />
-            </View>
-          )}
-
-          <View style={styles.playerControlsWrapper}>
-            <PlayerControls
-              onPlayPause={() => setIsPlaying((prev) => !prev)}
-              onLoopToggle={handleLoopToggle}
-              isPlaying={isPlaying}
-              isLooping={isLooping}
-              prevButtonVisible={false}
-              nextButtonVisible={false}
-              repeatButtonVisible={false}
-              cueRepeatButtonVisible
-              allCueResetButtonVisible
-              onAllCueReset={handleAllCueReset}
-              isAllCueResetDisabled={handleAllCueResetDisabled()}
-            />
-          </View>
-        </Animated.View>
-
-        {showVolumeSlider && (
-          <Animated.View
-            style={[
-              styles.volumeSliderWrapper,
-              {
-                opacity: volumeOpacity,
-                transform: [{ translateY: volumeTranslateY }],
-              },
-            ]}
-          >
-            <VolumeSlider volume={volume} onVolumeChange={setVolume} />
-          </Animated.View>
+        {!isRecMode ? (
+          <EditView
+            projectName={projectName}
+            onChangeProjectName={setProjectName}
+            body={body}
+            onChangeBody={setBody}
+            isEditingLyrics={isEditingLyrics}
+            onToggleEditLyrics={handleToggleEditLyrics}
+            trackSource={trackSource}
+            sound={sound}
+            waveformData={waveformData}
+            cueButtons={cueButtons}
+            onCueButtonPress={onCueButtonPress}
+            onCueButtonLongPress={handleCueButtonLongPress}
+            onCuePointUpdate={handleCuePointUpdate}
+            onSeek={handleSeek}
+            isPlaying={isPlaying}
+            isLooping={isLooping}
+            onPlayPause={() => setIsPlaying((prev) => !prev)}
+            onLoopToggle={handleLoopToggle}
+            onAllCueReset={handleAllCueReset}
+            isAllCueResetDisabled={handleAllCueResetDisabled()}
+            showVolumeSlider={showVolumeSlider}
+            volume={volume}
+            onVolumeChange={setVolume}
+            animatedHeight={animatedHeight}
+            gradientOpacity={gradientOpacity}
+            volumeOpacity={volumeOpacity}
+            volumeTranslateY={volumeTranslateY}
+            bottomOffset={BOTTOM_OFFSET}
+            richText={richText as unknown as RefObject<RichEditor>}
+          />
+        ) : (
+          <RecView />
         )}
       </View>
 
-      {isBottomButtonVisible && (
+      {!isRecMode && isBottomButtonVisible && (
         <Animated.View style={{ opacity: bottomButtonOpacity }}>
-          <BottomUpButton
-            label="REC MODE"
-            onPress={() => console.log('Rec mode pressed')}
-          />
+          <BottomUpButton label="REC MODE" onPress={() => setIsRecMode(true)} />
         </Animated.View>
+      )}
+
+      {isRecMode && (
+        <BottomUpButton label="CLOSE" onPress={() => setIsRecMode(false)} />
       )}
     </View>
   );

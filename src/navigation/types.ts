@@ -19,7 +19,7 @@ export type RootStackParamList = {
         body?: string;
       }
     | undefined;
-  ProjectSettings: undefined;
+  ProjectSettings: { artwork?: { uri: string }; trackSource?: any } | undefined;
   ProfileEdit: undefined;
   QuickMemo?: {
     id?: string;

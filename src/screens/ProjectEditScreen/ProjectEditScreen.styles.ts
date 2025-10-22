@@ -10,39 +10,16 @@ export default StyleSheet.create({
   content: {
     flex: 1,
   },
-  editorContainer: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 20,
-  },
-  bodyInputWrapper: {
-    position: 'relative',
-    marginTop: 24,
-  },
-  overlayBodyInput: {
+  recHeaderButton: {
     position: 'absolute',
-    bottom: 0,
+    top: 0, // HeaderToolBar の位置
     left: 0,
-    width: '100%',
-    height: '100%',
-  },
-  seekBarWrapper: {
-    marginTop: 8,
-  },
-  cueButtonListWrapper: {
-    marginTop: 32,
-  },
-  playerControlsWrapper: {
-    marginTop: 40,
-  },
-  volumeSliderWrapper: {
-    marginTop: 24,
-  },
-  bottomUpButtonWrapper: {
-    position: 'absolute',
-    bottom: 16,
-    left: 0,
-    width: '100%',
-    paddingHorizontal: 16,
+    right: 0,
+    height: 60,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1000,
+    // 必要なら背景や影など調整
+    // backgroundColor: '#000',
   },
 });

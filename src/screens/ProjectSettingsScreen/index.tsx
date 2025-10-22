@@ -1,90 +1,84 @@
-import { ScrollView, View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { ScrollView, View, Text } from 'react-native';
+import { useState, useEffect } from 'react';
+import { useRoute, RouteProp } from '@react-navigation/native';
+import type { RootStackParamList } from '@/navigation/types';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';
+import SettingsTitledContentBlock from '@/components/features/projectEdit/SettingsTitledContentBlock';
+import SettingsTitledContentBox from '@/components/features/projectEdit/SettingsTitledContentBox';
 import ProfileIcon from '@/components/features/profile/ProfileIcon';
-import EditableFormControl from '@/components/ui/form/EditableFormControl';
-import SubmitButton from '@/components/ui/buttons/SubmitButton';
-import { useModal } from '@/contexts/ModalContext';
-import { PROFILE_DATA } from '@/data/profileData';
-import { MODAL_MESSAGES } from '@/constants/messages';
+import ActionButton from '@/components/ui/buttons/ActionButton';
+import { getFileName } from '@/utils/getFileName';
+import { getFileExtension } from '@/utils/getFileExtension';
 import styles from './ProjectSettingsScreen.styles';
 
 export default function ProjectSettingsScreen() {
-  const SOCIAL_SERVICES = ['X', 'Instagram', 'Google'];
-  const navigation = useNavigation();
-  const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
+  const route = useRoute<RouteProp<RootStackParamList, 'ProjectSettings'>>();
 
-  const handleGoBack = () => {
-    navigation.goBack();
-  };
+  const [artworkParam, setArtworkParam] = useState(
+    route.params?.artwork ?? null,
+  );
+  const [trackSource, setTrackSource] = useState(
+    route.params?.trackSource ?? null,
+  );
+  const [thumbnail, setThumbnail] = useState<{ uri: string } | undefined>(
+    undefined,
+  );
+  const [audioTitle, setAudioTitle] = useState('');
+  const [audioExt, setAudioExt] = useState('');
 
-  const onSaveProfile = () => {
-    showLoading();
-
-    setTimeout(() => {
-      hideLoading();
-      handleGoBack();
-    }, 3000);
-  };
-
-  const onSubmitRemoveLink = () => {
-    closeModal();
-    showLoading();
-
-    setTimeout(() => {
-      hideLoading();
-      closeModal();
-    }, 3000);
-  };
-
-  const onPressRemoveLink = (index: number) => {
-    const service = SOCIAL_SERVICES[index] ?? 'SNS';
-
-    showConfirmModal({
-      message: MODAL_MESSAGES.confirmRemoveLink.message(service),
-      description: MODAL_MESSAGES.confirmRemoveLink.description,
-      submitButton: {
-        label: MODAL_MESSAGES.confirmRemoveLink.submitButtonLabel,
-        onPress: onSubmitRemoveLink,
-      },
-    });
-  };
-
-  const onPressLinkAccount = (index: number) => {
-    switch (index) {
-      case 0:
-        return console.log('Link X account');
-      case 1:
-        return console.log('Link Instagram account');
-      case 2:
-        return console.log('Link Google account');
-      default:
-        break;
+  useEffect(() => {
+    if (artworkParam != null) {
+      setThumbnail(
+        typeof artworkParam === 'string' ? { uri: artworkParam } : artworkParam,
+      );
+    } else {
+      setThumbnail(undefined);
     }
-  };
+  }, [artworkParam]);
+
+  useEffect(() => {
+    if (trackSource) {
+      try {
+        setAudioTitle(getFileName(trackSource));
+        setAudioExt(getFileExtension(trackSource).toUpperCase());
+      } catch {
+        setAudioTitle('');
+        setAudioExt('');
+      }
+    }
+  }, [trackSource]);
 
   return (
     <OverlayScreenTemplate>
       <ScrollView style={styles.container}>
-        <ProfileIcon thumbnail={PROFILE_DATA.thumbnail} editable />
-        <View style={styles.formControlContainer}>
-          <EditableFormControl
-            label="User Name"
-            formValue={PROFILE_DATA.username}
-          />
-          <EditableFormControl label="Email" formValue={PROFILE_DATA.email} />
-          <SubmitButton
-            containerClassName={styles.saveButton}
-            onPress={onSaveProfile}
-          />
-          <EditableFormControl
-            label="Link Social Accounts"
-            showSocialAccounts
-            socialAccounts={PROFILE_DATA.socialAccounts}
-            onPressRemoveLink={onPressRemoveLink}
-            onPressLinkAccount={onPressLinkAccount}
-          />
-        </View>
+        <SettingsTitledContentBlock heading="EDIT">
+          <View style={styles.contentBlockWrapper}>
+            <SettingsTitledContentBox heading="ARTWORK">
+              <ProfileIcon thumbnail={thumbnail ?? { uri: '' }} editable />
+            </SettingsTitledContentBox>
+
+            <SettingsTitledContentBox
+              heading="AUDIO DATA"
+              containerStyle={styles.audioContentBox}
+            >
+              <Text style={styles.audioExt}>{audioExt}</Text>
+              {trackSource && (
+                <View>
+                  <Text style={styles.audioTitle}>{audioTitle}</Text>
+                  <View style={styles.audioButtonWrapper}>
+                    <ActionButton
+                      label={<>Change{'\n'}Track</>}
+                      iconName="arrow-right-arrow-left"
+                      iconSize={20}
+                      containerClassName={styles.changeTrackButtonContainer}
+                      onPress={() => console.log('Change Track pressed')}
+                    />
+                  </View>
+                </View>
+              )}
+            </SettingsTitledContentBox>
+          </View>
+        </SettingsTitledContentBlock>
       </ScrollView>
     </OverlayScreenTemplate>
   );

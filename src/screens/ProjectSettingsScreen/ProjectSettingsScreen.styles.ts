@@ -1,17 +1,41 @@
 import { StyleSheet } from 'react-native';
+import { COLORS } from '@/globalStyles';
 
 export default StyleSheet.create({
   container: {
-    paddingTop: 50,
+    paddingVertical: 30,
   },
-  formControlContainer: {
+  contentBlockWrapper: {
     display: 'flex',
-    flexDirection: 'column',
-    rowGap: 16,
-    marginTop: 24,
-    paddingHorizontal: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
   },
-  saveButton: {
-    marginVertical: 8,
+  audioContentBox: {
+    position: 'relative',
+    width: '50%',
+  },
+  audioExt: {
+    position: 'absolute',
+    top: -40,
+    left: 96,
+    padding: 4,
+    textAlign: 'center',
+    color: COLORS.font.default,
+    fontSize: 14,
+    borderRadius: 2,
+    backgroundColor: COLORS.font.label,
+  },
+  audioTitle: {
+    color: COLORS.font.default,
+    fontSize: 20,
+  },
+  audioButtonWrapper: {
+    marginTop: 16,
+    display: 'flex',
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
+  changeTrackButtonContainer: {
+    width: 110,
   },
 });
