@@ -13,7 +13,6 @@ export default function ProjectListScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
-
   const { projects, loading, error } = useFetchProject();
 
   useEffect(() => {
@@ -49,9 +48,10 @@ export default function ProjectListScreen() {
       titleAnim2={titleAnim2}
     >
       <ScrollView style={styles.container}>
-        {projects.map((project) => (
+        {projects.map((project, index) => (
           <ProjectItem
             key={project.id}
+            index={index}
             artwork={project.artwork ? { uri: project.artwork } : undefined}
             projectName={project.projectName}
             soundSourceName={project.trackName}
