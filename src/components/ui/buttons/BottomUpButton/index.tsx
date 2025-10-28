@@ -15,6 +15,7 @@ interface Props {
   label: string;
   containerClassName?: StyleProp<ViewStyle>;
   labelClassName?: StyleProp<TextStyle>;
+  iconName?: string;
   onPress: (event: GestureResponderEvent) => void;
 }
 
@@ -22,6 +23,7 @@ export default function BottomUpButton({
   label = 'UP',
   containerClassName,
   labelClassName,
+  iconName = 'angle-up',
   onPress,
 }: Props) {
   const containerStyle = [styles.container, containerClassName].filter(Boolean);
@@ -32,7 +34,7 @@ export default function BottomUpButton({
       <Text style={labelStyle}>{label}</Text>
       <Icon
         component={FontAwesome}
-        name={'angle-up' as FontAwesomeIconName}
+        name={iconName as FontAwesomeIconName}
         size={26}
         style={styles.icon}
       />

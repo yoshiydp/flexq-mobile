@@ -12,14 +12,12 @@ export default StyleSheet.create({
   },
   recHeaderButton: {
     position: 'absolute',
-    top: 0, // HeaderToolBar の位置
+    top: 0,
     left: 0,
     right: 0,
     height: 60,
     justifyContent: 'center',
     alignItems: 'center',
     zIndex: 1000,
-    // 必要なら背景や影など調整
-    // backgroundColor: '#000',
   },
 });

@@ -49,6 +49,10 @@ export default function ProjectEditScreen() {
   const [cueButtons, setCueButtons] = useState<CuePointType[]>([]);
   const [waveformData, setWaveformData] = useState<number[]>([]);
 
+  const [mode, setMode] = useState<'edit' | 'transition' | 'rec'>('edit');
+  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const slideAnim = useRef(new Animated.Value(0)).current;
+
   useEffect(() => {
     if (!project) return;
     setProjectName(project.projectName ?? '');
@@ -198,7 +202,7 @@ export default function ProjectEditScreen() {
     const nextState = !isEditingLyrics;
     setIsEditingLyrics(nextState);
 
-    if (!isRecMode) {
+    if (mode === 'edit') {
       Animated.parallel([
         Animated.timing(animatedHeight, {
           toValue: nextState ? EXPANDED_BODY_HEIGHT : MIN_BODY_HEIGHT,
@@ -396,6 +400,78 @@ export default function ProjectEditScreen() {
     });
   };
 
+  const handleEnterRecMode = () => {
+    setMode('transition');
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: -50,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setMode('rec');
+      fadeAnim.setValue(0);
+      slideAnim.setValue(50);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
+  const handleExitRecMode = () => {
+    setMode('transition');
+    Animated.parallel([
+      Animated.timing(fadeAnim, {
+        toValue: 0,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(slideAnim, {
+        toValue: 50,
+        duration: 350,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start(() => {
+      setMode('edit');
+      fadeAnim.setValue(0);
+      slideAnim.setValue(-50);
+      Animated.parallel([
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(slideAnim, {
+          toValue: 0,
+          duration: 350,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+      ]).start();
+    });
+  };
+
   const items: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     {
@@ -435,54 +511,64 @@ export default function ProjectEditScreen() {
 
   return (
     <View style={styles.container}>
-      {!isRecMode && <HeaderToolBar items={items} />}
-
+      {mode === 'edit' && <HeaderToolBar items={items} />}
       <View style={[styles.content, { height: contentHeight }]}>
-        {!isRecMode ? (
-          <EditView
-            projectName={projectName}
-            onChangeProjectName={setProjectName}
-            body={body}
-            onChangeBody={setBody}
-            isEditingLyrics={isEditingLyrics}
-            onToggleEditLyrics={handleToggleEditLyrics}
-            trackSource={trackSource}
-            sound={sound}
-            waveformData={waveformData}
-            cueButtons={cueButtons}
-            onCueButtonPress={onCueButtonPress}
-            onCueButtonLongPress={handleCueButtonLongPress}
-            onCuePointUpdate={handleCuePointUpdate}
-            onSeek={handleSeek}
-            isPlaying={isPlaying}
-            isLooping={isLooping}
-            onPlayPause={() => setIsPlaying((prev) => !prev)}
-            onLoopToggle={handleLoopToggle}
-            onAllCueReset={handleAllCueReset}
-            isAllCueResetDisabled={handleAllCueResetDisabled()}
-            showVolumeSlider={showVolumeSlider}
-            volume={volume}
-            onVolumeChange={setVolume}
-            animatedHeight={animatedHeight}
-            gradientOpacity={gradientOpacity}
-            volumeOpacity={volumeOpacity}
-            volumeTranslateY={volumeTranslateY}
-            bottomOffset={BOTTOM_OFFSET}
-            richText={richText as unknown as RefObject<RichEditor>}
-          />
-        ) : (
-          <RecView />
-        )}
+        <Animated.View
+          style={{
+            flex: 1,
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          }}
+        >
+          {mode === 'edit' || mode === 'transition' ? (
+            <EditView
+              projectName={projectName}
+              onChangeProjectName={setProjectName}
+              body={body}
+              onChangeBody={setBody}
+              isEditingLyrics={isEditingLyrics}
+              onToggleEditLyrics={handleToggleEditLyrics}
+              trackSource={trackSource}
+              sound={sound}
+              waveformData={waveformData}
+              cueButtons={cueButtons}
+              onCueButtonPress={onCueButtonPress}
+              onCueButtonLongPress={handleCueButtonLongPress}
+              onCuePointUpdate={handleCuePointUpdate}
+              onSeek={handleSeek}
+              isPlaying={isPlaying}
+              isLooping={isLooping}
+              onPlayPause={() => setIsPlaying((prev) => !prev)}
+              onLoopToggle={handleLoopToggle}
+              onAllCueReset={handleAllCueReset}
+              isAllCueResetDisabled={handleAllCueResetDisabled()}
+              showVolumeSlider={showVolumeSlider}
+              volume={volume}
+              onVolumeChange={setVolume}
+              animatedHeight={animatedHeight}
+              gradientOpacity={gradientOpacity}
+              volumeOpacity={volumeOpacity}
+              volumeTranslateY={volumeTranslateY}
+              bottomOffset={BOTTOM_OFFSET}
+              richText={richText as unknown as RefObject<RichEditor>}
+            />
+          ) : (
+            <RecView />
+          )}
+        </Animated.View>
       </View>
 
-      {!isRecMode && isBottomButtonVisible && (
+      {mode === 'edit' && isBottomButtonVisible && (
         <Animated.View style={{ opacity: bottomButtonOpacity }}>
-          <BottomUpButton label="REC MODE" onPress={() => setIsRecMode(true)} />
+          <BottomUpButton label="REC MODE" onPress={handleEnterRecMode} />
         </Animated.View>
       )}
-
-      {isRecMode && (
-        <BottomUpButton label="CLOSE" onPress={() => setIsRecMode(false)} />
+      {mode === 'rec' && (
+        <BottomUpButton
+          label="CLOSE"
+          iconName="angle-down"
+          onPress={handleExitRecMode}
+        />
       )}
     </View>
   );
