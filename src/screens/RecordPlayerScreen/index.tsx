@@ -209,6 +209,11 @@ export default function RecordPlayerScreen() {
           },
           { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
         ]
+      : params?.source === 'ProjectEdit'
+      ? [
+          { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
+          { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+        ]
       : [
           { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
           {

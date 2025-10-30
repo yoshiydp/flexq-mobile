@@ -27,6 +27,7 @@ import { CUE_LABELS } from '@/constants/cueLabels';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
+import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
 import styles from './ProjectEditScreen.styles';
 
 export default function ProjectEditScreen() {
@@ -41,6 +42,12 @@ export default function ProjectEditScreen() {
 
   const { project, loading, error } = useFetchProjectDetail(id);
 
+  const {
+    records: projectRecords,
+    loading: recordLoading,
+    error: recordError,
+  } = useFetchProjectRecords(id);
+
   const [isRecMode, setIsRecMode] = useState(false);
 
   const [projectName, setProjectName] = useState('');
@@ -52,6 +59,8 @@ export default function ProjectEditScreen() {
   const [mode, setMode] = useState<'edit' | 'transition' | 'rec'>('edit');
   const fadeAnim = useRef(new Animated.Value(1)).current;
   const slideAnim = useRef(new Animated.Value(0)).current;
+
+  const [currentView, setCurrentView] = useState<'edit' | 'rec'>('edit');
 
   useEffect(() => {
     if (!project) return;
@@ -416,7 +425,7 @@ export default function ProjectEditScreen() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setMode('rec');
+      setCurrentView('rec');
       fadeAnim.setValue(0);
       slideAnim.setValue(50);
       Animated.parallel([
@@ -432,7 +441,9 @@ export default function ProjectEditScreen() {
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        setMode('rec');
+      });
     });
   };
 
@@ -452,7 +463,7 @@ export default function ProjectEditScreen() {
         useNativeDriver: true,
       }),
     ]).start(() => {
-      setMode('edit');
+      setCurrentView('edit');
       fadeAnim.setValue(0);
       slideAnim.setValue(-50);
       Animated.parallel([
@@ -468,7 +479,9 @@ export default function ProjectEditScreen() {
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
         }),
-      ]).start();
+      ]).start(() => {
+        setMode('edit');
+      });
     });
   };
 
@@ -511,7 +524,9 @@ export default function ProjectEditScreen() {
 
   return (
     <View style={styles.container}>
-      {mode === 'edit' && <HeaderToolBar items={items} />}
+      {currentView === 'edit' && mode !== 'transition' && (
+        <HeaderToolBar items={items} />
+      )}
       <View style={[styles.content, { height: contentHeight }]}>
         <Animated.View
           style={{
@@ -520,7 +535,7 @@ export default function ProjectEditScreen() {
             transform: [{ translateY: slideAnim }],
           }}
         >
-          {mode === 'edit' || mode === 'transition' ? (
+          {currentView === 'edit' ? (
             <EditView
               projectName={projectName}
               onChangeProjectName={setProjectName}
@@ -553,17 +568,27 @@ export default function ProjectEditScreen() {
               richText={richText as unknown as RefObject<RichEditor>}
             />
           ) : (
-            <RecView />
+            <RecView
+              records={projectRecords}
+              onBeforeRecord={() => {
+                if (soundRef.current) {
+                  soundRef.current.pauseAsync().catch(() => {});
+                  setIsPlaying(false);
+                }
+              }}
+            />
           )}
         </Animated.View>
       </View>
 
-      {mode === 'edit' && isBottomButtonVisible && (
-        <Animated.View style={{ opacity: bottomButtonOpacity }}>
-          <BottomUpButton label="REC MODE" onPress={handleEnterRecMode} />
-        </Animated.View>
-      )}
-      {mode === 'rec' && (
+      {currentView === 'edit' &&
+        mode !== 'transition' &&
+        isBottomButtonVisible && (
+          <Animated.View style={{ opacity: bottomButtonOpacity }}>
+            <BottomUpButton label="REC MODE" onPress={handleEnterRecMode} />
+          </Animated.View>
+        )}
+      {currentView === 'rec' && mode !== 'transition' && (
         <BottomUpButton
           label="CLOSE"
           iconName="angle-down"
