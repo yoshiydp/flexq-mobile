@@ -51,19 +51,21 @@ async function generateOpenAPI() {
 
   baseYaml.components = baseYaml.components || {};
   baseYaml.components.examples = baseYaml.components.examples || {};
+  baseYaml.paths = baseYaml.paths || {};
 
   for (const [key, value] of Object.entries(dataEntries)) {
     baseYaml.components.examples[key] = { value };
   }
 
-  baseYaml.paths = baseYaml.paths || {};
-
   for (const key of Object.keys(dataEntries)) {
-    const endpoint = `/data/${key.replace('_DATA', '').toLowerCase()}`;
+    if (key === 'PROJECT_RECORD_LIST_DATA') continue;
+
+    const endpointName = key.replace('_DATA', '').toLowerCase();
+    const endpoint = `/data/${endpointName}`;
 
     baseYaml.paths[endpoint] = {
       get: {
-        summary: `Get ${key.replace('_DATA', '').toLowerCase()} data`,
+        summary: `Get ${endpointName} data`,
         description: `Returns mock data for ${key}.`,
         operationId: `get${key.replace('_DATA', '')}`,
         responses: {
@@ -82,9 +84,41 @@ async function generateOpenAPI() {
     };
   }
 
+  if (dataEntries.PROJECT_RECORD_LIST_DATA) {
+    baseYaml.paths['/data/project/{id}/records'] = {
+      get: {
+        summary: 'Get record list for a specific project',
+        description:
+          'Returns record list data associated with a specific project.',
+        parameters: [
+          {
+            name: 'id',
+            in: 'path',
+            required: true,
+            schema: { type: 'string' },
+            description: 'Project ID',
+          },
+        ],
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                examples: {
+                  PROJECT_RECORD_LIST_DATA: {
+                    $ref: '#/components/examples/PROJECT_RECORD_LIST_DATA',
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+
   const yamlStr = yaml.dump(baseYaml, { noRefs: true });
   fs.writeFileSync(OUTPUT_YAML, yamlStr, 'utf8');
-
   console.log('OpenAPI YAML updated:', OUTPUT_YAML);
 }
 

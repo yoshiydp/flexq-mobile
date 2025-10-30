@@ -49,6 +49,24 @@ export class DefaultService {
         });
     }
     /**
+     * Get record list for a specific project
+     * Returns record list data associated with a specific project.
+     * @param id Project ID
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getDataProjectRecords(
+        id: string,
+    ): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/project/{id}/records',
+            path: {
+                'id': id,
+            },
+        });
+    }
+    /**
      * Get profile data
      * Returns mock data for PROFILE_DATA.
      * @returns any OK
