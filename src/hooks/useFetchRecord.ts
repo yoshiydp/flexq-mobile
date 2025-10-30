@@ -20,12 +20,19 @@ export function useFetchRecord() {
 
     try {
       const res = await DefaultService.getRecord();
-      setRecords(
-        res.map((record: any) => ({
+
+      const sortedRecords = res
+        .map((record: any) => ({
           ...record,
           updatedAt: new Date(record.updatedAt),
-        })),
-      );
+        }))
+        .sort((a, b) => {
+          if (a.isBookmarked && !b.isBookmarked) return -1;
+          if (!a.isBookmarked && b.isBookmarked) return 1;
+          return b.updatedAt.getTime() - a.updatedAt.getTime();
+        });
+
+      setRecords(sortedRecords);
     } catch (err) {
       console.error('Failed to fetch record:', err);
       setError(err as Error);

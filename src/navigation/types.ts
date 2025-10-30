@@ -42,7 +42,7 @@ export type RootStackParamList = {
         recordedDuration?: number;
         title?: string;
         isBookmarked?: boolean;
-        source?: 'Drafts' | undefined;
+        source?: 'Drafts' | 'ProjectEdit' | undefined;
       }
     | undefined;
   RecordList?: undefined;

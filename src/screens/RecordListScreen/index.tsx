@@ -16,13 +16,6 @@ export default function RecordListScreen() {
 
   const { records, loading, error } = useFetchRecord();
 
-  const sortedRecords = [...records].sort((a, b) => {
-    if (a.isBookmarked !== b.isBookmarked) {
-      return a.isBookmarked ? -1 : 1;
-    }
-    return b.updatedAt.getTime() - a.updatedAt.getTime();
-  });
-
   const handleGoBack = () => {
     if (params.source === 'Drafts') {
       navigation.navigate('HomeTabs', { screen: params.source });
@@ -38,7 +31,7 @@ export default function RecordListScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
+      <View style={[styles.container, { justifyContent: 'center' }]}>
         <ActivityIndicator size="large" />
       </View>
     );
@@ -59,7 +52,7 @@ export default function RecordListScreen() {
     <View style={styles.container}>
       <HeaderToolBar items={items} />
       <ScrollView style={styles.listContainer}>
-        {sortedRecords.map((record) => (
+        {records.map((record) => (
           <RecordItem
             key={record.id}
             title={record.title}
