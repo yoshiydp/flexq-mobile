@@ -57,6 +57,25 @@ paths:
               examples:
                 PROJECT_DATA_DETAIL:
                   $ref: '#/components/examples/PROJECT_DATA_DETAIL'
+  /data/project/{id}/records:
+    get:
+      summary: Get record list for a specific project
+      description: Returns record list data associated with a specific project.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Project ID
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROJECT_RECORD_LIST_DATA:
+                  $ref: '#/components/examples/PROJECT_RECORD_LIST_DATA'
   /data/profile:
     get:
       summary: Get profile data
@@ -542,6 +561,35 @@ components:
             label: ''
             isActive: false
         updatedAt: '2023-10-01T12:00:00Z'
+    PROJECT_RECORD_LIST_DATA:
+      value:
+        - projectId: '1'
+          records:
+            - id: '101'
+              title: Intro Take 1
+              source: http://localhost:3000/record/sample-1.m4a
+              updatedAt: '2023-10-05T12:00:00Z'
+              isBookmarked: true
+            - id: '102'
+              title: Verse Draft
+              source: http://localhost:3000/record/sample-2.m4a
+              updatedAt: '2023-10-06T12:00:00Z'
+              isBookmarked: false
+            - id: '103'
+              title: Chorus Vocal
+              source: http://localhost:3000/record/sample-3.m4a
+              updatedAt: '2023-10-08T12:00:00Z'
+              isBookmarked: false
+            - id: '104'
+              title: Bridge Idea
+              source: http://localhost:3000/record/sample-4.m4a
+              updatedAt: '2023-10-10T12:00:00Z'
+              isBookmarked: true
+            - id: '105'
+              title: Full Take
+              source: http://localhost:3000/record/sample-5.m4a
+              updatedAt: '2023-10-11T12:00:00Z'
+              isBookmarked: false
     RECORD_DATA:
       value:
         - id: '1'
