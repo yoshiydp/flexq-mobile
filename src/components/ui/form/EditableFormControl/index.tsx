@@ -3,6 +3,7 @@ import { FC, useState } from 'react';
 import { SvgProps } from 'react-native-svg';
 import ProfileEditSocialAccountList from '@/components/ui/socialAccount/ProfileEditSocialAccountList';
 import styles from './EditableFormControl.styles';
+import { COLORS } from '@/globalStyles';
 
 interface SocialAccount {
   icon: FC<SvgProps>;
@@ -10,10 +11,12 @@ interface SocialAccount {
   isLinked: boolean;
 }
 
-interface Props {
+interface EditableFormControlProps {
+  darkMode?: boolean;
   label?: string;
   formValue?: string;
   placeholder?: string;
+  secureTextEntry?: boolean;
   showSocialAccounts?: boolean;
   socialAccounts?: SocialAccount[] | undefined;
   onChangeText?: (text: string) => void;
@@ -22,16 +25,26 @@ interface Props {
 }
 
 export default function EditableFormControl({
+  darkMode,
   label,
   formValue = '',
   placeholder = '',
+  secureTextEntry,
   showSocialAccounts,
   socialAccounts,
   onChangeText,
   onPressRemoveLink,
   onPressLinkAccount,
-}: Props) {
+}: EditableFormControlProps) {
   const [value, setValue] = useState(formValue);
+  const labelStyles = [
+    styles.label,
+    darkMode ? styles.darkLabel : styles.lightLabel,
+  ];
+  const textInputStyles = [
+    styles.textInput,
+    darkMode ? styles.darktextInput : styles.lightTextInput,
+  ];
 
   const handleChangeText = (text: string) => {
     setValue(text);
@@ -40,7 +53,7 @@ export default function EditableFormControl({
 
   return (
     <View style={styles.container}>
-      {label && <Text style={styles.label}>{label}</Text>}
+      {label && <Text style={labelStyles}>{label}</Text>}
       {showSocialAccounts && socialAccounts ? (
         <View style={styles.socialAccountContainer}>
           <ProfileEditSocialAccountList
@@ -51,10 +64,14 @@ export default function EditableFormControl({
         </View>
       ) : (
         <TextInput
-          style={styles.textInput}
+          style={textInputStyles}
           value={value}
           placeholder={placeholder}
+          placeholderTextColor={
+            darkMode ? COLORS.form.placeholder : COLORS.form.search.placeholder
+          }
           onChangeText={handleChangeText}
+          secureTextEntry={!!secureTextEntry}
         />
       )}
     </View>

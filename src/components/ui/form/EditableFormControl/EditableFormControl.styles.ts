@@ -6,21 +6,35 @@ export default StyleSheet.create({
     width: '100%',
   },
   label: {
-    color: COLORS.form.default.text,
     fontFamily: 'NotoSans_400Regular',
     fontSize: 16,
     lineHeight: 24,
     fontWeight: 700,
+  },
+  lightLabel: {
+    color: COLORS.form.default.text,
+  },
+  darkLabel: {
+    color: COLORS.font.label,
   },
   textInput: {
     paddingVertical: 16,
     paddingHorizontal: 14,
     marginTop: 6,
     borderRadius: 8,
-    color: COLORS.form.search.default,
     fontSize: 16,
     fontWeight: 600,
+  },
+  lightTextInput: {
+    color: COLORS.form.search.default,
     backgroundColor: COLORS.form.overlay.background,
+  },
+  darktextInput: {
+    color: COLORS.form.default.text,
+    borderStyle: 'solid',
+    borderColor: COLORS.form.default.border,
+    borderWidth: 1,
+    backgroundColor: COLORS.form.default.background,
   },
   formValue: {
     paddingHorizontal: 12,
