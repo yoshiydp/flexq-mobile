@@ -5,7 +5,7 @@ interface Props {
   artwork: any;
 }
 
-export default function AudioPlayerScreen({ artwork }: Props) {
+export default function Artwork({ artwork }: Props) {
   return (
     <View style={styles.container}>
       {artwork && <Image source={artwork} style={styles.artwork} />}
