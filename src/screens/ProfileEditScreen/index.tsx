@@ -6,6 +6,7 @@ import EditableFormControl from '@/components/ui/form/EditableFormControl';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
 import { MODAL_MESSAGES } from '@/constants/messages';
+import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProfile } from '@/hooks/useFetchProfile';
 import styles from './ProfileEditScreen.styles';
 
@@ -56,8 +57,16 @@ export default function ProfileEditScreen() {
       <ScrollView style={styles.container}>
         <ProfileIcon thumbnail={profile.thumbnail} editable />
         <View style={styles.formControlContainer}>
-          <EditableFormControl label="User Name" formValue={profile.username} />
-          <EditableFormControl label="Email" formValue={profile.email} />
+          <EditableFormControl
+            label="User Name"
+            formValue={profile.username}
+            placeholder={PLACEHOLDERS.profileEdit.usernameInput}
+          />
+          <EditableFormControl
+            label="Email"
+            formValue={profile.email}
+            placeholder={PLACEHOLDERS.profileEdit.emailInput}
+          />
           <SubmitButton
             containerClassName={styles.saveButton}
             label="SAVE"

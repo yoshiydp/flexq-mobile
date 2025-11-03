@@ -157,7 +157,7 @@ export default function AudioPlayerScreen() {
 
   const onPressEdit = () => {
     showInputModal({
-      placeholder: PLACEHOLDERS.trackNameInput,
+      placeholder: PLACEHOLDERS.audioPlayer.trackNameInput,
       defaultValue: currentTrack.title,
       onSubmit: onSubmitTrackName,
     });

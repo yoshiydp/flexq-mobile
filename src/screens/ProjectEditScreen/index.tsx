@@ -338,7 +338,7 @@ export default function ProjectEditScreen() {
         : CUE_LABELS[index] ?? `Cue ${index + 1}`;
 
     showInputModal({
-      placeholder: PLACEHOLDERS.cueLabelInput,
+      placeholder: PLACEHOLDERS.projectEdit.cueLabelInput,
       defaultValue: defaultLabel,
       onSubmit: (text) => {
         if (!text.trim()) return;
