@@ -58,7 +58,7 @@ async function generateOpenAPI() {
   }
 
   for (const key of Object.keys(dataEntries)) {
-    if (key === 'PROJECT_RECORD_LIST_DATA') continue;
+    if (key === 'PROJECT_RECORD_LIST_DATA' || key === 'AUTH_DATA') continue;
 
     const endpointName = key.replace('_DATA', '').toLowerCase();
     const endpoint = `/data/${endpointName}`;
@@ -117,8 +117,70 @@ async function generateOpenAPI() {
     };
   }
 
+  if (dataEntries.AUTH_DATA) {
+    baseYaml.paths['/data/auth/login'] = {
+      post: {
+        summary: 'Mock login authentication',
+        description:
+          'Returns user authentication mock data (email & password).',
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                properties: {
+                  email: { type: 'string', example: 'testuser@example.com' },
+                  password: { type: 'string', example: 'password123' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                examples: {
+                  AUTH_DATA: { $ref: '#/components/examples/AUTH_DATA' },
+                },
+              },
+            },
+          },
+          '401': {
+            description: 'Unauthorized',
+            content: {
+              'application/json': {
+                example: { message: 'Invalid credentials' },
+              },
+            },
+          },
+        },
+      },
+    };
+
+    baseYaml.paths['/data/auth/logout'] = {
+      post: {
+        summary: 'Mock logout',
+        description: 'Returns a success message for logout.',
+        responses: {
+          '200': {
+            description: 'OK',
+            content: {
+              'application/json': {
+                example: { message: 'Logged out successfully' },
+              },
+            },
+          },
+        },
+      },
+    };
+  }
+
   const yamlStr = yaml.dump(baseYaml, { noRefs: true });
   fs.writeFileSync(OUTPUT_YAML, yamlStr, 'utf8');
+
   console.log('OpenAPI YAML updated:', OUTPUT_YAML);
 }
 

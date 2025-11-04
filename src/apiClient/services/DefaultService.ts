@@ -114,4 +114,39 @@ export class DefaultService {
             url: '/data/record',
         });
     }
+    /**
+     * Mock login authentication
+     * Returns user authentication mock data (email & password).
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataAuthLogin(
+        requestBody: {
+            email?: string;
+            password?: string;
+        },
+    ): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/login',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
+     * Mock logout
+     * Returns a success message for logout.
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataAuthLogout(): CancelablePromise<any> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/logout',
+        });
+    }
 }

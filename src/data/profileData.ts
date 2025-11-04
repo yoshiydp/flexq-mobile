@@ -1,7 +1,7 @@
 export const PROFILE_DATA = {
   thumbnail: 'http://localhost:3000/images/sample/profile.jpg',
   username: 'User Profile Name',
-  email: 'contact@example.com',
+  email: 'testuser@example.com',
   socialAccounts: [
     { provider: 'x', username: '@user_name', isLinked: true },
     { provider: 'instagram', username: '@user_name', isLinked: true },

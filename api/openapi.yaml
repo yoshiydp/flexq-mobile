@@ -26,6 +26,8 @@ paths:
                   $ref: '#/components/examples/RECORD_DATA'
                 TRACK_DATA:
                   $ref: '#/components/examples/TRACK_DATA'
+                AUTH_DATA:
+                  $ref: '#/components/examples/AUTH_DATA'
   /data/project:
     get:
       summary: Get project data
@@ -128,6 +130,48 @@ paths:
               examples:
                 RECORD_DATA:
                   $ref: '#/components/examples/RECORD_DATA'
+  /data/auth/login:
+    post:
+      summary: Mock login authentication
+      description: Returns user authentication mock data (email & password).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: testuser@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                AUTH_DATA:
+                  $ref: '#/components/examples/AUTH_DATA'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              example:
+                message: Invalid credentials
+  /data/auth/logout:
+    post:
+      summary: Mock logout
+      description: Returns a success message for logout.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example:
+                message: Logged out successfully
 components:
   examples:
     MEMO_DATA:
@@ -263,7 +307,7 @@ components:
       value:
         thumbnail: http://localhost:3000/images/sample/profile.jpg
         username: User Profile Name
-        email: contact@example.com
+        email: testuser@example.com
         socialAccounts:
           - provider: x
             username: '@user_name'
@@ -790,3 +834,24 @@ components:
             - project2
           extention: MP3
           updatedAt: '2023-10-01T12:00:00Z'
+    AUTH_DATA:
+      value:
+        - id: user_001
+          email: testuser@example.com
+          password: password123
+          username: User Profile Name
+          thumbnail: http://localhost:3000/images/sample/profile.jpg
+          socialAccounts:
+            - provider: x
+              username: '@user_name'
+              isLinked: true
+            - provider: instagram
+              username: '@user_name'
+              isLinked: true
+            - provider: google
+              username: Yoshi Watanabe
+              isLinked: true
+          token:
+            accessToken: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_access_token
+            refreshToken: mock_refresh_token_value
+            expiresIn: 3600

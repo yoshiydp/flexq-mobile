@@ -13,19 +13,16 @@ app.use(
   '/audio',
   express.static(path.resolve(__dirname, '../src/assets/audio')),
 );
-
 app.use(
   '/images',
   express.static(path.resolve(__dirname, '../src/assets/images')),
 );
-
 app.use(
   '/record',
   express.static(path.resolve(__dirname, '../src/assets/record')),
 );
 
 const openapiPath = path.resolve(__dirname, '../api/openapi.yaml');
-
 if (!fs.existsSync(openapiPath)) {
   console.error(
     'openapi.yaml が見つかりません。先に yarn generate:openapi を実行してください。',
@@ -39,15 +36,16 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 swaggerDocument.paths &&
   Object.keys(swaggerDocument.paths).forEach((route) => {
-    const getRoute = swaggerDocument.paths[route].get;
+    const pathItem = swaggerDocument.paths[route];
+    const getRoute = pathItem.get;
+    const postRoute = pathItem.post;
+
     if (getRoute?.responses?.['200']?.content?.['application/json']?.examples) {
       const exampleKey = Object.keys(
         getRoute.responses['200'].content['application/json'].examples,
       )[0];
       const example =
         swaggerDocument.components.examples[exampleKey]?.value || {};
-
-      // ✅ `/data/project/{id}` のような動的パス対応
       const expressRoute = route.replace('{id}', ':id');
 
       app.get(expressRoute, (req, res) => {
@@ -55,6 +53,41 @@ swaggerDocument.paths &&
       });
 
       console.log(`Mock endpoint ready: GET ${expressRoute}`);
+    }
+
+    if (
+      postRoute?.responses?.['200']?.content?.['application/json']?.examples
+    ) {
+      const exampleKey = Object.keys(
+        postRoute.responses['200'].content['application/json'].examples,
+      )[0];
+      const example =
+        swaggerDocument.components.examples[exampleKey]?.value || {};
+      const expressRoute = route.replace('{id}', ':id');
+
+      app.post(expressRoute, (req, res) => {
+        if (expressRoute === '/data/auth/login') {
+          const { email, password } = req.body;
+          const user = Array.isArray(example)
+            ? example.find((u) => u.email === email && u.password === password)
+            : example;
+
+          if (!user) {
+            return res.status(401).json({ message: 'Invalid credentials' });
+          }
+
+          const { password: _, ...safeUser } = user;
+          return res.json(safeUser);
+        }
+
+        if (expressRoute === '/data/auth/logout') {
+          return res.json({ message: 'Logged out successfully' });
+        }
+
+        res.json(example);
+      });
+
+      console.log(`Mock endpoint ready: POST ${expressRoute}`);
     }
   });
 
