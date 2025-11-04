@@ -28,7 +28,7 @@
 
 ## 🎥 開発中のデモ
 
-<div align="center" style="display: flex; gap: 10px; justify-content: center;">
+<div align="center" style="display: flex; flex-directon: row; gap: 10px; justify-content: center;">
   <video src="https://github.com/user-attachments/assets/73e39b03-5a9d-45b3-b2a9-604aed8f542b"
          width="48%" autoplay loop muted playsinline></video>
   <video src="https://github.com/user-attachments/assets/2a49e83c-c177-47f4-9774-f4f98d5d1be0"
