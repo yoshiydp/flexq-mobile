@@ -71,6 +71,7 @@ export default function ProfileEditScreen() {
             containerClassName={styles.saveButton}
             label="SAVE"
             onPress={onSaveProfile}
+            disabled={!profile.username || !profile.email}
           />
           <EditableFormControl
             label="Link Social Accounts"
