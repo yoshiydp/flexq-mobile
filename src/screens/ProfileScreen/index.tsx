@@ -10,6 +10,7 @@ import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useAnimatedSequence } from '@/hooks/useAnimatedSequence';
 import { useModal } from '@/contexts/ModalContext';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { useFetchProfile } from '@/hooks/useFetchProfile';
 import styles from './ProfileScreen.styles';
@@ -20,6 +21,7 @@ export default function ProfileScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
   const { profile, loading } = useFetchProfile();
   const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
+  const { logout } = useAuthContext();
 
   const scrollAnim = useAnimatedSequence({
     start: startListAnimation,
@@ -42,14 +44,17 @@ export default function ProfileScreen() {
 
   const handleProfileEditPress = () => navigation.navigate('ProfileEdit', {});
 
-  const onSubmitLogout = () => {
+  const onSubmitLogout = async () => {
     closeModal();
     showLoading();
-    setTimeout(() => {
+
+    try {
+      await logout();
       hideLoading();
-      closeModal();
-      navigation.navigate('ProjectList');
-    }, 3000);
+    } catch (err) {
+      console.error('Logout error:', err);
+      hideLoading();
+    }
   };
 
   const onPressLogout = () => {
