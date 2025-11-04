@@ -1,10 +1,42 @@
-import { AuthProvider } from '@/contexts/AuthContext';
+import { useState, useEffect } from 'react';
+import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { StyleSheet } from 'react-native';
+import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import RootNavigator from '@/navigation/RootNavigator';
+import AnimatedSplashScreen from '@/components/ui/AnimatedSplashScreen';
+import { COLORS } from '@/globalStyles';
+
+function AppContent() {
+  const { loading } = useAuthContext();
+  const [splashVisible, setSplashVisible] = useState(true);
+
+  useEffect(() => {
+    if (!loading) {
+      setTimeout(() => setSplashVisible(false), 2500);
+    }
+  }, [loading]);
+
+  return (
+    <SafeAreaView style={styles.safeArea}>
+      <RootNavigator />
+      <AnimatedSplashScreen visible={splashVisible} />
+    </SafeAreaView>
+  );
+}
 
 export default function Layout() {
   return (
-    <AuthProvider>
-      <RootNavigator />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppContent />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
+
+const styles = StyleSheet.create({
+  safeArea: {
+    flex: 1,
+    backgroundColor: COLORS.base.bgDefault,
+  },
+});
