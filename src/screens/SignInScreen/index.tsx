@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { View, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
-import AppLogo from '@/components/ui/AppLogo';
+import AppLogo from '@/components/ui/logo/AppLogo';
 import EditableFormControl from '@/components/ui/form/EditableFormControl';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
