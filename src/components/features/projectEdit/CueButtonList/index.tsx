@@ -1,3 +1,4 @@
+import React from 'react';
 import { View } from 'react-native';
 import CueButton from '@/components/features/projectEdit/CueButton';
 import { CUE_LABELS } from '@/constants/cueLabels';

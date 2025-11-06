@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View, Text, Animated, LayoutChangeEvent } from 'react-native';
 import RippleButton from '@/components/ui/buttons/RippleButton';
 import Icon from '@/components/ui/Icon';
@@ -51,7 +51,11 @@ export default function LinkedProjectsButtonWithMenu({
   return (
     <View>
       <View onLayout={handleButtonLayout}>
-        <RippleButton onPress={onToggle} size={52}>
+        <RippleButton
+          onPress={onToggle}
+          size={52}
+          testId="linked-projects-button"
+        >
           <Icon
             component={FontAwesome6}
             name="link"

@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text } from 'react-native';
 import { FontAwesome5, FontAwesome6 } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';

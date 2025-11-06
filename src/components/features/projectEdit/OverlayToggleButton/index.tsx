@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Pressable, Text, Animated } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import Icon from '@/components/ui/Icon';

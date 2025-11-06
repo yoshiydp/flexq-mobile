@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Animated } from 'react-native';
 import styles from './HomeTabsScreenTemplate.styles';
 
@@ -6,7 +7,7 @@ interface AnimatedValues {
   opacity: Animated.Value;
 }
 
-interface Props {
+interface HomeTabsScreenTemplateProps {
   title: string;
   children: React.ReactNode;
   titleAnim1: AnimatedValues;
@@ -18,7 +19,7 @@ export default function HomeTabsScreenTemplate({
   children,
   titleAnim1,
   titleAnim2,
-}: Props) {
+}: HomeTabsScreenTemplateProps) {
   const [firstWord, secondWord] = title.split(' ');
 
   return (

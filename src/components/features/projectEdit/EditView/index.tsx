@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Animated } from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import TitleInput from '@/components/features/inputs/TitleInput';

@@ -1,3 +1,4 @@
+import React from 'react';
 import { Pressable, Text } from 'react-native';
 import styles from './SubmitButton.styles';
 
@@ -7,6 +8,7 @@ interface Props {
   labelClassName?: any;
   onPress: () => void;
   disabled?: boolean;
+  testId?: string;
 }
 
 export default function SubmitButton({
@@ -15,6 +17,7 @@ export default function SubmitButton({
   labelClassName,
   onPress,
   disabled = false,
+  testId,
 }: Props) {
   const containerStyle = [
     styles.container,
@@ -32,7 +35,12 @@ export default function SubmitButton({
   ];
 
   return (
-    <Pressable style={containerStyle} onPress={onPress} disabled={disabled}>
+    <Pressable
+      style={containerStyle}
+      onPress={onPress}
+      disabled={disabled}
+      testId={testId || 'submit-button'}
+    >
       <Text style={labelStyle}>{label}</Text>
     </Pressable>
   );

@@ -1,10 +1,11 @@
+import React from 'react';
 import { Text } from 'react-native';
 import styles from './ExtentionLabel.styles';
 
-interface Props {
+interface ExtensionLabelProps {
   label: string;
 }
 
-export default function ExtensionLabel({ label }: Props) {
+export default function ExtensionLabel({ label }: ExtensionLabelProps) {
   return <Text style={styles.container}>{label}</Text>;
 }

@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import React, { useEffect, useRef } from 'react';
 import {
   View,
   Pressable,
@@ -13,7 +13,7 @@ import Icon from '@/components/ui/Icon';
 import type { FontAwesomeIconName } from '@/types/iconTypes';
 import styles from './ProjectItem.styles';
 
-interface Props {
+interface ProjectItemProps {
   artwork: any;
   projectName: string;
   soundSourceName: string;
@@ -33,7 +33,7 @@ export default function ProjectItem({
   onPress,
   index = 0,
   startAnimation = false,
-}: Props) {
+}: ProjectItemProps) {
   const translateX = useRef(new Animated.Value(50)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const animatedStarted = useRef(false);

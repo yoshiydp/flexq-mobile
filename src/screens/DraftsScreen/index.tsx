@@ -1,3 +1,4 @@
+import React from 'react';
 import { View } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';

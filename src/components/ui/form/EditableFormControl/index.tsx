@@ -1,5 +1,5 @@
+import React, { FC, useState } from 'react';
 import { View, Text, TextInput } from 'react-native';
-import { FC, useState } from 'react';
 import { SvgProps } from 'react-native-svg';
 import ProfileEditSocialAccountList from '@/components/ui/socialAccount/ProfileEditSocialAccountList';
 import styles from './EditableFormControl.styles';

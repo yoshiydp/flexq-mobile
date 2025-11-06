@@ -1,5 +1,5 @@
+import React, { useRef } from 'react';
 import { Pressable, View, Text, Animated } from 'react-native';
-import { useRef } from 'react';
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import { runBounce } from '@/utils/animations';

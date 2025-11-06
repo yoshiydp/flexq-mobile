@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, ScrollView, Text } from 'react-native';
 import { Audio } from 'expo-av';
 import { useRoute, useNavigation } from '@react-navigation/native';

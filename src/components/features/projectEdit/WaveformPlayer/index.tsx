@@ -6,7 +6,7 @@ import { formatTime } from '@/utils/formatTime';
 import { COLORS } from '@/globalStyles';
 import styles from './WaveformPlayer.styles';
 
-interface Props {
+interface WaveformPlayerProps {
   sound: any;
   waveformJson: any;
   onSeek?: (ms: number) => void;
@@ -22,7 +22,7 @@ export default function WaveformPlayer({
   cuePoints = [],
   onCuePointUpdate,
   onPlaybackFinish,
-}: Props) {
+}: WaveformPlayerProps) {
   const [waveform, setWaveform] = useState<number[]>([]);
   const [duration, setDuration] = useState(1);
   const [position, setPosition] = useState(0);

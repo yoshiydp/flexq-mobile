@@ -1,3 +1,4 @@
+import React from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';

@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Animated,
   Pressable,
@@ -15,7 +16,7 @@ import type {
 } from '@/types/iconTypes';
 import styles from './TrackItem.styles';
 
-interface Props {
+interface TrackItemProps {
   title: string;
   linkedProjects: string[];
   extention: string;
@@ -33,7 +34,7 @@ export default function TrackItem({
   onPress,
   index = 0,
   startAnimation = false,
-}: Props) {
+}: TrackItemProps) {
   const anim = useAnimatedSequence({
     start: startAnimation,
     fromX: 50,

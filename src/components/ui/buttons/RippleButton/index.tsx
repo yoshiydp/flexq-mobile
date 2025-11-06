@@ -13,6 +13,7 @@ interface Props {
   size?: number;
   children: React.ReactNode;
   style?: StyleProp<ViewStyle>;
+  testId?: string;
 }
 
 export default function RippleButton({
@@ -20,6 +21,7 @@ export default function RippleButton({
   size = 70,
   children,
   style,
+  testId,
 }: Props) {
   const scale = useRef(new Animated.Value(0)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -59,6 +61,7 @@ export default function RippleButton({
         { width: size, height: size, borderRadius: size / 2 },
         style,
       ]}
+      testId={testId || 'ripple-button'}
     >
       <Animated.View
         style={[

@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   Button,
   KeyboardAvoidingView,
@@ -12,19 +13,21 @@ import {
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { styles } from './BodyInput.styles';
 
+interface BodyInputProps {
+  editorRef?: React.Ref<RichEditor>;
+  value: string;
+  onChangeText: (text: string) => void;
+  richEditorAddStyle?: any;
+  isEditing?: boolean;
+}
+
 export default function BodyInput({
   editorRef,
   value,
   onChangeText,
   richEditorAddStyle,
   isEditing,
-}: {
-  editorRef?: React.Ref<RichEditor>;
-  value: string;
-  onChangeText: (text: string) => void;
-  richEditorAddStyle?: any;
-  isEditing?: boolean;
-}) {
+}: BodyInputProps) {
   return (
     <KeyboardAvoidingView
       style={styles.container}
