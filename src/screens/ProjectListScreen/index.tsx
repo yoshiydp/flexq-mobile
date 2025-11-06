@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import React, { useEffect } from 'react';
 import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
 import ScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import ProjectItem from '@/components/features/projectList/ProjectItem';

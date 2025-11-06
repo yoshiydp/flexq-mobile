@@ -1,11 +1,13 @@
+import React from 'react';
 import { Pressable, Text } from 'react-native';
 import styles from './CancelButton.styles';
 
-interface Props {
+interface CancelButtonProps {
   label?: string;
   containerClassName?: any;
   labelClassName?: any;
   onPress: () => void;
+  testId?: string;
 }
 
 export default function CancelButton({
@@ -13,7 +15,8 @@ export default function CancelButton({
   containerClassName,
   labelClassName,
   onPress,
-}: Props) {
+  testId,
+}: CancelButtonProps) {
   const containerStyle = [
     styles.container,
     containerClassName && typeof containerClassName !== 'string'
@@ -29,7 +32,11 @@ export default function CancelButton({
   ];
 
   return (
-    <Pressable style={containerStyle} onPress={onPress}>
+    <Pressable
+      style={containerStyle}
+      onPress={onPress}
+      testId={testId || 'cancel-button'}
+    >
       <Text style={labelStyle}>{label}</Text>
     </Pressable>
   );

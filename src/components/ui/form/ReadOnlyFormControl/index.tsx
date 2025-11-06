@@ -1,4 +1,4 @@
-import { View, Text } from 'react-native';
+import React, { View, Text } from 'react-native';
 import { FC } from 'react';
 import { SvgProps } from 'react-native-svg';
 import ProfileSocialAccountList from '@/components/ui/socialAccount/ProfileSocialAccountList';

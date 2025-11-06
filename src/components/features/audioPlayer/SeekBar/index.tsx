@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { formatTime } from '@/utils/formatTime';

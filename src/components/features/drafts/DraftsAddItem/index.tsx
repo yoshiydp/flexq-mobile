@@ -1,9 +1,10 @@
+import React from 'react';
 import { Animated } from 'react-native';
 import DraftsAddButton from '@/components/features/drafts/DraftsAddButton';
 import ArrowButton from '@/components/ui/buttons/ArrowButton';
 import styles from './DraftsAddItem.styles';
 
-interface Props {
+interface DraftsAddItemProps {
   addButtonLabel: string;
   listButtonLabel: string;
   onPressAddButton: () => void;
@@ -19,7 +20,7 @@ export default function DraftsAddItem({
   onPressListButton,
   translateX,
   opacity,
-}: Props) {
+}: DraftsAddItemProps) {
   return (
     <Animated.View
       style={[styles.container, { opacity, transform: [{ translateX }] }]}

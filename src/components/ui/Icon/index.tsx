@@ -1,3 +1,4 @@
+import React from 'react';
 import type { ComponentProps, ComponentType } from 'react';
 import type { StyleProp, ViewStyle, TextStyle, ImageStyle } from 'react-native';
 

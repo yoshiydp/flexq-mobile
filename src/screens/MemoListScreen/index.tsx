@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';

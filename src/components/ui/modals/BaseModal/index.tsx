@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Modal, View, BackHandler } from 'react-native';
 import Animated, { FadeIn, FadeOut, runOnJS } from 'react-native-reanimated';
 import CancelButton from '@/components/ui/buttons/CancelButton';

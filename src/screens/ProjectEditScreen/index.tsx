@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, type RefObject } from 'react';
+import React, { useState, useRef, useEffect, type RefObject } from 'react';
 import {
   View,
   Animated,

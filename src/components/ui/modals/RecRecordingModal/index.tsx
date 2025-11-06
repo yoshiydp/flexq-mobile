@@ -1,6 +1,6 @@
+import React, { useEffect } from 'react';
 import { Modal, BackHandler } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
-import { useEffect } from 'react';
 import RecRecordingSection from '@/components/features/record/RecRecordingSection';
 import styles from './RecRecordingModal.styles';
 

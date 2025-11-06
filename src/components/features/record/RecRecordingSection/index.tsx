@@ -1,11 +1,11 @@
+import React, { useRef, useState, useEffect } from 'react';
 import { Pressable, View, Text, Animated } from 'react-native';
-import { useRef, useState, useEffect } from 'react';
 import { Audio } from 'expo-av';
 import { runBounce } from '@/utils/animations';
 import { RECORDING_OPTIONS_HIGH_QUALITY } from '@/utils/recordingOptions';
 import styles from './RecRecordingSection.styles';
 
-interface Props {
+interface RecRecordingSectionProps {
   onStop: (durationMs: number, recordingFile: string) => void;
   countdownSeconds?: number;
 }
@@ -13,7 +13,7 @@ interface Props {
 export default function RecRecordingSection({
   onStop,
   countdownSeconds = 5,
-}: Props) {
+}: RecRecordingSectionProps) {
   const outerScale = useRef(new Animated.Value(1)).current;
   const innerScale = useRef(new Animated.Value(1)).current;
 
@@ -23,18 +23,18 @@ export default function RecRecordingSection({
 
   const recordingRef = useRef<Audio.Recording | null>(null);
 
-  // カウントダウン
   useEffect(() => {
-    let interval: NodeJS.Timer;
+    let interval: ReturnType<typeof setInterval>;
     if (countdown > 0) {
       interval = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     } else if (countdown === 0) {
       startRecording();
     }
-    return () => clearInterval(interval);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
   }, [countdown]);
 
-  // 録音タイマー
   useEffect(() => {
     if (!isRunning) return;
     const interval = setInterval(() => setTimer((prev) => prev + 10), 10);

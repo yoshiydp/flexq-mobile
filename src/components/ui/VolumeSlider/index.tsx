@@ -1,3 +1,4 @@
+import React from 'react';
 import { View } from 'react-native';
 import Slider from '@react-native-community/slider';
 import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
