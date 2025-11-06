@@ -19,10 +19,12 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 22.16.0
+          cache: 'yarn'
+          cache-dependency-path: './yarn.lock'
 
       - name: Install dependencies (root)
         run: yarn install --frozen-lockfile
 
       - name: Run tests with coverage
-        working-directory: ./apps/mobile
+        working-directory: ./mobile
         run: yarn test:ci
