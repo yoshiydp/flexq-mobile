@@ -1,5 +1,5 @@
+import React, { useState, useEffect } from 'react';
 import { ScrollView, View, Text } from 'react-native';
-import { useState, useEffect } from 'react';
 import { useRoute, RouteProp } from '@react-navigation/native';
 import type { RootStackParamList } from '@/navigation/types';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';

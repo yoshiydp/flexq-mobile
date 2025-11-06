@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Animated } from 'react-native';
 import { BottomTabBarProps } from '@react-navigation/bottom-tabs';
 import NavigationBarItem from '@/components/features/navigation/NavigationBarItem';

@@ -1,5 +1,5 @@
+import React, { FC } from 'react';
 import { View } from 'react-native';
-import { FC } from 'react';
 import { SvgProps } from 'react-native-svg';
 import ProfleSocialAccountBox from '@/components/ui/socialAccount/ProfleSocialAccountBox';
 import styles from './ProfileSocialAccountList.styles';

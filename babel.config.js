@@ -1,18 +1,18 @@
 module.exports = function (api) {
-  api.cache(true);
+  const isTest = api.env('test');
+  api.cache.using(() => (isTest ? 'test' : 'default'));
+
   return {
     presets: ['babel-preset-expo'],
     plugins: [
       [
         'module-resolver',
         {
-          alias: {
-            '@': './src', // ← srcへのエイリアス
-          },
+          alias: { '@': './src' },
           extensions: ['.js', '.jsx', '.ts', '.tsx'],
         },
       ],
-      'react-native-worklets/plugin',
-    ],
+      !isTest && 'react-native-worklets/plugin',
+    ].filter(Boolean),
   };
 };

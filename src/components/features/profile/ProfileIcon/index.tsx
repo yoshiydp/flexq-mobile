@@ -1,16 +1,21 @@
+import React from 'react';
 import { View, Image, Pressable } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import type { FontAwesome6IconName } from '@/types/iconTypes';
 import styles from './ProfileIcon.styles';
 
-interface Props {
+interface ProfileIconProps {
   thumbnail: { uri: string };
   editable?: boolean;
 }
 
-export default function ProfileIcon({ thumbnail, editable = false }: Props) {
+export default function ProfileIcon({
+  thumbnail,
+  editable = false,
+}: ProfileIconProps) {
   const handleUploadOnPress = () => {
+    // TODO: 端末の画像選択画面を開く処理を実装
     console.log('Upload button pressed');
   };
 

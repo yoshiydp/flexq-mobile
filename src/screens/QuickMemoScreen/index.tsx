@@ -1,4 +1,4 @@
-import { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { View, LayoutChangeEvent } from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';

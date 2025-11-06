@@ -1,3 +1,4 @@
+import React from 'react';
 import { View, Text } from 'react-native';
 import BaseModal from '@/components/ui/modals/BaseModal';
 import styles from './ConfirmModal.styles';

@@ -1,14 +1,15 @@
+import React from 'react';
 import { TextInput } from 'react-native';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { styles } from './TitleInput.styles';
 import { COLORS } from '@/globalStyles';
 
-interface Props {
+interface TitleInputProps {
   value: string;
   onChangeText: (text: string) => void;
 }
 
-export default function TitleInput({ value, onChangeText }: Props) {
+export default function TitleInput({ value, onChangeText }: TitleInputProps) {
   return (
     <TextInput
       style={styles.textInput}

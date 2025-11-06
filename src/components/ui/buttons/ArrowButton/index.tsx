@@ -1,3 +1,4 @@
+import React from 'react';
 import {
   View,
   Pressable,
@@ -17,6 +18,7 @@ interface Props {
   containerClassName?: StyleProp<ViewStyle>;
   labelClassName?: StyleProp<TextStyle>;
   onPress: (event: GestureResponderEvent) => void;
+  testId?: string;
 }
 
 export default function ArrowButton({
@@ -24,12 +26,17 @@ export default function ArrowButton({
   containerClassName,
   labelClassName,
   onPress,
+  testId,
 }: Props) {
   const containerStyle = [styles.container, containerClassName].filter(Boolean);
   const labelStyle = [styles.label, labelClassName].filter(Boolean);
 
   return (
-    <Pressable style={containerStyle} onPress={onPress}>
+    <Pressable
+      style={containerStyle}
+      onPress={onPress}
+      testId={testId || 'arrow-button'}
+    >
       <Text style={labelStyle}>{label}</Text>
       <View style={styles.iconContainer}>
         <Icon

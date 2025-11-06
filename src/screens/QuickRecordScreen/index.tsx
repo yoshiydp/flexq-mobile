@@ -1,5 +1,5 @@
+import React, { useState } from 'react';
 import { View } from 'react-native';
-import { useState } from 'react';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';

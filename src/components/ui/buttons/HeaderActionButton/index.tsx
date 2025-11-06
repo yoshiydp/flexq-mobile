@@ -1,3 +1,4 @@
+import React from 'react';
 import { Animated, Pressable, Text } from 'react-native';
 import { FontAwesome, FontAwesome6, Octicons } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
@@ -31,6 +32,7 @@ interface HeaderActionButtonProps<M extends IconModule = IconModule> {
   onPress: () => void;
   index?: number;
   startAnimation?: boolean;
+  testId?: string;
 }
 
 export default function HeaderActionButton<M extends IconModule>({
@@ -41,6 +43,7 @@ export default function HeaderActionButton<M extends IconModule>({
   onPress,
   index,
   startAnimation = false,
+  testId,
 }: HeaderActionButtonProps<M>) {
   const buttonContainerStyle = [
     styles.buttonContainer,
@@ -65,7 +68,11 @@ export default function HeaderActionButton<M extends IconModule>({
         },
       ]}
     >
-      <Pressable style={buttonContainerStyle} onPress={onPress}>
+      <Pressable
+        style={buttonContainerStyle}
+        onPress={onPress}
+        testId={testId || 'header-action-button'}
+      >
         {label && <Text style={styles.label}>{label}</Text>}
         <Icon
           component={IconComponent}

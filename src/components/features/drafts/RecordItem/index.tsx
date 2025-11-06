@@ -1,3 +1,4 @@
+import React from 'react';
 import { Pressable, Text, View, GestureResponderEvent } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
