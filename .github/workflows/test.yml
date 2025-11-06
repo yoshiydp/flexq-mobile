@@ -11,10 +11,6 @@ jobs:
     name: Run Jest Tests
     runs-on: ubuntu-latest
 
-    defaults:
-      run:
-        working-directory: ./mobile
-
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -22,9 +18,9 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22.16.0
           cache: 'yarn'
-          cache-dependency-path: mobile/yarn.lock
+          cache-dependency-path: yarn.lock
 
       - name: Install dependencies
         run: yarn install --frozen-lockfile
