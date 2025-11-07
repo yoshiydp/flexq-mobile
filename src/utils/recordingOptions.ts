@@ -1,17 +1,21 @@
 import { Audio } from 'expo-av';
 
+const ANDROID_OUTPUT_FORMAT_MPEG_4 = 2; // MPEG_4
+const ANDROID_AUDIO_ENCODER_AAC = 3; // AAC
+const IOS_AUDIO_QUALITY_HIGH = 0; // High quality
+
 export const RECORDING_OPTIONS_HIGH_QUALITY: Audio.RecordingOptions = {
   android: {
     extension: '.m4a',
-    outputFormat: Audio.RECORDING_OPTION_ANDROID_OUTPUT_FORMAT_MPEG_4,
-    audioEncoder: Audio.RECORDING_OPTION_ANDROID_AUDIO_ENCODER_AAC,
+    outputFormat: ANDROID_OUTPUT_FORMAT_MPEG_4,
+    audioEncoder: ANDROID_AUDIO_ENCODER_AAC,
     sampleRate: 44100,
     numberOfChannels: 2,
     bitRate: 128000,
   },
   ios: {
     extension: '.m4a',
-    audioQuality: Audio.RECORDING_OPTION_IOS_AUDIO_QUALITY_HIGH,
+    audioQuality: IOS_AUDIO_QUALITY_HIGH,
     sampleRate: 44100,
     numberOfChannels: 2,
     bitRate: 128000,

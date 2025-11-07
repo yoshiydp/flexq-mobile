@@ -41,7 +41,7 @@ export default function RecordPlayerScreen() {
   const [volume, setVolume] = useState(1);
   const [isLooping, setIsLooping] = useState(false);
 
-  const [confirmModalMeassage, setConfirmModalMessage] = useState({
+  const [confirmModalMessage, setConfirmModalMessage] = useState({
     message: '',
     description: '',
   });

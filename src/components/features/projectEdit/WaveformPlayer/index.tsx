@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { View, Dimensions, Text } from 'react-native';
 import Svg, { Rect, Line, Circle } from 'react-native-svg';
 import { CuePointType } from '@/types/cuePointType';
@@ -70,7 +70,7 @@ export default function WaveformPlayer({
   useEffect(() => {
     if (!sound) return;
 
-    sound.setOnPlaybackStatusUpdate(async (status: any) => {
+    const handlePlaybackStatusUpdate = async (status: any) => {
       if (status.isLoaded && !isDragging.current) {
         positionRef.current = status.positionMillis;
         setDuration(status.durationMillis || 1);
@@ -84,8 +84,18 @@ export default function WaveformPlayer({
         }
         onPlaybackFinish?.();
       }
-    });
-  }, [sound]);
+    };
+
+    sound.setOnPlaybackStatusUpdate(handlePlaybackStatusUpdate);
+
+    return () => {
+      try {
+        sound.setOnPlaybackStatusUpdate(null);
+      } catch {
+        // ignore if clearing isn't supported
+      }
+    };
+  }, [sound, onPlaybackFinish]);
 
   useEffect(() => {
     if (!sound) return;
@@ -112,17 +122,17 @@ export default function WaveformPlayer({
     };
   }, [sound]);
 
-  const animate = () => {
+  const animatedWaveform = useCallback(() => {
     if (!isDragging.current) setPosition(positionRef.current);
-    rafRef.current = requestAnimationFrame(animate);
-  };
+    rafRef.current = requestAnimationFrame(animatedWaveform);
+  }, []);
 
   useEffect(() => {
-    rafRef.current = requestAnimationFrame(animate);
+    rafRef.current = requestAnimationFrame(animatedWaveform);
     return () => {
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, []);
+  }, [animatedWaveform]);
 
   const handleSeek = async (x: number) => {
     const seekPos = Math.min(
@@ -161,7 +171,7 @@ export default function WaveformPlayer({
         onCuePointUpdate?.(index, { ...cue, time: currentTime });
       }
     });
-  }, [cuePoints]);
+  }, [cuePoints, sound, onCuePointUpdate]);
 
   return (
     <View style={styles.container}>

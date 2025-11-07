@@ -19,18 +19,18 @@ export default function LinkedProjectsButtonWithMenu({
   const [shouldRender, setShouldRender] = useState(false);
   const [menuWidth, setMenuWidth] = useState(0);
   const [buttonCenterX, setButtonCenterX] = useState(0);
-  const fadeAnim = useRef(new Animated.Value(0)).current;
+  const fadeAnim = useRef(new Animated.Value(0));
 
   useEffect(() => {
     if (isOpen) {
       setShouldRender(true);
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim.current, {
         toValue: 1,
         duration: 200,
         useNativeDriver: true,
       }).start();
     } else {
-      Animated.timing(fadeAnim, {
+      Animated.timing(fadeAnim.current, {
         toValue: 0,
         duration: 200,
         useNativeDriver: true,
@@ -71,7 +71,7 @@ export default function LinkedProjectsButtonWithMenu({
           style={[
             styles.menuContainer,
             {
-              opacity: fadeAnim,
+              opacity: fadeAnim.current,
               left: buttonCenterX - menuWidth / 2,
             },
           ]}
