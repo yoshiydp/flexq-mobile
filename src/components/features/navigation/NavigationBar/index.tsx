@@ -32,7 +32,7 @@ export default function NavigationBar({
       toValue: targetX,
       useNativeDriver: true,
     }).start();
-  }, [state.index, layouts]);
+  }, [state.index, state.routes, layouts, indicatorX]);
 
   return (
     <View style={styles.wrapper}>

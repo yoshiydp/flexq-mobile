@@ -35,7 +35,7 @@ export default function AnimatedSplashScreen({
 
       setTimeout(() => onFinish?.(), 1000);
     }
-  }, [visible]);
+  }, [visible, onFinish, opacity, scale]);
 
   const animatedStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }],

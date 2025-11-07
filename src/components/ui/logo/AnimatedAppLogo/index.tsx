@@ -23,7 +23,7 @@ export default function AnimatedAppLogo() {
       1500,
       withTiming(1, { duration: 1000, easing: Easing.inOut(Easing.ease) }),
     );
-  }, []);
+  }, [strokeProgress, fillProgress]);
 
   return (
     <View>

@@ -68,7 +68,18 @@ export function useAnimatedSequence({
 
       Animated.parallel(animations).start(() => onEnd?.());
     }
-  }, [start]);
+  }, [
+    start,
+    delayStep,
+    duration,
+    fromX,
+    fromY,
+    index,
+    onEnd,
+    opacity,
+    translateX,
+    translateY,
+  ]);
 
   return { translateX, translateY, opacity };
 }
