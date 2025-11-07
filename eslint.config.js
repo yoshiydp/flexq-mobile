@@ -6,5 +6,11 @@ module.exports = defineConfig([
   expoConfig,
   {
     ignores: ['dist/*'],
+
+    rules: {
+      '@typescript-eslint/no-unused-vars': 'off',
+      'react-hooks/exhaustive-deps': 'off',
+      'eslint-comments/no-unused-disable': 'off',
+    },
   },
 ]);

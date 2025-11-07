@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { View, ScrollView } from 'react-native';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import RecordItem from '@/components/features/drafts/RecordItem';
@@ -18,8 +18,6 @@ interface RecViewProps {
 export default function RecView({ records, onBeforeRecord }: RecViewProps) {
   const navigator =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const route = useRoute<RouteProp<RootStackParamList, 'QuickRecord'>>();
-  const params = route.params;
 
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
   const [recordedFile, setRecordedFile] = useState<string | null>(null);

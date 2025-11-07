@@ -38,22 +38,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const [user, setUser] = useState<AuthUser | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
 
-  useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        const token = await getAccessToken();
-        if (token) {
-          await refreshProfile();
-        }
-      } catch (err) {
-        console.error('Auto login failed:', err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    initializeAuth();
-  }, []);
-
   const login = useCallback(async (email: string, password: string) => {
     try {
       const res = await DefaultService.postDataAuthLogin({ email, password });
@@ -88,6 +72,22 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       console.error('Failed to refresh profile:', err);
     }
   }, []);
+
+  useEffect(() => {
+    const initializeAuth = async () => {
+      try {
+        const token = await getAccessToken();
+        if (token) {
+          await refreshProfile();
+        }
+      } catch (err) {
+        console.error('Auto login failed:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    initializeAuth();
+  }, [refreshProfile]);
 
   return (
     <AuthContext.Provider

@@ -47,7 +47,7 @@ export default function ActionButtonWithMenu({
         useNativeDriver: true,
       }).start(() => setShouldRender(false));
     }
-  }, [isOpen]);
+  }, [isOpen, fadeAnim]);
 
   return (
     <View>
