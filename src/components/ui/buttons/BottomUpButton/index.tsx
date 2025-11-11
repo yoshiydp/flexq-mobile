@@ -18,7 +18,7 @@ interface BottomUpButtonProps {
   labelClassName?: StyleProp<TextStyle>;
   iconName?: string;
   onPress: (event: GestureResponderEvent) => void;
-  testId?: string;
+  testID?: string;
 }
 
 export default function BottomUpButton({
@@ -27,7 +27,7 @@ export default function BottomUpButton({
   labelClassName,
   iconName = 'angle-up',
   onPress,
-  testId,
+  testID,
 }: BottomUpButtonProps) {
   const containerStyle = [styles.container, containerClassName].filter(Boolean);
   const labelStyle = [styles.label, labelClassName].filter(Boolean);
@@ -36,7 +36,7 @@ export default function BottomUpButton({
     <Pressable
       style={containerStyle}
       onPress={onPress}
-      testId={testId || 'bottom-up-button'}
+      testID={testID || 'bottom-up-button'}
     >
       <Text style={labelStyle}>{label}</Text>
       <Icon

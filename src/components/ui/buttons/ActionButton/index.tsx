@@ -11,7 +11,7 @@ interface ActionButtonProps {
   iconSize?: number;
   containerClassName?: StyleProp<ViewStyle>;
   onPress: () => void;
-  testId?: string;
+  testID?: string;
 }
 
 export default function ActionButton({
@@ -20,7 +20,7 @@ export default function ActionButton({
   iconSize,
   containerClassName,
   onPress,
-  testId,
+  testID,
 }: ActionButtonProps) {
   const containerStyle = [
     styles.container,
@@ -31,7 +31,7 @@ export default function ActionButton({
     <Pressable
       style={containerStyle}
       onPress={onPress}
-      testId={testId || 'action-button'}
+      testID={testID || 'action-button'}
     >
       <Text style={styles.label}>{label}</Text>
       <Icon

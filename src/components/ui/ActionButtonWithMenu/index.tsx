@@ -51,7 +51,12 @@ export default function ActionButtonWithMenu({
 
   return (
     <View>
-      <RippleButton onPress={onToggle} size={52} testId="toggle-button">
+      <RippleButton
+        onPress={onToggle}
+        size={52}
+        testID="action-button-with-menu"
+        accessibilityRole="button"
+      >
         <Icon
           component={FontAwesome6}
           name="ellipsis-vertical"
