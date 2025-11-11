@@ -31,6 +31,7 @@ export default function DraftsAddItem({
         containerClassName={styles.arrowButton}
         labelClassName={styles.arrowButtonLabel}
         onPress={onPressListButton}
+        testID="drafts-list-button"
       />
     </Animated.View>
   );

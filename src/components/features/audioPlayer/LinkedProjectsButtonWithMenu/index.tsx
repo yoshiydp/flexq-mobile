@@ -54,7 +54,7 @@ export default function LinkedProjectsButtonWithMenu({
         <RippleButton
           onPress={onToggle}
           size={52}
-          testId="linked-projects-button"
+          testID="linked-projects-button"
         >
           <Icon
             component={FontAwesome6}
