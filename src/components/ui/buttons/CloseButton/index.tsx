@@ -5,17 +5,17 @@ import Icon from '@/components/ui/Icon';
 import type { IoniconsIconName } from '@/types/iconTypes';
 import styles from './CloseButton.styles';
 
-interface CancelButtonProps {
+interface CloseButtonProps {
   onPress: (event: GestureResponderEvent) => void;
-  testId?: string;
+  testID?: string;
 }
 
-export default function CancelButton({ onPress, testId }: CancelButtonProps) {
+export default function CloseButton({ onPress, testID }: CloseButtonProps) {
   return (
     <Pressable
       style={styles.container}
       onPress={onPress}
-      testId={testId || 'cancel-button'}
+      testID={testID || 'close-button'}
     >
       <Icon
         component={Ionicons}

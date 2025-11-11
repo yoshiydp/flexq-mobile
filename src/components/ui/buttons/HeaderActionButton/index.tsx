@@ -32,7 +32,7 @@ interface HeaderActionButtonProps<M extends IconModule = IconModule> {
   onPress: () => void;
   index?: number;
   startAnimation?: boolean;
-  testId?: string;
+  testID?: string;
 }
 
 export default function HeaderActionButton<M extends IconModule>({
@@ -43,7 +43,7 @@ export default function HeaderActionButton<M extends IconModule>({
   onPress,
   index,
   startAnimation = false,
-  testId,
+  testID,
 }: HeaderActionButtonProps<M>) {
   const buttonContainerStyle = [
     styles.buttonContainer,
@@ -71,7 +71,7 @@ export default function HeaderActionButton<M extends IconModule>({
       <Pressable
         style={buttonContainerStyle}
         onPress={onPress}
-        testId={testId || 'header-action-button'}
+        testID={testID || 'header-action-button'}
       >
         {label && <Text style={styles.label}>{label}</Text>}
         <Icon

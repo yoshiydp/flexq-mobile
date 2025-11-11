@@ -207,6 +207,7 @@ export default function AudioPlayerScreen() {
           artwork={
             currentTrack.artwork ? { uri: currentTrack.artwork } : undefined
           }
+          testID="audio-player-artwork"
         />
         <View style={styles.infoWrapper}>
           <Text style={styles.title}>{currentTrack.title}</Text>

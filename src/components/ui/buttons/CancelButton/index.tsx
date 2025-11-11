@@ -7,7 +7,7 @@ interface CancelButtonProps {
   containerClassName?: any;
   labelClassName?: any;
   onPress: () => void;
-  testId?: string;
+  testID?: string;
 }
 
 export default function CancelButton({
@@ -15,7 +15,7 @@ export default function CancelButton({
   containerClassName,
   labelClassName,
   onPress,
-  testId,
+  testID,
 }: CancelButtonProps) {
   const containerStyle = [
     styles.container,
@@ -35,7 +35,7 @@ export default function CancelButton({
     <Pressable
       style={containerStyle}
       onPress={onPress}
-      testId={testId || 'cancel-button'}
+      testID={testID || 'cancel-button'}
     >
       <Text style={labelStyle}>{label}</Text>
     </Pressable>

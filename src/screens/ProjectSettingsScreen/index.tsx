@@ -72,6 +72,7 @@ export default function ProjectSettingsScreen() {
                       iconSize={20}
                       containerClassName={styles.changeTrackButtonContainer}
                       onPress={() => console.log('Change Track pressed')}
+                      testID="change-track-button"
                     />
                   </View>
                 </View>
