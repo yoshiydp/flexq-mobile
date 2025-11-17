@@ -95,15 +95,15 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       {children}
 
       {confirmOptions && (
-        <ConfirmModal visible={true} onClose={closeModal} {...confirmOptions} />
+        <ConfirmModal visible onClose={closeModal} {...confirmOptions} />
       )}
 
       {inputOptions && (
-        <InputModal visible={true} onClose={closeModal} {...inputOptions} />
+        <InputModal visible onClose={closeModal} {...inputOptions} />
       )}
 
       {recordingOptions && (
-        <RecRecordingModal visible={true} onClose={closeModal}>
+        <RecRecordingModal visible onClose={closeModal}>
           {/* Implement recording UI here */}
           <></>
         </RecRecordingModal>
