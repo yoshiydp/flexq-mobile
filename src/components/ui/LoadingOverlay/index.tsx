@@ -2,7 +2,11 @@ import React from 'react';
 import { View, ActivityIndicator } from 'react-native';
 import styles from './LoadingOverlay.styles';
 
-export default function LoadingOverlay({ visible }: { visible: boolean }) {
+interface LoadingOverlayProps {
+  visible: boolean;
+}
+
+export default function LoadingOverlay({ visible }: LoadingOverlayProps) {
   if (!visible) return null;
 
   return (

@@ -1,6 +1,6 @@
 import React from 'react';
 import { Pressable, Text } from 'react-native';
-import Octicons from '@expo/vector-icons/Octicons';
+import { Octicons } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import styles from './DraftsAddButton.styles';
 

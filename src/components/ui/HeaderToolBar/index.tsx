@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Pressable, Text } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
-import RippleButton from '../buttons/RippleButton';
+import RippleButton from '@/components/ui/buttons/RippleButton';
 import LinkedProjectsButtonWithMenu from '@/components/features/audioPlayer/LinkedProjectsButtonWithMenu';
 import ActionButtonWithMenu from '@/components/ui/ActionButtonWithMenu';
 import Icon from '@/components/ui/Icon';

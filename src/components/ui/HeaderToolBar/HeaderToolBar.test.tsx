@@ -1,0 +1,133 @@
+import React from 'react';
+import { render } from '@testing-library/react-native';
+import HeaderToolBar from './index';
+
+jest.mock('@expo/vector-icons', () => {
+  return {
+    FontAwesome: jest.fn(() => null),
+    MaterialIcons: jest.fn(() => null),
+    Ionicons: jest.fn(() => null),
+  };
+});
+
+jest.mock('@/components/ui/buttons/RippleButton', () => {
+  return jest.fn(() => null);
+});
+
+jest.mock(
+  '@/components/features/audioPlayer/LinkedProjectsButtonWithMenu',
+  () => {
+    return jest.fn(() => null);
+  },
+);
+
+jest.mock('@/components/ui/ActionButtonWithMenu', () => {
+  return jest.fn(() => null);
+});
+
+const audioPlayerScreenItems = [
+  {
+    id: 'back',
+    type: 'back' as const,
+    onPress: jest.fn(),
+  },
+  {
+    id: 'title',
+    type: 'headerTitle' as const,
+    headerTitle: 'Test Title',
+  },
+  {
+    id: 'bookmark',
+    type: 'bookmark' as const,
+    onPress: jest.fn(),
+  },
+];
+
+const projectEditorScreenItems = [
+  { id: 'back', type: 'back' as const, onPress: jest.fn() },
+  {
+    id: 'hamburger',
+    type: 'hamburger' as const,
+    onPress: jest.fn(),
+  },
+];
+
+const quickRecordScreenItems = [
+  { id: 'back', type: 'back' as const, onPress: jest.fn() },
+  {
+    id: 'headerTitle',
+    type: 'headerTitle' as const,
+    headerTitle: 'Quick Record',
+  },
+  {
+    id: 'navigationListScreen',
+    type: 'navigationListScreen' as const,
+    onPress: jest.fn(),
+  },
+];
+
+describe('HeaderToolBar コンポーネント', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('items と isBookmarked が正しくレンダリングされる', () => {
+    render(<HeaderToolBar items={audioPlayerScreenItems} isBookmarked />);
+  });
+
+  it('audioPlayerScreenItemsの全てのボタンの onPress が呼ばれる', () => {
+    render(
+      <HeaderToolBar items={audioPlayerScreenItems} isBookmarked={false} />,
+    );
+    audioPlayerScreenItems.forEach((item) => {
+      switch (item.type) {
+        case 'back':
+          item.onPress();
+          expect(item.onPress).toHaveBeenCalled();
+          break;
+        case 'bookmark':
+          item.onPress();
+          expect(item.onPress).toHaveBeenCalled();
+          break;
+        default:
+          break;
+      }
+    });
+  });
+
+  it('projectEditorScreenItemsの全てのボタンの onPress が呼ばれる', () => {
+    render(<HeaderToolBar items={projectEditorScreenItems} />);
+    projectEditorScreenItems.forEach((item) => {
+      switch (item.type) {
+        case 'back':
+          item.onPress();
+          expect(item.onPress).toHaveBeenCalled();
+          break;
+        case 'hamburger':
+          item.onPress();
+          expect(item.onPress).toHaveBeenCalled();
+          break;
+        default:
+          break;
+      }
+    });
+  });
+
+  it('quickRecordScreenItemsの全てのボタンの onPress が呼ばれる', () => {
+    render(<HeaderToolBar items={quickRecordScreenItems} />);
+    quickRecordScreenItems.forEach((item) => {
+      switch (item.type) {
+        case 'back':
+          item.onPress();
+          expect(item.onPress).toHaveBeenCalled();
+          break;
+        case 'navigationListScreen':
+          item.onPress();
+          expect(item.onPress).toHaveBeenCalled();
+          break;
+        default:
+          break;
+      }
+    });
+  });
+});

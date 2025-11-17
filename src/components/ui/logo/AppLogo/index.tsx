@@ -2,9 +2,13 @@ import React from 'react';
 import { View } from 'react-native';
 import LyricsLogo from '@/assets/images/lyrics-logo.svg';
 
-export default function AppLogo() {
+interface AppLogoProps {
+  testID?: string;
+}
+
+export default function AppLogo({ testID = 'app-logo' }: AppLogoProps) {
   return (
-    <View>
+    <View testID={testID}>
       <LyricsLogo />
     </View>
   );

@@ -1,32 +1,29 @@
-import React, { FC } from 'react';
+import React from 'react';
 import { View, Text, Pressable } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
+import styles from './ProfileSocialAccountBox.styles';
 import type { SvgProps } from 'react-native-svg';
+import type { FC } from 'react';
 import type { FontAwesome6IconName } from '@/types/iconTypes';
-import styles from './ProfleEditSocialAccountBox.styles';
 
 interface Props {
-  socialIcon: FC<SvgProps>;
+  icon?: FC<SvgProps>;
   username?: string;
   isLinked: boolean;
-  onPressRemoveLink?: () => void;
-  onPressLinkAccount?: () => void;
 }
 
-export default function ProfleEditSocialAccountBox({
-  socialIcon: SocialIcon,
+export default function ProfileSocialAccountBox({
+  icon: SocialIcon,
   username,
   isLinked,
-  onPressRemoveLink,
-  onPressLinkAccount,
 }: Props) {
   const containerStyles = [styles.container, isLinked && styles.isLinked];
 
   return (
     <View style={containerStyles}>
       <View style={styles.socialIconContainer}>
-        <SocialIcon />
+        {typeof SocialIcon === 'function' ? <SocialIcon /> : null}
       </View>
 
       {isLinked ? (
@@ -44,11 +41,14 @@ export default function ProfleEditSocialAccountBox({
       )}
 
       {isLinked ? (
-        <Pressable onPress={onPressRemoveLink} style={styles.removeButton}>
-          <Text style={styles.removeButtonText}>Remove Link</Text>
-        </Pressable>
+        <Icon
+          component={FontAwesome6}
+          name={'link' as FontAwesome6IconName}
+          size={18}
+          style={styles.linkIcon}
+        />
       ) : (
-        <Pressable onPress={onPressLinkAccount} style={styles.linkButton}>
+        <Pressable style={styles.linkButton}>
           <Text style={styles.linkButtonText}>Link Account</Text>
         </Pressable>
       )}
