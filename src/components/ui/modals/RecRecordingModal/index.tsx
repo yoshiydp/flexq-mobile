@@ -4,13 +4,17 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import RecRecordingSection from '@/components/features/record/RecRecordingSection';
 import styles from './RecRecordingModal.styles';
 
-interface Props {
+interface RecRecordingModalProps {
   visible: boolean;
   onClose: () => void;
   onStop: (durationMs: number, recordingFile: string) => void;
 }
 
-export default function RecRecordingModal({ visible, onClose, onStop }: Props) {
+export default function RecRecordingModal({
+  visible,
+  onClose,
+  onStop,
+}: RecRecordingModalProps) {
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
       'hardwareBackPress',

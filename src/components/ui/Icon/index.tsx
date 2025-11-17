@@ -13,6 +13,7 @@ interface Props<T extends ComponentType<IconBaseProps>> {
   name: ComponentProps<T>['name'];
   size: number;
   style?: StyleProp<ViewStyle | TextStyle | ImageStyle>;
+  testID?: string;
 }
 
 export default function Icon<T extends ComponentType<IconBaseProps>>({

@@ -1,10 +1,10 @@
 import React, { FC } from 'react';
 import { View } from 'react-native';
 import { SvgProps } from 'react-native-svg';
-import ProfleEditSocialAccountBox from '@/components/ui/socialAccount/ProfleEditSocialAccountBox';
+import ProfileEditSocialAccountBox from '@/components/ui/socialAccount/ProfileEditSocialAccountBox';
 import styles from './ProfileEditSocialAccountList.styles';
 
-interface Props {
+interface ProfileEditSocialAccountListProps {
   socialAccounts: {
     icon: FC<SvgProps>;
     username: string;
@@ -18,11 +18,11 @@ export default function ProfileEditSocialAccountList({
   socialAccounts,
   onPressRemoveLink,
   onPressLinkAccount,
-}: Props) {
+}: ProfileEditSocialAccountListProps) {
   return (
     <View style={styles.container}>
       {socialAccounts.map((account, index) => (
-        <ProfleEditSocialAccountBox
+        <ProfileEditSocialAccountBox
           key={index}
           socialIcon={account.icon}
           username={account.username}

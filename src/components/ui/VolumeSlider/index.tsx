@@ -1,17 +1,20 @@
 import React from 'react';
 import { View } from 'react-native';
 import Slider from '@react-native-community/slider';
-import FontAwesome6 from '@expo/vector-icons/FontAwesome6';
+import { FontAwesome6 } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import styles from './VolumeSlider.styles';
 import { COLORS } from '@/globalStyles';
 
-interface Props {
+interface VolumeSliderProps {
   volume: number;
   onVolumeChange: (value: number) => void;
 }
 
-export default function VolumeSlider({ volume, onVolumeChange }: Props) {
+export default function VolumeSlider({
+  volume,
+  onVolumeChange,
+}: VolumeSliderProps) {
   const leftIconName = volume === 0 ? 'volume-xmark' : 'volume-low';
 
   return (

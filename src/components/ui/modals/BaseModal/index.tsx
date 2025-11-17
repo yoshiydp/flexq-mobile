@@ -11,7 +11,7 @@ interface SubmitButtonProps {
   disabled?: boolean;
 }
 
-interface Props {
+interface BaseModalProps {
   visible: boolean;
   onClose: () => void;
   closeLabel?: string;
@@ -25,7 +25,7 @@ export default function BaseModal({
   closeLabel = 'CANCEL',
   children,
   submitButton,
-}: Props) {
+}: BaseModalProps) {
   const [showModal, setShowModal] = useState(visible);
 
   useEffect(() => {
