@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import ProfileEditSocialAccountBox from './index';
 
 jest.mock('@/components/ui/Icon', () => {
@@ -23,8 +23,8 @@ describe('ProfileEditSocialAccountBox コンポーネント', () => {
     );
   });
 
-  it('リンク解除ボタンが押されたときに onPressRemoveLink が呼ばれる', () => {
-    const { getByTestId } = render(
+  it('アカウントリンク解除ボタンが押されたときに onPressRemoveLink が呼ばれる', () => {
+    const { getByText } = render(
       <ProfileEditSocialAccountBox
         socialIcon={mockIcon}
         username="test user"
@@ -34,14 +34,14 @@ describe('ProfileEditSocialAccountBox コンポーネント', () => {
       />,
     );
 
-    const removeLinkButton = getByTestId('remove-link-button');
-    removeLinkButton.props.onPress();
+    const removeText = getByText('Remove Link');
+    fireEvent.press(removeText.parent);
 
-    expect(mockOnPressRemoveLink).toHaveBeenCalled();
+    expect(mockOnPressRemoveLink).toHaveBeenCalledTimes(1);
   });
 
   it('アカウントリンクボタンが押されたときに onPressLinkAccount が呼ばれる', () => {
-    const { getByTestId } = render(
+    const { getByText } = render(
       <ProfileEditSocialAccountBox
         socialIcon={mockIcon}
         username="test user"
@@ -51,9 +51,9 @@ describe('ProfileEditSocialAccountBox コンポーネント', () => {
       />,
     );
 
-    const linkAccountButton = getByTestId('link-account-button');
-    linkAccountButton.props.onPress();
+    const linkAccountText = getByText('Link Account');
+    fireEvent.press(linkAccountText.parent);
 
-    expect(mockOnPressLinkAccount).toHaveBeenCalled();
+    expect(mockOnPressLinkAccount).toHaveBeenCalledTimes(1);
   });
 });
