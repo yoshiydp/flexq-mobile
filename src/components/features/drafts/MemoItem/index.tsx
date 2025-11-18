@@ -4,7 +4,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import styles from './MemoItem.styles';
 
-interface Props {
+interface MemoItemProps {
   title: string;
   body: string;
   updatedAt: Date;
@@ -18,7 +18,7 @@ export default function MemoItem({
   updatedAt,
   isBookmarked,
   onPress,
-}: Props) {
+}: MemoItemProps) {
   return (
     <Pressable style={styles.container} onPress={onPress}>
       <View style={styles.infoWrapper}>
