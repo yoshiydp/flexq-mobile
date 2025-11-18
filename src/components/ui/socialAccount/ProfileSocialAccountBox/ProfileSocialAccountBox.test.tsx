@@ -19,15 +19,17 @@ describe('ProfileSocialAccountBox コンポーネント', () => {
     );
   });
 
-  it('リンク済みの場合、リンク済み表示がされる', () => {
-    const { getByText } = render(
+  it('アカウントリンクがされている場合、username が表示される', () => {
+    const { getByText, queryByText } = render(
       <ProfileSocialAccountBox icon={mockIcon} username="test user" isLinked />,
     );
 
-    expect(getByText('Linked')).toBeTruthy();
+    expect(getByText('test user')).toBeTruthy();
+    expect(queryByText('Not linked')).toBeNull();
+    expect(queryByText('Link Account')).toBeNull();
   });
 
-  it('未リンクの場合、リンクボタンが表示される', () => {
+  it('アカウントリンクがされていない場合、Not linked と Link Account が表示される', () => {
     const { getByText } = render(
       <ProfileSocialAccountBox
         icon={mockIcon}
@@ -36,6 +38,7 @@ describe('ProfileSocialAccountBox コンポーネント', () => {
       />,
     );
 
+    expect(getByText('Not linked')).toBeTruthy();
     expect(getByText('Link Account')).toBeTruthy();
   });
 });
