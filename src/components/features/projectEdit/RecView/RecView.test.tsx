@@ -1,7 +1,7 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
-import { ModalProvider } from '@/contexts/ModalContext'; // ← 追加！
+import { ModalProvider } from '@/contexts/ModalContext';
 import RecView from './index';
 
 jest.mock('@/components/features/drafts/RecordItem', () => {

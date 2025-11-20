@@ -48,8 +48,6 @@ export default function ProjectEditScreen() {
     error: recordError,
   } = useFetchProjectRecords(id);
 
-  const [isRecMode, setIsRecMode] = useState(false);
-
   const [projectName, setProjectName] = useState('');
   const [trackSource, setTrackSource] = useState<string | null>(null);
   const [body, setBody] = useState('');

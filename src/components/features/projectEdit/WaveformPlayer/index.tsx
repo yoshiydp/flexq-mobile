@@ -13,6 +13,7 @@ interface WaveformPlayerProps {
   cuePoints?: CuePointType[];
   onCuePointUpdate?: (index: number, updatedCue: CuePointType) => void;
   onPlaybackFinish?: () => void;
+  testID?: string;
 }
 
 export default function WaveformPlayer({
@@ -22,6 +23,7 @@ export default function WaveformPlayer({
   cuePoints = [],
   onCuePointUpdate,
   onPlaybackFinish,
+  testID = 'waveform-container',
 }: WaveformPlayerProps) {
   const [waveform, setWaveform] = useState<number[]>([]);
   const [duration, setDuration] = useState(1);
@@ -39,9 +41,16 @@ export default function WaveformPlayer({
 
     const loadWaveform = async () => {
       try {
-        const json = Array.isArray(waveformJson)
-          ? waveformJson
-          : waveformJson?.data ?? [];
+        let json;
+
+        if (typeof waveformJson === 'string') {
+          const res = await fetch(waveformJson);
+          json = await res.json();
+        } else if (Array.isArray(waveformJson)) {
+          json = waveformJson;
+        } else {
+          json = waveformJson?.data ?? [];
+        }
 
         const max = Math.max(...json.map(Math.abs)) || 1;
         const normalized = json.map((v: number) => Math.abs(v) / max);
@@ -180,6 +189,7 @@ export default function WaveformPlayer({
         onResponderGrant={handleResponderGrant}
         onResponderMove={handleResponderMove}
         onResponderRelease={handleResponderRelease}
+        testID={testID}
       >
         <Svg width={waveformWidth} height={waveformHeight}>
           {waveform.map((amp, index) => {
