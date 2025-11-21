@@ -14,6 +14,7 @@ import type {
   FontAwesomeIconName,
   FontAwesome6IconName,
 } from '@/types/iconTypes';
+import { formatDate } from '@/utils/formatDate';
 import styles from './TrackItem.styles';
 
 interface TrackItemProps {
@@ -66,9 +67,7 @@ export default function TrackItem({
               <ExtensionLabel label={extention} />
             </View>
           </View>
-          <Text style={styles.updatedAt}>
-            {updatedAt.toLocaleDateString()} UPLOAD
-          </Text>
+          <Text style={styles.updatedAt}>{formatDate(updatedAt)} UPLOAD</Text>
         </View>
         <Icon
           component={FontAwesome}

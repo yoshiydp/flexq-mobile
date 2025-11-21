@@ -11,6 +11,7 @@ import {
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import type { FontAwesomeIconName } from '@/types/iconTypes';
+import { formatDate } from '@/utils/formatDate';
 import styles from './ProjectItem.styles';
 
 interface ProjectItemProps {
@@ -73,9 +74,7 @@ export default function ProjectItem({
           <Text style={styles.projectName}>{projectName}</Text>
           <Text style={styles.soundSourceName}>{soundSourceName}</Text>
           {tags && <Text style={styles.tags}>{tags.join(', ')}</Text>}
-          <Text style={styles.updatedAt}>
-            {updatedAt.toLocaleDateString()} UPDATE
-          </Text>
+          <Text style={styles.updatedAt}>{formatDate(updatedAt)} UPDATE</Text>
         </View>
         <View style={styles.iconContainer}>
           <Icon

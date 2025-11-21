@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Text, View, GestureResponderEvent } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
+import { formatDate } from '@/utils/formatDate';
 import styles from './RecordItem.styles';
 
 interface RecordItemProps {
@@ -24,9 +25,7 @@ export default function RecordItem({
           <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
             {title}
           </Text>
-          <Text style={styles.updatedAt}>
-            {updatedAt.toLocaleDateString()} RECORDED
-          </Text>
+          <Text style={styles.updatedAt}>{formatDate(updatedAt)} RECORDED</Text>
         </View>
       </View>
       <Icon

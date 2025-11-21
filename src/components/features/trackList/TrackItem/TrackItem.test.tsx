@@ -29,7 +29,7 @@ describe('TrackItem コンポーネント', () => {
     getByText('Test Track');
     getByText('link');
     getByText('MP3');
-    getByText('2025/1/1 UPLOAD');
+    getByText('2025.01.01 UPLOAD');
   });
 
   it('onPress が呼ばれること', () => {
