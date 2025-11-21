@@ -7,10 +7,12 @@ import styles from './RecReadySection.styles';
 
 interface RecReadySectionProps {
   onPressStartRecording: () => void;
+  testID?: string;
 }
 
 export default function RecReadySection({
   onPressStartRecording,
+  testID = 'rec-ready-section-pressable',
 }: RecReadySectionProps) {
   const outerScale = useRef(new Animated.Value(1)).current;
   const innerScale = useRef(new Animated.Value(1)).current;
@@ -38,7 +40,11 @@ export default function RecReadySection({
         </Text>
       </View>
 
-      <Pressable style={styles.readyButton} onPress={handlePress}>
+      <Pressable
+        testID={testID}
+        style={styles.readyButton}
+        onPress={handlePress}
+      >
         <Animated.View
           style={[
             styles.readyButtonCircle,

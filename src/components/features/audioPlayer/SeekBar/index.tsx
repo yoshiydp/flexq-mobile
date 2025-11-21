@@ -5,13 +5,17 @@ import { formatTime } from '@/utils/formatTime';
 import styles from './SeekBar.styles';
 import { COLORS } from '@/globalStyles';
 
-interface Props {
+interface SeekBarProps {
   duration: number;
   position: number;
   onSliderChange: (value: number) => void;
 }
 
-export default function SeekBar({ duration, position, onSliderChange }: Props) {
+export default function SeekBar({
+  duration,
+  position,
+  onSliderChange,
+}: SeekBarProps) {
   return (
     <View style={styles.container}>
       <Slider

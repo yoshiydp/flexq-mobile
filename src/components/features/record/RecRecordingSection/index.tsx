@@ -8,11 +8,13 @@ import styles from './RecRecordingSection.styles';
 interface RecRecordingSectionProps {
   onStop: (durationMs: number, recordingFile: string) => void;
   countdownSeconds?: number;
+  testID?: string;
 }
 
 export default function RecRecordingSection({
   onStop,
   countdownSeconds = 5,
+  testID = 'rec-recording-section-pressable',
 }: RecRecordingSectionProps) {
   const outerScale = useRef(new Animated.Value(1)).current;
   const innerScale = useRef(new Animated.Value(1)).current;
@@ -95,7 +97,11 @@ export default function RecRecordingSection({
       ) : (
         <>
           <Text style={styles.timer}>{formatTime(timer)}</Text>
-          <Pressable style={styles.stopButton} onPress={stopRecording}>
+          <Pressable
+            style={styles.stopButton}
+            onPress={stopRecording}
+            testID={testID}
+          >
             <Animated.View
               style={[
                 styles.stopButtonCircle,
