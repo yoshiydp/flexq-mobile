@@ -2,6 +2,7 @@ import React from 'react';
 import { Pressable, Text, View, GestureResponderEvent } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
+import { formatDate } from '@/utils/formatDate';
 import styles from './MemoItem.styles';
 
 interface MemoItemProps {
@@ -26,9 +27,7 @@ export default function MemoItem({
           <Text style={styles.title} numberOfLines={1} ellipsizeMode="tail">
             {title}
           </Text>
-          <Text style={styles.updatedAt}>
-            {updatedAt.toLocaleDateString()} UPDATE
-          </Text>
+          <Text style={styles.updatedAt}>{formatDate(updatedAt)} UPDATE</Text>
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.bodyText} numberOfLines={1} ellipsizeMode="tail">
