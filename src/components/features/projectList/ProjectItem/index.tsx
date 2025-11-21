@@ -22,6 +22,7 @@ interface ProjectItemProps {
   onPress: (event: GestureResponderEvent) => void;
   index?: number;
   startAnimation?: boolean;
+  testID?: string;
 }
 
 export default function ProjectItem({
@@ -33,6 +34,7 @@ export default function ProjectItem({
   onPress,
   index = 0,
   startAnimation = false,
+  testID = 'project-item-pressable',
 }: ProjectItemProps) {
   const translateX = useRef(new Animated.Value(50)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -63,7 +65,7 @@ export default function ProjectItem({
 
   return (
     <Animated.View style={{ transform: [{ translateX }], opacity }}>
-      <Pressable style={styles.container} onPress={onPress}>
+      <Pressable style={styles.container} onPress={onPress} testID={testID}>
         <View style={styles.artworkContainer}>
           {artwork && <Image source={artwork} style={styles.artwork} />}
         </View>

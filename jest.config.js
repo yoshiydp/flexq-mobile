@@ -4,7 +4,10 @@ module.exports = {
   preset: 'react-native',
   testEnvironment: 'jsdom',
 
-  setupFiles: ['<rootDir>/jest.setup.js'],
+  setupFiles: [
+    '<rootDir>/jest.setup.js',
+    '<rootDir>/__mocks__/react-native.js',
+  ],
   setupFilesAfterEnv: [
     '@testing-library/jest-native/extend-expect',
     '@testing-library/jest-dom',
@@ -12,6 +15,7 @@ module.exports = {
 
   transformIgnorePatterns: [
     'node_modules/(?!(jest-)?react-native' +
+      '|expo-av' +
       '|@react-native' +
       '|@react-navigation' +
       '|@expo' +

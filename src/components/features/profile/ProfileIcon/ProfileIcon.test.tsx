@@ -1,0 +1,35 @@
+import React from 'react';
+import { render, fireEvent } from '@testing-library/react-native';
+import ProfileIcon from './index';
+
+jest.mock('@/components/ui/Icon', () => {
+  const { Text } = require('react-native');
+  return jest.fn(({ name }) => <Text>{name}</Text>);
+});
+
+describe('ProfileIcon コンポーネント', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  const mockThumbnail = {
+    uri: 'http://localhost:3000/images/sample/profile.jpg',
+  };
+
+  it('コンポーネントが正しくレンダリングされる（編集不可）', () => {
+    render(<ProfileIcon thumbnail={mockThumbnail} editable={false} />);
+  });
+
+  it('コンポーネントが正しくレンダリングされる（編集可能）', () => {
+    render(<ProfileIcon thumbnail={mockThumbnail} editable />);
+  });
+
+  it('アップロードボタンが押されたときに onPress が呼ばれる', () => {
+    const { getByText } = render(
+      <ProfileIcon thumbnail={mockThumbnail} editable />,
+    );
+
+    const uploadButton = getByText('upload').parent;
+    fireEvent.press(uploadButton);
+  });
+});
