@@ -24,6 +24,7 @@ interface TrackItemProps {
   onPress: (event: GestureResponderEvent) => void;
   index?: number;
   startAnimation?: boolean;
+  testID?: string;
 }
 
 export default function TrackItem({
@@ -34,6 +35,7 @@ export default function TrackItem({
   onPress,
   index = 0,
   startAnimation = false,
+  testID = 'track-item-pressable',
 }: TrackItemProps) {
   const anim = useAnimatedSequence({
     start: startAnimation,
@@ -48,7 +50,7 @@ export default function TrackItem({
         opacity: anim.opacity,
       }}
     >
-      <Pressable style={styles.container} onPress={onPress}>
+      <Pressable style={styles.container} onPress={onPress} testID={testID}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.infoBox}>
           <View style={styles.fileDetailBox}>
