@@ -24,7 +24,7 @@ describe('ProjectItem コンポーネント', () => {
     // TODO: 画像のテストを追加する方法を検討する
     getByText('Test Project');
     getByText('Test Track');
-    getByText('2025/1/1 UPDATE');
+    getByText('2025.01.01 UPDATE');
   });
 
   it('onPress が呼ばれること', () => {
