@@ -1,0 +1,134 @@
+openapi: 3.0.3
+info:
+  title: LYRICS API (AWS)
+  version: 1.0.0
+  description: |
+    Mock API for LYRICS Application.
+    Import this to AWS API Gateway to automatically create endpoints and Lambda integration.
+
+servers:
+  - url: https://{api_id}.execute-api.{region}.amazonaws.com/{stage}
+    variables:
+      api_id:
+        default: your-api-id
+      region:
+        default: ap-northeast-1
+      stage:
+        default: dev
+
+paths:
+  /data:
+    get:
+      summary: Get all mock data
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+              examples:
+                AUTH_DATA: { $ref: '#/components/examples/AUTH_DATA' }
+                MEMO_DATA: { $ref: '#/components/examples/MEMO_DATA' }
+                PROFILE_DATA: { $ref: '#/components/examples/PROFILE_DATA' }
+                PROJECT_DATA: { $ref: '#/components/examples/PROJECT_DATA' }
+                PROJECT_DATA_DETAIL:
+                  { $ref: '#/components/examples/PROJECT_DATA_DETAIL' }
+                PROJECT_RECORD_LIST_DATA:
+                  { $ref: '#/components/examples/PROJECT_RECORD_LIST_DATA' }
+                RECORD_DATA: { $ref: '#/components/examples/RECORD_DATA' }
+                TRACK_DATA: { $ref: '#/components/examples/TRACK_DATA' }
+
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:AWS_ACCOUNT_ID:function:get-data/invocations
+
+  /data/project:
+    get:
+      summary: Get project list
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROJECT_DATA: { $ref: '#/components/examples/PROJECT_DATA' }
+
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:AWS_ACCOUNT_ID:function:get-project/invocations
+
+  /data/project/{id}:
+    get:
+      summary: Get project detail
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROJECT_DATA_DETAIL:
+                  { $ref: '#/components/examples/PROJECT_DATA_DETAIL' }
+
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:AWS_ACCOUNT_ID:function:get-project-detail/invocations
+
+  /data/project/{id}/records:
+    get:
+      summary: Get project record list
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROJECT_RECORD_LIST_DATA:
+                  { $ref: '#/components/examples/PROJECT_RECORD_LIST_DATA' }
+
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:AWS_ACCOUNT_ID:function:get-project-records/invocations
+
+  /data/auth/login:
+    post:
+      summary: Mock login authentication
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                AUTH_DATA: { $ref: '#/components/examples/AUTH_DATA' }
+
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:AWS_ACCOUNT_ID:function:post-auth-login/invocations
+
+components:
+  examples:
+    MEMO_DATA: { value: null }
+    PROFILE_DATA: { value: null }
+    PROJECT_DATA: { value: null }
+    PROJECT_DATA_DETAIL: { value: null }
+    PROJECT_RECORD_LIST_DATA: { value: null }
+    RECORD_DATA: { value: null }
+    TRACK_DATA: { value: null }
+    AUTH_DATA: { value: null }
