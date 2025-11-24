@@ -14,12 +14,8 @@ import styles from './ProjectSettingsScreen.styles';
 export default function ProjectSettingsScreen() {
   const route = useRoute<RouteProp<RootStackParamList, 'ProjectSettings'>>();
 
-  const [artworkParam, setArtworkParam] = useState(
-    route.params?.artwork ?? null,
-  );
-  const [trackSource, setTrackSource] = useState(
-    route.params?.trackSource ?? null,
-  );
+  const artworkParam = route.params?.artwork ?? null;
+  const trackSource = route.params?.trackSource ?? null;
   const [thumbnail, setThumbnail] = useState<{ uri: string } | undefined>(
     undefined,
   );

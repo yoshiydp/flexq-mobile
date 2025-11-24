@@ -32,7 +32,7 @@ export default function QuickMemoScreen() {
   const [isBookmarked, setIsBookmarked] = useState(
     params.isBookmarked ?? false,
   );
-  const [saved, setSaved] = useState<{
+  const savedRef = useRef<{
     title: string;
     body: string;
     isBookmarked: boolean;
@@ -81,7 +81,7 @@ export default function QuickMemoScreen() {
       showLoading();
       const html = await richText.current?.getContentHtml();
       const updatedMemo = { title, body: html || '', isBookmarked };
-      setSaved(updatedMemo);
+      savedRef.current = updatedMemo;
     } catch (error) {
       console.error(error);
       hideLoading();

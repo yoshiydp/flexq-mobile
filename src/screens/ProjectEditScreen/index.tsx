@@ -48,6 +48,9 @@ export default function ProjectEditScreen() {
     error: recordError,
   } = useFetchProjectRecords(id);
 
+  const recordLoadingRef = useRef(recordLoading);
+  const recordErrorRef = useRef(recordError);
+
   const [projectName, setProjectName] = useState('');
   const [trackSource, setTrackSource] = useState<string | null>(null);
   const [body, setBody] = useState('');
@@ -59,6 +62,11 @@ export default function ProjectEditScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const [currentView, setCurrentView] = useState<'edit' | 'rec'>('edit');
+
+  useEffect(() => {
+    recordLoadingRef.current = recordLoading;
+    recordErrorRef.current = recordError;
+  }, [recordLoading, recordError]);
 
   useEffect(() => {
     if (!project) return;

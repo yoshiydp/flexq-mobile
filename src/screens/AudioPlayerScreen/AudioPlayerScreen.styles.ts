@@ -1,6 +1,5 @@
 import { StyleSheet } from 'react-native';
 import { COLORS } from '@/globalStyles';
-import VolumeSlider from '@/components/ui/VolumeSlider';
 
 export default StyleSheet.create({
   container: {
