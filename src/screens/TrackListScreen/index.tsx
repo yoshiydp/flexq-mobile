@@ -20,7 +20,10 @@ export default function TrackListScreen() {
   const handleTrackPress = (index: number) => {
     navigation.navigate('AudioPlayer', {
       trackIndex: index,
-      tracks: tracks,
+      tracks: tracks.map((track) => ({
+        ...track,
+        updatedAt: track.updatedAt.toISOString(),
+      })),
     });
   };
 

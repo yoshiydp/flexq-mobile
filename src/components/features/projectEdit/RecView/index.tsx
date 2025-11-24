@@ -20,8 +20,6 @@ export default function RecView({ records, onBeforeRecord }: RecViewProps) {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
-  const [recordedFile, setRecordedFile] = useState<string | null>(null);
-  const [recordedDuration, setRecordedDuration] = useState(0);
 
   const { showLoading, hideLoading } = useModal();
 
@@ -32,8 +30,6 @@ export default function RecView({ records, onBeforeRecord }: RecViewProps) {
 
   const handleStopRecording = (duration: number, file: string) => {
     if (!file || duration <= 0) return;
-    setRecordedDuration(duration);
-    setRecordedFile(file);
     setRecordingModalVisible(false);
     showLoading();
     setTimeout(() => {

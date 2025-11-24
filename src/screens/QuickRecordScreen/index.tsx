@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -17,8 +17,9 @@ export default function QuickRecordScreen() {
   const params = route.params;
 
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
-  const [recordedFile, setRecordedFile] = useState<string | null>(null);
-  const [recordedDuration, setRecordedDuration] = useState(0);
+  const recordedFileRef = useRef<string | null>(null);
+  const recordedDurationRef = useRef(0);
+
   const { showLoading, hideLoading } = useModal();
 
   const handleGoBack = () => {
@@ -29,15 +30,15 @@ export default function QuickRecordScreen() {
 
   const handleStopRecording = (duration: number, file: string) => {
     if (!file || duration <= 0) return;
-    setRecordedDuration(duration);
-    setRecordedFile(file);
+    recordedDurationRef.current = duration;
+    recordedFileRef.current = file;
     setRecordingModalVisible(false);
     showLoading();
     setTimeout(() => {
       hideLoading();
       navigator.navigate('RecordPlayer', {
-        recordedFile: file,
-        recordedDuration: duration,
+        recordedFile: recordedFileRef.current ?? undefined,
+        recordedDuration: recordedDurationRef.current,
         source: params?.source || undefined,
       });
     }, 3000);

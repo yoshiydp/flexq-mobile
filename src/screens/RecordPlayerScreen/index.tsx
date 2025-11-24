@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -29,7 +29,8 @@ export default function RecordPlayerScreen() {
   const [isBookmarked, setIsBookmarked] = useState(
     params?.isBookmarked ?? false,
   );
-  const [saved, setSaved] = useState<{
+
+  const savedRef = useRef<{
     title: string;
     isBookmarked: boolean;
   } | null>(null);
@@ -41,7 +42,10 @@ export default function RecordPlayerScreen() {
   const [volume, setVolume] = useState(1);
   const [isLooping, setIsLooping] = useState(false);
 
-  const [confirmModalMessage, setConfirmModalMessage] = useState({
+  const confirmModalMessageRef = useRef<{
+    message: string;
+    description: string;
+  }>({
     message: '',
     description: '',
   });
@@ -92,7 +96,8 @@ export default function RecordPlayerScreen() {
     const { message, description } = MODAL_MESSAGES.confirmRecordPlayerGoBack(
       params?.source,
     );
-    setConfirmModalMessage({ message, description });
+    confirmModalMessageRef.current = { message, description };
+
     loadTrack(false);
 
     return () => {
@@ -186,7 +191,7 @@ export default function RecordPlayerScreen() {
     try {
       showLoading();
       const updatedMemo = { title, isBookmarked };
-      setSaved(updatedMemo);
+      savedRef.current = updatedMemo;
     } catch (error) {
       console.error(error);
       hideLoading();
