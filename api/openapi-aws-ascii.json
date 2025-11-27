@@ -11,7 +11,7 @@
   },
   "servers": [
     {
-      "url": "https://YOUR_AWS_ACCOUNT_ID.execute-api.ap-northeast-1.amazonaws.com/dev"
+      "url": "https://140147588900.execute-api.ap-southeast-2.amazonaws.com/dev"
     }
   ],
   "paths": {
@@ -47,7 +47,7 @@
         "x-amazon-apigateway-integration": {
           "type": "aws_proxy",
           "httpMethod": "POST",
-          "uri": "arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-memo/invocations"
+          "uri": "arn:aws:apigateway:ap-southeast-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-southeast-2:140147588900:function:get-memo/invocations"
         }
       }
     },

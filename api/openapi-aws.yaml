@@ -5,11 +5,17 @@ info:
   description: |
     This API serves mock data for LYRICS application.
     It is designed to be used with AWS API Gateway + Lambda.
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
 servers:
   - url: https://YOUR_AWS_ACCOUNT_ID.execute-api.ap-northeast-1.amazonaws.com/dev
 paths:
   /data/memo:
     get:
+      summary: Invoke get-memo
+      operationId: get_memo
+      security: []
       responses:
         '200':
           description: OK
@@ -18,13 +24,21 @@ paths:
               examples:
                 MEMO_DATA:
                   $ref: '#/components/examples/MEMO_DATA'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                message: error
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: >-
-          arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-memo/invocations
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-memo/invocations
   /data/profile:
     get:
+      summary: Invoke get-profile
+      operationId: get_profile
+      security: []
       responses:
         '200':
           description: OK
@@ -33,13 +47,21 @@ paths:
               examples:
                 PROFILE_DATA:
                   $ref: '#/components/examples/PROFILE_DATA'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                message: error
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: >-
-          arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-profile/invocations
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-profile/invocations
   /data/project:
     get:
+      summary: Invoke get-project
+      operationId: get_project
+      security: []
       responses:
         '200':
           description: OK
@@ -48,13 +70,21 @@ paths:
               examples:
                 PROJECT_DATA:
                   $ref: '#/components/examples/PROJECT_DATA'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                message: error
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: >-
-          arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-project/invocations
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-project/invocations
   /data/record:
     get:
+      summary: Invoke get-record
+      operationId: get_record
+      security: []
       responses:
         '200':
           description: OK
@@ -63,13 +93,21 @@ paths:
               examples:
                 RECORD_DATA:
                   $ref: '#/components/examples/RECORD_DATA'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                message: error
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: >-
-          arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-record/invocations
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-record/invocations
   /data/track:
     get:
+      summary: Invoke get-track
+      operationId: get_track
+      security: []
       responses:
         '200':
           description: OK
@@ -78,13 +116,21 @@ paths:
               examples:
                 TRACK_DATA:
                   $ref: '#/components/examples/TRACK_DATA'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                message: error
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: >-
-          arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-track/invocations
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-track/invocations
   /data/project/{id}/records:
     get:
+      summary: Invoke get-project-records
+      operationId: get_project_records
+      security: []
       parameters:
         - name: id
           in: path
@@ -99,13 +145,21 @@ paths:
               examples:
                 PROJECT_RECORD_LIST_DATA:
                   $ref: '#/components/examples/PROJECT_RECORD_LIST_DATA'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                message: error
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: >-
-          arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-project-records/invocations
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-project-records/invocations
   /data/auth/login:
     post:
+      summary: Invoke post-auth-login
+      operationId: post_auth_login
+      security: []
       requestBody:
         required: true
         content:
@@ -125,11 +179,16 @@ paths:
               examples:
                 AUTH_DATA:
                   $ref: '#/components/examples/AUTH_DATA'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              example:
+                message: error
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST
-        uri: >-
-          arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:post-auth-login/invocations
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:post-auth-login/invocations
 components:
   examples:
     AUTH_DATA:
@@ -170,106 +229,106 @@ components:
         [
           {
             "id": "1",
-            "title": "1",
-            "body": "",
+            "title": "メモタイトル1",
+            "body": "これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。",
             "updatedAt": "2023-10-01T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "2",
-            "title": "2",
-            "body": "",
+            "title": "メモタイトル2",
+            "body": "別のメモの内容です。別のメモの内容です。別のメモの内容です。別のメモの内容です。",
             "updatedAt": "2023-10-02T15:30:00Z",
             "isBookmarked": false
           },
           {
             "id": "3",
-            "title": "",
-            "body": "\n\n\n",
+            "title": "買い物リスト",
+            "body": "・牛乳\n・卵\n・パン\n・果物",
             "updatedAt": "2023-10-03T09:45:00Z",
             "isBookmarked": false
           },
           {
             "id": "4",
-            "title": "",
-            "body": "\n- UI\n- \n- ",
+            "title": "プロジェクトアイデア",
+            "body": "新しいアプリのアイデアをまとめる。\n- ユーザーフレンドリーなUI\n- 高速なパフォーマンス\n- クロスプラットフォーム対応",
             "updatedAt": "2023-10-04T18:20:00Z",
             "isBookmarked": true
           },
           {
             "id": "5",
-            "title": "",
-            "body": "\n- : \n- : 202311101115\n- : XYZ",
+            "title": "旅行計画",
+            "body": "次の旅行の計画を立てる。\n- 行き先: 京都\n- 日程: 2023年11月10日〜11月15日\n- 宿泊先: ホテルXYZ",
             "updatedAt": "2023-10-05T14:10:00Z",
             "isBookmarked": false
           },
           {
             "id": "6",
-            "title": "",
-            "body": "\n1. \n2. \n3. 1Q84",
+            "title": "読書リスト",
+            "body": "読みたい本のリスト。\n1. 「深夜特急」\n2. 「ノルウェイの森」\n3. 「1Q84」",
             "updatedAt": "2023-10-06T11:05:00Z",
             "isBookmarked": true
           },
           {
             "id": "7",
-            "title": "",
-            "body": "\n- \n- \n- ",
+            "title": "会議メモ",
+            "body": "今日の会議で話した内容を記録する。\n- プロジェクトの進捗状況\n- 次のステップ\n- 課題と解決策",
             "updatedAt": "2023-10-07T16:40:00Z",
             "isBookmarked": false
           },
           {
             "id": "8",
-            "title": "",
-            "body": "\n- \n- \n- ",
+            "title": "レシピメモ",
+            "body": "お気に入りのレシピを保存する。\n- パスタの作り方\n- サラダのドレッシング\n- デザートのアイデア",
             "updatedAt": "2023-10-08T13:25:00Z",
             "isBookmarked": false
           },
           {
             "id": "9",
-            "title": "",
-            "body": "\n- : \n- : \n- : ",
+            "title": "フィットネスプラン",
+            "body": "毎週のフィットネスプランを作成する。\n- 月曜日: ジョギング\n- 水曜日: 筋トレ\n- 金曜日: ヨガ",
             "updatedAt": "2023-10-09T10:15:00Z",
             "isBookmarked": false
           },
           {
             "id": "10",
-            "title": "",
-            "body": "\n- \n- A\n- ",
+            "title": "仕事のタスク",
+            "body": "今日の仕事のタスクをリストアップする。\n- メールチェック\n- プロジェクトAの進捗確認\n- ミーティング準備",
             "updatedAt": "2023-10-10T17:50:00Z",
             "isBookmarked": false
           },
           {
             "id": "11",
-            "title": "",
-            "body": "\n- 1\n- 2\n- 3",
+            "title": "新しいアイデア",
+            "body": "新しいアイデアをメモする。\n- アイデア1\n- アイデア2\n- アイデア3",
             "updatedAt": "2023-10-11T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "12",
-            "title": "",
-            "body": "\n- : \n- : ",
+            "title": "週末の予定",
+            "body": "週末の予定を立てる。\n- 土曜日: 買い物と掃除\n- 日曜日: 友人とランチ",
             "updatedAt": "2023-10-12T15:30:00Z",
             "isBookmarked": false
           },
           {
             "id": "13",
-            "title": "",
-            "body": "\n1. \n2. \n3. ",
+            "title": "映画リスト",
+            "body": "観たい映画のリスト。\n1. 「インセプション」\n2. 「マトリックス」\n3. 「ショーシャンクの空に」",
             "updatedAt": "2023-10-13T09:45:00Z",
             "isBookmarked": false
           },
           {
             "id": "14",
-            "title": "",
-            "body": "\n- : \n- : \n- : ",
+            "title": "学習計画",
+            "body": "新しいスキルを学ぶための計画を立てる。\n- 月曜日: プログラミング\n- 水曜日: デザイン\n- 金曜日: マーケティング",
             "updatedAt": "2023-10-14T18:20:00Z",
             "isBookmarked": false
           },
           {
             "id": "15",
-            "title": "",
-            "body": "\n- \n- \n- ",
+            "title": "ガーデニングメモ",
+            "body": "ガーデニングのアイデアをメモする。\n- 植物の種類\n- 肥料の種類\n- 水やりの頻度",
             "updatedAt": "2023-10-15T14:10:00Z",
             "isBookmarked": true
           }
@@ -1034,3 +1093,4 @@ x-amazon-apigateway-gateway-responses:
     statusCode: 500
     responseTemplates:
       application/json: '{"message":$context.error.messageString}'
+x-amazon-apigateway-api-key-source: HEADER
