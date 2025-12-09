@@ -205,7 +205,7 @@ export default function ProjectEditScreen() {
     (async () => {
       try {
         await soundRef.current?.setStatusAsync({ volume });
-      } catch (e) {
+      } catch {
         try {
           await soundRef.current?.setVolumeAsync(volume);
         } catch {}
