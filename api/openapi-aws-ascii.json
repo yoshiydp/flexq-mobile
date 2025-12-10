@@ -1,0 +1,341 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "LYRICS API (AWS)",
+    "version": "1.0.0",
+    "description": "This API serves mock data for LYRICS application.\nIt is designed to be used with AWS API Gateway + Lambda.\n",
+    "license": {
+      "name": "MIT",
+      "url": "https://opensource.org/licenses/MIT"
+    }
+  },
+  "servers": [
+    {
+      "url": "https://140147588900.execute-api.ap-southeast-2.amazonaws.com/dev"
+    }
+  ],
+  "paths": {
+    "/data/memo": {
+      "get": {
+        "summary": "Invoke get-memo",
+        "operationId": "get_memo",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "MEMO_DATA": {
+                    "$ref": "#/components/examples/MEMO_DATA"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "error"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:ap-southeast-2:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-southeast-2:140147588900:function:get-memo/invocations"
+        }
+      }
+    },
+    "/data/profile": {
+      "get": {
+        "summary": "Invoke get-profile",
+        "operationId": "get_profile",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "PROFILE_DATA": {
+                    "$ref": "#/components/examples/PROFILE_DATA"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "error"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-profile/invocations"
+        }
+      }
+    },
+    "/data/project": {
+      "get": {
+        "summary": "Invoke get-project",
+        "operationId": "get_project",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "PROJECT_DATA": {
+                    "$ref": "#/components/examples/PROJECT_DATA"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "error"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-project/invocations"
+        }
+      }
+    },
+    "/data/record": {
+      "get": {
+        "summary": "Invoke get-record",
+        "operationId": "get_record",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "RECORD_DATA": {
+                    "$ref": "#/components/examples/RECORD_DATA"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "error"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-record/invocations"
+        }
+      }
+    },
+    "/data/track": {
+      "get": {
+        "summary": "Invoke get-track",
+        "operationId": "get_track",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "TRACK_DATA": {
+                    "$ref": "#/components/examples/TRACK_DATA"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "error"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-track/invocations"
+        }
+      }
+    },
+    "/data/project/{id}/records": {
+      "get": {
+        "summary": "Invoke get-project-records",
+        "operationId": "get_project_records",
+        "security": [],
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "PROJECT_RECORD_LIST_DATA": {
+                    "$ref": "#/components/examples/PROJECT_RECORD_LIST_DATA"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "error"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:get-project-records/invocations"
+        }
+      }
+    },
+    "/data/auth/login": {
+      "post": {
+        "summary": "Invoke post-auth-login",
+        "operationId": "post_auth_login",
+        "security": [],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "email": {
+                    "type": "string"
+                  },
+                  "password": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "examples": {
+                  "AUTH_DATA": {
+                    "$ref": "#/components/examples/AUTH_DATA"
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "example": {
+                  "message": "error"
+                }
+              }
+            }
+          }
+        },
+        "x-amazon-apigateway-integration": {
+          "type": "aws_proxy",
+          "httpMethod": "POST",
+          "uri": "arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:post-auth-login/invocations"
+        }
+      }
+    }
+  },
+  "components": {
+    "examples": {
+      "AUTH_DATA": {
+        "value": "[\n  {\n    \"id\": \"user_001\",\n    \"email\": \"testuser@example.com\",\n    \"password\": \"password123\",\n    \"username\": \"User Profile Name\",\n    \"thumbnail\": \"http://localhost:3000/images/sample/profile.jpg\",\n    \"socialAccounts\": [\n      {\n        \"provider\": \"x\",\n        \"username\": \"@user_name\",\n        \"isLinked\": true\n      },\n      {\n        \"provider\": \"instagram\",\n        \"username\": \"@user_name\",\n        \"isLinked\": true\n      },\n      {\n        \"provider\": \"google\",\n        \"username\": \"Yoshi Watanabe\",\n        \"isLinked\": true\n      }\n    ],\n    \"token\": {\n      \"accessToken\": \"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_access_token\",\n      \"refreshToken\": \"mock_refresh_token_value\",\n      \"expiresIn\": 3600\n    }\n  }\n]"
+      },
+      "MEMO_DATA": {
+        "value": "[\n  {\n    \"id\": \"1\",\n    \"title\": \"1\",\n    \"body\": \"\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"2\",\n    \"title\": \"2\",\n    \"body\": \"\",\n    \"updatedAt\": \"2023-10-02T15:30:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"3\",\n    \"title\": \"\",\n    \"body\": \"\\n\\n\\n\",\n    \"updatedAt\": \"2023-10-03T09:45:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"4\",\n    \"title\": \"\",\n    \"body\": \"\\n- UI\\n- \\n- \",\n    \"updatedAt\": \"2023-10-04T18:20:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"5\",\n    \"title\": \"\",\n    \"body\": \"\\n- : \\n- : 202311101115\\n- : XYZ\",\n    \"updatedAt\": \"2023-10-05T14:10:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"6\",\n    \"title\": \"\",\n    \"body\": \"\\n1. \\n2. \\n3. 1Q84\",\n    \"updatedAt\": \"2023-10-06T11:05:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"7\",\n    \"title\": \"\",\n    \"body\": \"\\n- \\n- \\n- \",\n    \"updatedAt\": \"2023-10-07T16:40:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"8\",\n    \"title\": \"\",\n    \"body\": \"\\n- \\n- \\n- \",\n    \"updatedAt\": \"2023-10-08T13:25:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"9\",\n    \"title\": \"\",\n    \"body\": \"\\n- : \\n- : \\n- : \",\n    \"updatedAt\": \"2023-10-09T10:15:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"10\",\n    \"title\": \"\",\n    \"body\": \"\\n- \\n- A\\n- \",\n    \"updatedAt\": \"2023-10-10T17:50:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"11\",\n    \"title\": \"\",\n    \"body\": \"\\n- 1\\n- 2\\n- 3\",\n    \"updatedAt\": \"2023-10-11T12:00:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"12\",\n    \"title\": \"\",\n    \"body\": \"\\n- : \\n- : \",\n    \"updatedAt\": \"2023-10-12T15:30:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"13\",\n    \"title\": \"\",\n    \"body\": \"\\n1. \\n2. \\n3. \",\n    \"updatedAt\": \"2023-10-13T09:45:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"14\",\n    \"title\": \"\",\n    \"body\": \"\\n- : \\n- : \\n- : \",\n    \"updatedAt\": \"2023-10-14T18:20:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"15\",\n    \"title\": \"\",\n    \"body\": \"\\n- \\n- \\n- \",\n    \"updatedAt\": \"2023-10-15T14:10:00Z\",\n    \"isBookmarked\": true\n  }\n]"
+      },
+      "PROFILE_DATA": {
+        "value": "{\n  \"thumbnail\": \"http://localhost:3000/images/sample/profile.jpg\",\n  \"username\": \"User Profile Name\",\n  \"email\": \"testuser@example.com\",\n  \"socialAccounts\": [\n    {\n      \"provider\": \"x\",\n      \"username\": \"@user_name\",\n      \"isLinked\": true\n    },\n    {\n      \"provider\": \"instagram\",\n      \"username\": \"@user_name\",\n      \"isLinked\": true\n    },\n    {\n      \"provider\": \"google\",\n      \"username\": \"Yoshi Watanabe\",\n      \"isLinked\": true\n    }\n  ]\n}"
+      },
+      "PROJECT_DATA": {
+        "value": "[\n  {\n    \"id\": \"1\",\n    \"projectName\": \"Project Title 1\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"trackName\": \"Track name A\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"2\",\n    \"projectName\": \"Project Title 2\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"trackName\": \"Track name B\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio2.wav\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-02T15:30:00Z\"\n  },\n  {\n    \"id\": \"3\",\n    \"projectName\": \"Project Title 3\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"trackName\": \"Track name C\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio3.wav\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-03T09:45:00Z\"\n  },\n  {\n    \"id\": \"4\",\n    \"projectName\": \"Project Title 4\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"trackName\": \"Track name D\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-04T11:20:00Z\"\n  },\n  {\n    \"id\": \"5\",\n    \"projectName\": \"Project Title 5\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"trackName\": \"Track name E\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio3.wav\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-05T14:10:00Z\"\n  },\n  {\n    \"id\": \"6\",\n    \"projectName\": \"Project Title 6\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"trackName\": \"Track name F\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio2.wav\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-06T16:55:00Z\"\n  },\n  {\n    \"id\": \"7\",\n    \"projectName\": \"Project Title 7\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"trackName\": \"Track name G\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-07T10:30:00Z\"\n  },\n  {\n    \"id\": \"8\",\n    \"projectName\": \"Project Title 8\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"trackName\": \"Track name H\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-08T13:15:00Z\"\n  },\n  {\n    \"id\": \"9\",\n    \"projectName\": \"Project Title 9\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"trackName\": \"Track name I\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio2.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-09T14:00:00Z\"\n  },\n  {\n    \"id\": \"10\",\n    \"projectName\": \"Project Title 10\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"trackName\": \"Track name J\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio3.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"updatedAt\": \"2023-10-10T09:00:00Z\"\n  },\n  {\n    \"id\": \"11\",\n    \"projectName\": \"Project Title 11\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"trackName\": \"Track name K\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 3500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-11T12:30:00Z\"\n  },\n  {\n    \"id\": \"12\",\n    \"projectName\": \"Project Title 12\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"trackName\": \"Track name L\",\n    \"trackSource\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"waveformJson\": \"http://localhost:3000/audio/sample-audio1.json\",\n    \"cueButtons\": [\n      {\n        \"time\": 4500,\n        \"label\": \"Intro\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      },\n      {\n        \"time\": 30000,\n        \"label\": \"Verse\",\n        \"isActive\": true\n      },\n      {\n        \"time\": 0,\n        \"label\": \"\",\n        \"isActive\": false\n      }\n    ],\n    \"updatedAt\": \"2023-10-12T15:45:00Z\"\n  }\n]"
+      },
+      "PROJECT_RECORD_LIST_DATA": {
+        "value": "[\n  {\n    \"projectId\": \"1\",\n    \"records\": [\n      {\n        \"id\": \"101\",\n        \"title\": \"Intro Take 1\",\n        \"source\": \"http://localhost:3000/record/sample-1.m4a\",\n        \"updatedAt\": \"2023-10-05T12:00:00Z\",\n        \"isBookmarked\": true\n      },\n      {\n        \"id\": \"102\",\n        \"title\": \"Verse Draft\",\n        \"source\": \"http://localhost:3000/record/sample-2.m4a\",\n        \"updatedAt\": \"2023-10-06T12:00:00Z\",\n        \"isBookmarked\": false\n      },\n      {\n        \"id\": \"103\",\n        \"title\": \"Chorus Vocal\",\n        \"source\": \"http://localhost:3000/record/sample-3.m4a\",\n        \"updatedAt\": \"2023-10-08T12:00:00Z\",\n        \"isBookmarked\": false\n      },\n      {\n        \"id\": \"104\",\n        \"title\": \"Bridge Idea\",\n        \"source\": \"http://localhost:3000/record/sample-4.m4a\",\n        \"updatedAt\": \"2023-10-10T12:00:00Z\",\n        \"isBookmarked\": true\n      },\n      {\n        \"id\": \"105\",\n        \"title\": \"Full Take\",\n        \"source\": \"http://localhost:3000/record/sample-5.m4a\",\n        \"updatedAt\": \"2023-10-11T12:00:00Z\",\n        \"isBookmarked\": false\n      }\n    ]\n  }\n]"
+      },
+      "RECORD_DATA": {
+        "value": "[\n  {\n    \"id\": \"1\",\n    \"title\": \"Track 1\",\n    \"source\": \"http://localhost:3000/record/sample-1.m4a\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"2\",\n    \"title\": \"Track 2\",\n    \"source\": \"http://localhost:3000/record/sample-2.m4a\",\n    \"updatedAt\": \"2023-10-02T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"3\",\n    \"title\": \"Track 3\",\n    \"source\": \"http://localhost:3000/record/sample-3.m4a\",\n    \"updatedAt\": \"2023-10-03T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"4\",\n    \"title\": \"Track 4\",\n    \"source\": \"http://localhost:3000/record/sample-4.m4a\",\n    \"updatedAt\": \"2023-10-04T12:00:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"5\",\n    \"title\": \"Track 5\",\n    \"source\": \"http://localhost:3000/record/sample-5.m4a\",\n    \"updatedAt\": \"2023-10-05T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"6\",\n    \"title\": \"Track 6\",\n    \"source\": \"http://localhost:3000/record/sample-1.m4a\",\n    \"updatedAt\": \"2023-10-06T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"7\",\n    \"title\": \"Track 7\",\n    \"source\": \"http://localhost:3000/record/sample-2.m4a\",\n    \"updatedAt\": \"2023-10-07T12:00:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"8\",\n    \"title\": \"Track 8\",\n    \"source\": \"http://localhost:3000/record/sample-3.m4a\",\n    \"updatedAt\": \"2023-10-08T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"9\",\n    \"title\": \"Track 9\",\n    \"source\": \"http://localhost:3000/record/sample-4.m4a\",\n    \"updatedAt\": \"2023-10-09T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"10\",\n    \"title\": \"Track 10\",\n    \"source\": \"http://localhost:3000/record/sample-5.m4a\",\n    \"updatedAt\": \"2023-10-10T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"11\",\n    \"title\": \"Track 11\",\n    \"source\": \"http://localhost:3000/record/sample-1.m4a\",\n    \"updatedAt\": \"2023-10-11T12:00:00Z\",\n    \"isBookmarked\": true\n  },\n  {\n    \"id\": \"12\",\n    \"title\": \"Track 12\",\n    \"source\": \"http://localhost:3000/record/sample-2.m4a\",\n    \"updatedAt\": \"2023-10-12T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"13\",\n    \"title\": \"Track 13\",\n    \"source\": \"http://localhost:3000/record/sample-3.m4a\",\n    \"updatedAt\": \"2023-10-13T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"14\",\n    \"title\": \"Track 14\",\n    \"source\": \"http://localhost:3000/record/sample-4.m4a\",\n    \"updatedAt\": \"2023-10-14T12:00:00Z\",\n    \"isBookmarked\": false\n  },\n  {\n    \"id\": \"15\",\n    \"title\": \"Track 15\",\n    \"source\": \"http://localhost:3000/record/sample-5.m4a\",\n    \"updatedAt\": \"2023-10-15T12:00:00Z\",\n    \"isBookmarked\": true\n  }\n]"
+      },
+      "TRACK_DATA": {
+        "value": "[\n  {\n    \"id\": \"1\",\n    \"title\": \"Track 1\",\n    \"source\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\",\n      \"project1\",\n      \"project2\",\n      \"project1\",\n      \"project2\",\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"MP3\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"2\",\n    \"title\": \"Track 2\",\n    \"source\": \"http://localhost:3000/audio/sample-audio2.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"3\",\n    \"title\": \"Track 3\",\n    \"source\": \"http://localhost:3000/audio/sample-audio3.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"4\",\n    \"title\": \"Track 4\",\n    \"source\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"linkedProjects\": [],\n    \"extention\": \"MP3\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"5\",\n    \"title\": \"Track 5\",\n    \"source\": \"http://localhost:3000/audio/sample-audio3.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"6\",\n    \"title\": \"Track 6\",\n    \"source\": \"http://localhost:3000/audio/sample-audio2.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"7\",\n    \"title\": \"Track 7\",\n    \"source\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"MP3\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"8\",\n    \"title\": \"Track 8\",\n    \"source\": \"http://localhost:3000/audio/sample-audio3.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"9\",\n    \"title\": \"Track 9\",\n    \"source\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"MP3\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"10\",\n    \"title\": \"Track 10\",\n    \"source\": \"http://localhost:3000/audio/sample-audio2.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"11\",\n    \"title\": \"Track 11\",\n    \"source\": \"http://localhost:3000/audio/sample-audio3.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork1.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"12\",\n    \"title\": \"Track 12\",\n    \"source\": \"http://localhost:3000/audio/sample-audio2.wav\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork2.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"WAV\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  },\n  {\n    \"id\": \"13\",\n    \"title\": \"Track 13\",\n    \"source\": \"http://localhost:3000/audio/sample-audio1.mp3\",\n    \"artwork\": \"http://localhost:3000/images/sample/sample-artwork3.jpg\",\n    \"linkedProjects\": [\n      \"project1\",\n      \"project2\"\n    ],\n    \"extention\": \"MP3\",\n    \"updatedAt\": \"2023-10-01T12:00:00Z\"\n  }\n]"
+      }
+    },
+    "schemas": {}
+  },
+  "x-amazon-apigateway-minimum-compression-size": 0,
+  "x-amazon-apigateway-gateway-responses": {
+    "DEFAULT_4XX": {
+      "statusCode": 400,
+      "responseTemplates": {
+        "application/json": "{\"message\":$context.error.messageString}"
+      }
+    },
+    "DEFAULT_5XX": {
+      "statusCode": 500,
+      "responseTemplates": {
+        "application/json": "{\"message\":$context.error.messageString}"
+      }
+    }
+  },
+  "x-amazon-apigateway-api-key-source": "HEADER"
+}

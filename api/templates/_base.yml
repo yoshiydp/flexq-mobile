@@ -1,0 +1,346 @@
+openapi: 3.0.3
+info:
+  title: My API
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:3000
+    description: Local Swagger Mock API
+
+paths:
+  /data:
+    get:
+      summary: Get all data
+      description: Returns all mock data defined in /src/data directory.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                MEMO_DATA:
+                  $ref: '#/components/examples/MEMO_DATA'
+                PROFILE_DATA:
+                  $ref: '#/components/examples/PROFILE_DATA'
+                PROJECT_DATA:
+                  $ref: '#/components/examples/PROJECT_DATA'
+                RECORD_DATA:
+                  $ref: '#/components/examples/RECORD_DATA'
+                TRACK_DATA:
+                  $ref: '#/components/examples/TRACK_DATA'
+                AUTH_DATA:
+                  $ref: '#/components/examples/AUTH_DATA'
+
+  /data/project:
+    get:
+      summary: Get project list
+      description: Returns mock data for PROJECT_DATA.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROJECT_DATA:
+                  $ref: '#/components/examples/PROJECT_DATA'
+
+  /data/project/{id}:
+    get:
+      summary: Get project detail
+      description: Returns a single project by ID.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROJECT_DATA_DETAIL:
+                  $ref: '#/components/examples/PROJECT_DATA_DETAIL'
+
+  /data/project/{id}/records:
+    get:
+      summary: Get record list for a specific project
+      description: Returns record list data associated with a specific project.
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Project ID
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROJECT_RECORD_LIST_DATA:
+                  $ref: '#/components/examples/PROJECT_RECORD_LIST_DATA'
+
+  /data/profile:
+    get:
+      summary: Get profile
+      description: Returns mock data for PROFILE_DATA.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                PROFILE_DATA:
+                  $ref: '#/components/examples/PROFILE_DATA'
+
+  /data/memo:
+    get:
+      summary: Get memo list
+      description: Returns mock data for MEMO_DATA.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                MEMO_DATA:
+                  $ref: '#/components/examples/MEMO_DATA'
+
+  /data/track:
+    get:
+      summary: Get track list
+      description: Returns mock data for TRACK_DATA.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                TRACK_DATA:
+                  $ref: '#/components/examples/TRACK_DATA'
+
+  /data/record:
+    get:
+      summary: Get record list
+      description: Returns mock data for RECORD_DATA.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                RECORD_DATA:
+                  $ref: '#/components/examples/RECORD_DATA'
+
+  /data/auth/login:
+    post:
+      summary: Mock login authentication
+      description: Returns user authentication mock data (email & password).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                  example: testuser@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              examples:
+                AUTH_DATA:
+                  $ref: '#/components/examples/AUTH_DATA'
+        '401':
+          description: Unauthorized
+          content:
+            application/json:
+              example:
+                message: Invalid credentials
+
+  /data/auth/logout:
+    post:
+      summary: Mock logout
+      description: Returns a success message for logout.
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              example:
+                message: Logged out successfully
+
+components:
+  examples:
+    MEMO_DATA:
+      value:
+        - id: '1'
+          title: 'Quick Notes'
+          body: '<p>This is a memo example.</p>'
+          updatedAt: '2023-10-01T12:00:00Z'
+          isBookmarked: false
+        - id: '2'
+          title: 'Second Memo'
+          body: '<ul><li>Item 1</li><li>Item 2</li></ul>'
+          updatedAt: '2023-10-02T15:30:00Z'
+          isBookmarked: true
+
+    PROFILE_DATA:
+      value:
+        id: 'user_01'
+        username: 'Yoshi Watanabe'
+        email: 'testuser@example.com'
+        thumbnail: 'http://localhost:3000/images/sample/profile-thumb.jpg'
+        socialAccounts:
+          - provider: 'Twitter'
+            username: '@user_name'
+            isLinked: true
+          - provider: 'Instagram'
+            username: '@insta_user'
+            isLinked: true
+
+    PROJECT_DATA:
+      value:
+        - id: '1'
+          projectName: 'Project Title 1'
+          artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg'
+          trackName: 'Track name A'
+          trackSource: 'http://localhost:3000/audio/sample-audio1.mp3'
+          waveformJson: 'http://localhost:3000/audio/sample-audio1.json'
+          cueButtons:
+            - time: 3500
+              label: 'Intro'
+              isActive: true
+            - time: 0
+              label: ''
+              isActive: false
+          updatedAt: '2023-10-01T12:00:00Z'
+        - id: '2'
+          projectName: 'Project Title 2'
+          artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg'
+          trackName: 'Track name B'
+          trackSource: 'http://localhost:3000/audio/sample-audio2.wav'
+          waveformJson: 'http://localhost:3000/audio/sample-audio1.json'
+          cueButtons:
+            - time: 4500
+              label: 'Verse'
+              isActive: true
+          updatedAt: '2023-10-02T15:30:00Z'
+
+    PROJECT_DATA_DETAIL:
+      value:
+        id: '1'
+        projectName: 'Project Title 1'
+        artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg'
+        trackName: 'Track name A'
+        trackSource: 'http://localhost:3000/audio/sample-audio1.mp3'
+        waveformJson: 'http://localhost:3000/audio/sample-audio1.json'
+        cueButtons:
+          - time: 3500
+            label: 'Intro'
+            isActive: true
+          - time: 0
+            label: ''
+            isActive: false
+          - time: 0
+            label: ''
+            isActive: false
+          - time: 15000
+            label: 'Chorus'
+            isActive: true
+          - time: 0
+            label: ''
+            isActive: false
+        updatedAt: '2023-10-01T12:00:00Z'
+
+    PROJECT_RECORD_LIST_DATA:
+      value:
+        - projectId: '1'
+          records:
+            - id: '101'
+              title: 'Intro Take 1'
+              source: 'http://localhost:3000/record/sample-1.m4a'
+              updatedAt: '2023-10-05T12:00:00Z'
+              isBookmarked: true
+            - id: '102'
+              title: 'Verse Draft'
+              source: 'http://localhost:3000/record/sample-2.m4a'
+              updatedAt: '2023-10-06T12:00:00Z'
+              isBookmarked: false
+            - id: '103'
+              title: 'Chorus Vocal'
+              source: 'http://localhost:3000/record/sample-3.m4a'
+              updatedAt: '2023-10-08T12:00:00Z'
+              isBookmarked: false
+            - id: '104'
+              title: 'Bridge Idea'
+              source: 'http://localhost:3000/record/sample-4.m4a'
+              updatedAt: '2023-10-10T12:00:00Z'
+              isBookmarked: true
+            - id: '105'
+              title: 'Full Take'
+              source: 'http://localhost:3000/record/sample-5.m4a'
+              updatedAt: '2023-10-11T12:00:00Z'
+              isBookmarked: false
+
+    RECORD_DATA:
+      value:
+        - id: '1'
+          projectId: '1'
+          fileName: 'recording_01.wav'
+          url: 'http://localhost:3000/audio/recording_01.wav'
+          duration: 123000
+          updatedAt: '2023-10-05T10:00:00Z'
+        - id: '2'
+          projectId: '2'
+          fileName: 'recording_02.wav'
+          url: 'http://localhost:3000/audio/recording_02.wav'
+          duration: 95000
+          updatedAt: '2023-10-06T14:20:00Z'
+
+    TRACK_DATA:
+      value:
+        - id: '1'
+          title: 'Sample Track A'
+          source: 'http://localhost:3000/audio/sample-audio1.mp3'
+          artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg'
+          linkedProjects: ['1']
+          extention: 'mp3'
+          updatedAt: '2023-10-01T12:00:00Z'
+        - id: '2'
+          title: 'Sample Track B'
+          source: 'http://localhost:3000/audio/sample-audio2.wav'
+          artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg'
+          linkedProjects: ['2']
+          extention: 'wav'
+          updatedAt: '2023-10-03T09:45:00Z'
+
+    AUTH_DATA:
+      value:
+        id: 'user_001'
+        email: 'testuser@example.com'
+        username: 'User Profile Name'
+        thumbnail: 'http://localhost:3000/images/sample/profile.jpg'
+        socialAccounts:
+          - provider: 'x'
+            username: '@user_name'
+            isLinked: true
+          - provider: 'instagram'
+            username: '@user_name'
+            isLinked: true
+          - provider: 'google'
+            username: 'Yoshi Watanabe'
+            isLinked: true
+        token:
+          accessToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_access_token'
+          refreshToken: 'mock_refresh_token_value'
+          expiresIn: 3600

@@ -3,6 +3,10 @@ import path from 'path';
 import yaml from 'js-yaml';
 import { pathToFileURL, fileURLToPath } from 'url';
 
+const AWS_REGION = process.env.AWS_REGION || 'ap-northeast-1';
+const AWS_ACCOUNT_ID = process.env.AWS_ACCOUNT_ID || 'YOUR_AWS_ACCOUNT_ID';
+const API_STAGE = process.env.API_STAGE || 'dev';
+
 [
   '.svg',
   '.png',
@@ -16,87 +20,134 @@ import { pathToFileURL, fileURLToPath } from 'url';
   '.mov',
   '.mp4',
   '.webm',
-].forEach((ext) => {
-  require.extensions[ext] = () => {};
-});
+].forEach((ext) => (require.extensions[ext] = () => {}));
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const DATA_DIR = path.resolve(__dirname, '../src/data');
-const OUTPUT_YAML = path.resolve(__dirname, '../api/openapi.yaml');
 const BASE_TEMPLATE = path.resolve(__dirname, '../api/templates/base.yaml');
+const OUTPUT_YAML = path.resolve(__dirname, '../api/openapi-aws.yaml');
+const OUTPUT_JSON = path.resolve(__dirname, '../api/openapi-aws.json');
+
+const cleanForAws = (text: string): string => {
+  return text
+    .replace(/[^\x00-\x7F]/g, '')
+    .replace(/\uFEFF/g, '')
+    .replace(/\t/g, '  ')
+    .replace(/\r\n/g, '\n')
+    .replace(/\s+$/gm, '')
+    .trim();
+};
 
 async function loadTsModule(filePath: string) {
-  const moduleUrl = pathToFileURL(filePath).href;
-  const module = await import(moduleUrl);
-  return module;
+  return await import(pathToFileURL(filePath).href);
 }
 
 async function generateOpenAPI() {
-  console.log('Generating OpenAPI YAML...');
+  console.log('🔷 Generating AWS OpenAPI...');
 
-  const baseYaml = yaml.load(fs.readFileSync(BASE_TEMPLATE, 'utf8')) as any;
+  let baseYaml = yaml.load(fs.readFileSync(BASE_TEMPLATE, 'utf8')) as any;
+
+  baseYaml.servers = [
+    {
+      url: `https://${AWS_ACCOUNT_ID}.execute-api.${AWS_REGION}.amazonaws.com/${API_STAGE}`,
+    },
+  ];
+  baseYaml.paths ||= {};
+  baseYaml.components ||= {};
+  baseYaml.components.examples ||= {};
+
+  baseYaml['x-amazon-apigateway-api-key-source'] = 'HEADER';
+  baseYaml['x-amazon-apigateway-gateway-responses'] = {
+    DEFAULT_4XX: {
+      statusCode: 400,
+      responseTemplates: {
+        'application/json': '{"message":$context.error.messageString}',
+      },
+    },
+    DEFAULT_5XX: {
+      statusCode: 500,
+      responseTemplates: {
+        'application/json': '{"message":$context.error.messageString}',
+      },
+    },
+  };
 
   const files = fs.readdirSync(DATA_DIR).filter((f) => f.endsWith('.ts'));
   const dataEntries: Record<string, any> = {};
 
   for (const file of files) {
-    const filePath = path.join(DATA_DIR, file);
-    const mod = await loadTsModule(filePath);
-    for (const [key, value] of Object.entries(mod)) {
-      dataEntries[key] = value;
-    }
+    const mod = await loadTsModule(path.join(DATA_DIR, file));
+    for (const [key, val] of Object.entries(mod)) dataEntries[key] = val;
   }
 
-  baseYaml.components = baseYaml.components || {};
-  baseYaml.components.examples = baseYaml.components.examples || {};
-  baseYaml.paths = baseYaml.paths || {};
+  const default4xxResponse = {
+    '400': {
+      description: 'Bad Request',
+      content: {
+        'application/json': {
+          example: { message: 'error' },
+        },
+      },
+    },
+  };
 
-  for (const [key, value] of Object.entries(dataEntries)) {
-    baseYaml.components.examples[key] = { value };
-  }
+  const createIntegration = (lambda: string) => ({
+    summary: `Invoke ${lambda}`,
+    operationId: lambda.replace(/-/g, '_'),
+    security: [],
+    'x-amazon-apigateway-integration': {
+      type: 'aws_proxy',
+      httpMethod: 'POST',
+      uri: `arn:aws:apigateway:${AWS_REGION}:lambda:path/2015-03-31/functions/arn:aws:lambda:${AWS_REGION}:${AWS_ACCOUNT_ID}:function:${lambda}/invocations`,
+    },
+  });
 
-  for (const key of Object.keys(dataEntries)) {
-    if (key === 'PROJECT_RECORD_LIST_DATA' || key === 'AUTH_DATA') continue;
+  Object.entries(dataEntries).forEach(([key, val]) => {
+    baseYaml.components.examples[key] = {
+      // 🔴 valueをJSONにした後ASCII化
+      value: cleanForAws(JSON.stringify(val, null, 2)),
+    };
+  });
 
-    const endpointName = key.replace('_DATA', '').toLowerCase();
-    const endpoint = `/data/${endpointName}`;
+  Object.keys(dataEntries).forEach((key) => {
+    if (key === 'AUTH_DATA' || key === 'PROJECT_RECORD_LIST_DATA') return;
 
-    baseYaml.paths[endpoint] = {
+    const endpoint = key.replace('_DATA', '').toLowerCase();
+    baseYaml.paths[`/data/${endpoint}`] = {
       get: {
-        summary: `Get ${endpointName} data`,
-        description: `Returns mock data for ${key}.`,
-        operationId: `get${key.replace('_DATA', '')}`,
+        summary: `Get ${endpoint} data`,
+        operationId: `get_${endpoint}`,
+        security: [],
         responses: {
           '200': {
             description: 'OK',
             content: {
               'application/json': {
-                examples: {
-                  [key]: { $ref: `#/components/examples/${key}` },
-                },
+                examples: { [key]: { $ref: `#/components/examples/${key}` } },
               },
             },
           },
+          ...default4xxResponse,
         },
+        ...createIntegration(`get-${endpoint}`),
       },
     };
-  }
+  });
 
   if (dataEntries.PROJECT_RECORD_LIST_DATA) {
-    baseYaml.paths['/data/project/{id}/records'] = {
+    baseYaml.paths[`/data/project/{id}/records`] = {
       get: {
-        summary: 'Get record list for a specific project',
-        description:
-          'Returns record list data associated with a specific project.',
+        summary: 'Get project records',
+        operationId: 'get_project_records',
+        security: [],
         parameters: [
           {
             name: 'id',
             in: 'path',
             required: true,
             schema: { type: 'string' },
-            description: 'Project ID',
           },
         ],
         responses: {
@@ -112,7 +163,9 @@ async function generateOpenAPI() {
               },
             },
           },
+          ...default4xxResponse,
         },
+        ...createIntegration('get-project-records'),
       },
     };
   }
@@ -120,9 +173,9 @@ async function generateOpenAPI() {
   if (dataEntries.AUTH_DATA) {
     baseYaml.paths['/data/auth/login'] = {
       post: {
-        summary: 'Mock login authentication',
-        description:
-          'Returns user authentication mock data (email & password).',
+        summary: 'Authenticate user',
+        operationId: 'post_auth_login',
+        security: [],
         requestBody: {
           required: true,
           content: {
@@ -130,8 +183,8 @@ async function generateOpenAPI() {
               schema: {
                 type: 'object',
                 properties: {
-                  email: { type: 'string', example: 'testuser@example.com' },
-                  password: { type: 'string', example: 'password123' },
+                  email: { type: 'string' },
+                  password: { type: 'string' },
                 },
               },
             },
@@ -148,43 +201,27 @@ async function generateOpenAPI() {
               },
             },
           },
-          '401': {
-            description: 'Unauthorized',
-            content: {
-              'application/json': {
-                example: { message: 'Invalid credentials' },
-              },
-            },
-          },
+          ...default4xxResponse,
         },
-      },
-    };
-
-    baseYaml.paths['/data/auth/logout'] = {
-      post: {
-        summary: 'Mock logout',
-        description: 'Returns a success message for logout.',
-        responses: {
-          '200': {
-            description: 'OK',
-            content: {
-              'application/json': {
-                example: { message: 'Logged out successfully' },
-              },
-            },
-          },
-        },
+        ...createIntegration('post-auth-login'),
       },
     };
   }
 
-  const yamlStr = yaml.dump(baseYaml, { noRefs: true });
-  fs.writeFileSync(OUTPUT_YAML, yamlStr, 'utf8');
+  baseYaml.info.license = {
+    name: 'MIT',
+    url: 'https://opensource.org/licenses/MIT',
+  };
 
-  console.log('OpenAPI YAML updated:', OUTPUT_YAML);
+  const jsonOut = cleanForAws(JSON.stringify(baseYaml, null, 2));
+  const yamlOut = yaml.dump(baseYaml, { noRefs: true, lineWidth: -1 });
+
+  fs.writeFileSync(OUTPUT_JSON, jsonOut, 'utf8');
+  fs.writeFileSync(OUTPUT_YAML, yamlOut, 'utf8');
+
+  console.log('✨ OpenAPI generated successfully');
+  console.log(` → ${OUTPUT_JSON}`);
+  console.log(` → ${OUTPUT_YAML}`);
 }
 
-generateOpenAPI().catch((err) => {
-  console.error('Error:', err);
-  process.exit(1);
-});
+generateOpenAPI().catch(console.error);
