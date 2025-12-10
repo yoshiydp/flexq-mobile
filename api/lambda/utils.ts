@@ -1,23 +1,24 @@
-// api/lambda/utils.ts
-import fs from 'fs';
 import path from 'path';
 
-const DATA_DIR = path.resolve(__dirname, '../../src/data');
+const MOCK_DIR = path.resolve(__dirname, 'mock');
 
-export function loadMockData(key: string) {
+export function loadMockData(fileBaseName: string) {
   try {
-    const filePath = path.join(DATA_DIR, `${key}.ts`);
-    const mod = require(filePath);
-    return mod[key];
-  } catch (err) {
-    return { error: 'Data not found', key };
+    const mod = require(path.join(MOCK_DIR, `${fileBaseName}.js`));
+    return mod.default ?? mod;
+  } catch (e) {
+    console.error('Mock load error:', e);
+    return { error: 'Mock data not found', fileBaseName };
   }
 }
 
-export function createResponse(body: any, statusCode = 200) {
+export function createResponse(body: unknown, statusCode = 200) {
   return {
     statusCode,
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'Access-Control-Allow-Origin': '*',
+    },
     body: JSON.stringify(body),
   };
 }

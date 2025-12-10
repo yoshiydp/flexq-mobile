@@ -1,6 +1,6 @@
-// api/lambda/get-record.ts
 import { loadMockData, createResponse } from './utils';
 
 export const handler = async () => {
-  return createResponse(loadMockData('RECORD_DATA'));
+  const data = loadMockData('recordData');
+  return createResponse(data);
 };
