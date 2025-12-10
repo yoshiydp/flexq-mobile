@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "outDir": ".lambda-build/dist/mock",
+    "rootDir": "src/data",
+    "target": "ES2020",
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "esModuleInterop": true,
+    "strict": false,
+    "skipLibCheck": true
+  },
+  "include": ["src/data/**/*.ts"]
+}

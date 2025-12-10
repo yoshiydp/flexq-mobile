@@ -12,7 +12,11 @@
     "test": "jest --watchAll",
     "test:ci": "jest --ci --coverage",
     "generate:openapi": "tsx scripts/generate-openapi.ts",
-    "mock:server": "nodemon --exec tsx scripts/server.ts"
+    "generate:openapi:aws": "tsx scripts/generate-openapi.ts",
+    "mock:server": "nodemon --exec tsx scripts/server.ts",
+    "build:lambda": "npx tsc -p tsconfig.lambda.json && npx tsc -p tsconfig.mock.json",
+    "zip:lambda": "cd .lambda-build/dist && zip -r ../../lambda.zip .",
+    "deploy:lambda": "bash scripts/deploy-lambda.sh"
   },
   "dependencies": {
     "@expo-google-fonts/allison": "^0.4.2",
