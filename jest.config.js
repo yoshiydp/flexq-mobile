@@ -1,44 +1,35 @@
-const path = require('path');
-
+// jest.config.js
 module.exports = {
-  preset: 'react-native',
-  testEnvironment: 'jsdom',
+  preset: 'jest-expo',
 
-  setupFiles: [
-    '<rootDir>/jest.setup.js',
-    '<rootDir>/__mocks__/react-native.js',
-  ],
-  setupFilesAfterEnv: [
-    '@testing-library/jest-native/extend-expect',
-    '@testing-library/jest-dom',
-  ],
+  // RNテストでは jsdom は基本いりません（web向け）
+  testEnvironment: 'node',
 
+  setupFiles: ['<rootDir>/jest.setup.js'],
+
+  setupFilesAfterEnv: ['@testing-library/jest-native/extend-expect'],
+
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/src/$1',
+    '\\.(css|scss)$': 'identity-obj-proxy',
+  },
+
+  // Expo / RN / expo-router などをBabelで変換対象に含める
   transformIgnorePatterns: [
     'node_modules/(?!(jest-)?react-native' +
-      '|expo-av' +
       '|@react-native' +
+      '|react-native' +
       '|@react-navigation' +
-      '|@expo' +
+      '|expo' +
+      '|expo-router' +
       '|expo-modules-core' +
+      '|@expo' +
       '|unimodules' +
       '|@testing-library' +
       '|react-clone-referenced-element' +
       '|react-native-svg' +
-      ')',
+      ')/',
   ],
-
-  moduleNameMapper: {
-    '\\.(css|scss)$': 'identity-obj-proxy',
-    '^@/(.*)$': '<rootDir>/src/$1',
-    '^expo$': '<rootDir>/__mocks__/expo.js',
-  },
-
-  transform: {
-    '^.+\\.[jt]sx?$': [
-      'babel-jest',
-      { configFile: path.resolve(__dirname, 'babel.config.js') },
-    ],
-  },
 
   testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
   collectCoverage: false,
