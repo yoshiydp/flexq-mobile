@@ -5274,7 +5274,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"babel-preset-expo@npm:~54.0.10":
+"babel-preset-expo@npm:^54.0.10, babel-preset-expo@npm:~54.0.10":
   version: 54.0.10
   resolution: "babel-preset-expo@npm:54.0.10"
   dependencies:
@@ -11022,6 +11022,7 @@ __metadata:
     axios: "npm:^1.13.4"
     babel-jest: "npm:29.7.0"
     babel-plugin-module-resolver: "npm:^5.0.2"
+    babel-preset-expo: "npm:^54.0.10"
     clsx: "npm:^2.1.1"
     cors: "npm:^2.8.5"
     eas-cli: "npm:^16.26.0"
