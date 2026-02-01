@@ -10998,6 +10998,7 @@ __metadata:
   resolution: "lyrics-mobile@workspace:."
   dependencies:
     "@babel/core": "npm:^7.25.2"
+    "@babel/types": "npm:^7.29.0"
     "@expo-google-fonts/allison": "npm:^0.4.2"
     "@expo-google-fonts/bebas-neue": "npm:^0.4.0"
     "@expo-google-fonts/noto-sans": "npm:^0.4.0"
