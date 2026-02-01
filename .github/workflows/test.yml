@@ -18,10 +18,15 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.11.0
-          cache: 'yarn'
+          cache: 'npm'
 
-      - name: Install dependencies
-        run: yarn install --frozen-lockfile
+      - name: Enable Corepack (Yarn v4)
+        run: |
+          corepack enable
+          yarn -v
+
+      - name: Install dependencies (Yarn v4 immutable)
+        run: yarn install --immutable
 
       - name: Run ESLint (PR strict)
         if: github.event_name == 'pull_request'
