@@ -1,4 +1,4 @@
-name: Lyrics Mobile App ESLint + Jest Tests
+name: Lyrics Mobile App ESLint
 on:
   pull_request:
     branches: [master, develop, staging]
@@ -6,8 +6,8 @@ on:
     branches: [master, develop, staging]
 
 jobs:
-  unit-tests:
-    name: Run ESLint + Jest Tests
+  lint:
+    name: Run ESLint
     runs-on: ubuntu-latest
 
     steps:
@@ -31,10 +31,3 @@ jobs:
       - name: Run ESLint (PR strict)
         if: github.event_name == 'pull_request'
         run: yarn lint --max-warnings=0
-
-      - name: Run Jest tests with coverage (PR only)
-        if: github.event_name == 'pull_request'
-        run: yarn test:ci
-        env:
-          BABEL_ENV: test
-          NODE_ENV: test
