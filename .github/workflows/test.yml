@@ -35,3 +35,6 @@ jobs:
       - name: Run Jest tests with coverage (PR only)
         if: github.event_name == 'pull_request'
         run: yarn test:ci
+        env:
+          BABEL_ENV: test
+          NODE_ENV: test
