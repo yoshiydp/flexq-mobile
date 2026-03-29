@@ -1,0 +1,58 @@
+name: Lyrics Mobile CI
+
+on:
+  pull_request:
+    branches: [master, develop, staging]
+  push:
+    branches: [master, develop, staging]
+
+jobs:
+  lint:
+    name: ESLint
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+          cache: yarn
+
+      - name: Enable Corepack (Yarn v4)
+        run: |
+          corepack enable
+          yarn -v
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run ESLint
+        run: yarn lint --max-warnings=0
+
+  test:
+    name: Jest
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+          cache: yarn
+
+      - name: Enable Corepack (Yarn v4)
+        run: |
+          corepack enable
+          yarn -v
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run Jest
+        run: yarn test:ci

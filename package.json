@@ -10,7 +10,7 @@
     "web": "expo start --web",
     "lint": "expo lint",
     "test": "jest --watchAll",
-    "test:ci": "jest --ci --coverage",
+    "test:ci": "jest --ci --coverage --runInBand",
     "generate:openapi": "tsx scripts/generate-openapi.ts",
     "generate:openapi:aws": "tsx scripts/generate-openapi.ts",
     "mock:server": "nodemon --exec tsx scripts/server.ts",
