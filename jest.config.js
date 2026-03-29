@@ -11,6 +11,8 @@ module.exports = {
 
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/src/$1',
+    '^@react-native/assets-registry/registry$':
+      require.resolve('@react-native/assets-registry/registry'),
     '\\.(css|scss)$': 'identity-obj-proxy',
   },
 
@@ -30,6 +32,8 @@ module.exports = {
       '|react-native-svg' +
       ')/',
   ],
+
+  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
 
   testPathIgnorePatterns: ['/node_modules/', '/e2e/'],
   collectCoverage: false,
