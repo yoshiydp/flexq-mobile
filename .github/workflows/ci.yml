@@ -19,11 +19,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.11.0
-          cache: yarn
 
-      - name: Enable Corepack (Yarn v4)
+      - name: Enable Corepack and Yarn
         run: |
           corepack enable
+          corepack prepare yarn@4.12.0 --activate
           yarn -v
 
       - name: Install dependencies
@@ -44,11 +44,11 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: 20.11.0
-          cache: yarn
 
-      - name: Enable Corepack (Yarn v4)
+      - name: Enable Corepack and Yarn
         run: |
           corepack enable
+          corepack prepare yarn@4.12.0 --activate
           yarn -v
 
       - name: Install dependencies
