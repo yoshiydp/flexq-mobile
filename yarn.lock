@@ -3618,6 +3618,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@types/react-native__assets-registry@npm:^0":
+  version: 0.84.0
+  resolution: "@types/react-native__assets-registry@npm:0.84.0"
+  checksum: 10c0/2bf9b74c16e4b2be538d1c427d9840d695453a633e6c10df1c23e0b7f4be213feab913f85b78ec7a4e1bfeb3319aef151ccc4fa421cf4d45f01f9752c5ded918
+  languageName: node
+  linkType: hard
+
 "@types/react@npm:~19.1.10":
   version: 19.1.17
   resolution: "@types/react@npm:19.1.17"
@@ -9544,6 +9551,7 @@ __metadata:
     "@expo/vector-icons": "npm:^15.0.3"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
     "@react-native-community/slider": "npm:5.0.1"
+    "@react-native/assets-registry": "npm:0.81.5"
     "@react-navigation/bottom-tabs": "npm:^7.3.10"
     "@react-navigation/elements": "npm:^2.3.8"
     "@react-navigation/native": "npm:^7.1.6"
@@ -9558,6 +9566,7 @@ __metadata:
     "@types/jest": "npm:29.5.14"
     "@types/node": "npm:^24.7.2"
     "@types/react": "npm:~19.1.10"
+    "@types/react-native__assets-registry": "npm:^0"
     "@types/swagger-ui-express": "npm:^4.1.8"
     "@types/yamljs": "npm:^0.2.34"
     aws-sdk: "npm:^2.1692.0"
