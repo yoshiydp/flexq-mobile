@@ -5,6 +5,9 @@ import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import RootNavigator from '@/navigation/RootNavigator';
 import AnimatedSplashScreen from '@/components/ui/AnimatedSplashScreen';
 import { COLORS } from '@/globalStyles';
+import { OpenAPI } from '@/apiClient';
+
+OpenAPI.BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
 function AppContent() {
   const { loading } = useAuthContext();

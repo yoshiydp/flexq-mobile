@@ -25,6 +25,11 @@ yarn mock:server
 
 # OpenAPI クライアント生成
 yarn generate:openapi     # src/data/ から src/apiClient/ を生成
+
+# AWS SAM (api/ ディレクトリで実行)
+cd api
+sam build                 # Lambda 関数をビルド
+sam deploy                # AWS にデプロイ (初回は --guided)
 ```
 
 ## アーキテクチャ
@@ -65,6 +70,31 @@ API クライアント (`src/apiClient/`) は `openapi-typescript-codegen` で**
 2. `yarn generate:openapi` を実行して `api/openapi.yaml` と `src/apiClient/` を再生成
 
 モックサーバー (`yarn mock:server`) はこのデータを Express でローカルに配信します。
+
+### AWS API Gateway (本番モック環境)
+
+モックデータは AWS Lambda + API Gateway にもデプロイされています。
+
+- **エンドポイント**: `https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1`
+- **リージョン**: `ap-northeast-1`（東京）
+- **SAM テンプレート**: `api/template.yaml`
+- **スタック名**: `lyrics-mock-api`
+
+`src/App.tsx` の起動時に `OpenAPI.BASE` を環境変数で設定しています：
+
+```typescript
+OpenAPI.BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+```
+
+**環境変数ファイル:**
+- `.env` — AWS URL を定義（git 管理対象）
+- `.env.local` — ローカル開発時に localhost へ上書き（gitignore 済み）
+
+**モックデータを更新してAWSに反映する手順:**
+1. `src/data/*.ts` を編集
+2. `cd api && sam build && sam deploy`
+
+**ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
 ### パスエイリアス
 

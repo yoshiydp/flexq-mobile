@@ -1,5 +1,5 @@
 export const PROFILE_DATA = {
-  thumbnail: 'http://localhost:3000/images/sample/profile.jpg',
+  thumbnail: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/profile.jpg',
   username: 'User Profile Name',
   email: 'testuser@example.com',
   socialAccounts: [
