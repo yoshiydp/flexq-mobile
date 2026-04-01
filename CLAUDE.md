@@ -96,6 +96,42 @@ OpenAPI.BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
+### デプロイフロー (staging)
+
+feature ブランチの変更を staging へデプロイする手順：
+
+```bash
+# 1. feature ブランチを作成
+git checkout develop
+git checkout -b feature/your-feature-name
+
+# 2. 変更・コミット・プッシュ
+git add <files>
+git commit -m "feat: your changes"
+git push origin feature/your-feature-name
+```
+
+**3. GitHub で staging への PR を作成・マージ**
+- PR の base ブランチを `staging` に設定して作成
+- マージすると GitHub Actions が自動実行
+
+**4. GitHub Actions の自動実行フロー**
+```
+staging へのマージを検知
+  ↓ ESLint チェック
+  ↓ Jest テスト
+  ↓ 両方通過 → EAS Update で Expo staging チャンネルへデプロイ
+```
+
+**5. iPhone で確認**
+- Expo Go を完全に終了して再起動
+- 最新の update が自動適用される
+
+**GitHub Actions の実行状況確認:**
+- リポジトリの Actions タブ → `Deploy to Staging (EAS Update)`
+
+**注意:** lint または test が失敗した場合はデプロイが中止されます。
+
 ### パスエイリアス
 
 `@/` は `src/` に対応します。`tsconfig.json`、`babel.config.js` (module-resolver)、`jest.config.js` (moduleNameMapper) で設定されています。
