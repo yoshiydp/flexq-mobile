@@ -1,0 +1,236 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Lyrics Template Mock API
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures:
+      - arm64
+    Timeout: 10
+  Api:
+    Cors:
+      AllowOrigin: "'*'"
+      AllowHeaders: "'Content-Type,Authorization'"
+      AllowMethods: "'GET,POST,OPTIONS'"
+
+Resources:
+  LyricsApi:
+    Type: AWS::Serverless::Api
+    Properties:
+      StageName: v1
+
+  GetDataFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-data.handler
+      CodeUri: ./
+      Events:
+        GetData:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-data.ts
+
+  GetProjectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-project.handler
+      CodeUri: ./
+      Events:
+        GetProject:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/project
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-project.ts
+
+  GetProjectDetailFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-project-detail.handler
+      CodeUri: ./
+      Events:
+        GetProjectDetail:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/project/{id}
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-project-detail.ts
+
+  GetProjectRecordsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-project-records.handler
+      CodeUri: ./
+      Events:
+        GetProjectRecords:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/project/{id}/records
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-project-records.ts
+
+  GetProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-profile.handler
+      CodeUri: ./
+      Events:
+        GetProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/profile
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-profile.ts
+
+  GetMemoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-memo.handler
+      CodeUri: ./
+      Events:
+        GetMemo:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/memo
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-memo.ts
+
+  GetTrackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-track.handler
+      CodeUri: ./
+      Events:
+        GetTrack:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/track
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-track.ts
+
+  GetRecordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-record.handler
+      CodeUri: ./
+      Events:
+        GetRecord:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-record.ts
+
+  PostAuthLoginFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-login.handler
+      CodeUri: ./
+      Events:
+        PostAuthLogin:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/login
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-login.ts
+
+  PostAuthLogoutFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-logout.handler
+      CodeUri: ./
+      Events:
+        PostAuthLogout:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/logout
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-logout.ts
+
+Outputs:
+  ApiUrl:
+    Description: API Gateway endpoint URL
+    Value: !Sub 'https://${LyricsApi}.execute-api.${AWS::Region}.amazonaws.com/v1'

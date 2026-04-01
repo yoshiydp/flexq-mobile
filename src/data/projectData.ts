@@ -2,10 +2,10 @@ export const PROJECT_DATA = [
   {
     id: '1',
     projectName: 'Project Title 1',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg',
     trackName: 'Track name A',
-    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -18,10 +18,10 @@ export const PROJECT_DATA = [
   {
     id: '2',
     projectName: 'Project Title 2',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg',
     trackName: 'Track name B',
-    trackSource: 'http://localhost:3000/audio/sample-audio2.wav',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -34,10 +34,10 @@ export const PROJECT_DATA = [
   {
     id: '3',
     projectName: 'Project Title 3',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg',
     trackName: 'Track name C',
-    trackSource: 'http://localhost:3000/audio/sample-audio3.wav',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -50,10 +50,10 @@ export const PROJECT_DATA = [
   {
     id: '4',
     projectName: 'Project Title 4',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg',
     trackName: 'Track name D',
-    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -66,10 +66,10 @@ export const PROJECT_DATA = [
   {
     id: '5',
     projectName: 'Project Title 5',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg',
     trackName: 'Track name E',
-    trackSource: 'http://localhost:3000/audio/sample-audio3.wav',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -82,10 +82,10 @@ export const PROJECT_DATA = [
   {
     id: '6',
     projectName: 'Project Title 6',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg',
     trackName: 'Track name F',
-    trackSource: 'http://localhost:3000/audio/sample-audio2.wav',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -98,10 +98,10 @@ export const PROJECT_DATA = [
   {
     id: '7',
     projectName: 'Project Title 7',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg',
     trackName: 'Track name G',
-    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -114,10 +114,10 @@ export const PROJECT_DATA = [
   {
     id: '8',
     projectName: 'Project Title 8',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg',
     trackName: 'Track name H',
-    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -130,10 +130,10 @@ export const PROJECT_DATA = [
   {
     id: '9',
     projectName: 'Project Title 9',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg',
     trackName: 'Track name I',
-    trackSource: 'http://localhost:3000/audio/sample-audio2.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -146,19 +146,19 @@ export const PROJECT_DATA = [
   {
     id: '10',
     projectName: 'Project Title 10',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork1.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg',
     trackName: 'Track name J',
-    trackSource: 'http://localhost:3000/audio/sample-audio3.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     updatedAt: '2023-10-10T09:00:00Z',
   },
   {
     id: '11',
     projectName: 'Project Title 11',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork3.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg',
     trackName: 'Track name K',
-    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 3500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },
@@ -171,10 +171,10 @@ export const PROJECT_DATA = [
   {
     id: '12',
     projectName: 'Project Title 12',
-    artwork: 'http://localhost:3000/images/sample/sample-artwork2.jpg',
+    artwork: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg',
     trackName: 'Track name L',
-    trackSource: 'http://localhost:3000/audio/sample-audio1.mp3',
-    waveformJson: 'http://localhost:3000/audio/sample-audio1.json',
+    trackSource: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3',
+    waveformJson: 'https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json',
     cueButtons: [
       { time: 4500, label: 'Intro', isActive: true },
       { time: 0, label: '', isActive: false },

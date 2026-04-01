@@ -87,8 +87,14 @@ export default function AudioPlayerScreen() {
     loadTrack(currentIndex, shouldAutoPlay);
     setShouldAutoPlay(false);
     return () => {
-      sound?.stopAsync();
-      sound?.unloadAsync();
+      (async () => {
+        if (!sound) return;
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded) {
+          await sound.stopAsync();
+          await sound.unloadAsync();
+        }
+      })();
     };
   }, [currentIndex]);
 
