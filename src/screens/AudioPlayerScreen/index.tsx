@@ -55,6 +55,12 @@ export default function AudioPlayerScreen() {
   } = useModal();
 
   const loadTrack = async (index: number, autoPlay = false) => {
+    await Audio.setAudioModeAsync({
+      playsInSilentModeIOS: true,
+      staysActiveInBackground: false,
+      shouldDuckAndroid: true,
+    });
+
     if (sound) {
       await sound.stopAsync();
       await sound.unloadAsync();
