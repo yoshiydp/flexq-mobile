@@ -1,9 +1,9 @@
-import { PROJECT_DATA } from '../../src/data/projectData';
-import { MEMO_DATA } from '../../src/data/memoData';
-import { PROFILE_DATA } from '../../src/data/profileData';
-import { RECORD_DATA } from '../../src/data/recordData';
-import { TRACK_DATA } from '../../src/data/trackData';
-import { PROJECT_RECORD_LIST_DATA } from '../../src/data/projectRecordListData';
+import { PROJECT_DATA } from './data/projectData';
+import { MEMO_DATA } from './data/memoData';
+import { PROFILE_DATA } from './data/profileData';
+import { RECORD_DATA } from './data/recordData';
+import { TRACK_DATA } from './data/trackData';
+import { PROJECT_RECORD_LIST_DATA } from './data/projectRecordListData';
 
 const MOCK_DATA: Record<string, unknown> = {
   projectData: PROJECT_DATA,

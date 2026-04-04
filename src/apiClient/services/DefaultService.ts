@@ -79,6 +79,34 @@ export class DefaultService {
         });
     }
     /**
+     * Update profile
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static updateProfile(
+        requestBody: {
+            username?: string;
+            email?: string;
+            thumbnailKey?: string;
+        },
+    ): CancelablePromise<{
+        username?: string;
+        email?: string;
+        thumbnail?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/data/profile',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
      * Get memo data
      * Returns mock data for MEMO_DATA.
      * @returns any OK
@@ -88,6 +116,120 @@ export class DefaultService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/data/memo',
+        });
+    }
+    /**
+     * Create a new memo
+     * @param requestBody
+     * @returns any Created
+     * @throws ApiError
+     */
+    public static createMemo(
+        requestBody: {
+            title: string;
+            body?: string;
+        },
+    ): CancelablePromise<{
+        id?: string;
+        title?: string;
+        body?: string;
+        updatedAt?: string;
+        isBookmarked?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/memo',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
+     * Update a memo
+     * @param id
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static updateMemo(
+        id: string,
+        requestBody: {
+            title?: string;
+            body?: string;
+            isBookmarked?: boolean;
+        },
+    ): CancelablePromise<{
+        id?: string;
+        title?: string;
+        body?: string;
+        updatedAt?: string;
+        isBookmarked?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/data/memo/{id}',
+            path: {
+                'id': id,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Delete a memo
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static deleteMemo(
+        id: string,
+    ): CancelablePromise<{
+        success?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/data/memo/{id}',
+            path: {
+                'id': id,
+            },
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Get presigned S3 upload URL for a track file
+     * @param filename
+     * @param contentType
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getTrackUploadUrl(
+        filename: string,
+        contentType: string,
+    ): CancelablePromise<{
+        uploadUrl?: string;
+        key?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/track/upload-url',
+            query: {
+                'filename': filename,
+                'contentType': contentType,
+            },
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
         });
     }
     /**
@@ -103,6 +245,91 @@ export class DefaultService {
         });
     }
     /**
+     * Create a new track
+     * @param requestBody
+     * @returns any Created
+     * @throws ApiError
+     */
+    public static createTrack(
+        requestBody: {
+            title: string;
+            s3Key: string;
+            extention: string;
+        },
+    ): CancelablePromise<{
+        id?: string;
+        title?: string;
+        s3Key?: string;
+        extention?: string;
+        linkedProjects?: Array<string>;
+        updatedAt?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/track',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
+     * Update a track title
+     * @param id
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static updateTrack(
+        id: string,
+        requestBody: {
+            title: string;
+        },
+    ): CancelablePromise<{
+        id?: string;
+        title?: string;
+        updatedAt?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/data/track/{id}',
+            path: {
+                'id': id,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Delete a track
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static deleteTrack(
+        id: string,
+    ): CancelablePromise<{
+        success?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/data/track/{id}',
+            path: {
+                'id': id,
+            },
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
      * Get record data
      * Returns mock data for RECORD_DATA.
      * @returns any OK
@@ -112,6 +339,93 @@ export class DefaultService {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/data/record',
+        });
+    }
+    /**
+     * Create a new record
+     * @param requestBody
+     * @returns any Created
+     * @throws ApiError
+     */
+    public static createRecord(
+        requestBody: {
+            title: string;
+            source: string;
+            isBookmarked?: boolean;
+        },
+    ): CancelablePromise<{
+        id?: string;
+        title?: string;
+        source?: string;
+        updatedAt?: string;
+        isBookmarked?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/record',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
+     * Update a record
+     * @param id
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static updateRecord(
+        id: string,
+        requestBody: {
+            title?: string;
+            isBookmarked?: boolean;
+        },
+    ): CancelablePromise<{
+        id?: string;
+        title?: string;
+        source?: string;
+        updatedAt?: string;
+        isBookmarked?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/data/record/{id}',
+            path: {
+                'id': id,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Delete a record
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static deleteRecord(
+        id: string,
+    ): CancelablePromise<{
+        success?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/data/record/{id}',
+            path: {
+                'id': id,
+            },
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
         });
     }
     /**

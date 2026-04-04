@@ -56,7 +56,7 @@ describe('ActionButtonWithMenu コンポーネントのテスト', () => {
     });
   });
 
-  it('各メニュー項目を押下すると対応する関数が呼ばれる', async () => {
+  it('各メニュー項目を押下すると対応する関数とonToggleが呼ばれる', async () => {
     const { getByText } = render(
       <ActionButtonWithMenu
         isOpen={true}
@@ -67,11 +67,17 @@ describe('ActionButtonWithMenu コンポーネントのテスト', () => {
 
     await act(async () => {
       fireEvent.press(getByText('Edit'));
-      fireEvent.press(getByText('Delete'));
     });
 
     expect(mockMenuItem1).toHaveBeenCalledTimes(1);
+    expect(mockOnToggle).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      fireEvent.press(getByText('Delete'));
+    });
+
     expect(mockMenuItem2).toHaveBeenCalledTimes(1);
+    expect(mockOnToggle).toHaveBeenCalledTimes(2);
   });
 
   it('非同期の onPress 関数でも問題なく動作する', async () => {

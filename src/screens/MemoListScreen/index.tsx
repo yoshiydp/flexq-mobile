@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import MemoItem from '@/components/features/drafts/MemoItem';
 import {
@@ -11,11 +13,19 @@ import { useFetchMemo } from '@/hooks/useFetchMemo';
 import styles from './MemoListScreen.styles';
 
 export default function MemoListScreen() {
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const params = (route as any).params || {};
 
-  const { memos, loading, error } = useFetchMemo();
+  const { memos, loading, error, refreshMemo } = useFetchMemo();
+
+  // 画面フォーカス時にメモ一覧を再取得
+  useFocusEffect(
+    React.useCallback(() => {
+      refreshMemo();
+    }, [refreshMemo]),
+  );
 
   const sortedMemos = [...memos].sort((a, b) => {
     if (a.isBookmarked !== b.isBookmarked) {
@@ -32,12 +42,20 @@ export default function MemoListScreen() {
     }
   };
 
+  const handleNewMemo = () => {
+    navigation.navigate('QuickMemo', { source: params.source });
+  };
+
   const items: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     { ...HEADER_TOOLBAR_TEMPLATES.headerTitle, headerTitle: 'MEMO LIST' },
+    {
+      ...HEADER_TOOLBAR_TEMPLATES.action,
+      menuItems: [{ label: '新規メモ', onPress: handleNewMemo }],
+    },
   ];
 
-  if (loading) {
+  if (loading && memos.length === 0) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" />
