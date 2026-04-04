@@ -1,6 +1,13 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: Lyrics Template Mock API
+Description: Lyrics Template API
+
+Parameters:
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    Default: "lyrics-jwt-secret-change-in-production"
+    Description: Secret key for signing JWT tokens
 
 Globals:
   Function:
@@ -8,18 +15,134 @@ Globals:
     Architectures:
       - arm64
     Timeout: 10
+    Environment:
+      Variables:
+        USERS_TABLE: !Ref UsersTable
+        PROJECTS_TABLE: !Ref ProjectsTable
+        TRACKS_TABLE: !Ref TracksTable
+        RECORDS_TABLE: !Ref RecordsTable
+        MEMOS_TABLE: !Ref MemosTable
+        JWT_SECRET: !Ref JwtSecret
+        TRACK_AUDIO_BUCKET: !Ref TrackAudioBucket
   Api:
     Cors:
       AllowOrigin: "'*'"
       AllowHeaders: "'Content-Type,Authorization'"
-      AllowMethods: "'GET,POST,OPTIONS'"
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
 
 Resources:
+  # ─── DynamoDB Tables ───────────────────────────────────
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: email
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+      GlobalSecondaryIndexes:
+        - IndexName: email-index
+          KeySchema:
+            - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  ProjectsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: projectId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: projectId
+          KeyType: RANGE
+
+  TracksTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: trackId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: trackId
+          KeyType: RANGE
+
+  RecordsTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: recordId
+          AttributeType: S
+        - AttributeName: projectId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: recordId
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: projectId-index
+          KeySchema:
+            - AttributeName: projectId
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+
+  MemosTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: userId
+          AttributeType: S
+        - AttributeName: memoId
+          AttributeType: S
+      KeySchema:
+        - AttributeName: userId
+          KeyType: HASH
+        - AttributeName: memoId
+          KeyType: RANGE
+
+  # ─── S3 Bucket ─────────────────────────────────────────
+  TrackAudioBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders:
+              - '*'
+            AllowedMethods:
+              - PUT
+              - GET
+            AllowedOrigins:
+              - '*'
+            MaxAge: 3000
+
+  # ─── API Gateway ───────────────────────────────────────
   LyricsApi:
     Type: AWS::Serverless::Api
     Properties:
       StageName: v1
 
+  # ─── Lambda Functions ──────────────────────────────────
   GetDataFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -46,6 +169,9 @@ Resources:
     Properties:
       Handler: lambda/get-project.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProjectsTable
       Events:
         GetProject:
           Type: Api
@@ -67,6 +193,9 @@ Resources:
     Properties:
       Handler: lambda/get-project-detail.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProjectsTable
       Events:
         GetProjectDetail:
           Type: Api
@@ -88,6 +217,9 @@ Resources:
     Properties:
       Handler: lambda/get-project-records.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RecordsTable
       Events:
         GetProjectRecords:
           Type: Api
@@ -109,6 +241,11 @@ Resources:
     Properties:
       Handler: lambda/get-profile.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         GetProfile:
           Type: Api
@@ -130,6 +267,9 @@ Resources:
     Properties:
       Handler: lambda/get-memo.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref MemosTable
       Events:
         GetMemo:
           Type: Api
@@ -151,6 +291,11 @@ Resources:
     Properties:
       Handler: lambda/get-track.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref TracksTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         GetTrack:
           Type: Api
@@ -167,11 +312,114 @@ Resources:
         EntryPoints:
           - lambda/get-track.ts
 
+  GetTrackUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-track-upload-url.handler
+      CodeUri: ./
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${TrackAudioBucket}/*'
+      Events:
+        GetTrackUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/track/upload-url
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-track-upload-url.ts
+
+  PostTrackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-track.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TracksTable
+      Events:
+        PostTrack:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/track
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-track.ts
+
+  PutTrackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/put-track.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TracksTable
+      Events:
+        PutTrack:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/track/{id}
+            Method: put
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/put-track.ts
+
+  DeleteTrackFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/delete-track.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TracksTable
+        - S3CrudPolicy:
+            BucketName: !Ref TrackAudioBucket
+      Events:
+        DeleteTrack:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/track/{id}
+            Method: delete
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/delete-track.ts
+
   GetRecordFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: lambda/get-record.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref RecordsTable
       Events:
         GetRecord:
           Type: Api
@@ -188,11 +436,188 @@ Resources:
         EntryPoints:
           - lambda/get-record.ts
 
+  PostRecordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-record.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+      Events:
+        PostRecord:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-record.ts
+
+  PutRecordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/put-record.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+      Events:
+        PutRecord:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record/{id}
+            Method: put
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/put-record.ts
+
+  DeleteRecordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/delete-record.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+      Events:
+        DeleteRecord:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record/{id}
+            Method: delete
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/delete-record.ts
+
+  PostMemoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-memo.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MemosTable
+      Events:
+        PostMemo:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/memo
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-memo.ts
+
+  PutMemoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/put-memo.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MemosTable
+      Events:
+        PutMemo:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/memo/{id}
+            Method: put
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/put-memo.ts
+
+  DeleteMemoFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/delete-memo.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MemosTable
+      Events:
+        DeleteMemo:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/memo/{id}
+            Method: delete
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/delete-memo.ts
+
+  PutProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/put-profile.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${TrackAudioBucket}/*'
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
+      Events:
+        PutProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/profile
+            Method: put
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/put-profile.ts
+
   PostAuthLoginFunction:
     Type: AWS::Serverless::Function
     Properties:
       Handler: lambda/post-auth-login.handler
       CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
       Events:
         PostAuthLogin:
           Type: Api
@@ -234,3 +659,21 @@ Outputs:
   ApiUrl:
     Description: API Gateway endpoint URL
     Value: !Sub 'https://${LyricsApi}.execute-api.${AWS::Region}.amazonaws.com/v1'
+  UsersTableName:
+    Description: DynamoDB Users table name
+    Value: !Ref UsersTable
+  ProjectsTableName:
+    Description: DynamoDB Projects table name
+    Value: !Ref ProjectsTable
+  TracksTableName:
+    Description: DynamoDB Tracks table name
+    Value: !Ref TracksTable
+  RecordsTableName:
+    Description: DynamoDB Records table name
+    Value: !Ref RecordsTable
+  MemosTableName:
+    Description: DynamoDB Memos table name
+    Value: !Ref MemosTable
+  TrackAudioBucketName:
+    Description: S3 bucket for track audio files
+    Value: !Ref TrackAudioBucket

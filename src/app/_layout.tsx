@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
@@ -6,8 +6,10 @@ import RootNavigator from '@/navigation/RootNavigator';
 import AnimatedSplashScreen from '@/components/ui/AnimatedSplashScreen';
 import { COLORS } from '@/globalStyles';
 import { OpenAPI } from '@/apiClient';
+import { getAccessToken } from '@/utils/authStorage';
 
 OpenAPI.BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
+OpenAPI.TOKEN = () => getAccessToken().then((t) => t ?? '');
 
 function AppContent() {
   const { loading } = useAuthContext();

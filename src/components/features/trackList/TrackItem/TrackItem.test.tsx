@@ -39,4 +39,15 @@ describe('TrackItem コンポーネント', () => {
     fireEvent.press(pressable);
     expect(mockProps.onPress).toHaveBeenCalled();
   });
+
+  it('onLongPress が呼ばれること', () => {
+    const mockOnLongPress = jest.fn();
+    const { getByTestId } = render(
+      <TrackItem {...mockProps} onLongPress={mockOnLongPress} />,
+    );
+    const pressable = getByTestId('track-item-pressable');
+
+    fireEvent(pressable, 'longPress');
+    expect(mockOnLongPress).toHaveBeenCalled();
+  });
 });

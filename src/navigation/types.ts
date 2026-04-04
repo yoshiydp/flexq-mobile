@@ -38,6 +38,7 @@ export type RootStackParamList = {
   };
   RecordPlayer:
     | {
+        id?: string;
         recordedFile?: string;
         recordedDuration?: number;
         title?: string;

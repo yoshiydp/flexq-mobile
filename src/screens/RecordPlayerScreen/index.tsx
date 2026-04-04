@@ -14,6 +14,9 @@ import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
 import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
 import { MODAL_MESSAGES } from '@/constants/messages';
+import { useCreateRecord } from '@/hooks/useCreateRecord';
+import { useUpdateRecord } from '@/hooks/useUpdateRecord';
+import { useDeleteRecord } from '@/hooks/useDeleteRecord';
 import styles from './RecordPlayerScreen.styles';
 
 export default function RecordPlayerScreen() {
@@ -30,10 +33,9 @@ export default function RecordPlayerScreen() {
     params?.isBookmarked ?? false,
   );
 
-  const savedRef = useRef<{
-    title: string;
-    isBookmarked: boolean;
-  } | null>(null);
+  const { createRecord } = useCreateRecord();
+  const { updateRecord } = useUpdateRecord();
+  const { deleteRecord } = useDeleteRecord();
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -128,17 +130,15 @@ export default function RecordPlayerScreen() {
 
   const submitDelete = async () => {
     closeModal();
+    showLoading();
     try {
-      showLoading();
+      if (params?.id) await deleteRecord(params.id);
+      if (sound) await sound.stopAsync();
     } catch (error) {
       console.error(error);
-      hideLoading();
     } finally {
-      setTimeout(async () => {
-        if (sound) await sound.stopAsync();
-        hideLoading();
-        navigation.goBack();
-      }, 3000);
+      hideLoading();
+      navigation.goBack();
     }
   };
 
@@ -188,19 +188,19 @@ export default function RecordPlayerScreen() {
   };
 
   const handleSave = async () => {
+    showLoading();
     try {
-      showLoading();
-      const updatedMemo = { title, isBookmarked };
-      savedRef.current = updatedMemo;
+      if (params?.id) {
+        await updateRecord(params.id, { title, isBookmarked });
+      } else {
+        await createRecord(title, recordedFile, isBookmarked);
+      }
+      if (sound) await sound.stopAsync();
     } catch (error) {
       console.error(error);
-      hideLoading();
     } finally {
-      setTimeout(async () => {
-        if (sound) await sound.stopAsync();
-        hideLoading();
-        navigation.goBack();
-      }, 3000);
+      hideLoading();
+      navigation.goBack();
     }
   };
 
@@ -219,7 +219,8 @@ export default function RecordPlayerScreen() {
           { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
           { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
         ]
-      : [
+      : params?.id
+      ? [
           { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
           {
             ...HEADER_TOOLBAR_TEMPLATES.headerTitle,
@@ -229,12 +230,17 @@ export default function RecordPlayerScreen() {
             ...HEADER_TOOLBAR_TEMPLATES.rightButtonGroup,
             buttons: [
               { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
-              {
-                ...HEADER_TOOLBAR_TEMPLATES.delete,
-                onPress: handleDelete,
-              },
+              { ...HEADER_TOOLBAR_TEMPLATES.delete, onPress: handleDelete },
             ],
           },
+        ]
+      : [
+          { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
+          {
+            ...HEADER_TOOLBAR_TEMPLATES.headerTitle,
+            headerTitle: 'QUICK RECORD',
+          },
+          { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
         ];
 
   return (

@@ -229,106 +229,106 @@ components:
         [
           {
             "id": "1",
-            "title": "メモタイトル1",
-            "body": "これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。これはメモの内容です。",
+            "title": "1",
+            "body": "",
             "updatedAt": "2023-10-01T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "2",
-            "title": "メモタイトル2",
-            "body": "別のメモの内容です。別のメモの内容です。別のメモの内容です。別のメモの内容です。",
+            "title": "2",
+            "body": "",
             "updatedAt": "2023-10-02T15:30:00Z",
             "isBookmarked": false
           },
           {
             "id": "3",
-            "title": "買い物リスト",
-            "body": "・牛乳\n・卵\n・パン\n・果物",
+            "title": "",
+            "body": "\n\n\n",
             "updatedAt": "2023-10-03T09:45:00Z",
             "isBookmarked": false
           },
           {
             "id": "4",
-            "title": "プロジェクトアイデア",
-            "body": "新しいアプリのアイデアをまとめる。\n- ユーザーフレンドリーなUI\n- 高速なパフォーマンス\n- クロスプラットフォーム対応",
+            "title": "",
+            "body": "\n- UI\n- \n- ",
             "updatedAt": "2023-10-04T18:20:00Z",
             "isBookmarked": true
           },
           {
             "id": "5",
-            "title": "旅行計画",
-            "body": "次の旅行の計画を立てる。\n- 行き先: 京都\n- 日程: 2023年11月10日〜11月15日\n- 宿泊先: ホテルXYZ",
+            "title": "",
+            "body": "\n- : \n- : 202311101115\n- : XYZ",
             "updatedAt": "2023-10-05T14:10:00Z",
             "isBookmarked": false
           },
           {
             "id": "6",
-            "title": "読書リスト",
-            "body": "読みたい本のリスト。\n1. 「深夜特急」\n2. 「ノルウェイの森」\n3. 「1Q84」",
+            "title": "",
+            "body": "\n1. \n2. \n3. 1Q84",
             "updatedAt": "2023-10-06T11:05:00Z",
             "isBookmarked": true
           },
           {
             "id": "7",
-            "title": "会議メモ",
-            "body": "今日の会議で話した内容を記録する。\n- プロジェクトの進捗状況\n- 次のステップ\n- 課題と解決策",
+            "title": "",
+            "body": "\n- \n- \n- ",
             "updatedAt": "2023-10-07T16:40:00Z",
             "isBookmarked": false
           },
           {
             "id": "8",
-            "title": "レシピメモ",
-            "body": "お気に入りのレシピを保存する。\n- パスタの作り方\n- サラダのドレッシング\n- デザートのアイデア",
+            "title": "",
+            "body": "\n- \n- \n- ",
             "updatedAt": "2023-10-08T13:25:00Z",
             "isBookmarked": false
           },
           {
             "id": "9",
-            "title": "フィットネスプラン",
-            "body": "毎週のフィットネスプランを作成する。\n- 月曜日: ジョギング\n- 水曜日: 筋トレ\n- 金曜日: ヨガ",
+            "title": "",
+            "body": "\n- : \n- : \n- : ",
             "updatedAt": "2023-10-09T10:15:00Z",
             "isBookmarked": false
           },
           {
             "id": "10",
-            "title": "仕事のタスク",
-            "body": "今日の仕事のタスクをリストアップする。\n- メールチェック\n- プロジェクトAの進捗確認\n- ミーティング準備",
+            "title": "",
+            "body": "\n- \n- A\n- ",
             "updatedAt": "2023-10-10T17:50:00Z",
             "isBookmarked": false
           },
           {
             "id": "11",
-            "title": "新しいアイデア",
-            "body": "新しいアイデアをメモする。\n- アイデア1\n- アイデア2\n- アイデア3",
+            "title": "",
+            "body": "\n- 1\n- 2\n- 3",
             "updatedAt": "2023-10-11T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "12",
-            "title": "週末の予定",
-            "body": "週末の予定を立てる。\n- 土曜日: 買い物と掃除\n- 日曜日: 友人とランチ",
+            "title": "",
+            "body": "\n- : \n- : ",
             "updatedAt": "2023-10-12T15:30:00Z",
             "isBookmarked": false
           },
           {
             "id": "13",
-            "title": "映画リスト",
-            "body": "観たい映画のリスト。\n1. 「インセプション」\n2. 「マトリックス」\n3. 「ショーシャンクの空に」",
+            "title": "",
+            "body": "\n1. \n2. \n3. ",
             "updatedAt": "2023-10-13T09:45:00Z",
             "isBookmarked": false
           },
           {
             "id": "14",
-            "title": "学習計画",
-            "body": "新しいスキルを学ぶための計画を立てる。\n- 月曜日: プログラミング\n- 水曜日: デザイン\n- 金曜日: マーケティング",
+            "title": "",
+            "body": "\n- : \n- : \n- : ",
             "updatedAt": "2023-10-14T18:20:00Z",
             "isBookmarked": false
           },
           {
             "id": "15",
-            "title": "ガーデニングメモ",
-            "body": "ガーデニングのアイデアをメモする。\n- 植物の種類\n- 肥料の種類\n- 水やりの頻度",
+            "title": "",
+            "body": "\n- \n- \n- ",
             "updatedAt": "2023-10-15T14:10:00Z",
             "isBookmarked": true
           }
@@ -336,7 +336,7 @@ components:
     PROFILE_DATA:
       value: |-
         {
-          "thumbnail": "http://localhost:3000/images/sample/profile.jpg",
+          "thumbnail": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/profile.jpg",
           "username": "User Profile Name",
           "email": "testuser@example.com",
           "socialAccounts": [
@@ -363,10 +363,10 @@ components:
           {
             "id": "1",
             "projectName": "Project Title 1",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "trackName": "Track name A",
-            "trackSource": "http://localhost:3000/audio/sample-audio1.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -399,10 +399,10 @@ components:
           {
             "id": "2",
             "projectName": "Project Title 2",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "trackName": "Track name B",
-            "trackSource": "http://localhost:3000/audio/sample-audio2.wav",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -435,10 +435,10 @@ components:
           {
             "id": "3",
             "projectName": "Project Title 3",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "trackName": "Track name C",
-            "trackSource": "http://localhost:3000/audio/sample-audio3.wav",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -471,10 +471,10 @@ components:
           {
             "id": "4",
             "projectName": "Project Title 4",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "trackName": "Track name D",
-            "trackSource": "http://localhost:3000/audio/sample-audio1.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -507,10 +507,10 @@ components:
           {
             "id": "5",
             "projectName": "Project Title 5",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "trackName": "Track name E",
-            "trackSource": "http://localhost:3000/audio/sample-audio3.wav",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -543,10 +543,10 @@ components:
           {
             "id": "6",
             "projectName": "Project Title 6",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "trackName": "Track name F",
-            "trackSource": "http://localhost:3000/audio/sample-audio2.wav",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -579,10 +579,10 @@ components:
           {
             "id": "7",
             "projectName": "Project Title 7",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "trackName": "Track name G",
-            "trackSource": "http://localhost:3000/audio/sample-audio1.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -615,10 +615,10 @@ components:
           {
             "id": "8",
             "projectName": "Project Title 8",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "trackName": "Track name H",
-            "trackSource": "http://localhost:3000/audio/sample-audio1.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -651,10 +651,10 @@ components:
           {
             "id": "9",
             "projectName": "Project Title 9",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "trackName": "Track name I",
-            "trackSource": "http://localhost:3000/audio/sample-audio2.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -687,19 +687,19 @@ components:
           {
             "id": "10",
             "projectName": "Project Title 10",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "trackName": "Track name J",
-            "trackSource": "http://localhost:3000/audio/sample-audio3.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "updatedAt": "2023-10-10T09:00:00Z"
           },
           {
             "id": "11",
             "projectName": "Project Title 11",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "trackName": "Track name K",
-            "trackSource": "http://localhost:3000/audio/sample-audio1.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 3500,
@@ -732,10 +732,10 @@ components:
           {
             "id": "12",
             "projectName": "Project Title 12",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "trackName": "Track name L",
-            "trackSource": "http://localhost:3000/audio/sample-audio1.mp3",
-            "waveformJson": "http://localhost:3000/audio/sample-audio1.json",
+            "trackSource": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "waveformJson": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.json",
             "cueButtons": [
               {
                 "time": 4500,
@@ -816,105 +816,105 @@ components:
           {
             "id": "1",
             "title": "Track 1",
-            "source": "http://localhost:3000/record/sample-1.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-1.m4a",
             "updatedAt": "2023-10-01T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "2",
             "title": "Track 2",
-            "source": "http://localhost:3000/record/sample-2.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-2.m4a",
             "updatedAt": "2023-10-02T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "3",
             "title": "Track 3",
-            "source": "http://localhost:3000/record/sample-3.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-3.m4a",
             "updatedAt": "2023-10-03T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "4",
             "title": "Track 4",
-            "source": "http://localhost:3000/record/sample-4.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-4.m4a",
             "updatedAt": "2023-10-04T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "5",
             "title": "Track 5",
-            "source": "http://localhost:3000/record/sample-5.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-5.m4a",
             "updatedAt": "2023-10-05T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "6",
             "title": "Track 6",
-            "source": "http://localhost:3000/record/sample-1.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-1.m4a",
             "updatedAt": "2023-10-06T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "7",
             "title": "Track 7",
-            "source": "http://localhost:3000/record/sample-2.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-2.m4a",
             "updatedAt": "2023-10-07T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "8",
             "title": "Track 8",
-            "source": "http://localhost:3000/record/sample-3.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-3.m4a",
             "updatedAt": "2023-10-08T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "9",
             "title": "Track 9",
-            "source": "http://localhost:3000/record/sample-4.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-4.m4a",
             "updatedAt": "2023-10-09T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "10",
             "title": "Track 10",
-            "source": "http://localhost:3000/record/sample-5.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-5.m4a",
             "updatedAt": "2023-10-10T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "11",
             "title": "Track 11",
-            "source": "http://localhost:3000/record/sample-1.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-1.m4a",
             "updatedAt": "2023-10-11T12:00:00Z",
             "isBookmarked": true
           },
           {
             "id": "12",
             "title": "Track 12",
-            "source": "http://localhost:3000/record/sample-2.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-2.m4a",
             "updatedAt": "2023-10-12T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "13",
             "title": "Track 13",
-            "source": "http://localhost:3000/record/sample-3.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-3.m4a",
             "updatedAt": "2023-10-13T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "14",
             "title": "Track 14",
-            "source": "http://localhost:3000/record/sample-4.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-4.m4a",
             "updatedAt": "2023-10-14T12:00:00Z",
             "isBookmarked": false
           },
           {
             "id": "15",
             "title": "Track 15",
-            "source": "http://localhost:3000/record/sample-5.m4a",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/record/sample-5.m4a",
             "updatedAt": "2023-10-15T12:00:00Z",
             "isBookmarked": true
           }
@@ -925,8 +925,8 @@ components:
           {
             "id": "1",
             "title": "Track 1",
-            "source": "http://localhost:3000/audio/sample-audio1.mp3",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "linkedProjects": [
               "project1",
               "project2",
@@ -943,8 +943,8 @@ components:
           {
             "id": "2",
             "title": "Track 2",
-            "source": "http://localhost:3000/audio/sample-audio2.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -955,8 +955,8 @@ components:
           {
             "id": "3",
             "title": "Track 3",
-            "source": "http://localhost:3000/audio/sample-audio3.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -967,8 +967,8 @@ components:
           {
             "id": "4",
             "title": "Track 4",
-            "source": "http://localhost:3000/audio/sample-audio1.mp3",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "linkedProjects": [],
             "extention": "MP3",
             "updatedAt": "2023-10-01T12:00:00Z"
@@ -976,8 +976,8 @@ components:
           {
             "id": "5",
             "title": "Track 5",
-            "source": "http://localhost:3000/audio/sample-audio3.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -988,8 +988,8 @@ components:
           {
             "id": "6",
             "title": "Track 6",
-            "source": "http://localhost:3000/audio/sample-audio2.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -1000,8 +1000,8 @@ components:
           {
             "id": "7",
             "title": "Track 7",
-            "source": "http://localhost:3000/audio/sample-audio1.mp3",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -1012,8 +1012,8 @@ components:
           {
             "id": "8",
             "title": "Track 8",
-            "source": "http://localhost:3000/audio/sample-audio3.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -1024,8 +1024,8 @@ components:
           {
             "id": "9",
             "title": "Track 9",
-            "source": "http://localhost:3000/audio/sample-audio1.mp3",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -1036,8 +1036,8 @@ components:
           {
             "id": "10",
             "title": "Track 10",
-            "source": "http://localhost:3000/audio/sample-audio2.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -1048,8 +1048,8 @@ components:
           {
             "id": "11",
             "title": "Track 11",
-            "source": "http://localhost:3000/audio/sample-audio3.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork1.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio3.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork1.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -1060,8 +1060,8 @@ components:
           {
             "id": "12",
             "title": "Track 12",
-            "source": "http://localhost:3000/audio/sample-audio2.wav",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork2.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio2.wav",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork2.jpg",
             "linkedProjects": [
               "project1",
               "project2"
@@ -1072,8 +1072,8 @@ components:
           {
             "id": "13",
             "title": "Track 13",
-            "source": "http://localhost:3000/audio/sample-audio1.mp3",
-            "artwork": "http://localhost:3000/images/sample/sample-artwork3.jpg",
+            "source": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/audio/sample-audio1.mp3",
+            "artwork": "https://lyrics-mock-assets.s3.ap-northeast-1.amazonaws.com/images/sample/sample-artwork3.jpg",
             "linkedProjects": [
               "project1",
               "project2"

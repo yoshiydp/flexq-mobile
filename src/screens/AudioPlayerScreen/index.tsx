@@ -15,6 +15,9 @@ import {
 } from '@/constants/headerToolBarButtons';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { MODAL_MESSAGES } from '@/constants/messages';
+import { useUpdateTrack } from '@/hooks/useUpdateTrack';
+import { useDeleteTrack } from '@/hooks/useDeleteTrack';
+import { formatDate } from '@/utils/formatDate';
 import styles from './AudioPlayerScreen.styles';
 
 interface Track {
@@ -35,6 +38,7 @@ export default function AudioPlayerScreen() {
     tracks: Track[];
   };
 
+  const [localTracks, setLocalTracks] = useState(tracks);
   const [currentIndex, setCurrentIndex] = useState(trackIndex);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -44,7 +48,7 @@ export default function AudioPlayerScreen() {
   const [isLooping, setIsLooping] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
 
-  const currentTrack = tracks[currentIndex];
+  const currentTrack = localTracks[currentIndex];
 
   const {
     showConfirmModal,
@@ -54,6 +58,9 @@ export default function AudioPlayerScreen() {
     closeModal,
   } = useModal();
 
+  const { updateTrack } = useUpdateTrack();
+  const { deleteTrack } = useDeleteTrack();
+
   const loadTrack = async (index: number, autoPlay = false) => {
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
@@ -62,12 +69,19 @@ export default function AudioPlayerScreen() {
     });
 
     if (sound) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
+      try {
+        const status = await sound.getStatusAsync();
+        if (status.isLoaded) {
+          await sound.stopAsync();
+          await sound.unloadAsync();
+        }
+      } catch {
+        // already unloaded, ignore
+      }
     }
 
     const { sound: newSound } = await Audio.Sound.createAsync(
-      { uri: tracks[index].source },
+      { uri: localTracks[index].source },
       { shouldPlay: autoPlay },
     );
 
@@ -157,14 +171,22 @@ export default function AudioPlayerScreen() {
     navigation.goBack();
   };
 
-  const onSubmitTrackName = (newTitle: string) => {
+  const onSubmitTrackName = async (newTitle: string) => {
     if (!newTitle.trim()) return;
     closeModal();
     showLoading();
-    // TODO: PATCH /tracks/:id {title:newTitle}
-    setTimeout(() => {
+    try {
+      await updateTrack(currentTrack.id, newTitle.trim());
+      setLocalTracks((prev) =>
+        prev.map((t, i) =>
+          i === currentIndex ? { ...t, title: newTitle.trim() } : t,
+        ),
+      );
+    } catch (err) {
+      console.error('Failed to update track name:', err);
+    } finally {
       hideLoading();
-    }, 3000);
+    }
   };
 
   const onPressEdit = () => {
@@ -175,14 +197,17 @@ export default function AudioPlayerScreen() {
     });
   };
 
-  const onSubmitDeleteTrack = () => {
-    // TODO: DELETE /tracks/:id
+  const onSubmitDeleteTrack = async () => {
     closeModal();
     showLoading();
-    setTimeout(() => {
+    try {
+      await deleteTrack(currentTrack.id);
+    } catch (err) {
+      console.error('Failed to delete track:', err);
+    } finally {
       hideLoading();
       handleGoBack();
-    }, 3000);
+    }
   };
 
   const onPressDeleteConfirm = () => {
@@ -225,7 +250,7 @@ export default function AudioPlayerScreen() {
           <Text style={styles.title}>{currentTrack.title}</Text>
           <View style={styles.dataInfo}>
             <Text style={styles.updateAt}>
-              {currentTrack.updatedAt.toLocaleString()} UPLOAD
+              {formatDate(new Date(currentTrack.updatedAt))} UPLOAD
             </Text>
             <ExtensionLabel label={currentTrack.extention} />
           </View>
@@ -239,7 +264,7 @@ export default function AudioPlayerScreen() {
         </View>
         <View style={styles.playerControlsWrapper}>
           <PlayerControls
-            tracks={tracks}
+            tracks={localTracks}
             currentIndex={currentIndex}
             onPrev={handlePrev}
             onNext={handleNext}
