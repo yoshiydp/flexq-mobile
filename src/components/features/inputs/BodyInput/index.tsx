@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Button,
   KeyboardAvoidingView,
@@ -31,6 +31,17 @@ export default function BodyInput({
   richEditorAddStyle,
   isEditing,
 }: BodyInputProps) {
+  const hasFirstFocused = useRef(false);
+
+  const handleFocus = () => {
+    if (Platform.OS !== 'ios' || hasFirstFocused.current) return;
+    hasFirstFocused.current = true;
+    // iOS WebView は最初のフォーカス時に入力接続が未確立で最初の1文字が二重送信される。
+    // 初回フォーカス時のみ即座に blur して再フォーカスすることで入力接続を確立する。
+    editorRef?.current?.blurContentEditor();
+    setTimeout(() => editorRef?.current?.focusContentEditor(), 50);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -84,15 +95,7 @@ export default function BodyInput({
           onChange={onChangeText}
           placeholder={PLACEHOLDERS.bodyInput}
           useContainer={false}
-          editorInitializedCallback={() => {
-            if (Platform.OS === 'ios') {
-              // iOS WebView contenteditable の初回フォーカス時に最初の1文字が
-              // 二重入力される既知のバグを回避するため、ロード直後に focus/blur を
-              // 実行して iOS のテキスト入力接続をウォームアップする。
-              editorRef?.current?.focusContentEditor();
-              setTimeout(() => editorRef?.current?.blurContentEditor(), 50);
-            }
-          }}
+          onFocus={handleFocus}
         />
       </ScrollView>
     </KeyboardAvoidingView>
