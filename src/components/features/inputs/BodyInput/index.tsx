@@ -1,7 +1,6 @@
 import React from 'react';
 import {
   Button,
-  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -17,24 +16,8 @@ import {
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { styles } from './BodyInput.styles';
 
-// iOS の WebView は contenteditable の最初のキー入力で autocapitalize が干渉し、
-// 英字が大文字になったり日本語IMEがアルファベット入力になる問題がある。
-// エディタ要素に autocapitalize="none" を設定することで回避する。
-const INJECTED_JS = `
-  (function() {
-    var interval = setInterval(function() {
-      var el = document.getElementById('zss_editor_content');
-      if (el) {
-        el.setAttribute('autocapitalize', 'none');
-        clearInterval(interval);
-      }
-    }, 50);
-  })();
-  true;
-`;
-
 interface BodyInputProps {
-  editorRef?: React.Ref<RichEditor>;
+  editorRef?: React.RefObject<RichEditor>;
   value: string;
   onChangeText: (text: string) => void;
   richEditorAddStyle?: any;
@@ -77,7 +60,7 @@ export default function BodyInput({
           />
           <TouchableOpacity
             style={styles.doneButton}
-            onPress={() => Keyboard.dismiss()}
+            onPress={() => editorRef?.current?.blurContentEditor()}
           >
             <Text style={styles.doneButtonText}>完了</Text>
           </TouchableOpacity>
@@ -101,7 +84,6 @@ export default function BodyInput({
           onChange={onChangeText}
           placeholder={PLACEHOLDERS.bodyInput}
           useContainer={false}
-          injectedJavaScript={INJECTED_JS}
         />
       </ScrollView>
     </KeyboardAvoidingView>
