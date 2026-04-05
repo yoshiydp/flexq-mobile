@@ -17,9 +17,26 @@ export const styles = StyleSheet.create({
     minHeight: 200,
     flex: 1,
   },
+  toolbarRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: COLORS.navigation.bg,
+  },
   toolbar: {
     backgroundColor: COLORS.navigation.bg,
     paddingVertical: 4,
+  },
+  toolbarFlex: {
+    flex: 1,
+  },
+  doneButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  doneButtonText: {
+    color: COLORS.accent.goldPrimary,
+    fontSize: 14,
+    fontWeight: '600',
   },
   richEditor: {
     color: COLORS.form.default.text,
