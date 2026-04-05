@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
+import { Keyboard } from 'react-native';
 import BodyInput from './index';
 
 jest.mock('react-native-webview', () => {
@@ -40,5 +41,25 @@ describe('BodyInput コンポーネント', () => {
 
     fireEvent(editor, 'onChange', '新しい本文');
     expect(mockProps.onChangeText).toHaveBeenCalledWith('新しい本文');
+  });
+
+  it('isEditing=true のとき完了ボタンが表示される', () => {
+    const { getByText } = render(<BodyInput {...mockProps} isEditing />);
+    getByText('完了');
+  });
+
+  it('isEditing=false のとき完了ボタンが表示されない', () => {
+    const { queryByText } = render(<BodyInput {...mockProps} isEditing={false} />);
+    expect(queryByText('完了')).toBeNull();
+  });
+
+  it('完了ボタンを押すと Keyboard.dismiss が呼ばれる', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
+    const { getByText } = render(<BodyInput {...mockProps} isEditing />);
+
+    fireEvent.press(getByText('完了'));
+    expect(dismissSpy).toHaveBeenCalledTimes(1);
+
+    dismissSpy.mockRestore();
   });
 });

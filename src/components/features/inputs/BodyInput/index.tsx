@@ -1,9 +1,13 @@
 import React from 'react';
 import {
   Button,
+  Keyboard,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
+  Text,
+  TouchableOpacity,
+  View,
 } from 'react-native';
 import {
   RichEditor,
@@ -55,26 +59,34 @@ export default function BodyInput({
       </ScrollView>
 
       {isEditing && (
-        <RichToolbar
-          editor={editorRef}
-          style={styles.toolbar}
-          actions={[
-            actions.setBold,
-            actions.setItalic,
-            actions.insertBulletsList,
-            actions.insertOrderedList,
-          ]}
-          iconMap={{
-            [actions.setBold]: () => <Button title="B" onPress={() => {}} />,
-            [actions.setItalic]: () => <Button title="I" onPress={() => {}} />,
-            [actions.insertBulletsList]: () => (
-              <Button title="•" onPress={() => {}} />
-            ),
-            [actions.insertOrderedList]: () => (
-              <Button title="1." onPress={() => {}} />
-            ),
-          }}
-        />
+        <View style={styles.toolbarRow}>
+          <RichToolbar
+            editor={editorRef}
+            style={[styles.toolbar, styles.toolbarFlex]}
+            actions={[
+              actions.setBold,
+              actions.setItalic,
+              actions.insertBulletsList,
+              actions.insertOrderedList,
+            ]}
+            iconMap={{
+              [actions.setBold]: () => <Button title="B" onPress={() => {}} />,
+              [actions.setItalic]: () => <Button title="I" onPress={() => {}} />,
+              [actions.insertBulletsList]: () => (
+                <Button title="•" onPress={() => {}} />
+              ),
+              [actions.insertOrderedList]: () => (
+                <Button title="1." onPress={() => {}} />
+              ),
+            }}
+          />
+          <TouchableOpacity
+            style={styles.doneButton}
+            onPress={() => Keyboard.dismiss()}
+          >
+            <Text style={styles.doneButtonText}>完了</Text>
+          </TouchableOpacity>
+        </View>
       )}
     </KeyboardAvoidingView>
   );
