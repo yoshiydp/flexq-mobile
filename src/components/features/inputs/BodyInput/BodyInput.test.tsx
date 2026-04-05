@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { createRef } from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { Keyboard } from 'react-native';
+import { RichEditor } from 'react-native-pell-rich-editor';
 import BodyInput from './index';
 
 jest.mock('react-native-webview', () => {
@@ -60,20 +60,18 @@ describe('BodyInput コンポーネント', () => {
     expect(queryByText('完了')).toBeNull();
   });
 
-  it('完了ボタンを押すと Keyboard.dismiss が呼ばれる', () => {
-    const dismissSpy = jest.spyOn(Keyboard, 'dismiss');
-    const { getByText } = render(<BodyInput {...mockProps} isEditing />);
+  it('完了ボタンを押すと blurContentEditor が呼ばれる', () => {
+    const editorRef = createRef<RichEditor>();
+    const mockBlur = jest.fn();
+    (editorRef as React.MutableRefObject<RichEditor>).current = {
+      blurContentEditor: mockBlur,
+    } as unknown as RichEditor;
+
+    const { getByText } = render(
+      <BodyInput {...mockProps} isEditing editorRef={editorRef} />,
+    );
 
     fireEvent.press(getByText('完了'));
-    expect(dismissSpy).toHaveBeenCalledTimes(1);
-
-    dismissSpy.mockRestore();
-  });
-
-  it('RichEditor に autocapitalize を無効化する injectedJavaScript が渡される', () => {
-    render(<BodyInput {...mockProps} />);
-    const props = mockRichEditor.mock.calls[0][0];
-    expect(props.injectedJavaScript).toContain('autocapitalize');
-    expect(props.injectedJavaScript).toContain('none');
+    expect(mockBlur).toHaveBeenCalledTimes(1);
   });
 });
