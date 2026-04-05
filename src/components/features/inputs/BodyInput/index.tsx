@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useRef } from 'react';
 import {
   Button,
   KeyboardAvoidingView,
@@ -16,23 +16,6 @@ import {
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { styles } from './BodyInput.styles';
 
-// iOS WebView の contenteditable は初回フォーカス時に autocapitalize が干渉し、
-// 英字が大文字になったり日本語 IME がアルファベット入力になる問題がある。
-// setTimeout(fn, 0) で次の tick に一度だけ属性をセットすることで回避する。
-// setInterval（ポーリング）と異なり入力バッファに干渉しない。
-const INJECTED_JS =
-  Platform.OS === 'ios'
-    ? `
-  (function() {
-    setTimeout(function() {
-      var el = document.getElementById('zss_editor_content');
-      if (el) el.setAttribute('autocapitalize', 'none');
-    }, 0);
-  })();
-  true;
-`
-    : undefined;
-
 interface BodyInputProps {
   editorRef?: React.RefObject<RichEditor>;
   value: string;
@@ -48,6 +31,17 @@ export default function BodyInput({
   richEditorAddStyle,
   isEditing,
 }: BodyInputProps) {
+  const hasFirstFocused = useRef(false);
+
+  const handleFocus = () => {
+    if (Platform.OS !== 'ios' || hasFirstFocused.current) return;
+    hasFirstFocused.current = true;
+    // iOS WebView は最初のフォーカス時に入力接続が未確立で最初の1文字が二重送信される。
+    // 初回フォーカス時のみ即座に blur して再フォーカスすることで入力接続を確立する。
+    editorRef?.current?.blurContentEditor();
+    setTimeout(() => editorRef?.current?.focusContentEditor(), 50);
+  };
+
   return (
     <KeyboardAvoidingView
       style={styles.container}
@@ -101,7 +95,7 @@ export default function BodyInput({
           onChange={onChangeText}
           placeholder={PLACEHOLDERS.bodyInput}
           useContainer={false}
-          injectedJavaScript={INJECTED_JS}
+          onFocus={handleFocus}
         />
       </ScrollView>
     </KeyboardAvoidingView>

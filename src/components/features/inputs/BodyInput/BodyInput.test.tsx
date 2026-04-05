@@ -15,7 +15,7 @@ jest.mock('react-native-pell-rich-editor', () => {
   return {
     RichEditor: (props: {
       onChange?: (text: string) => void;
-      injectedJavaScript?: string;
+      onFocus?: () => void;
     }) => {
       mockRichEditor(props);
       return <View testID="rich-editor" onChange={props.onChange} />;
@@ -78,14 +78,9 @@ describe('BodyInput コンポーネント', () => {
     expect(mockBlur).toHaveBeenCalledTimes(1);
   });
 
-  it('iOS で autocapitalize を無効化する injectedJavaScript が渡される', () => {
+  it('onFocus ハンドラーが RichEditor に渡される', () => {
     render(<BodyInput {...mockProps} />);
     const props = mockRichEditor.mock.calls[0][0];
-    // テスト環境は iOS ではないため undefined になる（Platform.OS === 'ios' でのみ設定される）
-    // injectedJavaScript が文字列か undefined であることを確認する
-    expect(
-      props.injectedJavaScript === undefined ||
-        typeof props.injectedJavaScript === 'string',
-    ).toBe(true);
+    expect(typeof props.onFocus).toBe('function');
   });
 });
