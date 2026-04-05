@@ -23,10 +23,12 @@ export function useFetchTrack() {
     try {
       const res = await DefaultService.getTrack();
       setTracks(
-        res.map((track: any) => ({
-          ...track,
-          updatedAt: new Date(track.updatedAt),
-        })),
+        res
+          .map((track: any) => ({
+            ...track,
+            updatedAt: new Date(track.updatedAt),
+          }))
+          .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime()),
       );
     } catch (err) {
       console.error('Failed to fetch tracks:', err);

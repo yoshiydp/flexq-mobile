@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
@@ -8,6 +8,9 @@ import TrackItem from '@/components/features/trackList/TrackItem';
 import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
+import { useUploadTrack } from '@/hooks/useUploadTrack';
+import { useDeleteTrack } from '@/hooks/useDeleteTrack';
+import { useModal } from '@/contexts/ModalContext';
 import styles from './TrackListScreen.styles';
 
 export default function TrackListScreen() {
@@ -15,7 +18,50 @@ export default function TrackListScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
 
-  const { tracks, loading, error } = useFetchTrack();
+  const { tracks, loading, error, refreshTrack } = useFetchTrack();
+  const { pickAndUpload } = useUploadTrack();
+  const { deleteTrack } = useDeleteTrack();
+  const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshTrack();
+    }, [refreshTrack]),
+  );
+
+  const handleAddTrack = async () => {
+    try {
+      showLoading();
+      const track = await pickAndUpload();
+      if (track) await refreshTrack();
+    } catch (err) {
+      console.error('Upload failed:', err);
+    } finally {
+      hideLoading();
+    }
+  };
+
+  const handleDeleteTrack = (id: string, title: string) => {
+    showConfirmModal({
+      message: `"${title}" を削除しますか？`,
+      description: 'この操作は元に戻せません。',
+      submitButton: {
+        label: '削除',
+        onPress: async () => {
+          closeModal();
+          showLoading();
+          try {
+            await deleteTrack(id);
+            await refreshTrack();
+          } catch (err) {
+            console.error('Delete failed:', err);
+          } finally {
+            hideLoading();
+          }
+        },
+      },
+    });
+  };
 
   const handleTrackPress = (index: number) => {
     navigation.navigate('AudioPlayer', {
@@ -27,7 +73,7 @@ export default function TrackListScreen() {
     });
   };
 
-  if (loading) {
+  if (loading && tracks.length === 0) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" />
@@ -56,7 +102,7 @@ export default function TrackListScreen() {
         iconModule="FontAwesome6"
         icon="plus"
         iconSize={22}
-        onPress={() => console.log('Add Track pressed')}
+        onPress={handleAddTrack}
         startAnimation={startListAnimation}
       />
       <ScrollView style={styles.container}>
@@ -69,6 +115,7 @@ export default function TrackListScreen() {
             extention={track.extention}
             updatedAt={track.updatedAt}
             onPress={() => handleTrackPress(index)}
+            onLongPress={() => handleDeleteTrack(track.id, track.title)}
             startAnimation={startListAnimation}
           />
         ))}

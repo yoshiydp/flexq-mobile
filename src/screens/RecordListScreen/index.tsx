@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import RecordItem from '@/components/features/drafts/RecordItem';
 import {
@@ -15,7 +15,13 @@ export default function RecordListScreen() {
   const route = useRoute();
   const params = (route as any).params || {};
 
-  const { records, loading, error } = useFetchRecord();
+  const { records, loading, error, refreshRecord } = useFetchRecord();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshRecord();
+    }, [refreshRecord]),
+  );
 
   const handleGoBack = () => {
     if (params.source === 'Drafts') {
@@ -30,7 +36,7 @@ export default function RecordListScreen() {
     { ...HEADER_TOOLBAR_TEMPLATES.headerTitle, headerTitle: 'RECORD LIST' },
   ];
 
-  if (loading) {
+  if (loading && records.length === 0) {
     return (
       <View style={[styles.container, { justifyContent: 'center' }]}>
         <ActivityIndicator size="large" />
@@ -61,6 +67,7 @@ export default function RecordListScreen() {
             isBookmarked={record.isBookmarked}
             onPress={() => {
               navigation.navigate('RecordPlayer', {
+                id: record.id,
                 recordedFile: record.source,
                 title: record.title,
                 isBookmarked: record.isBookmarked,

@@ -91,6 +91,40 @@ paths:
               examples:
                 PROFILE_DATA:
                   $ref: '#/components/examples/PROFILE_DATA'
+    put:
+      summary: Update profile
+      operationId: updateProfile
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                email:
+                  type: string
+                thumbnailKey:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                  email:
+                    type: string
+                  thumbnail:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
   /data/memo:
     get:
       summary: Get memo data
@@ -104,6 +138,143 @@ paths:
               examples:
                 MEMO_DATA:
                   $ref: '#/components/examples/MEMO_DATA'
+    post:
+      summary: Create a new memo
+      operationId: createMemo
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  body:
+                    type: string
+                  updatedAt:
+                    type: string
+                  isBookmarked:
+                    type: boolean
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+  /data/memo/{id}:
+    put:
+      summary: Update a memo
+      operationId: updateMemo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                body:
+                  type: string
+                isBookmarked:
+                  type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  body:
+                    type: string
+                  updatedAt:
+                    type: string
+                  isBookmarked:
+                    type: boolean
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    delete:
+      summary: Delete a memo
+      operationId: deleteMemo
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+  /data/track/upload-url:
+    get:
+      summary: Get presigned S3 upload URL for a track file
+      operationId: getTrackUploadUrl
+      parameters:
+        - name: filename
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: contentType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadUrl:
+                    type: string
+                  key:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
   /data/track:
     get:
       summary: Get track data
@@ -117,6 +288,114 @@ paths:
               examples:
                 TRACK_DATA:
                   $ref: '#/components/examples/TRACK_DATA'
+    post:
+      summary: Create a new track
+      operationId: createTrack
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - s3Key
+                - extention
+              properties:
+                title:
+                  type: string
+                s3Key:
+                  type: string
+                extention:
+                  type: string
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  s3Key:
+                    type: string
+                  extention:
+                    type: string
+                  linkedProjects:
+                    type: array
+                    items:
+                      type: string
+                  updatedAt:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+  /data/track/{id}:
+    put:
+      summary: Update a track title
+      operationId: updateTrack
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+              properties:
+                title:
+                  type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  updatedAt:
+                    type: string
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    delete:
+      summary: Delete a track
+      operationId: deleteTrack
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
   /data/record:
     get:
       summary: Get record data
@@ -130,6 +409,113 @@ paths:
               examples:
                 RECORD_DATA:
                   $ref: '#/components/examples/RECORD_DATA'
+    post:
+      summary: Create a new record
+      operationId: createRecord
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - title
+                - source
+              properties:
+                title:
+                  type: string
+                source:
+                  type: string
+                isBookmarked:
+                  type: boolean
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  source:
+                    type: string
+                  updatedAt:
+                    type: string
+                  isBookmarked:
+                    type: boolean
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+  /data/record/{id}:
+    put:
+      summary: Update a record
+      operationId: updateRecord
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title:
+                  type: string
+                isBookmarked:
+                  type: boolean
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  title:
+                    type: string
+                  source:
+                    type: string
+                  updatedAt:
+                    type: string
+                  isBookmarked:
+                    type: boolean
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+    delete:
+      summary: Delete a record
+      operationId: deleteRecord
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
   /data/auth/login:
     post:
       summary: Mock login authentication

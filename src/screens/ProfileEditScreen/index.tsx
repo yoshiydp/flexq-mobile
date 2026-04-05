@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';
@@ -9,20 +9,46 @@ import { useModal } from '@/contexts/ModalContext';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProfile } from '@/hooks/useFetchProfile';
+import { useUpdateProfile } from '@/hooks/useUpdateProfile';
 import styles from './ProfileEditScreen.styles';
 
 export default function ProfileEditScreen() {
   const navigation = useNavigation();
   const { profile, loading } = useFetchProfile();
+  const { pickThumbnail, uploadThumbnail, updateProfile } = useUpdateProfile();
   const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
 
-  const onSaveProfile = () => {
+  const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
+  // 変更分のみ追跡。null = 未変更 (profile の値をそのまま使う)
+  const [changedUsername, setChangedUsername] = useState<string | null>(null);
+
+  const handlePickThumbnail = async () => {
+    const uri = await pickThumbnail();
+    if (!uri) return;
+    setThumbnailUri(uri);
+  };
+
+  const onSaveProfile = async () => {
+    if (!profile) return;
     showLoading();
-    // TODO: 実際には PATCH / PUT API 呼び出しを行う
-    setTimeout(() => {
-      hideLoading();
+    try {
+      let thumbnailKey: string | undefined;
+      if (thumbnailUri) {
+        thumbnailKey = await uploadThumbnail(thumbnailUri);
+      }
+
+      await updateProfile({
+        username: changedUsername ?? profile.username,
+        email: profile.email,
+        ...(thumbnailKey ? { thumbnailKey } : {}),
+      });
+
       navigation.goBack();
-    }, 3000);
+    } catch (err) {
+      console.error('Failed to save profile:', err);
+    } finally {
+      hideLoading();
+    }
   };
 
   const onPressRemoveLink = (serviceName: string) => {
@@ -53,26 +79,37 @@ export default function ProfileEditScreen() {
     );
   }
 
+  const currentUsername = changedUsername ?? profile.username;
+  const currentThumbnail = thumbnailUri ? { uri: thumbnailUri } : profile.thumbnail;
+
   return (
     <OverlayScreenTemplate>
       <ScrollView style={styles.container}>
-        <ProfileIcon thumbnail={profile.thumbnail} editable />
+        <ProfileIcon
+          thumbnail={currentThumbnail}
+          editable
+          onPressUpload={handlePickThumbnail}
+        />
         <View style={styles.formControlContainer}>
           <EditableFormControl
+            key="username"
             label="User Name"
             formValue={profile.username}
             placeholder={PLACEHOLDERS.profileEdit.usernameInput}
+            onChangeText={setChangedUsername}
           />
           <EditableFormControl
+            key="email"
             label="Email"
             formValue={profile.email}
             placeholder={PLACEHOLDERS.profileEdit.emailInput}
+            readOnly
           />
           <SubmitButton
             containerClassName={styles.saveButton}
             label="SAVE"
             onPress={onSaveProfile}
-            disabled={!profile.username || !profile.email}
+            disabled={!currentUsername}
           />
           <EditableFormControl
             label="Link Social Accounts"

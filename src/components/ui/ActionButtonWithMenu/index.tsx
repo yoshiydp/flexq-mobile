@@ -25,6 +25,7 @@ export default function ActionButtonWithMenu({
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const handleSelect = async (action: () => void | Promise<void>) => {
+    onToggle();
     try {
       await action();
     } catch (e) {

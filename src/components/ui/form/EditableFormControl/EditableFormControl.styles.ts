@@ -49,4 +49,7 @@ export default StyleSheet.create({
     marginTop: 16,
     paddingHorizontal: 10,
   },
+  readOnly: {
+    opacity: 0.5,
+  },
 });

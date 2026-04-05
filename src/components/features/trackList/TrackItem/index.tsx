@@ -23,6 +23,7 @@ interface TrackItemProps {
   extention: string;
   updatedAt: Date;
   onPress: (event: GestureResponderEvent) => void;
+  onLongPress?: (event: GestureResponderEvent) => void;
   index?: number;
   startAnimation?: boolean;
   testID?: string;
@@ -34,6 +35,7 @@ export default function TrackItem({
   extention,
   updatedAt,
   onPress,
+  onLongPress,
   index = 0,
   startAnimation = false,
   testID = 'track-item-pressable',
@@ -51,7 +53,7 @@ export default function TrackItem({
         opacity: anim.opacity,
       }}
     >
-      <Pressable style={styles.container} onPress={onPress} testID={testID}>
+      <Pressable style={styles.container} onPress={onPress} onLongPress={onLongPress} testID={testID}>
         <Text style={styles.title}>{title}</Text>
         <View style={styles.infoBox}>
           <View style={styles.fileDetailBox}>
