@@ -84,6 +84,15 @@ export default function BodyInput({
           onChange={onChangeText}
           placeholder={PLACEHOLDERS.bodyInput}
           useContainer={false}
+          editorInitializedCallback={() => {
+            if (Platform.OS === 'ios') {
+              // iOS WebView contenteditable の初回フォーカス時に最初の1文字が
+              // 二重入力される既知のバグを回避するため、ロード直後に focus/blur を
+              // 実行して iOS のテキスト入力接続をウォームアップする。
+              editorRef?.current?.focusContentEditor();
+              setTimeout(() => editorRef?.current?.blurContentEditor(), 50);
+            }
+          }}
         />
       </ScrollView>
     </KeyboardAvoidingView>
