@@ -10,8 +10,8 @@ export const handler = async (event: any) => {
   const claims = verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
-  const { username, email, thumbnailKey } = JSON.parse(event.body || '{}');
-  if (!username && !email && !thumbnailKey) {
+  const { username, email, thumbnailKey, socialAccounts } = JSON.parse(event.body || '{}');
+  if (!username && !email && !thumbnailKey && !socialAccounts) {
     return createResponse({ message: 'At least one field is required' }, 400);
   }
 
@@ -32,6 +32,10 @@ export const handler = async (event: any) => {
   if (thumbnailKey) {
     expressions.push('thumbnailKey = :thumbnailKey');
     values[':thumbnailKey'] = thumbnailKey;
+  }
+  if (socialAccounts) {
+    expressions.push('socialAccounts = :socialAccounts');
+    values[':socialAccounts'] = socialAccounts;
   }
 
   const result = await docClient.send(new UpdateCommand({

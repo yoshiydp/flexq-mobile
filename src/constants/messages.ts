@@ -21,6 +21,10 @@ export const MODAL_MESSAGES = {
     description: '再度プロフィール画面でアカウント連携が可能です。',
     submitButtonLabel: 'OK',
   },
+  confirmLinkAccount: {
+    placeholder: (service: string) => `${service}のユーザー名を入力`,
+    submitButtonLabel: 'SAVE',
+  },
   confirmQuickMemoGoBack: {
     message: '編集中のメモは保存されませんが、よろしいですか？',
     submitButtonLabel: 'OK',

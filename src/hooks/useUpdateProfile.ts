@@ -6,6 +6,7 @@ export interface UpdateProfileInput {
   username?: string;
   email?: string;
   thumbnailKey?: string;
+  socialAccounts?: Array<{ provider: string; username: string; isLinked: boolean }>;
 }
 
 async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
@@ -48,7 +49,7 @@ export function useUpdateProfile() {
     setLoading(true);
     setError(null);
     try {
-      const res = await DefaultService.updateProfile(input) as any;
+      const res = await (DefaultService.updateProfile as any)(input);
       return res;
     } catch (err) {
       setError(err as Error);
