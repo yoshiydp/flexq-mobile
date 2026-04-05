@@ -11,7 +11,7 @@ export const styles = StyleSheet.create({
   },
   scrollContent: {
     flexGrow: 1,
-    paddingBottom: 16,
+    paddingVertical: 16,
   },
   editor: {
     minHeight: 200,
