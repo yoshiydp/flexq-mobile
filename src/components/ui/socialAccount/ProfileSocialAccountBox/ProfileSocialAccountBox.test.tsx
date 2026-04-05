@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import ProfileSocialAccountBox from './index';
 
 jest.mock('@/components/ui/Icon', () => {
@@ -12,6 +12,7 @@ describe('ProfileSocialAccountBox コンポーネント', () => {
   });
 
   const mockIcon = jest.fn();
+  const mockOnPressLinkAccount = jest.fn();
 
   it('コンポーネントが正しくレンダリングされる', () => {
     render(
@@ -40,5 +41,20 @@ describe('ProfileSocialAccountBox コンポーネント', () => {
 
     expect(getByText('Not linked')).toBeTruthy();
     expect(getByText('Link Account')).toBeTruthy();
+  });
+
+  it('Link Account ボタンが押されたときに onPressLinkAccount が呼ばれる', () => {
+    const { getByText } = render(
+      <ProfileSocialAccountBox
+        icon={mockIcon}
+        username="test user"
+        isLinked={false}
+        onPressLinkAccount={mockOnPressLinkAccount}
+      />,
+    );
+
+    fireEvent.press(getByText('Link Account'));
+
+    expect(mockOnPressLinkAccount).toHaveBeenCalledTimes(1);
   });
 });

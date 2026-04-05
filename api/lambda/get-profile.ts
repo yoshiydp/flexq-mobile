@@ -21,7 +21,7 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Profile not found' }, 404);
   }
 
-  const { passwordHash, thumbnailKey, thumbnail: legacyThumbnail, ...profile } = result.Item;
+  const { passwordHash, thumbnailKey, thumbnail: legacyThumbnail, socialAccounts, ...profile } = result.Item;
 
   let thumbnail = legacyThumbnail ?? '';
   if (thumbnailKey) {
@@ -32,5 +32,19 @@ export const handler = async (event: any) => {
     );
   }
 
-  return createResponse({ ...profile, thumbnail });
+  const defaultSocialAccounts = [
+    // TODO: X連携を実装したら下記を追加する
+    // { provider: 'x', username: '', isLinked: false },
+
+    // TODO: Instagram連携を実装したら下記を追加する
+    // { provider: 'instagram', username: '', isLinked: false },
+
+    { provider: 'google', username: '', isLinked: false },
+  ];
+
+  return createResponse({
+    ...profile,
+    thumbnail,
+    socialAccounts: (socialAccounts && socialAccounts.length > 0) ? socialAccounts : defaultSocialAccounts,
+  });
 };

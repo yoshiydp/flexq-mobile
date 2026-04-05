@@ -12,29 +12,29 @@ describe('ReadOnlyFormControl コンポーネント', () => {
     jest.clearAllMocks();
   });
 
+  const socialAccounts = [
+    {
+      icon: jest.fn(),
+      username: 'testuser',
+      isLinked: true,
+    },
+    {
+      icon: jest.fn(),
+      username: 'anotheruser',
+      isLinked: false,
+    },
+    {
+      icon: jest.fn(),
+      username: 'thirduser',
+      isLinked: true,
+    },
+  ];
+
   it('ラベルとフォーム値が表示される', () => {
     render(<ReadOnlyFormControl label="Email" formValue="user@example.com" />);
   });
 
   it('socialAccounts が表示される', () => {
-    const socialAccounts = [
-      {
-        icon: jest.fn(),
-        username: 'testuser',
-        isLinked: true,
-      },
-      {
-        icon: jest.fn(),
-        username: 'anotheruser',
-        isLinked: false,
-      },
-      {
-        icon: jest.fn(),
-        username: 'thirduser',
-        isLinked: true,
-      },
-    ];
-
     render(
       <ReadOnlyFormControl
         label="Social Accounts"
@@ -44,9 +44,26 @@ describe('ReadOnlyFormControl コンポーネント', () => {
     );
 
     expect(ProfileSocialAccountList).toHaveBeenCalledTimes(1);
+    expect(ProfileSocialAccountList).toHaveBeenCalledWith(
+      expect.objectContaining({ socialAccounts }),
+      undefined,
+    );
+  });
+
+  it('onPressLinkAccount が ProfileSocialAccountList に渡される', () => {
+    const mockOnPressLinkAccount = jest.fn();
+
+    render(
+      <ReadOnlyFormControl
+        label="Social Accounts"
+        showSocialAccounts
+        socialAccounts={socialAccounts}
+        onPressLinkAccount={mockOnPressLinkAccount}
+      />,
+    );
 
     expect(ProfileSocialAccountList).toHaveBeenCalledWith(
-      { socialAccounts },
+      expect.objectContaining({ onPressLinkAccount: mockOnPressLinkAccount }),
       undefined,
     );
   });

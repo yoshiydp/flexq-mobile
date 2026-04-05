@@ -5,6 +5,7 @@ import { DefaultService } from '@/apiClient/services/DefaultService';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 
 export interface SocialAccount {
+  provider: string;
   icon: FC<SvgProps>;
   username: string;
   isLinked: boolean;
@@ -14,8 +15,10 @@ export interface ProfileType {
   username: string;
   email: string;
   thumbnail: { uri: string };
-  socialAccounts?: SocialAccount[];
+  socialAccounts: SocialAccount[];
 }
+
+const SOCIAL_PROVIDERS = Object.keys(SOCIAL_ICON_MAP) as (keyof typeof SOCIAL_ICON_MAP)[];
 
 export function useFetchProfile() {
   const [profile, setProfile] = useState<ProfileType | null>(null);
@@ -28,20 +31,29 @@ export function useFetchProfile() {
     try {
       const res = await DefaultService.getProfile();
 
+      const mappedAccounts: SocialAccount[] = (res.socialAccounts ?? []).map(
+        (acc: { provider: keyof typeof SOCIAL_ICON_MAP; username: string; isLinked: boolean }) => ({
+          provider: acc.provider,
+          icon: SOCIAL_ICON_MAP[acc.provider] ?? SOCIAL_ICON_MAP['x'],
+          username: acc.username,
+          isLinked: acc.isLinked,
+        }),
+      );
+
+      const socialAccounts = SOCIAL_PROVIDERS.map((provider) => {
+        const existing = mappedAccounts.find((a) => a.provider === provider);
+        return existing ?? {
+          provider,
+          icon: SOCIAL_ICON_MAP[provider],
+          username: '',
+          isLinked: false,
+        };
+      });
+
       setProfile({
         ...res,
         thumbnail: { uri: res.thumbnail },
-        socialAccounts: res.socialAccounts?.map(
-          (acc: {
-            provider: keyof typeof SOCIAL_ICON_MAP;
-            username: string;
-            isLinked: boolean;
-          }) => ({
-            icon: SOCIAL_ICON_MAP[acc.provider],
-            username: acc.username,
-            isLinked: acc.isLinked,
-          }),
-        ),
+        socialAccounts,
       });
     } catch (err) {
       console.error('Failed to fetch profile:', err);

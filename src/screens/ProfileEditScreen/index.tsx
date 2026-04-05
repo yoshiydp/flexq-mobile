@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { ScrollView, View, ActivityIndicator } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';
@@ -9,18 +9,63 @@ import { useModal } from '@/contexts/ModalContext';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProfile } from '@/hooks/useFetchProfile';
+import type { SocialAccount } from '@/hooks/useFetchProfile';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 import styles from './ProfileEditScreen.styles';
+
+const SOCIAL_DISPLAY_NAMES: Record<string, string> = {
+  // TODO: X連携を実装したら下記を追加する
+  // x: 'X',
+
+  // TODO: Instagram連携を実装したら下記を追加する
+  // instagram: 'Instagram',
+
+  google: 'Google',
+};
+
+const DEFAULT_SOCIAL_ACCOUNTS: SocialAccount[] = (
+  Object.keys(SOCIAL_ICON_MAP) as (keyof typeof SOCIAL_ICON_MAP)[]
+).map((provider) => ({
+  provider,
+  icon: SOCIAL_ICON_MAP[provider],
+  username: '',
+  isLinked: false,
+}));
 
 export default function ProfileEditScreen() {
   const navigation = useNavigation();
   const { profile, loading } = useFetchProfile();
   const { pickThumbnail, uploadThumbnail, updateProfile } = useUpdateProfile();
-  const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
+  const { showConfirmModal, showInputModal, showLoading, hideLoading, closeModal } = useModal();
+  const { signIn: googleSignIn } = useGoogleAuth();
 
   const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
-  // 変更分のみ追跡。null = 未変更 (profile の値をそのまま使う)
   const [changedUsername, setChangedUsername] = useState<string | null>(null);
+  const [localSocialAccounts, setLocalSocialAccounts] = useState<SocialAccount[]>(DEFAULT_SOCIAL_ACCOUNTS);
+
+  useEffect(() => {
+    if (profile?.socialAccounts?.length) {
+      setLocalSocialAccounts(profile.socialAccounts);
+    }
+  }, [profile]);
+
+  const saveSocialAccounts = useCallback(async (updated: SocialAccount[]) => {
+    await updateProfile({
+      socialAccounts: updated.map(({ provider, username, isLinked }) => ({
+        provider,
+        username,
+        isLinked,
+      })),
+    });
+    setLocalSocialAccounts(
+      updated.map((acc) => ({
+        ...acc,
+        icon: SOCIAL_ICON_MAP[acc.provider as keyof typeof SOCIAL_ICON_MAP] ?? acc.icon,
+      })),
+    );
+  }, [updateProfile]);
 
   const handlePickThumbnail = async () => {
     const uri = await pickThumbnail();
@@ -51,23 +96,84 @@ export default function ProfileEditScreen() {
     }
   };
 
-  const onPressRemoveLink = (serviceName: string) => {
+  const linkWithGoogle = useCallback(async (index: number) => {
+    showLoading();
+    try {
+      const userInfo = await googleSignIn();
+      if (!userInfo) return;
+
+      const updated = localSocialAccounts.map((acc, i) =>
+        i === index ? { ...acc, username: userInfo.name, isLinked: true } : acc,
+      );
+      await saveSocialAccounts(updated);
+    } catch (err) {
+      console.error('Failed to link Google account:', err);
+    } finally {
+      hideLoading();
+    }
+  }, [googleSignIn, localSocialAccounts, saveSocialAccounts, showLoading, hideLoading]);
+
+  const linkWithInput = useCallback((index: number) => {
+    const target = localSocialAccounts[index];
+    if (!target) return;
+    const displayName = SOCIAL_DISPLAY_NAMES[target.provider] ?? target.provider;
+
+    showInputModal({
+      placeholder: MODAL_MESSAGES.confirmLinkAccount.placeholder(displayName),
+      onSubmit: async (username: string) => {
+        closeModal();
+        showLoading();
+        try {
+          const updated = localSocialAccounts.map((acc, i) =>
+            i === index ? { ...acc, username, isLinked: true } : acc,
+          );
+          await saveSocialAccounts(updated);
+        } catch (err) {
+          console.error('Failed to link account:', err);
+        } finally {
+          hideLoading();
+        }
+      },
+    });
+  }, [localSocialAccounts, saveSocialAccounts, showInputModal, showLoading, hideLoading, closeModal]);
+
+  const onPressLinkAccount = useCallback((index: number) => {
+    const target = localSocialAccounts[index];
+    if (!target) return;
+
+    if (target.provider === 'google') {
+      linkWithGoogle(index);
+    } else {
+      linkWithInput(index);
+    }
+  }, [localSocialAccounts, linkWithGoogle, linkWithInput]);
+
+  const onPressRemoveLink = useCallback((index: number) => {
+    const target = localSocialAccounts[index];
+    const displayName = SOCIAL_DISPLAY_NAMES[target?.provider ?? ''] ?? target?.provider ?? '';
+
     showConfirmModal({
-      message: MODAL_MESSAGES.confirmRemoveLink.message(serviceName),
+      message: MODAL_MESSAGES.confirmRemoveLink.message(displayName),
       description: MODAL_MESSAGES.confirmRemoveLink.description,
       submitButton: {
         label: MODAL_MESSAGES.confirmRemoveLink.submitButtonLabel,
-        onPress: () => {
+        onPress: async () => {
           closeModal();
           showLoading();
-          setTimeout(() => {
+          try {
+            const updated = localSocialAccounts.map((acc, i) =>
+              i === index ? { ...acc, username: '', isLinked: false } : acc,
+            );
+            await saveSocialAccounts(updated);
+          } catch (err) {
+            console.error('Failed to remove link:', err);
+          } finally {
             hideLoading();
-            closeModal();
-          }, 3000);
+          }
         },
       },
     });
-  };
+  }, [localSocialAccounts, saveSocialAccounts, showConfirmModal, showLoading, hideLoading, closeModal]);
 
   if (loading || !profile) {
     return (
@@ -114,14 +220,9 @@ export default function ProfileEditScreen() {
           <EditableFormControl
             label="Link Social Accounts"
             showSocialAccounts
-            socialAccounts={profile.socialAccounts}
-            onPressRemoveLink={(index: number) => {
-              const target = profile.socialAccounts?.[index];
-              const serviceName = target
-                ? (target as any).provider ?? 'SNS'
-                : 'SNS';
-              onPressRemoveLink(serviceName);
-            }}
+            socialAccounts={localSocialAccounts}
+            onPressRemoveLink={onPressRemoveLink}
+            onPressLinkAccount={onPressLinkAccount}
           />
         </View>
       </ScrollView>

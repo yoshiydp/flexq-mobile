@@ -9,7 +9,17 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true
+      "supportsTablet": true,
+      "bundleIdentifier": "com.yoshiydp.lyricsapp",
+      "infoPlist": {
+        "CFBundleURLTypes": [
+          {
+            "CFBundleURLSchemes": [
+              "com.googleusercontent.apps.134608896734-hb1nj0rmlgva07vf6ejlmb1lb6mhr1pi"
+            ]
+          }
+        ]
+      }
     },
     "android": {
       "adaptiveIcon": {
