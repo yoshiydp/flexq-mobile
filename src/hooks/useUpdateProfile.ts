@@ -6,7 +6,7 @@ export interface UpdateProfileInput {
   username?: string;
   email?: string;
   thumbnailKey?: string;
-  socialAccounts?: Array<{ provider: string; username: string; isLinked: boolean }>;
+  socialAccounts?: { provider: string; username: string; isLinked: boolean }[];
 }
 
 async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
