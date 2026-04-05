@@ -17,6 +17,22 @@ import {
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { styles } from './BodyInput.styles';
 
+// iOS の WebView は contenteditable の最初のキー入力で autocapitalize が干渉し、
+// 英字が大文字になったり日本語IMEがアルファベット入力になる問題がある。
+// エディタ要素に autocapitalize="none" を設定することで回避する。
+const INJECTED_JS = `
+  (function() {
+    var interval = setInterval(function() {
+      var el = document.getElementById('zss_editor_content');
+      if (el) {
+        el.setAttribute('autocapitalize', 'none');
+        clearInterval(interval);
+      }
+    }, 50);
+  })();
+  true;
+`;
+
 interface BodyInputProps {
   editorRef?: React.Ref<RichEditor>;
   value: string;
@@ -37,27 +53,6 @@ export default function BodyInput({
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <RichEditor
-          ref={editorRef}
-          editorStyle={{
-            ...styles.richEditor,
-            placeholderColor: '#666',
-            ...(richEditorAddStyle ? richEditorAddStyle : {}),
-          }}
-          style={styles.editor}
-          initialContentHTML={value}
-          onChange={onChangeText}
-          placeholder={PLACEHOLDERS.bodyInput}
-          useContainer={false}
-        />
-      </ScrollView>
-
       {isEditing && (
         <View style={styles.toolbarRow}>
           <RichToolbar
@@ -88,6 +83,27 @@ export default function BodyInput({
           </TouchableOpacity>
         </View>
       )}
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        <RichEditor
+          ref={editorRef}
+          editorStyle={{
+            ...styles.richEditor,
+            placeholderColor: '#666',
+            ...(richEditorAddStyle ? richEditorAddStyle : {}),
+          }}
+          style={styles.editor}
+          initialContentHTML={value}
+          onChange={onChangeText}
+          placeholder={PLACEHOLDERS.bodyInput}
+          useContainer={false}
+          injectedJavaScript={INJECTED_JS}
+        />
+      </ScrollView>
     </KeyboardAvoidingView>
   );
 }

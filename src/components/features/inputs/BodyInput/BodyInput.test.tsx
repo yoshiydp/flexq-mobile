@@ -8,12 +8,15 @@ jest.mock('react-native-webview', () => {
   return { WebView: View };
 });
 
+const mockRichEditor = jest.fn();
+
 jest.mock('react-native-pell-rich-editor', () => {
   const { View } = require('react-native');
   return {
-    RichEditor: ({ onChange }: { onChange?: (text: string) => void }) => (
-      <View testID="rich-editor" onChange={onChange} />
-    ),
+    RichEditor: (props: { onChange?: (text: string) => void; injectedJavaScript?: string }) => {
+      mockRichEditor(props);
+      return <View testID="rich-editor" onChange={props.onChange} />;
+    },
     RichToolbar: () => <View testID="rich-toolbar" />,
     actions: {
       setBold: 'setBold',
@@ -29,6 +32,10 @@ describe('BodyInput コンポーネント', () => {
     value: 'サンプル本文',
     onChangeText: jest.fn(),
   };
+
+  beforeEach(() => {
+    mockRichEditor.mockClear();
+  });
 
   it('コンポーネントが正しくレンダリングされる', () => {
     const { getByTestId } = render(<BodyInput {...mockProps} />);
@@ -61,5 +68,12 @@ describe('BodyInput コンポーネント', () => {
     expect(dismissSpy).toHaveBeenCalledTimes(1);
 
     dismissSpy.mockRestore();
+  });
+
+  it('RichEditor に autocapitalize を無効化する injectedJavaScript が渡される', () => {
+    render(<BodyInput {...mockProps} />);
+    const props = mockRichEditor.mock.calls[0][0];
+    expect(props.injectedJavaScript).toContain('autocapitalize');
+    expect(props.injectedJavaScript).toContain('none');
   });
 });
