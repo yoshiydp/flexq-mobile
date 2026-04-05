@@ -13,7 +13,10 @@ const mockRichEditor = jest.fn();
 jest.mock('react-native-pell-rich-editor', () => {
   const { View } = require('react-native');
   return {
-    RichEditor: (props: { onChange?: (text: string) => void; injectedJavaScript?: string }) => {
+    RichEditor: (props: {
+      onChange?: (text: string) => void;
+      editorInitializedCallback?: () => void;
+    }) => {
       mockRichEditor(props);
       return <View testID="rich-editor" onChange={props.onChange} />;
     },
@@ -73,5 +76,11 @@ describe('BodyInput コンポーネント', () => {
 
     fireEvent.press(getByText('完了'));
     expect(mockBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it('iOS で editorInitializedCallback が渡される', () => {
+    render(<BodyInput {...mockProps} />);
+    const props = mockRichEditor.mock.calls[0][0];
+    expect(typeof props.editorInitializedCallback).toBe('function');
   });
 });
