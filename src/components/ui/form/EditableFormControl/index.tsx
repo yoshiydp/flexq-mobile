@@ -17,6 +17,7 @@ interface EditableFormControlProps {
   formValue?: string;
   placeholder?: string;
   secureTextEntry?: boolean;
+  readOnly?: boolean;
   showSocialAccounts?: boolean;
   socialAccounts?: SocialAccount[] | undefined;
   onChangeText?: (text: string) => void;
@@ -30,6 +31,7 @@ export default function EditableFormControl({
   formValue = '',
   placeholder = '',
   secureTextEntry,
+  readOnly = false,
   showSocialAccounts,
   socialAccounts,
   onChangeText,
@@ -64,7 +66,7 @@ export default function EditableFormControl({
         </View>
       ) : (
         <TextInput
-          style={textInputStyles}
+          style={[textInputStyles, readOnly && styles.readOnly]}
           value={value}
           placeholder={placeholder}
           placeholderTextColor={
@@ -72,6 +74,7 @@ export default function EditableFormControl({
           }
           onChangeText={handleChangeText}
           secureTextEntry={!!secureTextEntry}
+          editable={!readOnly}
         />
       )}
     </View>

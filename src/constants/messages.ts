@@ -25,6 +25,11 @@ export const MODAL_MESSAGES = {
     message: '編集中のメモは保存されませんが、よろしいですか？',
     submitButtonLabel: 'OK',
   },
+  confirmDeleteMemo: {
+    message: 'このメモを削除してもいいですか？',
+    description: '削除したメモは復元できません。',
+    submitButtonLabel: 'OK',
+  },
   confirmRecordPlayerGoBack: (source?: string) => {
     if (source === 'Drafts') {
       return {

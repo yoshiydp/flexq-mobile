@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, LayoutChangeEvent } from 'react-native';
+import { View, LayoutChangeEvent, Alert } from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,6 +14,9 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { MODAL_MESSAGES } from '@/constants/messages';
+import { useCreateMemo } from '@/hooks/useCreateMemo';
+import { useUpdateMemo } from '@/hooks/useUpdateMemo';
+import { useDeleteMemo } from '@/hooks/useDeleteMemo';
 import styles from './QuickMemoScreen.styles';
 
 export default function QuickMemoScreen() {
@@ -32,11 +35,6 @@ export default function QuickMemoScreen() {
   const [isBookmarked, setIsBookmarked] = useState(
     params.isBookmarked ?? false,
   );
-  const savedRef = useRef<{
-    title: string;
-    body: string;
-    isBookmarked: boolean;
-  } | null>(null);
 
   const [headerHeight, setHeaderHeight] = useState(0);
   const [titleHeight, setTitleHeight] = useState(0);
@@ -46,6 +44,9 @@ export default function QuickMemoScreen() {
 
   const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
   const richText = useRef<RichEditor>(null);
+  const { createMemo } = useCreateMemo();
+  const { updateMemo } = useUpdateMemo();
+  const { deleteMemo } = useDeleteMemo();
 
   useEffect(() => {
     if (params.body && richText.current) {
@@ -55,8 +56,16 @@ export default function QuickMemoScreen() {
 
   const isBodyEmpty = !body || body === '<p></p>' || body.trim() === '';
 
+  const navigateBack = () => {
+    if (params.source === 'Drafts') {
+      navigation.navigate('MemoList', { source: params.source });
+    } else {
+      navigation.goBack();
+    }
+  };
+
   const handleGoBack = () => {
-    if (title || body) {
+    if (title || !isBodyEmpty) {
       showConfirmModal({
         message: MODAL_MESSAGES.confirmQuickMemoGoBack.message,
         submitButton: {
@@ -80,21 +89,54 @@ export default function QuickMemoScreen() {
     try {
       showLoading();
       const html = await richText.current?.getContentHtml();
-      const updatedMemo = { title, body: html || '', isBookmarked };
-      savedRef.current = updatedMemo;
+      const bodyContent = html || '';
+
+      if (params.id) {
+        // 既存メモを更新
+        await updateMemo(params.id, {
+          title,
+          body: bodyContent,
+          isBookmarked,
+        });
+      } else {
+        // 新規作成
+        const created = await createMemo(title, bodyContent);
+        // ブックマークONの場合は作成後に更新
+        if (isBookmarked && created?.id) {
+          await updateMemo(created.id, { isBookmarked: true });
+        }
+      }
+
+      hideLoading();
+      navigateBack();
     } catch (error) {
       console.error(error);
       hideLoading();
-    } finally {
-      setTimeout(() => {
-        hideLoading();
-        if (params.source === 'Drafts') {
-          navigation.navigate('MemoList', { source: params.source });
-        } else {
-          navigation.goBack();
-        }
-      }, 3000);
+      Alert.alert('エラー', 'メモの保存に失敗しました。');
     }
+  };
+
+  const handleDelete = () => {
+    showConfirmModal({
+      message: MODAL_MESSAGES.confirmDeleteMemo.message,
+      description: MODAL_MESSAGES.confirmDeleteMemo.description,
+      submitButton: {
+        label: MODAL_MESSAGES.confirmDeleteMemo.submitButtonLabel,
+        onPress: async () => {
+          closeModal();
+          try {
+            showLoading();
+            await deleteMemo(params.id!);
+            hideLoading();
+            navigateBack();
+          } catch (error) {
+            console.error(error);
+            hideLoading();
+            Alert.alert('エラー', 'メモの削除に失敗しました。');
+          }
+        },
+      },
+    });
   };
 
   const handleContainerLayout = (event: LayoutChangeEvent) => {
@@ -107,10 +149,22 @@ export default function QuickMemoScreen() {
     setBodyHeight(Math.max(MIN_BODY_HEIGHT, remainingHeight));
   }, [containerHeight, headerHeight, titleHeight, submitHeight]);
 
+  // 編集時はブックマーク＋削除ボタン、新規作成時はブックマークのみ
+  const rightButton: HeaderToolBarButton = params.id
+    ? {
+        id: 'toolbar-rightGroup',
+        type: 'buttonGroup',
+        buttons: [
+          { id: 'btn-bookmark', type: 'bookmark', onPress: handleBookmark },
+          { id: 'btn-delete', type: 'delete', onPress: handleDelete },
+        ],
+      }
+    : { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark };
+
   const items: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     { ...HEADER_TOOLBAR_TEMPLATES.headerTitle, headerTitle: 'QUICK MEMO' },
-    { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+    rightButton,
   ];
 
   return (

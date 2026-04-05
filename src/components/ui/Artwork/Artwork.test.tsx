@@ -29,8 +29,8 @@ describe('Artwork コンポーネント', () => {
     expect(JSON.stringify(mockImage)).toBeTruthy();
   });
 
-  it('artwork が存在しない場合、Image は描画されない', () => {
-    const { queryByTestId } = render(<Artwork artwork={null} />);
-    expect(queryByTestId('artwork-image')).toBeNull();
+  it('artwork が存在しない場合、デフォルト画像で Image が描画される', () => {
+    const { getByTestId } = render(<Artwork artwork={null} />);
+    expect(getByTestId('artwork-image')).toBeTruthy();
   });
 });

@@ -24,12 +24,18 @@ describe('ProfileIcon コンポーネント', () => {
     render(<ProfileIcon thumbnail={mockThumbnail} editable />);
   });
 
-  it('アップロードボタンが押されたときに onPress が呼ばれる', () => {
+  it('アップロードボタンが押されたときに onPressUpload が呼ばれる', () => {
+    const mockOnPressUpload = jest.fn();
     const { getByText } = render(
-      <ProfileIcon thumbnail={mockThumbnail} editable />,
+      <ProfileIcon thumbnail={mockThumbnail} editable onPressUpload={mockOnPressUpload} />,
     );
 
     const uploadButton = getByText('upload').parent;
     fireEvent.press(uploadButton);
+    expect(mockOnPressUpload).toHaveBeenCalledTimes(1);
+  });
+
+  it('thumbnail が未指定のときもレンダリングされる', () => {
+    render(<ProfileIcon editable={false} />);
   });
 });
