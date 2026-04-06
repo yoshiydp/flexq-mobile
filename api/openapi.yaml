@@ -107,6 +107,17 @@ paths:
                   type: string
                 thumbnailKey:
                   type: string
+                socialAccounts:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      provider:
+                        type: string
+                      username:
+                        type: string
+                      isLinked:
+                        type: boolean
       responses:
         '200':
           description: OK

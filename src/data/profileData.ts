@@ -3,8 +3,12 @@ export const PROFILE_DATA = {
   username: 'User Profile Name',
   email: 'testuser@example.com',
   socialAccounts: [
-    { provider: 'x', username: '@user_name', isLinked: true },
-    { provider: 'instagram', username: '@user_name', isLinked: true },
-    { provider: 'google', username: 'Yoshi Watanabe', isLinked: true },
+    // TODO: X連携を実装したら下記を追加する
+    // { provider: 'x', username: '@user_name', isLinked: true },
+
+    // TODO: Instagram連携を実装したら下記を追加する
+    // { provider: 'instagram', username: '', isLinked: false },
+
+    { provider: 'google', username: '', isLinked: false },
   ],
 };
