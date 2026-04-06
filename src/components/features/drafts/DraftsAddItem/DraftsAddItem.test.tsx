@@ -84,4 +84,36 @@ describe('DraftsAddItem コンポーネント', () => {
 
     expect(mockOnPressListButton).toHaveBeenCalledTimes(1);
   });
+
+  it('showListButton={false} のとき Listボタンが表示されない', () => {
+    const { queryByTestId } = render(
+      <DraftsAddItem
+        addButtonLabel={mockAddButtonLabel}
+        listButtonLabel={mockListButtonLabel}
+        onPressAddButton={mockOnPressAddButton}
+        onPressListButton={mockOnPressListButton}
+        translateX={new Animated.Value(0)}
+        opacity={new Animated.Value(1)}
+        showListButton={false}
+      />,
+    );
+
+    expect(queryByTestId('drafts-list-button')).toBeNull();
+  });
+
+  it('showListButton={true} のとき Listボタンが表示される', () => {
+    const { getByTestId } = render(
+      <DraftsAddItem
+        addButtonLabel={mockAddButtonLabel}
+        listButtonLabel={mockListButtonLabel}
+        onPressAddButton={mockOnPressAddButton}
+        onPressListButton={mockOnPressListButton}
+        translateX={new Animated.Value(0)}
+        opacity={new Animated.Value(1)}
+        showListButton={true}
+      />,
+    );
+
+    expect(getByTestId('drafts-list-button')).toBeTruthy();
+  });
 });

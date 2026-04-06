@@ -9,6 +9,7 @@ jest.mock('@/components/features/drafts/DraftsAddItem', () => {
       listButtonLabel,
       onPressAddButton,
       onPressListButton,
+      showListButton = true,
     }) => {
       const { Text, View, Pressable } = require('react-native');
       return (
@@ -16,9 +17,11 @@ jest.mock('@/components/features/drafts/DraftsAddItem', () => {
           <Pressable onPress={onPressAddButton}>
             <Text>{addButtonLabel}</Text>
           </Pressable>
-          <Pressable onPress={onPressListButton}>
-            <Text>{listButtonLabel}</Text>
-          </Pressable>
+          {showListButton && (
+            <Pressable onPress={onPressListButton}>
+              <Text>{listButtonLabel}</Text>
+            </Pressable>
+          )}
         </View>
       );
     },
@@ -73,5 +76,22 @@ describe('DraftsAddList コンポーネント', () => {
 
       expect(item.onPressListButton).toHaveBeenCalledTimes(1);
     });
+  });
+
+  it('showListButton={false} のアイテムは List ボタンが表示されない', () => {
+    const items = [
+      {
+        addButtonLabel: 'Add Draft 1',
+        listButtonLabel: 'List Drafts 1',
+        onPressAddButton: jest.fn(),
+        onPressListButton: jest.fn(),
+        showListButton: false,
+      },
+    ];
+    const { queryByText } = render(
+      <DraftsAddList addItems={items} startAnimation />,
+    );
+
+    expect(queryByText('List Drafts 1')).toBeNull();
   });
 });
