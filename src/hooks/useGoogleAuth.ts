@@ -38,7 +38,7 @@ export function useGoogleAuth() {
   );
 
   const signIn = useCallback(async (): Promise<GoogleUserInfo | null> => {
-    const result = await promptAsync();
+    const result = await promptAsync({ useProxy: true });
     if (result.type !== 'success') return null;
 
     const token = result.authentication?.accessToken;
