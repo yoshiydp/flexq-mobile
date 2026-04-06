@@ -6,6 +6,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import TrackItem from '@/components/features/trackList/TrackItem';
 import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
+import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
@@ -97,28 +98,41 @@ export default function TrackListScreen() {
       titleAnim1={titleAnim1}
       titleAnim2={titleAnim2}
     >
-      <HeaderActionButton
-        label={<>Add{'\n'}Track</>}
-        iconModule="FontAwesome6"
-        icon="plus"
-        iconSize={22}
-        onPress={handleAddTrack}
-        startAnimation={startListAnimation}
-      />
+      {tracks.length > 0 && (
+        <HeaderActionButton
+          label={<>Add{'\n'}Track</>}
+          iconModule="FontAwesome6"
+          icon="plus"
+          iconSize={22}
+          onPress={handleAddTrack}
+          startAnimation={startListAnimation}
+        />
+      )}
       <ScrollView style={styles.container}>
-        {tracks.map((track, index) => (
-          <TrackItem
-            key={track.id}
-            index={index}
-            title={track.title}
-            linkedProjects={track.linkedProjects}
-            extention={track.extention}
-            updatedAt={track.updatedAt}
-            onPress={() => handleTrackPress(index)}
-            onLongPress={() => handleDeleteTrack(track.id, track.title)}
-            startAnimation={startListAnimation}
-          />
-        ))}
+        {tracks.length > 0 ? (
+          tracks.map((track, index) => (
+            <TrackItem
+              key={track.id}
+              index={index}
+              title={track.title}
+              linkedProjects={track.linkedProjects}
+              extention={track.extention}
+              updatedAt={track.updatedAt}
+              onPress={() => handleTrackPress(index)}
+              onLongPress={() => handleDeleteTrack(track.id, track.title)}
+              startAnimation={startListAnimation}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>トラックがありません</Text>
+            <SubmitButton
+              containerClassName={styles.addButton}
+              label="ADD TRACK"
+              onPress={handleAddTrack}
+            />
+          </View>
+        )}
       </ScrollView>
     </HomeTabsScreenTemplate>
   );
