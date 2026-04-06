@@ -7,6 +7,8 @@ WebBrowser.maybeCompleteAuthSession();
 
 const IOS_CLIENT_ID =
   '134608896734-hb1nj0rmlgva07vf6ejlmb1lb6mhr1pi.apps.googleusercontent.com';
+const WEB_CLIENT_ID =
+  '134608896734-tukecmrgpfr5615aeu970tbvrasmklbf.apps.googleusercontent.com';
 
 export interface GoogleUserInfo {
   id: string;
@@ -16,10 +18,11 @@ export interface GoogleUserInfo {
 }
 
 export function useGoogleAuth() {
-  const redirectUri = AuthSession.makeRedirectUri({ scheme: 'com.yoshiydp.lyricsapp' });
+  const redirectUri = AuthSession.makeRedirectUri({ useProxy: true });
 
   const [request, , promptAsync] = Google.useAuthRequest({
     iosClientId: IOS_CLIENT_ID,
+    webClientId: WEB_CLIENT_ID,
     redirectUri,
   });
 
