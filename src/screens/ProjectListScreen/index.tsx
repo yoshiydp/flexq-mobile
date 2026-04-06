@@ -1,6 +1,7 @@
 import React, { useEffect } from 'react';
 import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
 import ScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
+import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import ProjectItem from '@/components/features/projectList/ProjectItem';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -48,19 +49,30 @@ export default function ProjectListScreen() {
       titleAnim2={titleAnim2}
     >
       <ScrollView style={styles.container}>
-        {projects.map((project, index) => (
-          <ProjectItem
-            key={project.id}
-            index={index}
-            artwork={project.artwork ? { uri: project.artwork } : undefined}
-            projectName={project.projectName}
-            soundSourceName={project.trackName}
-            tags={project.tags}
-            updatedAt={project.updatedAt}
-            onPress={() => handleProjectPress(project.id)}
-            startAnimation={startListAnimation}
-          />
-        ))}
+        {projects.length > 0 ? (
+          projects.map((project, index) => (
+            <ProjectItem
+              key={project.id}
+              index={index}
+              artwork={project.artwork ? { uri: project.artwork } : undefined}
+              projectName={project.projectName}
+              soundSourceName={project.trackName}
+              tags={project.tags}
+              updatedAt={project.updatedAt}
+              onPress={() => handleProjectPress(project.id)}
+              startAnimation={startListAnimation}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>プロジェクトがありません</Text>
+            <SubmitButton
+              containerClassName={styles.addButton}
+              label="NEW PROJECT"
+              onPress={() => navigation.navigate('ProjectEdit', undefined)}
+            />
+          </View>
+        )}
       </ScrollView>
     </ScreenTemplate>
   );

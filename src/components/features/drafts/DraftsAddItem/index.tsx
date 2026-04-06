@@ -11,6 +11,7 @@ interface DraftsAddItemProps {
   onPressListButton: () => void;
   translateX: Animated.Value;
   opacity: Animated.Value;
+  showListButton?: boolean;
 }
 
 export default function DraftsAddItem({
@@ -20,19 +21,22 @@ export default function DraftsAddItem({
   onPressListButton,
   translateX,
   opacity,
+  showListButton = true,
 }: DraftsAddItemProps) {
   return (
     <Animated.View
       style={[styles.container, { opacity, transform: [{ translateX }] }]}
     >
       <DraftsAddButton label={addButtonLabel} onPress={onPressAddButton} />
-      <ArrowButton
-        label={listButtonLabel}
-        containerClassName={styles.arrowButton}
-        labelClassName={styles.arrowButtonLabel}
-        onPress={onPressListButton}
-        testID="drafts-list-button"
-      />
+      {showListButton && (
+        <ArrowButton
+          label={listButtonLabel}
+          containerClassName={styles.arrowButton}
+          labelClassName={styles.arrowButtonLabel}
+          onPress={onPressListButton}
+          testID="drafts-list-button"
+        />
+      )}
     </Animated.View>
   );
 }
