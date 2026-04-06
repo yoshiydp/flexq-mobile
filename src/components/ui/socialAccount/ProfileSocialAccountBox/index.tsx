@@ -11,12 +11,14 @@ interface Props {
   icon?: FC<SvgProps>;
   username?: string;
   isLinked: boolean;
+  onPressLinkAccount?: () => void;
 }
 
 export default function ProfileSocialAccountBox({
   icon: SocialIcon,
   username,
   isLinked,
+  onPressLinkAccount,
 }: Props) {
   const containerStyles = [styles.container, isLinked && styles.isLinked];
 
@@ -48,7 +50,7 @@ export default function ProfileSocialAccountBox({
           style={styles.linkIcon}
         />
       ) : (
-        <Pressable style={styles.linkButton}>
+        <Pressable onPress={onPressLinkAccount} style={styles.linkButton}>
           <Text style={styles.linkButtonText}>Link Account</Text>
         </Pressable>
       )}

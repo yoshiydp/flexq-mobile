@@ -15,6 +15,7 @@ interface Props {
   formValue?: string;
   showSocialAccounts?: boolean;
   socialAccounts?: SocialAccount[] | undefined;
+  onPressLinkAccount?: (index: number) => void;
 }
 
 export default function ReadOnlyFormControl({
@@ -22,6 +23,7 @@ export default function ReadOnlyFormControl({
   formValue,
   showSocialAccounts,
   socialAccounts,
+  onPressLinkAccount,
 }: Props) {
   return (
     <View style={styles.container}>
@@ -29,7 +31,10 @@ export default function ReadOnlyFormControl({
       {formValue && <Text style={styles.formValue}>{formValue}</Text>}
       {showSocialAccounts && socialAccounts && (
         <View style={styles.socialAccountContainer}>
-          <ProfileSocialAccountList socialAccounts={socialAccounts} />
+          <ProfileSocialAccountList
+            socialAccounts={socialAccounts}
+            onPressLinkAccount={onPressLinkAccount}
+          />
         </View>
       )}
     </View>
