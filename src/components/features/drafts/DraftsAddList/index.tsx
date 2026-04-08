@@ -9,6 +9,7 @@ interface AddItem {
   listButtonLabel: string;
   onPressAddButton: () => void;
   onPressListButton: () => void;
+  showListButton?: boolean;
 }
 
 interface DraftsAddListProps {

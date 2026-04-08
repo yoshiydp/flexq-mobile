@@ -19,7 +19,13 @@ export type RootStackParamList = {
         body?: string;
       }
     | undefined;
-  ProjectSettings: { artwork?: { uri: string }; trackSource?: any } | undefined;
+  ProjectSettings: {
+    id: string;
+    artwork?: { uri: string };
+    trackSource?: string;
+    trackId?: string;
+    trackName?: string;
+  } | undefined;
   ProfileEdit: undefined;
   QuickMemo?: {
     id?: string;
@@ -47,4 +53,5 @@ export type RootStackParamList = {
       }
     | undefined;
   RecordList?: undefined;
+  NewProject: undefined;
 };

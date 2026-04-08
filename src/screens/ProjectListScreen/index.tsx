@@ -1,8 +1,10 @@
-import React, { useEffect } from 'react';
+import React, { useCallback } from 'react';
 import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
 import ScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
+import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import ProjectItem from '@/components/features/projectList/ProjectItem';
-import { useNavigation } from '@react-navigation/native';
+import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
@@ -13,13 +15,17 @@ export default function ProjectListScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
-  const { projects, loading, error } = useFetchProject();
+  const { projects, loading, error, refreshProject } = useFetchProject();
 
-  useEffect(() => {
-    if (projects.length > 0) {
-      projects.sort((a, b) => b.updatedAt.getTime() - a.updatedAt.getTime());
-    }
-  }, [projects]);
+  useFocusEffect(
+    useCallback(() => {
+      refreshProject();
+    }, [refreshProject]),
+  );
+
+  const handleAddProject = () => {
+    navigation.navigate('NewProject');
+  };
 
   const handleProjectPress = (id: string) => {
     navigation.navigate('ProjectEdit', { id });
@@ -27,17 +33,29 @@ export default function ProjectListScreen() {
 
   if (loading) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
-      </View>
+      <ScreenTemplate
+        title="PROJECT LIST"
+        titleAnim1={titleAnim1}
+        titleAnim2={titleAnim2}
+      >
+        <View style={styles.container}>
+          <ActivityIndicator size="large" />
+        </View>
+      </ScreenTemplate>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={{ color: 'red' }}>Failed to load projects.</Text>
-      </View>
+      <ScreenTemplate
+        title="PROJECT LIST"
+        titleAnim1={titleAnim1}
+        titleAnim2={titleAnim2}
+      >
+        <View style={styles.container}>
+          <Text style={{ color: 'red' }}>Failed to load projects.</Text>
+        </View>
+      </ScreenTemplate>
     );
   }
 
@@ -47,20 +65,41 @@ export default function ProjectListScreen() {
       titleAnim1={titleAnim1}
       titleAnim2={titleAnim2}
     >
+      {projects.length > 0 && (
+        <HeaderActionButton
+          label={<>New{'\n'}Project</>}
+          iconModule="FontAwesome6"
+          icon="plus"
+          iconSize={22}
+          onPress={handleAddProject}
+          startAnimation={startListAnimation}
+        />
+      )}
       <ScrollView style={styles.container}>
-        {projects.map((project, index) => (
-          <ProjectItem
-            key={project.id}
-            index={index}
-            artwork={project.artwork ? { uri: project.artwork } : undefined}
-            projectName={project.projectName}
-            soundSourceName={project.trackName}
-            tags={project.tags}
-            updatedAt={project.updatedAt}
-            onPress={() => handleProjectPress(project.id)}
-            startAnimation={startListAnimation}
-          />
-        ))}
+        {projects.length > 0 ? (
+          projects.map((project, index) => (
+            <ProjectItem
+              key={project.id}
+              index={index}
+              artwork={project.artwork ? { uri: project.artwork } : undefined}
+              projectName={project.projectName}
+              soundSourceName={project.trackName ?? ''}
+              tags={project.tags}
+              updatedAt={project.updatedAt}
+              onPress={() => handleProjectPress(project.id)}
+              startAnimation={startListAnimation}
+            />
+          ))
+        ) : (
+          <View style={styles.emptyState}>
+            <Text style={styles.emptyText}>プロジェクトがありません</Text>
+            <SubmitButton
+              containerClassName={styles.addButton}
+              label="NEW PROJECT"
+              onPress={handleAddProject}
+            />
+          </View>
+        )}
       </ScrollView>
     </ScreenTemplate>
   );

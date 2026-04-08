@@ -6,17 +6,19 @@ import styles from './OverlayScreenTemplate.styles';
 
 interface OverlayScreenTemplateProps {
   children: React.ReactNode;
+  onClose?: () => void;
 }
 
 export default function OverlayScreenTemplate({
   children,
+  onClose,
 }: OverlayScreenTemplateProps) {
   const navigation = useNavigation();
 
   return (
     <View style={styles.container}>
       {children}
-      <CloseButton onPress={() => navigation.goBack()} />
+      <CloseButton onPress={onClose ?? (() => navigation.goBack())} />
     </View>
   );
 }

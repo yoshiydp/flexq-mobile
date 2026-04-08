@@ -18,7 +18,8 @@
               "com.googleusercontent.apps.134608896734-hb1nj0rmlgva07vf6ejlmb1lb6mhr1pi"
             ]
           }
-        ]
+        ],
+        "ITSAppUsesNonExemptEncryption": false
       }
     },
     "android": {
@@ -34,7 +35,6 @@
       "favicon": "./src/assets/images/favicon.png"
     },
     "plugins": [
-      "expo-dev-client",
       "expo-router",
       [
         "expo-splash-screen",
@@ -58,9 +58,7 @@
         "projectId": "216ca5f0-4ffc-4067-bfbf-5f56aba4924b"
       }
     },
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
+    "runtimeVersion": "1.0.0",
     "updates": {
       "url": "https://u.expo.dev/216ca5f0-4ffc-4067-bfbf-5f56aba4924b"
     }

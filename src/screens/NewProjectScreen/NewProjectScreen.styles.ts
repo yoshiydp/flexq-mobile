@@ -1,0 +1,147 @@
+import { StyleSheet } from 'react-native';
+import { COLORS } from '@/globalStyles';
+
+export default StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.base.bgDefault,
+  },
+  scrollContent: {
+    paddingHorizontal: 20,
+    paddingBottom: 40,
+  },
+  sectionLabel: {
+    fontFamily: 'BebasNeue',
+    color: COLORS.font.label,
+    fontSize: 18,
+    marginBottom: 8,
+    marginTop: 28,
+  },
+  titleInput: {
+    height: 52,
+    borderWidth: 1,
+    borderColor: COLORS.form.default.border,
+    borderRadius: 8,
+    backgroundColor: COLORS.form.default.background,
+    color: COLORS.form.default.text,
+    paddingHorizontal: 14,
+    fontSize: 16,
+  },
+  audioDisplayName: {
+    color: COLORS.font.default,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  noAudioText: {
+    color: COLORS.font.label,
+    fontSize: 14,
+    marginBottom: 12,
+  },
+  audioSourceButtons: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+  audioSourceButton: {
+    flex: 1,
+    height: 44,
+    borderWidth: 1,
+    borderColor: COLORS.form.default.border,
+    borderRadius: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  audioSourceButtonText: {
+    fontFamily: 'BebasNeue',
+    color: COLORS.font.default,
+    fontSize: 15,
+    letterSpacing: 1,
+  },
+  artworkContainer: {
+    alignItems: 'center',
+  },
+  artworkImage: {
+    width: 160,
+    height: 160,
+    borderRadius: 8,
+  },
+  artworkPlaceholder: {
+    width: 160,
+    height: 160,
+    borderRadius: 8,
+    backgroundColor: COLORS.form.default.background,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.base.borderDefault,
+  },
+  changeArtworkButton: {
+    marginTop: 14,
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: COLORS.form.default.border,
+    borderRadius: 6,
+  },
+  changeArtworkText: {
+    fontFamily: 'BebasNeue',
+    color: COLORS.font.default,
+    fontSize: 15,
+    letterSpacing: 1,
+  },
+  submitButton: {
+    marginHorizontal: 20,
+    marginBottom: 20,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.75)',
+    justifyContent: 'flex-end',
+  },
+  modalContent: {
+    backgroundColor: COLORS.form.default.background,
+    borderTopLeftRadius: 16,
+    borderTopRightRadius: 16,
+    maxHeight: '70%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.base.borderDefault,
+  },
+  modalTitle: {
+    fontFamily: 'BebasNeue',
+    color: COLORS.font.default,
+    fontSize: 22,
+  },
+  modalCloseText: {
+    color: COLORS.font.default,
+    fontSize: 18,
+    paddingHorizontal: 8,
+  },
+  trackItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.base.borderDefault,
+  },
+  trackItemArtwork: {
+    width: 48,
+    height: 48,
+    borderRadius: 4,
+    backgroundColor: COLORS.surface.waveform,
+    marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  trackItemTitle: {
+    color: COLORS.font.default,
+    fontSize: 15,
+    flex: 1,
+  },
+});

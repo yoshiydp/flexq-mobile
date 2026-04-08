@@ -31,6 +31,35 @@ export class DefaultService {
         });
     }
     /**
+     * Create a new project
+     * @param requestBody
+     * @returns any Created
+     * @throws ApiError
+     */
+    public static createProject(
+        requestBody: {
+            projectName: string;
+            trackName?: string;
+            trackId?: string;
+            artworkKey?: string;
+        },
+    ): CancelablePromise<{
+        id?: string;
+        projectName?: string;
+        updatedAt?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/project',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
      * Get project detail
      * Returns a single project by ID.
      * @param id
@@ -45,6 +74,62 @@ export class DefaultService {
             url: '/data/project/{id}',
             path: {
                 'id': id,
+            },
+        });
+    }
+    /**
+     * Update project
+     * Updates body (lyrics) and cueButtons for a project.
+     * @param id
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static putDataProject(
+        id: string,
+        requestBody: {
+            projectName?: string;
+            body?: string;
+            cueButtons?: Array<Record<string, any>>;
+            artworkKey?: string;
+            trackId?: string;
+            trackName?: string;
+        },
+    ): CancelablePromise<Record<string, any>> {
+        return __request(OpenAPI, {
+            method: 'PUT',
+            url: '/data/project/{id}',
+            path: {
+                'id': id,
+            },
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
+     * Delete project
+     * Deletes a project and its associated S3 assets.
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static deleteDataProject(
+        id: string,
+    ): CancelablePromise<Record<string, any>> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/data/project/{id}',
+            path: {
+                'id': id,
+            },
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
             },
         });
     }
@@ -89,6 +174,11 @@ export class DefaultService {
             username?: string;
             email?: string;
             thumbnailKey?: string;
+            socialAccounts?: Array<{
+                provider?: string;
+                username?: string;
+                isLinked?: boolean;
+            }>;
         },
     ): CancelablePromise<{
         username?: string;
