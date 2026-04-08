@@ -17,11 +17,16 @@ export const handler = async (event: any) => {
   const ext = filename.split('.').pop()?.toLowerCase();
   const audioExts = ['mp3', 'wav'];
   const imageExts = ['jpg', 'jpeg', 'png'];
-  if (![...audioExts, ...imageExts].includes(ext ?? '')) {
-    return createResponse({ message: 'Only mp3, wav, jpg, jpeg, png files are allowed' }, 400);
+  const dataExts = ['json'];
+  if (![...audioExts, ...imageExts, ...dataExts].includes(ext ?? '')) {
+    return createResponse({ message: 'Only mp3, wav, jpg, jpeg, png, json files are allowed' }, 400);
   }
 
-  const prefix = imageExts.includes(ext ?? '') ? 'artworks' : 'tracks';
+  const prefix = imageExts.includes(ext ?? '')
+    ? 'artworks'
+    : dataExts.includes(ext ?? '')
+    ? 'waveforms'
+    : 'tracks';
   const key = `${prefix}/${claims.userId}/${randomUUID()}.${ext}`;
   const command = new PutObjectCommand({
     Bucket: process.env.TRACK_AUDIO_BUCKET!,

@@ -28,8 +28,8 @@ export default function WaveformPlayer({
   const [waveform, setWaveform] = useState<number[]>([]);
   const [duration, setDuration] = useState(1);
   const [position, setPosition] = useState(0);
+  const [svgWidth, setSvgWidth] = useState(Dimensions.get('window').width - 40);
 
-  const waveformWidth = Dimensions.get('window').width - 40;
   const waveformHeight = 62;
 
   const positionRef = useRef(0);
@@ -55,7 +55,7 @@ export default function WaveformPlayer({
         const max = Math.max(...json.map(Math.abs)) || 1;
         const normalized = json.map((v: number) => Math.abs(v) / max);
 
-        const desiredBars = Math.floor(waveformWidth / 3);
+        const desiredBars = Math.floor(svgWidth / 3);
         const step = Math.max(1, Math.floor(normalized.length / desiredBars));
         const downSampled = [];
 
@@ -74,7 +74,7 @@ export default function WaveformPlayer({
     return () => {
       isMounted = false;
     };
-  }, [waveformJson, waveformWidth]);
+  }, [waveformJson, svgWidth]);
 
   useEffect(() => {
     if (!sound) return;
@@ -145,7 +145,7 @@ export default function WaveformPlayer({
 
   const handleSeek = async (x: number) => {
     const seekPos = Math.min(
-      Math.max((x / waveformWidth) * duration, 0),
+      Math.max((x / svgWidth) * duration, 0),
       duration,
     );
     positionRef.current = seekPos;
@@ -169,7 +169,7 @@ export default function WaveformPlayer({
     handleSeek(x);
   };
 
-  const getPinX = (time: number) => (time / duration) * waveformWidth;
+  const getPinX = (time: number) => (time / duration) * svgWidth;
 
   useEffect(() => {
     if (!sound || cuePoints.length === 0) return;
@@ -183,7 +183,10 @@ export default function WaveformPlayer({
   }, [cuePoints, sound, onCuePointUpdate]);
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onLayout={(e) => setSvgWidth(e.nativeEvent.layout.width)}
+    >
       <View
         onStartShouldSetResponder={() => true}
         onResponderGrant={handleResponderGrant}
@@ -191,9 +194,9 @@ export default function WaveformPlayer({
         onResponderRelease={handleResponderRelease}
         testID={testID}
       >
-        <Svg width={waveformWidth} height={waveformHeight}>
+        <Svg width={svgWidth} height={waveformHeight}>
           {waveform.map((amp, index) => {
-            const barWidth = waveformWidth / waveform.length - 1;
+            const barWidth = svgWidth / waveform.length - 1;
             const barHeight = amp * waveformHeight;
             const x = index * (barWidth + 1);
             return (
@@ -204,7 +207,7 @@ export default function WaveformPlayer({
                 width={barWidth}
                 height={barHeight}
                 fill={
-                  position > 0 && x / waveformWidth < position / duration
+                  position > 0 && x / svgWidth < position / duration
                     ? COLORS.accent.goldPrimary
                     : COLORS.controller.bg
                 }

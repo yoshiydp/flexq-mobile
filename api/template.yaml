@@ -172,6 +172,10 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref ProjectsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref TracksTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         GetProject:
           Type: Api
@@ -196,6 +200,10 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref ProjectsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref TracksTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         GetProjectDetail:
           Type: Api
@@ -211,6 +219,80 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/get-project-detail.ts
+
+  PostProjectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-project.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectsTable
+      Events:
+        PostProject:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/project
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-project.ts
+
+  PutProjectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/put-project.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectsTable
+      Events:
+        PutProject:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/project/{id}
+            Method: put
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/put-project.ts
+
+  DeleteProjectFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/delete-project.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectsTable
+        - S3CrudPolicy:
+            BucketName: !Ref TrackAudioBucket
+      Events:
+        DeleteProject:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/project/{id}
+            Method: delete
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/delete-project.ts
 
   GetProjectRecordsFunction:
     Type: AWS::Serverless::Function

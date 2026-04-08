@@ -17,6 +17,7 @@ import MemoListScreen from '@/screens/MemoListScreen';
 import QuickRecordScreen from '@/screens/QuickRecordScreen';
 import RecordPlayerScreen from '@/screens/RecordPlayerScreen';
 import RecordListScreen from '@/screens/RecordListScreen';
+import NewProjectScreen from '@/screens/NewProjectScreen';
 import OverlayDefaultLayout from '@/layouts/OverlayDefaultLayout';
 
 const Stack = createStackNavigator();
@@ -100,6 +101,14 @@ export default function RootNavigator() {
             <Stack.Screen
               name="RecordList"
               component={RecordListScreen}
+              options={{
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              }}
+            />
+
+            <Stack.Screen
+              name="NewProject"
+              component={NewProjectScreen}
               options={{
                 cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
               }}

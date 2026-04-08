@@ -8,6 +8,8 @@ import {
   Image,
   GestureResponderEvent,
 } from 'react-native';
+
+const DEFAULT_ARTWORK = require('@/assets/images/default-artwork.png');
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import type { FontAwesomeIconName } from '@/types/iconTypes';
@@ -68,7 +70,7 @@ export default function ProjectItem({
     <Animated.View style={{ transform: [{ translateX }], opacity }}>
       <Pressable style={styles.container} onPress={onPress} testID={testID}>
         <View style={styles.artworkContainer}>
-          {artwork && <Image source={artwork} style={styles.artwork} />}
+          <Image source={artwork ?? DEFAULT_ARTWORK} style={styles.artwork} />
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.projectName}>{projectName}</Text>
