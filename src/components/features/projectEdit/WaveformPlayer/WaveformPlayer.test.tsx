@@ -76,6 +76,53 @@ describe('WaveformPlayer コンポーネント', () => {
     });
   });
 
+  it('onLayout イベントで svgWidth が更新されても正常にレンダリングされる', async () => {
+    const { getByTestId } = render(<WaveformPlayer {...mockProps} />);
+
+    const container = getByTestId('waveform-container');
+    fireEvent(container.parent!, 'onLayout', {
+      nativeEvent: { layout: { width: 320, height: 62, x: 0, y: 0 } },
+    });
+
+    await waitFor(() => {
+      expect(screen.getByText('0:00')).toBeTruthy();
+    });
+  });
+
+  it('onPlaybackFinish が再生終了時に呼ばれる', async () => {
+    const onPlaybackFinish = jest.fn();
+    const sound = { ...mockProps.sound };
+    let capturedCallback: ((status: any) => void) | null = null;
+
+    sound.setOnPlaybackStatusUpdate = jest.fn((cb) => {
+      capturedCallback = cb;
+    });
+
+    render(
+      <WaveformPlayer
+        {...mockProps}
+        sound={sound}
+        onPlaybackFinish={onPlaybackFinish}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(sound.setOnPlaybackStatusUpdate).toHaveBeenCalled();
+    });
+
+    await capturedCallback!({
+      isLoaded: true,
+      positionMillis: 120000,
+      durationMillis: 120000,
+      didJustFinish: true,
+      isLooping: false,
+    });
+
+    await waitFor(() => {
+      expect(onPlaybackFinish).toHaveBeenCalledTimes(1);
+    });
+  });
+
   it('波形をドラッグして onSeek が呼ばれる', async () => {
     const onSeek = jest.fn();
 

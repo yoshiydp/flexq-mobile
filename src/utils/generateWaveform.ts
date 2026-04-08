@@ -1,4 +1,5 @@
 import * as FileSystem from 'expo-file-system';
+import { EncodingType } from 'expo-file-system';
 
 const TARGET_BARS = 300;
 const MAX_READ_BYTES = 512 * 1024; // 500KB
@@ -83,7 +84,7 @@ export async function generateWaveform(
     const MAX_BASE64_CHARS = Math.ceil((MAX_READ_BYTES * 4) / 3);
 
     const fullBase64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
+      encoding: EncodingType.Base64,
     });
 
     // MP3 compressed data bytes have no reliable correlation with audio amplitude,

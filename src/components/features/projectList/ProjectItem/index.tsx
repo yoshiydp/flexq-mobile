@@ -8,13 +8,13 @@ import {
   Image,
   GestureResponderEvent,
 } from 'react-native';
-
-const DEFAULT_ARTWORK = require('@/assets/images/default-artwork.png');
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import type { FontAwesomeIconName } from '@/types/iconTypes';
 import { formatDate } from '@/utils/formatDate';
 import styles from './ProjectItem.styles';
+
+const DEFAULT_ARTWORK = require('@/assets/images/default-artwork.png');
 
 interface ProjectItemProps {
   artwork: any;
