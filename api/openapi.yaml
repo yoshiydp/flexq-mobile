@@ -508,6 +508,37 @@ paths:
           description: Unauthorized
         '404':
           description: Not Found
+  /data/record/upload-url:
+    get:
+      summary: Get presigned S3 upload URL for a record file
+      operationId: getRecordUploadUrl
+      parameters:
+        - name: filename
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: contentType
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  uploadUrl:
+                    type: string
+                  key:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
   /data/record:
     get:
       summary: Get record data
@@ -531,12 +562,13 @@ paths:
             schema:
               type: object
               required:
-                - title
-                - source
+                - s3Key
               properties:
                 title:
                   type: string
-                source:
+                s3Key:
+                  type: string
+                projectId:
                   type: string
                 isBookmarked:
                   type: boolean
