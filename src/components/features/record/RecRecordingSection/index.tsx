@@ -1,4 +1,4 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Pressable, View, Text, Animated } from 'react-native';
 import { Audio } from 'expo-av';
 import { runBounce } from '@/utils/animations';
@@ -47,7 +47,7 @@ export default function RecRecordingSection({
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [countdown]);
+  }, [countdown, startRecording]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -55,7 +55,7 @@ export default function RecRecordingSection({
     return () => clearInterval(interval);
   }, [isRunning]);
 
-  const startRecording = async () => {
+  const startRecording = useCallback(async () => {
     try {
       await Audio.requestPermissionsAsync();
 
@@ -86,7 +86,7 @@ export default function RecRecordingSection({
     } catch (err) {
       console.error('Recording start failed', err);
     }
-  };
+  }, [trackSource]);
 
   const stopRecording = async () => {
     try {
