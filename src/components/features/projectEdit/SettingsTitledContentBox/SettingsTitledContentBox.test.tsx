@@ -21,4 +21,25 @@ describe('SettingsTitledContentBox コンポーネント', () => {
 
     getByText(mockHeading);
   });
+
+  it('headingBadge が渡されたとき、バッジテキストが表示される', () => {
+    const { getByText } = render(
+      <SettingsTitledContentBox heading={mockHeading} headingBadge="MP3">
+        {mockChildren}
+      </SettingsTitledContentBox>,
+    );
+
+    getByText(mockHeading);
+    getByText('MP3');
+  });
+
+  it('headingBadge が渡されないとき、バッジは表示されない', () => {
+    const { queryByText } = render(
+      <SettingsTitledContentBox heading={mockHeading}>
+        {mockChildren}
+      </SettingsTitledContentBox>,
+    );
+
+    expect(queryByText('MP3')).toBeNull();
+  });
 });

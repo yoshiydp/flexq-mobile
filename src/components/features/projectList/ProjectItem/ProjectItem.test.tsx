@@ -34,4 +34,16 @@ describe('ProjectItem コンポーネント', () => {
     fireEvent.press(pressable);
     expect(mockProps.onPress).toHaveBeenCalled();
   });
+
+  it('tags が渡されたときタグが表示される', () => {
+    const { getByText } = render(
+      <ProjectItem {...mockProps} tags={['Hip Hop', 'R&B']} />,
+    );
+    getByText('Hip Hop, R&B');
+  });
+
+  it('tags が渡されないとき、タグは表示されない', () => {
+    const { queryByText } = render(<ProjectItem {...mockProps} />);
+    expect(queryByText('Hip Hop, R&B')).toBeNull();
+  });
 });

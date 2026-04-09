@@ -34,6 +34,11 @@ export const MODAL_MESSAGES = {
     description: '削除したメモは復元できません。',
     submitButtonLabel: 'OK',
   },
+  confirmDeleteProject: {
+    message: 'このプロジェクトを削除してもいいですか？',
+    description: '削除したプロジェクトは復元できません。',
+    submitButtonLabel: 'OK',
+  },
   confirmRecordPlayerGoBack: (source?: string) => {
     if (source === 'Drafts') {
       return {

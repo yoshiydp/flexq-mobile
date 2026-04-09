@@ -43,4 +43,19 @@ describe('OverlayScreenTemplate コンポーネント', () => {
 
     expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
+
+  it('onClose が渡されたとき、閉じるボタンで onClose が呼ばれ goBack は呼ばれない', () => {
+    const mockOnClose = jest.fn();
+    const { getByTestId } = render(
+      <OverlayScreenTemplate onClose={mockOnClose}>
+        {mockChildren}
+      </OverlayScreenTemplate>,
+    );
+
+    const closeButton = getByTestId('close-button');
+    fireEvent.press(closeButton);
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+    expect(mockGoBack).not.toHaveBeenCalled();
+  });
 });
