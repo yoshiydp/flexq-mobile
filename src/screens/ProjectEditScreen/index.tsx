@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect, type RefObject } from 'react';
+import React, { useState, useRef, useEffect, useCallback, type RefObject } from 'react';
 import {
   View,
   Animated,
@@ -9,7 +9,7 @@ import {
 } from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import { Audio } from 'expo-av';
-import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
+import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -28,6 +28,12 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
+import { useUpdateProject } from '@/hooks/useUpdateProject';
+import { getPendingWaveformData } from '@/utils/pendingWaveformData';
+import {
+  getPendingProjectSettings,
+  clearPendingProjectSettings,
+} from '@/utils/pendingProjectSettings';
 import styles from './ProjectEditScreen.styles';
 
 export default function ProjectEditScreen() {
@@ -38,7 +44,8 @@ export default function ProjectEditScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ProjectEdit'>>();
-  const { id } = (route.params as { id: string }) ?? { id: '' };
+  const { id, waveformJson: navWaveformJson } =
+    (route.params as { id: string; waveformJson?: any }) ?? { id: '' };
 
   const { project, loading, error } = useFetchProjectDetail(id);
 
@@ -48,14 +55,28 @@ export default function ProjectEditScreen() {
     error: recordError,
   } = useFetchProjectRecords(id);
 
+  const { updateProject } = useUpdateProject();
+
   const recordLoadingRef = useRef(recordLoading);
   const recordErrorRef = useRef(recordError);
 
   const [projectName, setProjectName] = useState('');
   const [trackSource, setTrackSource] = useState<string | null>(null);
+  const [trackId, setTrackId] = useState<string | undefined>(undefined);
+  const [trackName, setTrackName] = useState<string | undefined>(undefined);
+  const [artworkUri, setArtworkUri] = useState<string | undefined>(undefined);
+  const [artworkKey, setArtworkKey] = useState<string | undefined>(undefined);
   const [body, setBody] = useState('');
   const [cueButtons, setCueButtons] = useState<CuePointType[]>([]);
-  const [waveformData, setWaveformData] = useState<number[]>([]);
+  const [waveformData, setWaveformData] = useState<number[]>(() => {
+    if (id) {
+      const pending = getPendingWaveformData(id);
+      if (pending) return pending;
+    }
+    if (Array.isArray(navWaveformJson) && navWaveformJson.length > 0)
+      return navWaveformJson;
+    return [];
+  });
 
   const [mode, setMode] = useState<'edit' | 'transition' | 'rec'>('edit');
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -72,6 +93,9 @@ export default function ProjectEditScreen() {
     if (!project) return;
     setProjectName(project.projectName ?? '');
     setTrackSource(project.trackSource ?? null);
+    setTrackId(project.trackId);
+    setTrackName(project.trackName);
+    setArtworkUri(project.artwork ?? undefined);
     setBody((project as any).body ?? '');
     setCueButtons(() => {
       const source = project.cueButtons;
@@ -84,12 +108,24 @@ export default function ProjectEditScreen() {
     });
   }, [project]);
 
+  // ProjectSettings から戻ったときに変更を反映
+  useFocusEffect(
+    useCallback(() => {
+      if (!id) return;
+      const pending = getPendingProjectSettings(id);
+      if (!pending) return;
+      if (pending.artworkUri) setArtworkUri(pending.artworkUri);
+      if (pending.artworkKey) setArtworkKey(pending.artworkKey);
+      if (pending.trackId) setTrackId(pending.trackId);
+      if (pending.trackName) setTrackName(pending.trackName);
+      if (pending.trackSource) setTrackSource(pending.trackSource);
+      clearPendingProjectSettings(id);
+    }, [id]),
+  );
+
   useEffect(() => {
+    if (!project?.waveformJson) return;
     const loadWaveform = async () => {
-      if (!project?.waveformJson) {
-        setWaveformData([]);
-        return;
-      }
       try {
         const res = await fetch(project.waveformJson);
         const json = await res.json();
@@ -101,7 +137,6 @@ export default function ProjectEditScreen() {
         setWaveformData(data as number[]);
       } catch (e) {
         console.warn('Failed to fetch waveformJson:', e);
-        setWaveformData([]);
       }
     };
     loadWaveform();
@@ -200,6 +235,17 @@ export default function ProjectEditScreen() {
     };
     controlPlayback();
   }, [isPlaying]);
+
+  // Stop audio when navigating away (e.g. project deletion from ProjectSettings)
+  useEffect(() => {
+    const unsubscribe = navigation.addListener('blur', () => {
+      if (soundRef.current) {
+        soundRef.current.pauseAsync().catch(() => {});
+        setIsPlaying(false);
+      }
+    });
+    return unsubscribe;
+  }, [navigation]);
 
   useEffect(() => {
     (async () => {
@@ -398,13 +444,25 @@ export default function ProjectEditScreen() {
   const onSubmitSaveProject = async () => {
     closeModal();
     showLoading();
-    setTimeout(async () => {
+    try {
+      await updateProject({
+        id,
+        projectName,
+        body,
+        cueButtons,
+        ...(artworkKey !== undefined ? { artworkKey } : {}),
+        ...(trackId !== undefined ? { trackId } : {}),
+        ...(trackName !== undefined ? { trackName } : {}),
+      });
+    } catch {
+      // エラーが発生しても画面遷移は行う（オフライン時など考慮）
+    } finally {
       hideLoading();
       try {
         await soundRef.current?.stopAsync();
       } catch {}
       navigation.goBack();
-    }, 3000);
+    }
   };
 
   const handleGoBack = () => {
@@ -497,8 +555,11 @@ export default function ProjectEditScreen() {
       ...HEADER_TOOLBAR_TEMPLATES.hamburger,
       onPress: () =>
         navigation.navigate('ProjectSettings', {
-          artwork: project?.artwork ? { uri: project.artwork } : undefined,
-          trackSource: project?.trackSource ?? null,
+          id: id ?? '',
+          artwork: artworkUri ? { uri: artworkUri } : (project?.artwork ? { uri: project.artwork } : undefined),
+          trackSource: trackSource ?? project?.trackSource ?? undefined,
+          trackId: trackId ?? project?.trackId,
+          trackName: trackName ?? project?.trackName,
         }),
     },
   ];

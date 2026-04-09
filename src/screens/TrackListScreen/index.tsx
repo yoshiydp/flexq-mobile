@@ -76,19 +76,31 @@ export default function TrackListScreen() {
 
   if (loading && tracks.length === 0) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" />
-      </View>
+      <HomeTabsScreenTemplate
+        title="TRACK LIST"
+        titleAnim1={titleAnim1}
+        titleAnim2={titleAnim2}
+      >
+        <View style={styles.container}>
+          <ActivityIndicator size="large" />
+        </View>
+      </HomeTabsScreenTemplate>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.container}>
-        <Text style={{ color: 'red', padding: 16 }}>
-          Failed to load tracks.
-        </Text>
-      </View>
+      <HomeTabsScreenTemplate
+        title="TRACK LIST"
+        titleAnim1={titleAnim1}
+        titleAnim2={titleAnim2}
+      >
+        <View style={styles.container}>
+          <Text style={{ color: 'red', padding: 16 }}>
+            Failed to load tracks.
+          </Text>
+        </View>
+      </HomeTabsScreenTemplate>
     );
   }
 

@@ -5,7 +5,8 @@ export interface ProjectDetailType {
   id: string;
   projectName: string;
   artwork: string;
-  trackName: string;
+  trackId?: string;
+  trackName?: string;
   trackSource: string;
   waveformJson: string;
   cueButtons: { time: number; label: string; isActive: boolean }[];

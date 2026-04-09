@@ -5,7 +5,7 @@ export interface ProjectType {
   id: string;
   projectName: string;
   artwork: string;
-  trackName: string;
+  trackName?: string;
   trackSource: string;
   waveformJson: string;
   cueButtons: { time: number; label: string; isActive: boolean }[];
@@ -25,10 +25,12 @@ export function useFetchProject() {
     try {
       const res = await DefaultService.getProject();
       setProjects(
-        res.map((project: any) => ({
-          ...project,
-          updatedAt: new Date(project.updatedAt),
-        })),
+        res
+          .map((project: any) => ({
+            ...project,
+            updatedAt: new Date(project.updatedAt),
+          }))
+          .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime()),
       );
     } catch (err) {
       console.error('Failed to fetch projects:', err);

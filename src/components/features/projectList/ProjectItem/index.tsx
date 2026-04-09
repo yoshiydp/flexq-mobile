@@ -14,6 +14,8 @@ import type { FontAwesomeIconName } from '@/types/iconTypes';
 import { formatDate } from '@/utils/formatDate';
 import styles from './ProjectItem.styles';
 
+const DEFAULT_ARTWORK = require('@/assets/images/default-artwork.png');
+
 interface ProjectItemProps {
   artwork: any;
   projectName: string;
@@ -68,7 +70,7 @@ export default function ProjectItem({
     <Animated.View style={{ transform: [{ translateX }], opacity }}>
       <Pressable style={styles.container} onPress={onPress} testID={testID}>
         <View style={styles.artworkContainer}>
-          {artwork && <Image source={artwork} style={styles.artwork} />}
+          <Image source={artwork ?? DEFAULT_ARTWORK} style={styles.artwork} />
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.projectName}>{projectName}</Text>
