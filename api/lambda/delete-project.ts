@@ -1,4 +1,4 @@
-import { DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { docClient } from './db';
 import { s3Client } from './s3';
@@ -36,6 +36,28 @@ export const handler = async (event: any) => {
     await s3Client.send(new DeleteObjectCommand({
       Bucket: process.env.TRACK_AUDIO_BUCKET!,
       Key: waveformJsonKey,
+    }));
+  }
+
+  // Delete all records linked to this project
+  const recordsResult = await docClient.send(new QueryCommand({
+    TableName: process.env.RECORDS_TABLE!,
+    IndexName: 'projectId-index',
+    KeyConditionExpression: 'projectId = :projectId',
+    ExpressionAttributeValues: { ':projectId': projectId },
+  }));
+
+  const records = recordsResult.Items ?? [];
+  for (const record of records) {
+    if (record.s3Key) {
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: process.env.TRACK_AUDIO_BUCKET!,
+        Key: record.s3Key,
+      }));
+    }
+    await docClient.send(new DeleteCommand({
+      TableName: process.env.RECORDS_TABLE!,
+      Key: { userId: record.userId, recordId: record.recordId },
     }));
   }
 

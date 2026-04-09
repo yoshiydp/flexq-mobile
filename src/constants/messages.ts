@@ -36,7 +36,7 @@ export const MODAL_MESSAGES = {
   },
   confirmDeleteProject: {
     message: 'このプロジェクトを削除してもいいですか？',
-    description: '削除したプロジェクトは復元できません。',
+    description: 'このプロジェクトに紐づいているRecデータも全て削除されます。削除したデータは復元できませんのでご注意ください。',
     submitButtonLabel: 'OK',
   },
   confirmRecordPlayerGoBack: (source?: string) => {

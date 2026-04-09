@@ -11,11 +11,13 @@ import type { ProjectRecordType } from '@/hooks/useFetchProjectRecords';
 import styles from './RecView.styles';
 
 interface RecViewProps {
+  projectId: string;
+  trackSource?: string | null;
   records: ProjectRecordType[];
   onBeforeRecord?: () => void;
 }
 
-export default function RecView({ records, onBeforeRecord }: RecViewProps) {
+export default function RecView({ projectId, trackSource, records, onBeforeRecord }: RecViewProps) {
   const navigator =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -38,6 +40,7 @@ export default function RecView({ records, onBeforeRecord }: RecViewProps) {
         recordedFile: file,
         recordedDuration: duration,
         source: 'ProjectEdit',
+        projectId,
       });
     }, 3000);
   };
@@ -73,6 +76,7 @@ export default function RecView({ records, onBeforeRecord }: RecViewProps) {
         visible={recordingModalVisible}
         onClose={() => setRecordingModalVisible(false)}
         onStop={handleStopRecording}
+        trackSource={trackSource}
       />
     </View>
   );

@@ -420,6 +420,33 @@ export class DefaultService {
         });
     }
     /**
+     * Get presigned S3 upload URL for a record file
+     * @param filename
+     * @param contentType
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getRecordUploadUrl(
+        filename: string,
+        contentType: string,
+    ): CancelablePromise<{
+        uploadUrl?: string;
+        key?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/record/upload-url',
+            query: {
+                'filename': filename,
+                'contentType': contentType,
+            },
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
      * Get record data
      * Returns mock data for RECORD_DATA.
      * @returns any OK
@@ -439,8 +466,9 @@ export class DefaultService {
      */
     public static createRecord(
         requestBody: {
-            title: string;
-            source: string;
+            title?: string;
+            s3Key: string;
+            projectId?: string;
             isBookmarked?: boolean;
         },
     ): CancelablePromise<{

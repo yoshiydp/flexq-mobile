@@ -17,6 +17,7 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { useCreateRecord } from '@/hooks/useCreateRecord';
 import { useUpdateRecord } from '@/hooks/useUpdateRecord';
 import { useDeleteRecord } from '@/hooks/useDeleteRecord';
+import { useUploadProjectRecord } from '@/hooks/useUploadProjectRecord';
 import styles from './RecordPlayerScreen.styles';
 
 export default function RecordPlayerScreen() {
@@ -36,6 +37,7 @@ export default function RecordPlayerScreen() {
   const { createRecord } = useCreateRecord();
   const { updateRecord } = useUpdateRecord();
   const { deleteRecord } = useDeleteRecord();
+  const { uploadProjectRecord } = useUploadProjectRecord();
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -192,6 +194,8 @@ export default function RecordPlayerScreen() {
     try {
       if (params?.id) {
         await updateRecord(params.id, { title, isBookmarked });
+      } else if (params?.source === 'ProjectEdit' && params?.projectId && recordedFile) {
+        await uploadProjectRecord(recordedFile, title, params.projectId, isBookmarked);
       } else {
         await createRecord(title, recordedFile, isBookmarked);
       }

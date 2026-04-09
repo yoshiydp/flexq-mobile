@@ -276,6 +276,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ProjectsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
         - S3CrudPolicy:
             BucketName: !Ref TrackAudioBucket
       Events:
@@ -302,6 +304,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref RecordsTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         GetProjectRecords:
           Type: Api
@@ -502,6 +506,8 @@ Resources:
       Policies:
         - DynamoDBReadPolicy:
             TableName: !Ref RecordsTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         GetRecord:
           Type: Api
@@ -518,6 +524,32 @@ Resources:
         EntryPoints:
           - lambda/get-record.ts
 
+  GetRecordUploadUrlFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-record-upload-url.handler
+      CodeUri: ./
+      Policies:
+        - Statement:
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub 'arn:aws:s3:::${TrackAudioBucket}/*'
+      Events:
+        GetRecordUploadUrl:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record/upload-url
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-record-upload-url.ts
+
   PostRecordFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -526,6 +558,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         PostRecord:
           Type: Api

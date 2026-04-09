@@ -7,12 +7,14 @@ import styles from './RecRecordingSection.styles';
 
 interface RecRecordingSectionProps {
   onStop: (durationMs: number, recordingFile: string) => void;
+  trackSource?: string | null;
   countdownSeconds?: number;
   testID?: string;
 }
 
 export default function RecRecordingSection({
   onStop,
+  trackSource,
   countdownSeconds = 5,
   testID = 'rec-recording-section-pressable',
 }: RecRecordingSectionProps) {
@@ -24,6 +26,16 @@ export default function RecRecordingSection({
   const [countdown, setCountdown] = useState(countdownSeconds);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
+  const trackSoundRef = useRef<Audio.Sound | null>(null);
+
+  // アンマウント時に音源を必ずクリーンアップ
+  useEffect(() => {
+    return () => {
+      trackSoundRef.current?.stopAsync().catch(() => {});
+      trackSoundRef.current?.unloadAsync().catch(() => {});
+      trackSoundRef.current = null;
+    };
+  }, []);
 
   useEffect(() => {
     let interval: ReturnType<typeof setInterval>;
@@ -46,16 +58,30 @@ export default function RecRecordingSection({
   const startRecording = async () => {
     try {
       await Audio.requestPermissionsAsync();
+
+      // playAndRecord モード: スピーカー出力 + マイク録音を同時に行う
+      // イヤホン接続時は iOS/Android が自動でイヤホンへルーティング
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        shouldDuckAndroid: false,
       });
 
+      // 録音を準備・開始
       const recording = new Audio.Recording();
       await recording.prepareToRecordAsync(RECORDING_OPTIONS_HIGH_QUALITY);
       await recording.startAsync();
-
       recordingRef.current = recording;
+
+      // 音源がある場合は先頭から再生（マイクが物理的にスピーカー/イヤホン音を収録）
+      if (trackSource) {
+        const { sound } = await Audio.Sound.createAsync(
+          { uri: trackSource },
+          { shouldPlay: true, positionMillis: 0, volume: 1.0 },
+        );
+        trackSoundRef.current = sound;
+      }
+
       setIsRunning(true);
     } catch (err) {
       console.error('Recording start failed', err);
@@ -65,6 +91,14 @@ export default function RecRecordingSection({
   const stopRecording = async () => {
     try {
       setIsRunning(false);
+
+      // 音源再生を停止・解放
+      if (trackSoundRef.current) {
+        await trackSoundRef.current.stopAsync().catch(() => {});
+        await trackSoundRef.current.unloadAsync().catch(() => {});
+        trackSoundRef.current = null;
+      }
+
       const recording = recordingRef.current;
       if (!recording) return;
 

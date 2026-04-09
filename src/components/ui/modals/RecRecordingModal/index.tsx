@@ -8,12 +8,14 @@ interface RecRecordingModalProps {
   visible: boolean;
   onClose: () => void;
   onStop: (durationMs: number, recordingFile: string) => void;
+  trackSource?: string | null;
 }
 
 export default function RecRecordingModal({
   visible,
   onClose,
   onStop,
+  trackSource,
 }: RecRecordingModalProps) {
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -48,7 +50,7 @@ export default function RecRecordingModal({
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
         >
-          <RecRecordingSection onStop={onStop} />
+          <RecRecordingSection onStop={onStop} trackSource={trackSource} />
         </Animated.View>
       </Animated.View>
     </Modal>
