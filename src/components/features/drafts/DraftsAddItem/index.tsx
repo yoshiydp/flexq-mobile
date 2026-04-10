@@ -11,7 +11,7 @@ interface DraftsAddItemProps {
   onPressListButton: () => void;
   translateX: Animated.Value;
   opacity: Animated.Value;
-  showListButton?: boolean;
+  showListButton?: boolean | undefined;
 }
 
 export default function DraftsAddItem({
@@ -21,7 +21,7 @@ export default function DraftsAddItem({
   onPressListButton,
   translateX,
   opacity,
-  showListButton = true,
+  showListButton,
 }: DraftsAddItemProps) {
   return (
     <Animated.View

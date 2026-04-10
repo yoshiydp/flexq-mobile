@@ -8,7 +8,7 @@
  *   AWS_PROFILE=default USERS_TABLE=lyrics-users-lyrics-mock-api npx ts-node seed-users.ts
  */
 import { DynamoDBClient } from '@aws-sdk/client-dynamodb';
-import { DynamoDBDocumentClient, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { DynamoDBDocumentClient, PutCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 
@@ -33,6 +33,21 @@ const SEED_USERS = [
 
 async function seedUsers() {
   for (const seed of SEED_USERS) {
+    // email の重複チェック（GSI で検索）
+    const existing = await docClient.send(
+      new QueryCommand({
+        TableName: TABLE_NAME,
+        IndexName: 'email-index',
+        KeyConditionExpression: 'email = :email',
+        ExpressionAttributeValues: { ':email': seed.email },
+      })
+    );
+
+    if (existing.Items?.length) {
+      console.log(`Skipped: ${seed.email} already exists (userId: ${existing.Items[0].userId})`);
+      continue;
+    }
+
     const passwordHash = await bcrypt.hash(seed.password, 10);
     const item = {
       userId: randomUUID(),
@@ -44,13 +59,7 @@ async function seedUsers() {
       createdAt: new Date().toISOString(),
     };
 
-    await docClient.send(
-      new PutCommand({
-        TableName: TABLE_NAME,
-        Item: item,
-        ConditionExpression: 'attribute_not_exists(email)',
-      })
-    );
+    await docClient.send(new PutCommand({ TableName: TABLE_NAME, Item: item }));
 
     console.log(`Created user: ${item.email} (userId: ${item.userId})`);
     console.log(`Password: ${seed.password}`);

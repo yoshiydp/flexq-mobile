@@ -1,16 +1,19 @@
 import React, { useState } from 'react';
-import { View, Alert } from 'react-native';
+import { View, Text, Pressable, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
+import type { StackNavigationProp } from '@react-navigation/stack';
 import AppLogo from '@/components/ui/logo/AppLogo';
 import EditableFormControl from '@/components/ui/form/EditableFormControl';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { PLACEHOLDERS } from '@/constants/placeholders';
+import type { RootStackParamList } from '@/navigation/types';
 import styles from './SignInScreen.styles';
 
 export default function SignInScreen() {
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<StackNavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const { showLoading, hideLoading } = useModal();
@@ -27,7 +30,7 @@ export default function SignInScreen() {
     hideLoading();
 
     if (isAuthenticated) {
-      navigation.navigate('HomeTabs', { screen: 'ProjectList' });
+      navigation.navigate('HomeTabs');
     }
   };
 
@@ -52,6 +55,12 @@ export default function SignInScreen() {
           onChangeText={setPassword}
           placeholder={PLACEHOLDERS.signIn.passwordInput}
         />
+        <Pressable
+          style={styles.resetPasswordLink}
+          onPress={() => navigation.navigate('PasswordReset')}
+        >
+          <Text style={styles.resetPasswordText}>パスワードをリセットする</Text>
+        </Pressable>
       </View>
       <View style={styles.signInButtonWrapper}>
         <SubmitButton
@@ -59,6 +68,12 @@ export default function SignInScreen() {
           onPress={submitSignIn}
           disabled={!email || !password}
         />
+      </View>
+      <View style={styles.registerLinkContainer}>
+        <Text style={styles.registerLinkLabel}>アカウントはお持ちですか？</Text>
+        <Pressable onPress={() => navigation.navigate('Register')}>
+          <Text style={styles.registerLinkText}>新規登録へ</Text>
+        </Pressable>
       </View>
     </View>
   );

@@ -206,6 +206,65 @@ async function generateOpenAPI() {
         ...createIntegration('post-auth-login'),
       },
     };
+
+    baseYaml.paths['/data/auth/register'] = {
+      post: {
+        summary: 'Register a new user',
+        operationId: 'post_auth_register',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['username', 'email', 'password'],
+                properties: {
+                  username: { type: 'string' },
+                  email: { type: 'string' },
+                  password: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '201': { description: 'Created' },
+          '400': { description: 'Bad Request' },
+          '409': { description: 'Email already in use' },
+        },
+        ...createIntegration('post-auth-register'),
+      },
+    };
+
+    baseYaml.paths['/data/auth/reset-password'] = {
+      post: {
+        summary: 'Reset user password',
+        operationId: 'post_auth_reset_password',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['email', 'newPassword'],
+                properties: {
+                  email: { type: 'string' },
+                  newPassword: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'OK' },
+          '400': { description: 'Bad Request' },
+          '404': { description: 'User not found' },
+        },
+        ...createIntegration('post-auth-reset-password'),
+      },
+    };
   }
 
   baseYaml.info.license = {

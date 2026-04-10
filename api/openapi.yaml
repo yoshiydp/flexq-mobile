@@ -702,6 +702,98 @@ paths:
             application/json:
               example:
                 message: Logged out successfully
+  /data/auth/register:
+    post:
+      summary: Register a new user
+      operationId: postDataAuthRegister
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - username
+                - email
+                - password
+              properties:
+                username:
+                  type: string
+                  example: New User
+                email:
+                  type: string
+                  example: newuser@example.com
+                password:
+                  type: string
+                  example: password123
+      responses:
+        '201':
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  username:
+                    type: string
+                  email:
+                    type: string
+                  thumbnail:
+                    type: string
+                    nullable: true
+                  socialAccounts:
+                    type: array
+                    items:
+                      type: object
+                  token:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      expiresIn:
+                        type: integer
+        '400':
+          description: Bad Request
+        '409':
+          description: Email already in use
+  /data/auth/reset-password:
+    post:
+      summary: Reset user password
+      operationId: postDataAuthResetPassword
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - email
+                - newPassword
+              properties:
+                email:
+                  type: string
+                  example: demo@example.com
+                newPassword:
+                  type: string
+                  example: newpassword123
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  message:
+                    type: string
+        '400':
+          description: Bad Request
+        '404':
+          description: User not found
 components:
   examples:
     MEMO_DATA:
