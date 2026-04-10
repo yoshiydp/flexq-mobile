@@ -40,4 +40,19 @@ describe('RecRecordingModal コンポーネント', () => {
 
     expect(mockOnClose).toHaveBeenCalledTimes(0);
   });
+
+  it('trackSource が RecRecordingSection に渡される', () => {
+    const trackSource = 'https://example.com/track.mp3';
+    render(<RecRecordingModal {...mockProps} trackSource={trackSource} />);
+
+    const propsPassed = (RecRecordingSection as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.trackSource).toBe(trackSource);
+  });
+
+  it('trackSource が未指定の場合、RecRecordingSection に undefined が渡される', () => {
+    render(<RecRecordingModal {...mockProps} />);
+
+    const propsPassed = (RecRecordingSection as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.trackSource).toBeUndefined();
+  });
 });

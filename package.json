@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "scripts": {
     "start": "expo start",
+    "start:staging": "EXPO_PUBLIC_API_BASE_URL=https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1 expo start",
     "reset-project": "node ./scripts/reset-project.js",
     "android": "expo run:android",
     "ios": "expo run:ios",

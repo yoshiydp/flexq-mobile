@@ -3,7 +3,7 @@ import { COLORS } from '@/globalStyles';
 
 export default StyleSheet.create({
   container: {
-    marginHorizontal: 20,
+    width: '100%',
     height: 90,
   },
   timeContainer: {

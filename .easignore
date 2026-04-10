@@ -1,0 +1,25 @@
+# Dependencies (EAS installs these fresh)
+node_modules/
+
+# Git
+.git/
+
+# Local env (never send to build servers)
+.env.local
+
+# Test & coverage
+coverage/
+__tests__/
+
+# Build artifacts
+dist/
+.lambda-build/
+
+# Docs
+docs/
+
+# Lambda / API (not needed for mobile builds)
+api/
+
+# Mock server scripts
+scripts/server.ts

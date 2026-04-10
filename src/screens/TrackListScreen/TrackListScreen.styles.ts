@@ -11,6 +11,11 @@ export default StyleSheet.create({
     paddingTop: 150,
     marginBottom: 200,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',

@@ -144,10 +144,7 @@ export default function WaveformPlayer({
   }, [animatedWaveform]);
 
   const handleSeek = async (x: number) => {
-    const seekPos = Math.min(
-      Math.max((x / svgWidth) * duration, 0),
-      duration,
-    );
+    const seekPos = Math.min(Math.max((x / svgWidth) * duration, 0), duration);
     positionRef.current = seekPos;
     setPosition(seekPos);
     onSeek?.(seekPos);

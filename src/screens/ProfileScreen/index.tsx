@@ -127,7 +127,7 @@ export default function ProfileScreen() {
         titleAnim1={titleAnim1}
         titleAnim2={titleAnim2}
       >
-        <View style={styles.container}>
+        <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
         </View>
       </HomeTabsScreenTemplate>

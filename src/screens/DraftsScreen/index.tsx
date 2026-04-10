@@ -11,8 +11,8 @@ import styles from './DraftsScreen.styles';
 export default function DraftsScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
   const navigation = useNavigation();
-  const { memos } = useFetchMemo();
-  const { records } = useFetchRecord();
+  const { memos, loading: memosLoading } = useFetchMemo();
+  const { records, loading: recordsLoading } = useFetchRecord();
 
   const ADD_LIST = [
     {
@@ -21,7 +21,7 @@ export default function DraftsScreen() {
       onPressAddButton: () =>
         navigation.navigate('QuickMemo', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('MemoList', {}),
-      showListButton: memos.length > 0,
+      showListButton: memosLoading ? undefined : memos.length > 0,
     },
     {
       addButtonLabel: 'QUICK RECORD',
@@ -29,7 +29,7 @@ export default function DraftsScreen() {
       onPressAddButton: () =>
         navigation.navigate('QuickRecord', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('RecordList', {}),
-      showListButton: records.length > 0,
+      showListButton: recordsLoading ? undefined : records.length > 0,
     },
   ];
 

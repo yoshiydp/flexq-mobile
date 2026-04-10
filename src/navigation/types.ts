@@ -1,4 +1,7 @@
 export type RootStackParamList = {
+  SignIn: undefined;
+  PasswordReset: undefined;
+  Register: undefined;
   HomeTabs: undefined;
   ProjectList: undefined;
   TrackList: undefined;
@@ -50,6 +53,7 @@ export type RootStackParamList = {
         title?: string;
         isBookmarked?: boolean;
         source?: 'Drafts' | 'ProjectEdit' | undefined;
+        projectId?: string;
       }
     | undefined;
   RecordList?: undefined;

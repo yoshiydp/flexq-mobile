@@ -2,6 +2,9 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import RecRecordingSection from './index';
 
+const mockStopAsync = jest.fn();
+const mockUnloadAsync = jest.fn();
+
 jest.mock('expo-av', () => {
   return {
     Audio: {
@@ -13,6 +16,14 @@ jest.mock('expo-av', () => {
         stopAndUnloadAsync: jest.fn(),
         getURI: jest.fn(() => 'mock-recording-uri'),
       })),
+      Sound: {
+        createAsync: jest.fn().mockResolvedValue({
+          sound: {
+            stopAsync: mockStopAsync,
+            unloadAsync: mockUnloadAsync,
+          },
+        }),
+      },
     },
   };
 });
@@ -20,6 +31,7 @@ jest.mock('expo-av', () => {
 describe('RecRecordingSection コンポーネント', () => {
   beforeEach(() => {
     jest.useFakeTimers();
+    jest.clearAllMocks();
   });
 
   afterEach(() => {
@@ -33,9 +45,23 @@ describe('RecRecordingSection コンポーネント', () => {
 
   it('コンポーネントが正しくレンダリングされる', () => {
     const { getByText } = render(<RecRecordingSection {...mockProps} />);
-    // カウントダウン表示の確認
     getByText('5');
   });
 
-  // TODO: 録音開始と停止のテストを追加する
+  it('trackSource なしでレンダリングされる', () => {
+    const { getByText } = render(
+      <RecRecordingSection {...mockProps} trackSource={null} />,
+    );
+    getByText('5');
+  });
+
+  it('trackSource ありでレンダリングされる', () => {
+    const { getByText } = render(
+      <RecRecordingSection
+        {...mockProps}
+        trackSource="https://example.com/track.mp3"
+      />,
+    );
+    getByText('5');
+  });
 });

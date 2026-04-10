@@ -420,6 +420,33 @@ export class DefaultService {
         });
     }
     /**
+     * Get presigned S3 upload URL for a record file
+     * @param filename
+     * @param contentType
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getRecordUploadUrl(
+        filename: string,
+        contentType: string,
+    ): CancelablePromise<{
+        uploadUrl?: string;
+        key?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/record/upload-url',
+            query: {
+                'filename': filename,
+                'contentType': contentType,
+            },
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
      * Get record data
      * Returns mock data for RECORD_DATA.
      * @returns any OK
@@ -439,8 +466,9 @@ export class DefaultService {
      */
     public static createRecord(
         requestBody: {
-            title: string;
-            source: string;
+            title?: string;
+            s3Key: string;
+            projectId?: string;
             isBookmarked?: boolean;
         },
     ): CancelablePromise<{
@@ -551,6 +579,66 @@ export class DefaultService {
         return __request(OpenAPI, {
             method: 'POST',
             url: '/data/auth/logout',
+        });
+    }
+    /**
+     * Register a new user
+     * @param requestBody
+     * @returns any Created
+     * @throws ApiError
+     */
+    public static postDataAuthRegister(
+        requestBody: {
+            username: string;
+            email: string;
+            password: string;
+        },
+    ): CancelablePromise<{
+        userId?: string;
+        username?: string;
+        email?: string;
+        thumbnail?: string | null;
+        socialAccounts?: Array<Record<string, any>>;
+        token?: {
+            accessToken?: string;
+            refreshToken?: string;
+            expiresIn?: number;
+        };
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/register',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                409: `Email already in use`,
+            },
+        });
+    }
+    /**
+     * Reset user password
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataAuthResetPassword(
+        requestBody: {
+            email: string;
+            newPassword: string;
+        },
+    ): CancelablePromise<{
+        message?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/reset-password',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                404: `User not found`,
+            },
         });
     }
 }

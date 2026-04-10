@@ -1,5 +1,8 @@
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { GetObjectCommand } from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { docClient } from './db';
+import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 
@@ -22,10 +25,19 @@ export const handler = async (event: any) => {
     })
   );
 
-  const records = (result.Items || []).map(({ recordId, ...rest }) => ({
-    ...rest,
-    id: recordId,
-  }));
+  const records = await Promise.all(
+    (result.Items || []).map(async ({ recordId, s3Key, source: legacySource, ...rest }) => {
+      let source = legacySource ?? '';
+      if (s3Key) {
+        source = await getSignedUrl(
+          s3Client,
+          new GetObjectCommand({ Bucket: process.env.TRACK_AUDIO_BUCKET!, Key: s3Key }),
+          { expiresIn: 3600 }
+        );
+      }
+      return { ...rest, id: recordId, source };
+    })
+  );
 
   return createResponse({ records });
 };
