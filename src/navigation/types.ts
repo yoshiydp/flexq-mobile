@@ -50,6 +50,7 @@ export type RootStackParamList = {
         title?: string;
         isBookmarked?: boolean;
         source?: 'Drafts' | 'ProjectEdit' | undefined;
+        projectId?: string;
       }
     | undefined;
   RecordList?: undefined;

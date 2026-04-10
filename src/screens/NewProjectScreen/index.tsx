@@ -9,14 +9,15 @@ import {
   Modal,
   FlatList,
   Alert,
-  ActivityIndicator,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
+import { cacheDirectory, downloadAsync } from 'expo-file-system/legacy';
 import { FontAwesome } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
+import { useModal } from '@/contexts/ModalContext';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import Icon from '@/components/ui/Icon';
@@ -79,7 +80,7 @@ export default function NewProjectScreen() {
   const [artworkUri, setArtworkUri] = useState<string | null>(null);
   const [artworkIsDataUri, setArtworkIsDataUri] = useState(false);
   const [showTrackPicker, setShowTrackPicker] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const { showLoading, hideLoading } = useModal();
 
   const audioDisplayName = pendingAudio?.name ?? selectedTrack?.title ?? null;
 
@@ -122,7 +123,7 @@ export default function NewProjectScreen() {
   };
 
   const handleCreate = async () => {
-    setCreating(true);
+    showLoading();
     try {
       let trackId: string | undefined;
       let trackName: string | undefined;
@@ -201,7 +202,27 @@ export default function NewProjectScreen() {
       } else if (selectedTrack) {
         trackId = selectedTrack.id;
         trackName = selectedTrack.title;
-        // 選択済みトラックのアートワークキーを取得（presigned URLからは再取得不可のため artworkKey は省略）
+
+        // 既存トラックから波形データを生成してS3にアップロード
+        try {
+          const ext = selectedTrack.extention.toLowerCase();
+          const tempUri = `${cacheDirectory}temp_waveform_track.${ext}`;
+          await downloadAsync(selectedTrack.source, tempUri);
+          localWaveformData = await generateWaveform(tempUri, ext);
+          const { uploadUrl: waveformUploadUrl, key: waveformKey } =
+            (await DefaultService.getTrackUploadUrl(
+              'waveform.json',
+              'application/json',
+            )) as any;
+          await fetch(waveformUploadUrl, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(localWaveformData),
+          });
+          waveformJsonKey = waveformKey;
+        } catch (waveformErr) {
+          console.warn('Waveform generation for existing track failed:', waveformErr);
+        }
       }
 
       // 4. プロジェクトを DynamoDB に保存
@@ -225,7 +246,7 @@ export default function NewProjectScreen() {
       console.error('Create project failed:', err);
       Alert.alert('エラー', 'プロジェクトの作成に失敗しました。');
     } finally {
-      setCreating(false);
+      hideLoading();
     }
   };
 
@@ -295,18 +316,12 @@ export default function NewProjectScreen() {
         </View>
       </ScrollView>
 
-      {creating ? (
-        <View style={styles.submitButton}>
-          <ActivityIndicator color={COLORS.accent.goldPrimary} />
-        </View>
-      ) : (
-        <SubmitButton
-          containerClassName={styles.submitButton}
-          label="CREATE"
-          onPress={handleCreate}
-          disabled={!title.trim() || (!pendingAudio && !selectedTrack)}
-        />
-      )}
+      <SubmitButton
+        containerClassName={styles.submitButton}
+        label="CREATE"
+        onPress={handleCreate}
+        disabled={!title.trim() || (!pendingAudio && !selectedTrack)}
+      />
 
       <Modal visible={showTrackPicker} transparent animationType="slide">
         <View style={styles.modalOverlay}>

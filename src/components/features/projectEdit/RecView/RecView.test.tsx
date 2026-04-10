@@ -3,6 +3,7 @@ import { render, fireEvent } from '@testing-library/react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { ModalProvider } from '@/contexts/ModalContext';
 import RecView from './index';
+import RecRecordingModal from '@/components/ui/modals/RecRecordingModal';
 
 jest.mock('@/components/features/drafts/RecordItem', () => {
   const { Pressable, Text } = require('react-native');
@@ -37,6 +38,7 @@ describe('RecView コンポーネント', () => {
   });
 
   const mockProps = {
+    projectId: 'project-1',
     records: [
       {
         id: '101',
@@ -67,5 +69,22 @@ describe('RecView コンポーネント', () => {
     const recordItem = getByText('Intro Take 1').parent;
     fireEvent.press(recordItem);
     expect(recordItem).toBeTruthy();
+  });
+
+  it('trackSource が RecRecordingModal に渡される', () => {
+    const trackSource = 'https://example.com/track.mp3';
+    renderWithProviders(
+      <RecView {...mockProps} trackSource={trackSource} />,
+    );
+
+    const propsPassed = (RecRecordingModal as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.trackSource).toBe(trackSource);
+  });
+
+  it('trackSource が未指定の場合、RecRecordingModal に undefined が渡される', () => {
+    renderWithProviders(<RecView {...mockProps} />);
+
+    const propsPassed = (RecRecordingModal as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.trackSource).toBeUndefined();
   });
 });

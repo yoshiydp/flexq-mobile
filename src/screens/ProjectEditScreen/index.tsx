@@ -53,6 +53,7 @@ export default function ProjectEditScreen() {
     records: projectRecords,
     loading: recordLoading,
     error: recordError,
+    refreshProjectRecords,
   } = useFetchProjectRecords(id);
 
   const { updateProject } = useUpdateProject();
@@ -112,6 +113,10 @@ export default function ProjectEditScreen() {
   useFocusEffect(
     useCallback(() => {
       if (!id) return;
+
+      // RecordPlayer から戻ったときにレコード一覧をリフレッシュ
+      refreshProjectRecords();
+
       const pending = getPendingProjectSettings(id);
       if (!pending) return;
       if (pending.artworkUri) setArtworkUri(pending.artworkUri);
@@ -120,7 +125,7 @@ export default function ProjectEditScreen() {
       if (pending.trackName) setTrackName(pending.trackName);
       if (pending.trackSource) setTrackSource(pending.trackSource);
       clearPendingProjectSettings(id);
-    }, [id]),
+    }, [id, refreshProjectRecords]),
   );
 
   useEffect(() => {
@@ -636,6 +641,8 @@ export default function ProjectEditScreen() {
             />
           ) : (
             <RecView
+              projectId={id}
+              trackSource={trackSource}
               records={projectRecords}
               onBeforeRecord={() => {
                 if (soundRef.current) {

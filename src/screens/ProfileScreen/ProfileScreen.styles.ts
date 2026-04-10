@@ -10,6 +10,11 @@ export default StyleSheet.create({
     left: 20,
     paddingTop: 150,
   },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   formControlContainer: {
     display: 'flex',
     flexDirection: 'column',
