@@ -1,5 +1,6 @@
 import React, { FC, useState } from 'react';
-import { View, Text, TextInput } from 'react-native';
+import { View, Text, TextInput, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { SvgProps } from 'react-native-svg';
 import ProfileEditSocialAccountList from '@/components/ui/socialAccount/ProfileEditSocialAccountList';
 import styles from './EditableFormControl.styles';
@@ -39,6 +40,8 @@ export default function EditableFormControl({
   onPressLinkAccount,
 }: EditableFormControlProps) {
   const [value, setValue] = useState(formValue);
+  const [isSecure, setIsSecure] = useState(!!secureTextEntry);
+
   const labelStyles = [
     styles.label,
     darkMode ? styles.darkLabel : styles.lightLabel,
@@ -53,6 +56,8 @@ export default function EditableFormControl({
     onChangeText?.(text);
   };
 
+  const eyeColor = darkMode ? COLORS.form.default.text : COLORS.form.search.default;
+
   return (
     <View style={styles.container}>
       {label && <Text style={labelStyles}>{label}</Text>}
@@ -64,6 +69,31 @@ export default function EditableFormControl({
             onPressLinkAccount={onPressLinkAccount}
           />
         </View>
+      ) : secureTextEntry ? (
+        <View style={styles.inputWrapper}>
+          <TextInput
+            style={[textInputStyles, readOnly && styles.readOnly, styles.passwordInput]}
+            value={value}
+            placeholder={placeholder}
+            placeholderTextColor={
+              darkMode ? COLORS.form.placeholder : COLORS.form.search.placeholder
+            }
+            onChangeText={handleChangeText}
+            secureTextEntry={isSecure}
+            editable={!readOnly}
+          />
+          <Pressable
+            style={styles.eyeButton}
+            onPress={() => setIsSecure((prev) => !prev)}
+            hitSlop={8}
+          >
+            <Ionicons
+              name={isSecure ? 'eye-off-outline' : 'eye-outline'}
+              size={22}
+              color={eyeColor}
+            />
+          </Pressable>
+        </View>
       ) : (
         <TextInput
           style={[textInputStyles, readOnly && styles.readOnly]}
@@ -73,7 +103,7 @@ export default function EditableFormControl({
             darkMode ? COLORS.form.placeholder : COLORS.form.search.placeholder
           }
           onChangeText={handleChangeText}
-          secureTextEntry={!!secureTextEntry}
+          secureTextEntry={false}
           editable={!readOnly}
         />
       )}
