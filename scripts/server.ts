@@ -4,10 +4,55 @@ import swaggerUi from 'swagger-ui-express';
 import YAML from 'yamljs';
 import path from 'path';
 import fs from 'fs';
+import { AUTH_DATA } from '../src/data/authData';
 
 const app = express();
 app.use(cors());
 app.use(express.json());
+
+// In-memory user store for mock registration/reset (seeded from AUTH_DATA)
+const mockUsers: Array<{ email: string; password: string; username: string; thumbnail: string | null }> =
+  AUTH_DATA.map((u) => ({ email: u.email, password: u.password, username: u.username, thumbnail: u.thumbnail ?? null }));
+
+// POST /data/auth/register
+app.post('/data/auth/register', (req, res) => {
+  const { username, email, password } = req.body;
+  if (!username || !email || !password) {
+    return res.status(400).json({ message: 'Username, email, and password are required' });
+  }
+  if (mockUsers.find((u) => u.email === email)) {
+    return res.status(409).json({ message: 'Email already in use' });
+  }
+  mockUsers.push({ email, password, username, thumbnail: null });
+  return res.status(201).json({
+    userId: `user_${Date.now()}`,
+    username,
+    email,
+    thumbnail: null,
+    socialAccounts: [],
+    token: {
+      accessToken: 'mock_access_token_new_user',
+      refreshToken: 'mock_refresh_token_new_user',
+      expiresIn: 604800,
+    },
+  });
+});
+console.log('Mock endpoint ready: POST /data/auth/register');
+
+// POST /data/auth/reset-password
+app.post('/data/auth/reset-password', (req, res) => {
+  const { email, newPassword } = req.body;
+  if (!email || !newPassword) {
+    return res.status(400).json({ message: 'Email and new password are required' });
+  }
+  const user = mockUsers.find((u) => u.email === email);
+  if (!user) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  user.password = newPassword;
+  return res.json({ message: 'Password reset successfully' });
+});
+console.log('Mock endpoint ready: POST /data/auth/reset-password');
 
 app.use(
   '/audio',
@@ -68,16 +113,24 @@ swaggerDocument.paths &&
       app.post(expressRoute, (req, res) => {
         if (expressRoute === '/data/auth/login') {
           const { email, password } = req.body;
-          const user = Array.isArray(example)
-            ? example.find((u) => u.email === email && u.password === password)
-            : example;
-
-          if (!user) {
+          // mockUsers を参照することでパスワードリセット・新規登録を反映
+          const mockUser = mockUsers.find(
+            (u) => u.email === email && u.password === password,
+          );
+          if (!mockUser) {
             return res.status(401).json({ message: 'Invalid credentials' });
           }
-
-          const { password: _, ...safeUser } = user;
-          return res.json(safeUser);
+          // AUTH_DATA からトークン等の残りの情報を取得
+          const baseUser = Array.isArray(example)
+            ? example.find((u: any) => u.email === email) ?? example[0]
+            : example;
+          const { password: _, ...safeBase } = baseUser as any;
+          return res.json({
+            ...safeBase,
+            username: mockUser.username,
+            email: mockUser.email,
+            thumbnail: mockUser.thumbnail,
+          });
         }
 
         if (expressRoute === '/data/auth/logout') {

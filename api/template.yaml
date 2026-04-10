@@ -8,6 +8,10 @@ Parameters:
     NoEcho: true
     Default: "lyrics-jwt-secret-change-in-production"
     Description: Secret key for signing JWT tokens
+  SenderEmail:
+    Type: String
+    Default: ""
+    Description: Verified SES sender email address
 
 Globals:
   Function:
@@ -24,6 +28,7 @@ Globals:
         MEMOS_TABLE: !Ref MemosTable
         JWT_SECRET: !Ref JwtSecret
         TRACK_AUDIO_BUCKET: !Ref TrackAudioBucket
+        SENDER_EMAIL: !Ref SenderEmail
   Api:
     Cors:
       AllowOrigin: "'*'"
@@ -770,6 +775,62 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/post-auth-logout.ts
+
+  PostAuthRegisterFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-register.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+      Events:
+        PostAuthRegister:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/register
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-register.ts
+
+  PostAuthResetPasswordFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-reset-password.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+      Events:
+        PostAuthResetPassword:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/reset-password
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-reset-password.ts
 
 Outputs:
   ApiUrl:

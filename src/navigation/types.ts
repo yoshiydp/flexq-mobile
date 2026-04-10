@@ -1,4 +1,7 @@
 export type RootStackParamList = {
+  SignIn: undefined;
+  PasswordReset: undefined;
+  Register: undefined;
   HomeTabs: undefined;
   ProjectList: undefined;
   TrackList: undefined;

@@ -68,8 +68,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       if (profile) {
         setUser(profile);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to refresh profile:', err);
+      // ユーザーが存在しない（削除済み等）場合はトークンを破棄してログアウト
+      if (err?.status === 404) {
+        await clearAuthTokens();
+        setUser(null);
+      }
     }
   }, []);
 

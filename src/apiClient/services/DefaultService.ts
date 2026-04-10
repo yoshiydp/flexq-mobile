@@ -581,4 +581,64 @@ export class DefaultService {
             url: '/data/auth/logout',
         });
     }
+    /**
+     * Register a new user
+     * @param requestBody
+     * @returns any Created
+     * @throws ApiError
+     */
+    public static postDataAuthRegister(
+        requestBody: {
+            username: string;
+            email: string;
+            password: string;
+        },
+    ): CancelablePromise<{
+        userId?: string;
+        username?: string;
+        email?: string;
+        thumbnail?: string | null;
+        socialAccounts?: Array<Record<string, any>>;
+        token?: {
+            accessToken?: string;
+            refreshToken?: string;
+            expiresIn?: number;
+        };
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/register',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                409: `Email already in use`,
+            },
+        });
+    }
+    /**
+     * Reset user password
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataAuthResetPassword(
+        requestBody: {
+            email: string;
+            newPassword: string;
+        },
+    ): CancelablePromise<{
+        message?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/reset-password',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                404: `User not found`,
+            },
+        });
+    }
 }

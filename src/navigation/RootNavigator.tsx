@@ -8,6 +8,8 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import HomeTabsNavigator from './HomeTabsNavigator';
 import DefaultLayout from '@/layouts/DefaultLayout';
 import SignInScreen from '@/screens/SignInScreen';
+import PasswordResetScreen from '@/screens/PasswordResetScreen';
+import RegisterScreen from '@/screens/RegisterScreen';
 import ProjectEditScreen from '@/screens/ProjectEditScreen';
 import ProjectSettingsScreen from '@/screens/ProjectSettingsScreen';
 import AudioPlayerScreen from '@/screens/AudioPlayerScreen';
@@ -167,13 +169,29 @@ export default function RootNavigator() {
             </Stack.Screen>
           </>
         ) : (
-          <Stack.Screen
-            name="SignIn"
-            component={SignInScreen}
-            options={{
-              cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
-            }}
-          />
+          <>
+            <Stack.Screen
+              name="SignIn"
+              component={SignInScreen}
+              options={{
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              }}
+            />
+            <Stack.Screen
+              name="PasswordReset"
+              component={PasswordResetScreen}
+              options={{
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              }}
+            />
+            <Stack.Screen
+              name="Register"
+              component={RegisterScreen}
+              options={{
+                cardStyleInterpolator: CardStyleInterpolators.forHorizontalIOS,
+              }}
+            />
+          </>
         )}
       </Stack.Navigator>
     </DefaultLayout>

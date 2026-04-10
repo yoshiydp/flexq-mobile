@@ -6,8 +6,9 @@
 
 ```bash
 # 開発
-yarn start                # Expo 開発サーバー起動 (iOS/Android/Web)
-yarn ios                  # iOS シミュレーター
+yarn start                # Expo 開発サーバー起動 (localhost モック API)
+yarn start:staging        # Expo 開発サーバー起動 (Staging DB に接続)
+yarn ios                  # ネイティブビルド + iOS シミュレーター起動（初回・ネイティブ変更時のみ）
 yarn android              # Android エミュレーター
 
 # Lint & フォーマット
@@ -33,6 +34,24 @@ sam deploy                # AWS にデプロイ (初回は --guided)
 ```
 
 ## アーキテクチャ
+
+### 開発サーバーと iOS シミュレーター
+
+日常の開発では `yarn start:staging`（または `yarn start`）のみ起動すれば十分です。
+ターミナルで `i` を押すと iOS シミュレーターが開きます。
+
+`yarn ios`（= `expo run:ios`）はネイティブコードをビルドするコマンドで、以下のタイミングでのみ必要です：
+
+| タイミング | 理由 |
+|-----------|------|
+| **初回セットアップ** | シミュレーターにまだアプリがインストールされていない |
+| **ネイティブモジュール追加後** | `expo install` で新パッケージを追加したとき |
+| **`app.json` の変更後** | アプリ名・アイコン・権限など native config を変えたとき |
+| **`expo-dev-client` の再ビルドが必要なとき** | ネイティブ層に変更が入ったとき |
+
+一度 `yarn ios` でビルドしてシミュレーターにインストールしておけば、以降は JS レイヤーのみの変更であれば `yarn start:staging` → `i` だけで開発できます。
+
+> **同時起動は不要。** `yarn start:staging` と `yarn ios` を同時に実行する必要はありません。
 
 ### ナビゲーション
 
@@ -71,14 +90,19 @@ API クライアント (`src/apiClient/`) は `openapi-typescript-codegen` で**
 
 モックサーバー (`yarn mock:server`) はこのデータを Express でローカルに配信します。
 
-### AWS API Gateway (本番モック環境)
+### AWS API Gateway
 
-モックデータは AWS Lambda + API Gateway にもデプロイされています。
+AWS Lambda + API Gateway の環境は **Staging** と **Production** の 2 つに分離されています。
 
-- **エンドポイント**: `https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1`
+| 環境 | スタック名 | Expo チャンネル | 用途 |
+|------|-----------|----------------|------|
+| Staging | `lyrics-mock-api` | `staging` | 開発・検証用。開発時は常にこちら |
+| Production | `lyrics-prod-api` | `production` | リリース済みアプリ専用 |
+
+- **Staging エンドポイント**: `https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1`
+- **Production エンドポイント**: SAM デプロイ後に `sam deploy` の Outputs に表示される URL
 - **リージョン**: `ap-northeast-1`（東京）
-- **SAM テンプレート**: `api/template.yaml`
-- **スタック名**: `lyrics-mock-api`
+- **SAM テンプレート**: `api/template.yaml`（staging / production 共通）
 
 `src/App.tsx` の起動時に `OpenAPI.BASE` を環境変数で設定しています：
 
@@ -87,16 +111,30 @@ OpenAPI.BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 ```
 
 **環境変数ファイル:**
-- `.env` — AWS URL を定義（git 管理対象）
+- `.env` — Staging の AWS URL を定義（git 管理対象）
 - `.env.local` — ローカル開発時に localhost へ上書き（gitignore 済み）
 
-**モックデータを更新してAWSに反映する手順:**
-1. `src/data/*.ts` を編集
-2. `cd api && sam build && sam deploy`
+**SAM デプロイ（手動）:**
+```bash
+# Staging
+cd api && sam build && sam deploy --stack-name lyrics-mock-api
+
+# Production（初回のみ --guided で対話設定、以降は明示的に指定）
+cd api && sam build && sam deploy \
+  --stack-name lyrics-prod-api \
+  --resolve-s3 \
+  --capabilities CAPABILITY_IAM \
+  --parameter-overrides JwtSecret="<本番用の強いシークレット>"
+```
+
+**Production デプロイ後に行うこと:**
+1. `sam deploy` の Outputs に表示される `ApiUrl` を GitHub Secrets の `EXPO_PUBLIC_API_BASE_URL_PROD` に設定する
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
-### デプロイフロー (staging)
+### デプロイフロー
+
+#### Staging へのデプロイ
 
 feature ブランチの変更を staging へデプロイする手順：
 
@@ -120,7 +158,7 @@ git push origin feature/your-feature-name
 staging へのマージを検知
   ↓ ESLint チェック
   ↓ Jest テスト
-  ↓ 両方通過 → EAS Update で Expo staging チャンネルへデプロイ
+  ↓ 両方通過 → EAS Update で Expo staging チャンネルへデプロイ（Staging DB）
 ```
 
 **5. iPhone で確認**
@@ -131,6 +169,40 @@ staging へのマージを検知
 - リポジトリの Actions タブ → `Deploy to Staging (EAS Update)`
 
 **注意:** lint または test が失敗した場合はデプロイが中止されます。
+
+#### Production へのデプロイ
+
+staging ブランチへのマージ → 動作確認後、`master` にマージすると自動実行：
+
+```
+master へのマージを検知
+  ↓ ESLint チェック
+  ↓ Jest テスト
+  ↓ 両方通過 → EAS Update で Expo production チャンネルへデプロイ（Production DB）
+```
+
+**GitHub Actions の実行状況確認:**
+- リポジトリの Actions タブ → `Deploy to Production (EAS Update)`
+
+#### スキーマ変更を Production へ反映（手動）
+
+`api/template.yaml` に変更（テーブル追加・GSI 追加など）があった場合：
+
+1. Staging で動作確認を完了させる
+2. GitHub Actions タブ → `Sync Schema to Production` → `Run workflow`
+3. 確認フォームに `yes` と入力して実行
+4. Jest テスト通過後、Production の SAM スタック (`lyrics-prod-api`) へ自動デプロイ
+
+**必要な GitHub Secrets（初回セットアップ時に設定）:**
+
+| Secret 名 | 説明 |
+|-----------|------|
+| `EXPO_TOKEN_2` | EAS デプロイ用トークン |
+| `EXPO_PUBLIC_API_BASE_URL` | Staging API Gateway URL |
+| `EXPO_PUBLIC_API_BASE_URL_PROD` | Production API Gateway URL（初回 SAM デプロイ後に設定） |
+| `AWS_ACCESS_KEY_ID` | スキーマ同期用 IAM アクセスキー |
+| `AWS_SECRET_ACCESS_KEY` | スキーマ同期用 IAM シークレットキー |
+| `JWT_SECRET_PROD` | Production 用 JWT シークレット |
 
 ### パスエイリアス
 
@@ -245,9 +317,9 @@ await DefaultService.postDataTrack({ requestBody: { title, s3Key: key, extention
    yarn generate:openapi   # openapi.yaml と src/apiClient/ を再生成
    ```
 
-4. **AWS にデプロイ**
+4. **AWS Staging にデプロイ**
    ```bash
-   cd api && sam build && sam deploy
+   cd api && sam build && sam deploy --stack-name lyrics-mock-api
    ```
 
 5. **フロントエンドの hook を作成** (`src/hooks/`)
@@ -268,8 +340,8 @@ src/data/users.ts      # ユーザー
 # 2. openapi.yaml と apiClient を再生成
 yarn generate:openapi
 
-# 3. Lambda をビルドして AWS にデプロイ
-cd api && sam build && sam deploy
+# 3. Lambda をビルドして AWS Staging にデプロイ
+cd api && sam build && sam deploy --stack-name lyrics-mock-api
 ```
 
 ### 注意事項

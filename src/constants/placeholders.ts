@@ -3,6 +3,15 @@ export const PLACEHOLDERS = {
     emailInput: 'メールアドレスを入力してください',
     passwordInput: 'パスワードを入力してください',
   },
+  passwordReset: {
+    emailInput: 'メールアドレスを入力してください',
+    newPasswordInput: '新しいパスワードを入力してください',
+  },
+  register: {
+    usernameInput: 'ユーザー名を入力してください',
+    emailInput: 'メールアドレスを入力してください',
+    passwordInput: 'パスワードを入力してください',
+  },
   profileEdit: {
     usernameInput: 'ユーザー名を入力してください',
     emailInput: 'メールアドレスを入力してください',

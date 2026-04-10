@@ -1,0 +1,85 @@
+name: Sync Schema to Production
+
+# template.yaml のスキーマ変更を Production に反映する。
+# Staging で動作確認済みの状態で手動トリガーすること。
+# 必要な GitHub Secrets:
+#   AWS_ACCESS_KEY_ID         - AWS IAM アクセスキー
+#   AWS_SECRET_ACCESS_KEY     - AWS IAM シークレットキー
+#   JWT_SECRET_PROD           - Production 用 JWT シークレット
+
+on:
+  workflow_dispatch:
+    inputs:
+      confirm:
+        description: 'Production に反映してよければ "yes" と入力してください'
+        required: true
+        default: 'no'
+
+jobs:
+  test:
+    name: Jest (Integration Gate)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+
+      - name: Enable Corepack and Yarn
+        run: |
+          corepack enable
+          corepack prepare yarn@4.12.0 --activate
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Run Jest
+        run: yarn test:ci
+
+  deploy-schema:
+    name: SAM Deploy to Production
+    runs-on: ubuntu-latest
+    needs: [test]
+    if: github.event.inputs.confirm == 'yes'
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.11.0
+
+      - name: Setup AWS SAM CLI
+        uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-northeast-1
+
+      - name: Install esbuild
+        run: npm install -g esbuild
+
+      - name: SAM Build
+        working-directory: api
+        run: sam build
+
+      - name: SAM Deploy to Production
+        working-directory: api
+        run: |
+          sam deploy \
+            --stack-name lyrics-prod-api \
+            --resolve-s3 \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset \
+            --region ap-northeast-1 \
+            --parameter-overrides JwtSecret="${{ secrets.JWT_SECRET_PROD }}"
