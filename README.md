@@ -259,7 +259,7 @@ Staging デプロイ済みの OTA Update を実機で確認するには：
 1. iPhone で **Expo Go** を完全に終了して再起動
 2. 最新の update が自動適用される
 
-### TestFlight で確認（テスター・面談相手への配布）
+### TestFlight で確認（テスターへの配布）
 
 **ステップ 1: ビルドを作成**
 
