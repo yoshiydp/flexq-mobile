@@ -1,5 +1,6 @@
 # Dependencies (EAS installs these fresh)
-node_modules/
+node_modules
+**/node_modules
 
 # Git
 .git/
@@ -19,7 +20,8 @@ dist/
 docs/
 
 # Lambda / API (not needed for mobile builds)
-api/
+api
+.aws-sam
 
 # Mock server scripts
 scripts/server.ts
