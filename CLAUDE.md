@@ -132,6 +132,62 @@ cd api && sam build && sam deploy \
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
+### EAS ビルド（実機配布）
+
+#### 概要
+
+TestFlight 経由でテスター・面談相手にアプリを配布する場合は EAS Build を使います。
+
+```bash
+# iOS 向け Staging ビルドを作成（TestFlight 配布用）
+eas build --profile staging --platform ios
+```
+
+完了後、App Store Connect → TestFlight から招待リンクを送付します。テスター側の手順は TestFlight のインストール → リンクタップ → インストールのみです。
+
+#### eas.json の配布方式
+
+| プロファイル | distribution | 用途 |
+|------------|-------------|------|
+| `staging` | `store` | TestFlight 経由でテスター配布 |
+| `production` | `store` | App Store リリース |
+| `development` | `internal` | 開発者のみ（シミュレーター） |
+
+> **注意:** `distribution: "internal"` は UDID 登録が必要で、テスターの操作が煩雑になるため、面談・外部テスターには `store`（TestFlight）を使用する。
+
+#### EAS ビルドの注意点
+
+**アーカイブサイズ**
+- EAS はプロジェクト全体を圧縮してアップロードする
+- `.easignore` で不要ファイルを除外しないとアップロードに時間がかかる（または失敗する）
+- 除外対象: `node_modules`、`api`（Lambda コード）、`.aws-sam`（SAM ビルドキャッシュ）、`docs/` など
+- `.easignore` を変更した場合は必ずコミットしてからビルドを実行する
+
+**Yarn 4 (Berry) の認識**
+- EAS Build サーバーはデフォルトで Yarn Classic を想定している
+- このプロジェクトは Yarn 4.12.0 を使用しているため、`eas-build-pre-install.sh` で Corepack を有効化している
+- `eas-build-pre-install.sh` は EAS がビルド前に自動実行するフックファイル（削除しないこと）
+
+```bash
+# eas-build-pre-install.sh の内容
+corepack enable
+corepack prepare yarn@4.12.0 --activate
+```
+
+**ビルド失敗時の確認手順**
+1. `eas build:view <build-id>` でステータス確認
+2. Expo ダッシュボード（https://expo.dev）でログを確認
+3. `Install dependencies` フェーズで失敗している場合は Yarn バージョン不一致が疑われる
+4. ローカルで `yarn install` を実行して lockfile が最新か確認する
+
+**Apple Developer アカウント要件**
+- Apple Developer Program（年間 $99）への登録が必要
+- チーム ID: `GSAWY4TUK9`（Yoshihisa Watanabe Individual）
+- Bundle ID: `com.yoshiydp.lyricsapp`
+- EAS ビルド実行時に Apple ID でログインする（セッションは自動キャッシュされる）
+
+---
+
 ### デプロイフロー
 
 #### Staging へのデプロイ
