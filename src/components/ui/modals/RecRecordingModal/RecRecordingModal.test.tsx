@@ -55,4 +55,20 @@ describe('RecRecordingModal コンポーネント', () => {
     const propsPassed = (RecRecordingSection as jest.Mock).mock.calls[0][0];
     expect(propsPassed.trackSource).toBeUndefined();
   });
+
+  it('lyrics が指定された場合、HTMLタグを除去したテキストが表示される', () => {
+    const lyrics = '<p>Verse 1</p><p>Verse 2</p>';
+    const { getByText } = render(<RecRecordingModal {...mockProps} lyrics={lyrics} />);
+    expect(getByText('Verse 1\nVerse 2')).toBeTruthy();
+  });
+
+  it('lyrics が未指定の場合、リリックセクションが表示されない', () => {
+    const { queryByText } = render(<RecRecordingModal {...mockProps} />);
+    expect(queryByText(/Verse/)).toBeNull();
+  });
+
+  it('lyrics が空文字の場合、リリックセクションが表示されない', () => {
+    const { queryByText } = render(<RecRecordingModal {...mockProps} lyrics="" />);
+    expect(queryByText(/./)).toBeNull();
+  });
 });

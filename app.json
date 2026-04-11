@@ -27,7 +27,8 @@
         "foregroundImage": "./src/assets/images/adaptive-icon.png",
         "backgroundColor": "#ffffff"
       },
-      "edgeToEdgeEnabled": true
+      "edgeToEdgeEnabled": true,
+      "package": "com.yoshiydp.lyricsapp"
     },
     "web": {
       "bundler": "metro",

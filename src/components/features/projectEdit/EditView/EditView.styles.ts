@@ -8,7 +8,7 @@ export default StyleSheet.create({
   },
   bodyInputWrapper: {
     position: 'relative',
-    marginTop: 24,
+    marginTop: 20,
   },
   overlayBodyInput: {
     position: 'absolute',

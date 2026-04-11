@@ -18,4 +18,18 @@ export default StyleSheet.create({
     borderRadius: 8,
     padding: 24,
   },
+  containerWithLyrics: {
+    justifyContent: 'flex-start',
+  },
+  lyricsScrollView: {
+    width: '100%',
+    height: 200,
+    marginBottom: 16,
+  },
+  lyricsText: {
+    color: COLORS.font.default,
+    fontFamily: 'NotoSans_400Regular',
+    fontSize: 13,
+    lineHeight: 22,
+  },
 });

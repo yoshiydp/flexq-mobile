@@ -87,4 +87,19 @@ describe('RecView コンポーネント', () => {
     const propsPassed = (RecRecordingModal as jest.Mock).mock.calls[0][0];
     expect(propsPassed.trackSource).toBeUndefined();
   });
+
+  it('lyrics が RecRecordingModal に渡される', () => {
+    const lyrics = '<p>Test lyrics</p>';
+    renderWithProviders(<RecView {...mockProps} lyrics={lyrics} />);
+
+    const propsPassed = (RecRecordingModal as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.lyrics).toBe(lyrics);
+  });
+
+  it('lyrics が未指定の場合、RecRecordingModal に undefined が渡される', () => {
+    renderWithProviders(<RecView {...mockProps} />);
+
+    const propsPassed = (RecRecordingModal as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.lyrics).toBeUndefined();
+  });
 });
