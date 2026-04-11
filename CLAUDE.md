@@ -399,14 +399,56 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 - `api/lambda/put-profile.ts` — プロフィール更新（username・thumbnailKey）
 
 **フロントエンド（hooks）**
+
+*認証*
+- `src/hooks/useGoogleAuth.ts` — Google OAuth 認証（expo-auth-session）
+
+*トラック*
 - `src/hooks/useFetchTrack.ts` — トラック一覧取得（updatedAt 降順ソート）
 - `src/hooks/useUploadTrack.ts` — ファイル選択 → ID3解析 → S3アップロード → メタデータ保存
-- `src/hooks/useUpdateTrack.ts` — トラックタイトル更新
+- `src/hooks/useUpdateTrack.ts` — トラック更新
 - `src/hooks/useDeleteTrack.ts` — トラック削除
+
+*プロジェクト*
+- `src/hooks/useFetchProject.ts` — プロジェクト一覧取得
+- `src/hooks/useFetchProjectDetail.ts` — プロジェクト詳細取得
+- `src/hooks/useUpdateProject.ts` — プロジェクト更新
+- `src/hooks/useDeleteProject.ts` — プロジェクト削除
+
+*レコード（録音）*
+- `src/hooks/useFetchRecord.ts` — レコード一覧取得
+- `src/hooks/useFetchProjectRecords.ts` — プロジェクトに紐づくレコード一覧取得
+- `src/hooks/useCreateRecord.ts` — レコード作成
+- `src/hooks/useUploadProjectRecord.ts` — 録音ファイルを S3 にアップロード → プロジェクトに紐づけて保存
+- `src/hooks/useUpdateRecord.ts` — レコード更新
+- `src/hooks/useDeleteRecord.ts` — レコード削除
+
+*メモ*
+- `src/hooks/useFetchMemo.ts` — メモ一覧取得
+- `src/hooks/useCreateMemo.ts` — メモ作成
+- `src/hooks/useUpdateMemo.ts` — メモ更新
+- `src/hooks/useDeleteMemo.ts` — メモ削除
+
+*プロフィール*
+- `src/hooks/useFetchProfile.ts` — プロフィール取得
 - `src/hooks/useUpdateProfile.ts` — プロフィール画像選択 → S3アップロード → プロフィール更新
 
+*UI / アニメーション*
+- `src/hooks/useAnimatedSequence.ts` — 要素のフェードイン・スライドアニメーションを管理
+- `src/hooks/useScreenAnimation.ts` — タイトル → リストの連続アニメーションをスクリーンレベルで管理
+
 **ユーティリティ**
+- `src/utils/authStorage.ts` — JWT トークン（アクセス/リフレッシュ）を SecureStore で永続化・取得・削除
+- `src/utils/formatTime.ts` — ミリ秒を `m:ss` 形式の文字列に変換
+- `src/utils/formatDate.ts` — Date を `YYYY.MM.DD` 形式の文字列に変換
+- `src/utils/getFileExtension.ts` — ファイルパスから拡張子を取得
+- `src/utils/getFileName.ts` — ファイルパスから拡張子なしのファイル名を取得
 - `src/utils/readId3Artwork.ts` — ID3v2タグから APIC フレームを抽出してアートワークを data URI で返す（部分読み込みで最適化）
+- `src/utils/generateWaveform.ts` — 音声ファイルから波形データ（バー配列）を生成
+- `src/utils/pendingProjectSettings.ts` — ProjectSettingsScreen での変更を ProjectEditScreen へ受け渡すモジュールレベルキャッシュ
+- `src/utils/pendingWaveformData.ts` — 生成済み波形データをプロジェクト ID をキーにモジュールレベルでキャッシュ
+- `src/utils/recordingOptions.ts` — expo-av の高音質録音オプション定数（iOS / Android 対応）
+- `src/utils/animations.ts` — バウンスなど汎用アニメーション関数（Animated.Value ベース）
 
 ### S3 Presigned URL の使い方
 
