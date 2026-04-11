@@ -336,6 +336,7 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 | Tracks | `TracksTable` | `trackId` |
 | Memos | `MemosTable` | `memoId` |
 | Projects | `ProjectsTable` | `projectId` |
+| Records | `RecordsTable` | `recordId` |
 | Users | `UsersTable` | `userId` |
 
 ### S3 バケット
@@ -351,13 +352,49 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 - `api/package.json` — Lambda の依存関係（`@aws-sdk/client-dynamodb`, `@aws-sdk/client-s3`, `@aws-sdk/s3-request-presigner`, `jsonwebtoken`, `bcryptjs`）
 
 **Lambda ハンドラー**
+
+*共通ユーティリティ*
 - `api/lambda/s3.ts` — S3Client シングルトン
-- `api/lambda/dynamo.ts` — DynamoDBDocumentClient シングルトン
+- `api/lambda/db.ts` — DynamoDBDocumentClient シングルトン
+- `api/lambda/auth-middleware.ts` — JWT 認証ミドルウェア
+- `api/lambda/utils.ts` — 共通ユーティリティ
+- `api/lambda/ses.ts` — SES（メール送信）クライアント
+
+*認証*
+- `api/lambda/post-auth-login.ts` — ログイン（JWT 発行）
+- `api/lambda/post-auth-logout.ts` — ログアウト
+- `api/lambda/post-auth-register.ts` — ユーザー登録
+- `api/lambda/post-auth-reset-password.ts` — パスワードリセット
+
+*トラック*
 - `api/lambda/get-track.ts` — トラック一覧取得（S3 Presigned GET URL を生成）
 - `api/lambda/get-track-upload-url.ts` — S3 Presigned PUT URL 発行（音源・画像）
 - `api/lambda/post-track.ts` — トラックメタデータ保存
-- `api/lambda/put-track.ts` — トラックタイトル更新
+- `api/lambda/put-track.ts` — トラック更新
 - `api/lambda/delete-track.ts` — トラック削除（S3 + DynamoDB）
+
+*プロジェクト*
+- `api/lambda/get-project.ts` — プロジェクト一覧取得
+- `api/lambda/get-project-detail.ts` — プロジェクト詳細取得
+- `api/lambda/get-project-records.ts` — プロジェクトに紐づくレコード一覧取得
+- `api/lambda/post-project.ts` — プロジェクト作成
+- `api/lambda/put-project.ts` — プロジェクト更新
+- `api/lambda/delete-project.ts` — プロジェクト削除
+
+*レコード（録音）*
+- `api/lambda/get-record.ts` — レコード一覧取得
+- `api/lambda/get-record-upload-url.ts` — S3 Presigned PUT URL 発行（録音ファイル）
+- `api/lambda/post-record.ts` — レコードメタデータ保存
+- `api/lambda/put-record.ts` — レコード更新
+- `api/lambda/delete-record.ts` — レコード削除（S3 + DynamoDB）
+
+*メモ*
+- `api/lambda/get-memo.ts` — メモ一覧取得
+- `api/lambda/post-memo.ts` — メモ作成
+- `api/lambda/put-memo.ts` — メモ更新
+- `api/lambda/delete-memo.ts` — メモ削除
+
+*プロフィール*
 - `api/lambda/get-profile.ts` — プロフィール取得（S3 Presigned GET URL を生成）
 - `api/lambda/put-profile.ts` — プロフィール更新（username・thumbnailKey）
 
