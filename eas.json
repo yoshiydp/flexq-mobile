@@ -30,6 +30,12 @@
     }
   },
   "submit": {
+    "staging": {
+      "ios": {
+        "appleId": "yoshiydp@icloud.com",
+        "appleTeamId": "GSAWY4TUK9"
+      }
+    },
     "production": {}
   }
 }
