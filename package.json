@@ -17,7 +17,8 @@
     "mock:server": "nodemon --exec tsx scripts/server.ts",
     "build:lambda": "npx tsc -p tsconfig.lambda.json && npx tsc -p tsconfig.mock.json",
     "zip:lambda": "cd .lambda-build/dist && zip -r ../../lambda.zip .",
-    "deploy:lambda": "bash scripts/deploy-lambda.sh"
+    "deploy:lambda": "bash scripts/deploy-lambda.sh",
+    "eas-build-pre-install": "corepack enable && corepack prepare yarn@4.12.0 --activate"
   },
   "dependencies": {
     "@expo-google-fonts/allison": "^0.4.2",
@@ -79,8 +80,6 @@
     "react-native-webview": "13.15.0",
     "react-native-worklets": "0.5.1",
     "swagger-ui-express": "^5.0.1",
-    "ts-node": "^10.9.2",
-    "typescript": "^5.9.3",
     "yamljs": "^0.3.0"
   },
   "devDependencies": {

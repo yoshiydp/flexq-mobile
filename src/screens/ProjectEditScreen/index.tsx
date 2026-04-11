@@ -644,6 +644,7 @@ export default function ProjectEditScreen() {
               projectId={id}
               trackSource={trackSource}
               records={projectRecords}
+              lyrics={body}
               onBeforeRecord={() => {
                 if (soundRef.current) {
                   soundRef.current.pauseAsync().catch(() => {});

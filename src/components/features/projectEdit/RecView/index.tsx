@@ -15,9 +15,10 @@ interface RecViewProps {
   trackSource?: string | null;
   records: ProjectRecordType[];
   onBeforeRecord?: () => void;
+  lyrics?: string;
 }
 
-export default function RecView({ projectId, trackSource, records, onBeforeRecord }: RecViewProps) {
+export default function RecView({ projectId, trackSource, records, onBeforeRecord, lyrics }: RecViewProps) {
   const navigator =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
 
@@ -77,6 +78,7 @@ export default function RecView({ projectId, trackSource, records, onBeforeRecor
         onClose={() => setRecordingModalVisible(false)}
         onStop={handleStopRecording}
         trackSource={trackSource}
+        lyrics={lyrics}
       />
     </View>
   );

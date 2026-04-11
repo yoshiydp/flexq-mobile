@@ -17,8 +17,9 @@
       "channel": "preview"
     },
     "staging": {
-      "distribution": "internal",
+      "distribution": "store",
       "channel": "staging",
+      "node": "20.11.0",
       "ios": {
         "simulator": false
       }
@@ -29,6 +30,13 @@
     }
   },
   "submit": {
+    "staging": {
+      "ios": {
+        "appleId": "yoshiydp@icloud.com",
+        "ascAppId": "6762039606",
+        "appleTeamId": "GSAWY4TUK9"
+      }
+    },
     "production": {}
   }
 }
