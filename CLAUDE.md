@@ -138,12 +138,37 @@ cd api && sam build && sam deploy \
 
 TestFlight 経由でテスター・面談相手にアプリを配布する場合は EAS Build を使います。
 
+テスター側の手順はこれだけです（UDID 登録不要・不特定多数に配布可能）：
+1. App Store で **TestFlight** をインストール（無料・初回のみ）
+2. 開発者から届いた**招待リンク**をタップ
+3. TestFlight 上で「インストール」をタップ
+
+#### TestFlight 配布の全手順
+
+**ステップ 1: ビルドを作成**
 ```bash
-# iOS 向け Staging ビルドを作成（TestFlight 配布用）
 eas build --profile staging --platform ios
 ```
 
-完了後、App Store Connect → TestFlight から招待リンクを送付します。テスター側の手順は TestFlight のインストール → リンクタップ → インストールのみです。
+**ステップ 2: App Store Connect にアップロード**
+```bash
+eas submit --profile staging --platform ios
+```
+- Apple ID でのログインを求められる
+- 完了すると App Store Connect の TestFlight にビルドが届く（5〜10分）
+
+**ステップ 3: 外部テストグループを作成（App Store Connect）**
+1. [App Store Connect](https://appstoreconnect.apple.com/apps/6762039606/testflight/ios) を開く
+2. TestFlight タブ → 左サイドバー「外部テスト」の「+」
+3. グループ名を入力（例: `ベータテスター`）
+4. ビルドをグループに追加 → 「Apple の審査に提出」（**初回のみ**・数時間以内に完了）
+5. 「設定」タブ → **「公開リンク」を有効化**
+
+**ステップ 4: テスターに招待リンクを送る**
+- 公開リンクを LINE やメールで送るだけ
+- 審査は土日祝関係なく 24 時間対応（通常数時間以内）
+
+> **注意:** 初回の外部テスト審査通過後は、以降のビルド更新に審査は不要。新しいビルドを `eas submit` してグループに追加するだけで自動配信される。
 
 #### eas.json の配布方式
 
@@ -154,6 +179,14 @@ eas build --profile staging --platform ios
 | `development` | `internal` | 開発者のみ（シミュレーター） |
 
 > **注意:** `distribution: "internal"` は UDID 登録が必要で、テスターの操作が煩雑になるため、面談・外部テスターには `store`（TestFlight）を使用する。
+
+#### App Store Connect アプリ情報
+
+| 項目 | 値 |
+|------|---|
+| App Store Connect App ID | `6762039606` |
+| Bundle ID | `com.yoshiydp.lyricsapp` |
+| TestFlight URL | https://appstoreconnect.apple.com/apps/6762039606/testflight/ios |
 
 #### EAS ビルドの注意点
 
@@ -166,6 +199,7 @@ eas build --profile staging --platform ios
 **Yarn 4 (Berry) の認識**
 - EAS Build サーバーはデフォルトで Yarn Classic を想定している
 - このプロジェクトは Yarn 4.12.0 を使用しているため、`eas-build-pre-install.sh` で Corepack を有効化している
+- `package.json` の `eas-build-pre-install` スクリプトも同様の役割（二重対策）
 - `eas-build-pre-install.sh` は EAS がビルド前に自動実行するフックファイル（削除しないこと）
 
 ```bash
@@ -178,7 +212,7 @@ corepack prepare yarn@4.12.0 --activate
 1. `eas build:view <build-id>` でステータス確認
 2. Expo ダッシュボード（https://expo.dev）でログを確認
 3. `Install dependencies` フェーズで失敗している場合は Yarn バージョン不一致が疑われる
-4. ローカルで `yarn install` を実行して lockfile が最新か確認する
+4. ローカルで `yarn install --immutable` を実行して lockfile が最新か確認する
 
 **Apple Developer アカウント要件**
 - Apple Developer Program（年間 $99）への登録が必要
