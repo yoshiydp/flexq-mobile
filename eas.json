@@ -19,6 +19,7 @@
     "staging": {
       "distribution": "internal",
       "channel": "staging",
+      "node": "20.11.0",
       "ios": {
         "simulator": false
       }
