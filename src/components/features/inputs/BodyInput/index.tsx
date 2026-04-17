@@ -1,7 +1,6 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
   Button,
-  KeyboardAvoidingView,
   Platform,
   ScrollView,
   Text,
@@ -32,6 +31,7 @@ export default function BodyInput({
   isEditing,
 }: BodyInputProps) {
   const hasFirstFocused = useRef(false);
+  const [editorHeight, setEditorHeight] = useState(200);
 
   const handleFocus = () => {
     if (Platform.OS !== 'ios' || hasFirstFocused.current) return;
@@ -43,10 +43,7 @@ export default function BodyInput({
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={styles.container}>
       {isEditing && (
         <View style={styles.toolbarRow}>
           <RichToolbar
@@ -90,14 +87,15 @@ export default function BodyInput({
             placeholderColor: '#666',
             ...(richEditorAddStyle ? richEditorAddStyle : {}),
           }}
-          style={styles.editor}
+          style={[styles.editor, { height: editorHeight }]}
           initialContentHTML={value}
           onChange={onChangeText}
           placeholder={PLACEHOLDERS.bodyInput}
           useContainer={false}
           onFocus={handleFocus}
+          onHeightChange={(h) => setEditorHeight(Math.max(200, h))}
         />
       </ScrollView>
-    </KeyboardAvoidingView>
+    </View>
   );
 }

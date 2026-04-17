@@ -14,7 +14,8 @@ export default StyleSheet.create({
     paddingBottom: 20,
   },
   bodyInputWrapper: {
-    marginTop: 24,
+    flex: 1,
+    marginTop: 16,
   },
   submitButton: {
     marginHorizontal: 20,
