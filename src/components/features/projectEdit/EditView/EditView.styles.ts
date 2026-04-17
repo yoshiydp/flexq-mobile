@@ -8,7 +8,7 @@ export default StyleSheet.create({
   },
   bodyInputWrapper: {
     position: 'relative',
-    marginTop: 20,
+    marginTop: 16,
   },
   overlayBodyInput: {
     position: 'absolute',
@@ -24,7 +24,7 @@ export default StyleSheet.create({
     marginTop: 32,
   },
   playerControlsWrapper: {
-    marginTop: 40,
+    marginTop: 32,
   },
   volumeSliderWrapper: {
     marginTop: 24,

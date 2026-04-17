@@ -9,7 +9,7 @@ interface OverlayToggleButtonProps {
   onPress: () => void;
   gradientOpacity: Animated.Value;
   isEditing: boolean;
-  extraBottomOffset?: number;
+  extraBottomOffset?: Animated.Value;
 }
 
 export default function OverlayToggleButton({
@@ -33,25 +33,25 @@ export default function OverlayToggleButton({
         />
       </Animated.View>
 
-      <Pressable
-        style={[
-          styles.toggleButton,
-          isEditing && extraBottomOffset
+      <Animated.View
+        style={
+          extraBottomOffset
             ? { transform: [{ translateY: extraBottomOffset }] }
-            : {},
-        ]}
-        onPress={onPress}
+            : undefined
+        }
       >
-        <Text style={styles.toggleButtonText}>
-          {isEditing ? 'CLOSE LYRICS' : 'EDIT LYRICS'}
-        </Text>
-        <Icon
-          component={FontAwesome}
-          name={isEditing ? 'angle-up' : 'angle-down'}
-          size={20}
-          style={styles.arrowIcon}
-        />
-      </Pressable>
+        <Pressable style={styles.toggleButton} onPress={onPress}>
+          <Text style={styles.toggleButtonText}>
+            {isEditing ? 'CLOSE LYRICS' : 'EDIT LYRICS'}
+          </Text>
+          <Icon
+            component={FontAwesome}
+            name={isEditing ? 'angle-up' : 'angle-down'}
+            size={20}
+            style={styles.arrowIcon}
+          />
+        </Pressable>
+      </Animated.View>
     </View>
   );
 }
