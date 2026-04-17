@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
-import { View, LayoutChangeEvent, Alert } from 'react-native';
+import { View, Alert, KeyboardAvoidingView, Platform } from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -20,7 +20,6 @@ import { useDeleteMemo } from '@/hooks/useDeleteMemo';
 import styles from './QuickMemoScreen.styles';
 
 export default function QuickMemoScreen() {
-  const MIN_BODY_HEIGHT = 200;
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'QuickMemo'>>();
@@ -36,14 +35,8 @@ export default function QuickMemoScreen() {
     params.isBookmarked ?? false,
   );
 
-  const [headerHeight, setHeaderHeight] = useState(0);
-  const [titleHeight, setTitleHeight] = useState(0);
-  const [submitHeight, setSubmitHeight] = useState(0);
-  const [containerHeight, setContainerHeight] = useState(0);
-  const [bodyHeight, setBodyHeight] = useState(MIN_BODY_HEIGHT);
-
   const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
-  const richText = useRef<RichEditor>(null);
+  const richText = useRef<RichEditor | null>(null);
   const { createMemo } = useCreateMemo();
   const { updateMemo } = useUpdateMemo();
   const { deleteMemo } = useDeleteMemo();
@@ -139,16 +132,6 @@ export default function QuickMemoScreen() {
     });
   };
 
-  const handleContainerLayout = (event: LayoutChangeEvent) => {
-    setContainerHeight(event.nativeEvent.layout.height);
-  };
-
-  useEffect(() => {
-    const remainingHeight =
-      containerHeight - (headerHeight + titleHeight + submitHeight + 80);
-    setBodyHeight(Math.max(MIN_BODY_HEIGHT, remainingHeight));
-  }, [containerHeight, headerHeight, titleHeight, submitHeight]);
-
   // 編集時はブックマーク＋削除ボタン、新規作成時はブックマークのみ
   const rightButton: HeaderToolBarButton = params.id
     ? {
@@ -168,31 +151,28 @@ export default function QuickMemoScreen() {
   ];
 
   return (
-    <View style={styles.container} onLayout={handleContainerLayout}>
-      <View onLayout={(e) => setHeaderHeight(e.nativeEvent.layout.height)}>
-        <HeaderToolBar items={items} isBookmarked={isBookmarked} />
-      </View>
+    <KeyboardAvoidingView
+      style={styles.container}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <HeaderToolBar items={items} isBookmarked={isBookmarked} />
       <View style={styles.inputContainer}>
-        <View onLayout={(e) => setTitleHeight(e.nativeEvent.layout.height)}>
-          <TitleInput value={title} onChangeText={setTitle} />
-        </View>
-        <View style={[styles.bodyInputWrapper, { height: bodyHeight }]}>
+        <TitleInput value={title} onChangeText={setTitle} />
+        <View style={styles.bodyInputWrapper}>
           <BodyInput
-            editorRef={richText}
+            editorRef={richText as React.RefObject<RichEditor>}
             value={body}
             onChangeText={setBody}
-            height={bodyHeight}
             isEditing={true}
+            fillContainer
           />
         </View>
       </View>
-      <View onLayout={(e) => setSubmitHeight(e.nativeEvent.layout.height)}>
-        <SubmitButton
-          containerClassName={styles.submitButton}
-          onPress={handleSave}
-          disabled={!title.trim() || isBodyEmpty}
-        />
-      </View>
-    </View>
+      <SubmitButton
+        containerClassName={styles.submitButton}
+        onPress={handleSave}
+        disabled={!title.trim() || isBodyEmpty}
+      />
+    </KeyboardAvoidingView>
   );
 }

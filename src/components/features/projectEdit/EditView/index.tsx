@@ -38,7 +38,7 @@ interface EditViewProps {
   gradientOpacity: Animated.Value;
   volumeOpacity: Animated.Value;
   volumeTranslateY: Animated.Value;
-  bottomOffset: number;
+  bottomSectionTranslateY: Animated.Value;
   richText: React.RefObject<RichEditor>;
 }
 
@@ -70,7 +70,7 @@ export default function EditView({
   gradientOpacity,
   volumeOpacity,
   volumeTranslateY,
-  bottomOffset,
+  bottomSectionTranslateY,
   richText,
 }: EditViewProps) {
   return (
@@ -90,16 +90,12 @@ export default function EditView({
           onPress={onToggleEditLyrics}
           gradientOpacity={gradientOpacity}
           isEditing={isEditingLyrics}
-          extraBottomOffset={bottomOffset}
+          extraBottomOffset={bottomSectionTranslateY}
         />
       </Animated.View>
 
       <Animated.View
-        style={
-          isEditingLyrics
-            ? { transform: [{ translateY: bottomOffset }] }
-            : undefined
-        }
+        style={{ transform: [{ translateY: bottomSectionTranslateY }] }}
       >
         {trackSource && (
           <View style={styles.seekBarWrapper}>

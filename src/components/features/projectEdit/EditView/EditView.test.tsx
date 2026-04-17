@@ -99,7 +99,7 @@ describe('EditView コンポーネント', () => {
     gradientOpacity: new Animated.Value(1),
     volumeOpacity: new Animated.Value(1),
     volumeTranslateY: new Animated.Value(0),
-    bottomOffset: 0,
+    bottomSectionTranslateY: new Animated.Value(0),
     richText: React.createRef<RichEditor>() as React.RefObject<RichEditor>,
   };
 
