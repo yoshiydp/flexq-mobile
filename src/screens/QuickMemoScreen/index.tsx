@@ -164,6 +164,7 @@ export default function QuickMemoScreen() {
             value={body}
             onChangeText={setBody}
             isEditing={true}
+            fillContainer
           />
         </View>
       </View>
