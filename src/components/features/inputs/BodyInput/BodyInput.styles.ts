@@ -10,12 +10,10 @@ export const styles = StyleSheet.create({
     backgroundColor: COLORS.base.bgDefault,
   },
   scrollContent: {
-    flexGrow: 1,
     paddingVertical: 16,
   },
   editor: {
     minHeight: 200,
-    flex: 1,
   },
   toolbarRow: {
     flexDirection: 'row',

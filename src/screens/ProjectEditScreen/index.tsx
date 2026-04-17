@@ -1,4 +1,10 @@
-import React, { useState, useRef, useEffect, useCallback, type RefObject } from 'react';
+import React, {
+  useState,
+  useRef,
+  useEffect,
+  useCallback,
+  type RefObject,
+} from 'react';
 import {
   View,
   Animated,
@@ -6,10 +12,16 @@ import {
   Dimensions,
   ActivityIndicator,
   Text,
+  StyleSheet,
 } from 'react-native';
 import { RichEditor } from 'react-native-pell-rich-editor';
 import { Audio } from 'expo-av';
-import { useNavigation, useRoute, useFocusEffect, RouteProp } from '@react-navigation/native';
+import {
+  useNavigation,
+  useRoute,
+  useFocusEffect,
+  RouteProp,
+} from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 
@@ -38,14 +50,16 @@ import styles from './ProjectEditScreen.styles';
 
 export default function ProjectEditScreen() {
   const MIN_BODY_HEIGHT = 140;
-  const EXPANDED_BODY_HEIGHT = 200;
+  const EXPANDED_BODY_HEIGHT = 220;
   const BOTTOM_OFFSET = 70;
 
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'ProjectEdit'>>();
-  const { id, waveformJson: navWaveformJson } =
-    (route.params as { id: string; waveformJson?: any }) ?? { id: '' };
+  const { id, waveformJson: navWaveformJson } = (route.params as {
+    id: string;
+    waveformJson?: any;
+  }) ?? { id: '' };
 
   const { project, loading, error } = useFetchProjectDetail(id);
 
@@ -84,6 +98,9 @@ export default function ProjectEditScreen() {
   const slideAnim = useRef(new Animated.Value(0)).current;
 
   const [currentView, setCurrentView] = useState<'edit' | 'rec'>('edit');
+  // RecView をフェードアウト中にプリマウントしておくフラグ
+  // アニメーション切り替え時のかくつき防止のため
+  const [preloadRecView, setPreloadRecView] = useState(false);
 
   useEffect(() => {
     recordLoadingRef.current = recordLoading;
@@ -137,8 +154,8 @@ export default function ProjectEditScreen() {
         const data = Array.isArray(json)
           ? json
           : Array.isArray(json?.data)
-          ? json.data
-          : [];
+            ? json.data
+            : [];
         setWaveformData(data as number[]);
       } catch (e) {
         console.warn('Failed to fetch waveformJson:', e);
@@ -150,6 +167,7 @@ export default function ProjectEditScreen() {
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
   const animatedHeight = useRef(new Animated.Value(MIN_BODY_HEIGHT)).current;
   const gradientOpacity = useRef(new Animated.Value(1)).current;
+  const bottomSectionTranslateY = useRef(new Animated.Value(0)).current;
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [volume, setVolume] = useState(1);
@@ -271,7 +289,7 @@ export default function ProjectEditScreen() {
     if (mode === 'edit') {
       Animated.parallel([
         Animated.timing(animatedHeight, {
-          toValue: nextState ? EXPANDED_BODY_HEIGHT : MIN_BODY_HEIGHT,
+          toValue: nextState ? EXPANDED_BODY_HEIGHT + 32 : MIN_BODY_HEIGHT,
           duration: 350,
           easing: Easing.bezier(0.22, 1, 0.36, 1),
           useNativeDriver: false,
@@ -280,6 +298,12 @@ export default function ProjectEditScreen() {
           toValue: nextState ? 0 : 1,
           duration: 350,
           easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(bottomSectionTranslateY, {
+          toValue: nextState ? BOTTOM_OFFSET : 0,
+          duration: 350,
+          easing: Easing.bezier(0.22, 1, 0.36, 1),
           useNativeDriver: true,
         }),
         Animated.timing(bottomButtonOpacity, {
@@ -392,7 +416,7 @@ export default function ProjectEditScreen() {
     const defaultLabel =
       btn.label && btn.label.trim() !== ''
         ? btn.label
-        : CUE_LABELS[index] ?? `Cue ${index + 1}`;
+        : (CUE_LABELS[index] ?? `Cue ${index + 1}`);
 
     showInputModal({
       placeholder: PLACEHOLDERS.projectEdit.cueLabelInput,
@@ -480,6 +504,8 @@ export default function ProjectEditScreen() {
 
   const handleEnterRecMode = () => {
     setMode('transition');
+    // フェードアウト開始と同時に RecView をプリマウント（350ms 後の切り替え時に既にレンダリング済みにする）
+    setPreloadRecView(true);
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 0,
@@ -494,7 +520,9 @@ export default function ProjectEditScreen() {
         useNativeDriver: true,
       }),
     ]).start(() => {
+      // RecView は既にマウント済みのため setCurrentView だけで即切り替え可能
       setCurrentView('rec');
+      setPreloadRecView(false);
       fadeAnim.setValue(0);
       slideAnim.setValue(50);
       Animated.parallel([
@@ -561,7 +589,11 @@ export default function ProjectEditScreen() {
       onPress: () =>
         navigation.navigate('ProjectSettings', {
           id: id ?? '',
-          artwork: artworkUri ? { uri: artworkUri } : (project?.artwork ? { uri: project.artwork } : undefined),
+          artwork: artworkUri
+            ? { uri: artworkUri }
+            : project?.artwork
+              ? { uri: project.artwork }
+              : undefined,
           trackSource: trackSource ?? project?.trackSource ?? undefined,
           trackId: trackId ?? project?.trackId,
           trackName: trackName ?? project?.trackName,
@@ -596,9 +628,17 @@ export default function ProjectEditScreen() {
 
   return (
     <View style={styles.container}>
-      {currentView === 'edit' && mode !== 'transition' && (
+      {/* 高さを常に確保することでトランジション中のレイアウトシフトを防ぐ */}
+      <View
+        pointerEvents={
+          currentView === 'edit' && mode !== 'transition' ? 'auto' : 'none'
+        }
+        style={{
+          opacity: currentView === 'edit' && mode !== 'transition' ? 1 : 0,
+        }}
+      >
         <HeaderToolBar items={items} />
-      )}
+      </View>
       <View style={[styles.content, { height: contentHeight }]}>
         <Animated.View
           style={{
@@ -607,7 +647,7 @@ export default function ProjectEditScreen() {
             transform: [{ translateY: slideAnim }],
           }}
         >
-          {currentView === 'edit' ? (
+          {currentView === 'edit' && (
             <EditView
               projectName={projectName}
               onChangeProjectName={setProjectName}
@@ -636,40 +676,64 @@ export default function ProjectEditScreen() {
               gradientOpacity={gradientOpacity}
               volumeOpacity={volumeOpacity}
               volumeTranslateY={volumeTranslateY}
-              bottomOffset={BOTTOM_OFFSET}
+              bottomSectionTranslateY={bottomSectionTranslateY}
               richText={richText as unknown as RefObject<RichEditor>}
             />
-          ) : (
-            <RecView
-              projectId={id}
-              trackSource={trackSource}
-              records={projectRecords}
-              lyrics={body}
-              onBeforeRecord={() => {
-                if (soundRef.current) {
-                  soundRef.current.pauseAsync().catch(() => {});
-                  setIsPlaying(false);
-                }
-              }}
-            />
+          )}
+          {/* preloadRecView=true のとき不可視でプリマウント、currentView='rec' で通常表示 */}
+          {(currentView === 'rec' || preloadRecView) && (
+            <View
+              pointerEvents={currentView === 'edit' ? 'none' : 'auto'}
+              style={
+                currentView === 'edit'
+                  ? StyleSheet.flatten([
+                      StyleSheet.absoluteFillObject,
+                      { opacity: 0 },
+                    ])
+                  : { flex: 1 }
+              }
+            >
+              <RecView
+                projectId={id}
+                trackSource={trackSource}
+                records={projectRecords}
+                lyrics={body}
+                onBeforeRecord={() => {
+                  if (soundRef.current) {
+                    soundRef.current.pauseAsync().catch(() => {});
+                    setIsPlaying(false);
+                  }
+                }}
+              />
+            </View>
           )}
         </Animated.View>
       </View>
 
-      {currentView === 'edit' &&
-        mode !== 'transition' &&
-        isBottomButtonVisible && (
-          <Animated.View style={{ opacity: bottomButtonOpacity }}>
+      {/* 高さを常に確保することでトランジション中のレイアウトシフトを防ぐ */}
+      <View>
+        {/* 不可視スペーサー: ボタン分の高さを常にキープ */}
+        <View style={{ opacity: 0 }} pointerEvents="none">
+          <BottomUpButton label="REC MODE" onPress={() => {}} />
+        </View>
+        {currentView === 'edit' && isBottomButtonVisible && (
+          <Animated.View
+            pointerEvents={mode === 'transition' ? 'none' : 'auto'}
+            style={[StyleSheet.absoluteFill, { opacity: bottomButtonOpacity }]}
+          >
             <BottomUpButton label="REC MODE" onPress={handleEnterRecMode} />
           </Animated.View>
         )}
-      {currentView === 'rec' && mode !== 'transition' && (
-        <BottomUpButton
-          label="CLOSE"
-          iconName="angle-down"
-          onPress={handleExitRecMode}
-        />
-      )}
+        {currentView === 'rec' && mode !== 'transition' && (
+          <View style={StyleSheet.absoluteFill}>
+            <BottomUpButton
+              label="CLOSE"
+              iconName="angle-down"
+              onPress={handleExitRecMode}
+            />
+          </View>
+        )}
+      </View>
     </View>
   );
 }
