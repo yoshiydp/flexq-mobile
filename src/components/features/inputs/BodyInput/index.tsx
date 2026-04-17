@@ -21,6 +21,7 @@ interface BodyInputProps {
   onChangeText: (text: string) => void;
   richEditorAddStyle?: any;
   isEditing?: boolean;
+  fillContainer?: boolean;
 }
 
 export default function BodyInput({
@@ -29,9 +30,17 @@ export default function BodyInput({
   onChangeText,
   richEditorAddStyle,
   isEditing,
+  fillContainer = false,
 }: BodyInputProps) {
   const hasFirstFocused = useRef(false);
-  const [editorHeight, setEditorHeight] = useState(200);
+  const [scrollViewHeight, setScrollViewHeight] = useState(0);
+  const [contentHeight, setContentHeight] = useState(200);
+
+  const SCROLL_PADDING = 32;
+  const editorHeight =
+    fillContainer && scrollViewHeight > 0
+      ? Math.max(scrollViewHeight - SCROLL_PADDING, contentHeight)
+      : contentHeight;
 
   const handleFocus = () => {
     if (Platform.OS !== 'ios' || hasFirstFocused.current) return;
@@ -79,6 +88,11 @@ export default function BodyInput({
         contentContainerStyle={styles.scrollContent}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
+        onLayout={
+          fillContainer
+            ? (e) => setScrollViewHeight(e.nativeEvent.layout.height)
+            : undefined
+        }
       >
         <RichEditor
           ref={editorRef}
@@ -93,7 +107,7 @@ export default function BodyInput({
           placeholder={PLACEHOLDERS.bodyInput}
           useContainer={false}
           onFocus={handleFocus}
-          onHeightChange={(h) => setEditorHeight(Math.max(200, h))}
+          onHeightChange={(h) => setContentHeight(Math.max(200, h))}
         />
       </ScrollView>
     </View>
