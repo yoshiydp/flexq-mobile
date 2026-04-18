@@ -15,22 +15,28 @@ jest.mock('react-native', () => {
 });
 
 describe('Artwork コンポーネント', () => {
-  it('artwork が存在する場合、Image が描画される', () => {
+  it('artwork に uri がある場合、Image が描画される', () => {
     const mockImage = {
       uri: 'http://localhost:3000/images/sample/profile.jpg',
     };
 
     const { getByTestId } = render(<Artwork artwork={mockImage} />);
 
-    // Image コンポーネントの描画を確認
     expect(getByTestId('artwork-image')).toBeTruthy();
-
-    // 画像URIが正しく渡されているか確認
-    expect(JSON.stringify(mockImage)).toBeTruthy();
   });
 
-  it('artwork が存在しない場合、デフォルト画像で Image が描画される', () => {
+  it('artwork が null の場合、デフォルト画像で Image が描画される', () => {
     const { getByTestId } = render(<Artwork artwork={null} />);
+    expect(getByTestId('artwork-image')).toBeTruthy();
+  });
+
+  it('artwork が undefined の場合、デフォルト画像で Image が描画される', () => {
+    const { getByTestId } = render(<Artwork />);
+    expect(getByTestId('artwork-image')).toBeTruthy();
+  });
+
+  it('artwork に uri が空文字の場合、デフォルト画像で Image が描画される', () => {
+    const { getByTestId } = render(<Artwork artwork={{ uri: '' }} />);
     expect(getByTestId('artwork-image')).toBeTruthy();
   });
 });

@@ -3,13 +3,14 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { readId3Artwork } from '@/utils/readId3Artwork';
+import type { LinkedProject } from '@/hooks/useFetchTrack';
 
 export interface UploadedTrack {
   id: string;
   title: string;
   s3Key: string;
   extention: string;
-  linkedProjects: string[];
+  linkedProjects: LinkedProject[];
   updatedAt: string;
   artwork?: string;
 }
