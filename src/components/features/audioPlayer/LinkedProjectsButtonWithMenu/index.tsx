@@ -3,10 +3,11 @@ import { View, Text, Animated, LayoutChangeEvent } from 'react-native';
 import RippleButton from '@/components/ui/buttons/RippleButton';
 import Icon from '@/components/ui/Icon';
 import { FontAwesome6 } from '@expo/vector-icons';
+import type { LinkedProject } from '@/hooks/useFetchTrack';
 import styles from './LinkedProjectsButtonWithMenu.styles';
 
 interface LinkedProjectsButtonWithMenuProps {
-  projectItems: string[];
+  projectItems: LinkedProject[];
   isOpen: boolean;
   onToggle: () => void;
 }
@@ -78,12 +79,9 @@ export default function LinkedProjectsButtonWithMenu({
         >
           <Text style={styles.text}>Linked Projects:</Text>
           <View style={styles.projectList}>
-            {projectItems.map((item, index) => (
-              <Text key={index} style={styles.text}>
-                {item}
-                {index < projectItems.length - 1 && ' / '}
-              </Text>
-            ))}
+            <Text style={styles.text}>
+              {projectItems.map((item) => item.name).join(', ')}
+            </Text>
           </View>
           <View style={styles.triangle} />
         </Animated.View>

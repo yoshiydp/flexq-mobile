@@ -20,7 +20,11 @@ describe('LinkedProjectsButtonWithMenu コンポーネント', () => {
     jest.clearAllMocks();
   });
 
-  const mockProjectItems = ['Project 1', 'Project 2', 'Project 3'];
+  const mockProjectItems = [
+    { id: '1', name: 'Project 1' },
+    { id: '2', name: 'Project 2' },
+    { id: '3', name: 'Project 3' },
+  ];
   const mockOnToggle = jest.fn();
 
   it('コンポーネントが正しくレンダリングされる', () => {

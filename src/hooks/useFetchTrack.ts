@@ -1,12 +1,17 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 
+export interface LinkedProject {
+  id: string;
+  name: string;
+}
+
 export interface TrackType {
   id: string;
   title: string;
   source: string;
   artwork: string;
-  linkedProjects: string[];
+  linkedProjects: LinkedProject[];
   extention: string;
   updatedAt: Date;
 }

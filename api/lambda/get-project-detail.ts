@@ -61,6 +61,7 @@ export const handler = async (event: any) => {
   return createResponse({
     ...rest,
     id: pid,
+    ...(trackId ? { trackId } : {}),
     ...(artwork ? { artwork } : {}),
     ...(trackSource ? { trackSource } : {}),
     ...(waveformJson ? { waveformJson } : {}),
