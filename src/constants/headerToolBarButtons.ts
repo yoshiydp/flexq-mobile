@@ -1,3 +1,5 @@
+import type { LinkedProject } from '@/hooks/useFetchTrack';
+
 export type HeaderToolBarButtonType =
   | 'back'
   | 'linkedProjects'
@@ -14,7 +16,7 @@ export interface HeaderToolBarButton {
   type: HeaderToolBarButtonType;
   onPress?: () => void | Promise<void>;
   menuItems?: { label: string; onPress: () => void | Promise<void> }[];
-  projectItems?: string[];
+  projectItems?: LinkedProject[];
   headerTitle?: string;
   buttons?: HeaderToolBarButton[];
 }

@@ -15,7 +15,10 @@ jest.mock('@/components/ui/ExtensionLabel', () => {
 describe('TrackItem コンポーネント', () => {
   const mockProps = {
     title: 'Test Track',
-    linkedProjects: ['Project A', 'Project B'],
+    linkedProjects: [
+      { id: '1', name: 'Project A' },
+      { id: '2', name: 'Project B' },
+    ],
     extention: 'MP3',
     updatedAt: new Date('2025-01-01T12:00:00Z'),
     onPress: jest.fn(),

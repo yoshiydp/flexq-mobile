@@ -1,4 +1,4 @@
-import { DeleteCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, GetCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { docClient } from './db';
 import { s3Client } from './s3';
@@ -21,7 +21,25 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Project not found' }, 404);
   }
 
-  const { artworkKey, waveformJsonKey } = getResult.Item;
+  const { artworkKey, waveformJsonKey, trackId } = getResult.Item;
+
+  // トラックの linkedProjects からこのプロジェクトを除去
+  if (trackId) {
+    const trackResult = await docClient.send(new GetCommand({
+      TableName: process.env.TRACKS_TABLE!,
+      Key: { userId: claims.userId, trackId },
+    }));
+    if (trackResult.Item) {
+      const filtered = ((trackResult.Item.linkedProjects ?? []) as Array<string | { id: string }>)
+        .filter((item) => (typeof item === 'string' ? item !== projectId : item.id !== projectId));
+      await docClient.send(new UpdateCommand({
+        TableName: process.env.TRACKS_TABLE!,
+        Key: { userId: claims.userId, trackId },
+        UpdateExpression: 'SET linkedProjects = :filtered',
+        ExpressionAttributeValues: { ':filtered': filtered },
+      }));
+    }
+  }
 
   // Delete artwork from S3
   if (artworkKey) {

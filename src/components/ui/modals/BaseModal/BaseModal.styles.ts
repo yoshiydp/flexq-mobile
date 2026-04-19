@@ -22,7 +22,7 @@ export default StyleSheet.create({
     marginTop: 20,
   },
   buttonContainer: {
-    width: 86,
+    minWidth: 86,
     paddingHorizontal: 10,
     paddingTop: 7,
     paddingBottom: 0,

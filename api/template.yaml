@@ -233,6 +233,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ProjectsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TracksTable
       Events:
         PostProject:
           Type: Api
@@ -257,6 +259,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ProjectsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TracksTable
       Events:
         PutProject:
           Type: Api
@@ -281,6 +285,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref ProjectsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TracksTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         - S3CrudPolicy:

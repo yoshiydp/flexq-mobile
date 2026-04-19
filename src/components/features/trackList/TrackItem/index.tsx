@@ -14,12 +14,13 @@ import type {
   FontAwesomeIconName,
   FontAwesome6IconName,
 } from '@/types/iconTypes';
+import type { LinkedProject } from '@/hooks/useFetchTrack';
 import { formatDate } from '@/utils/formatDate';
 import styles from './TrackItem.styles';
 
 interface TrackItemProps {
   title: string;
-  linkedProjects: string[];
+  linkedProjects: LinkedProject[];
   extention: string;
   updatedAt: Date;
   onPress: (event: GestureResponderEvent) => void;

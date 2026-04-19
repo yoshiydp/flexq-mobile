@@ -1,4 +1,4 @@
-import { UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from './db';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
@@ -11,6 +11,18 @@ export const handler = async (event: any) => {
   if (!projectId) return createResponse({ message: 'id is required' }, 400);
 
   const { body, cueButtons, projectName, artworkKey, trackId, trackName } = JSON.parse(event.body || '{}');
+
+  // 現在のプロジェクトを取得して旧 trackId を確認
+  const currentProject = await docClient.send(new GetCommand({
+    TableName: process.env.PROJECTS_TABLE!,
+    Key: { userId: claims.userId, projectId },
+  }));
+
+  if (!currentProject.Item) {
+    return createResponse({ message: 'Project not found' }, 404);
+  }
+
+  const oldTrackId: string | undefined = currentProject.Item.trackId;
 
   const now = new Date().toISOString();
 
@@ -53,6 +65,40 @@ export const handler = async (event: any) => {
       ExpressionAttributeValues: expressionValues,
       ReturnValues: 'ALL_NEW',
     }));
+
+    // trackId が変更された場合、linkedProjects を更新
+    if (trackId !== undefined && trackId !== oldTrackId) {
+      // 旧トラックの linkedProjects からこのプロジェクトを除去
+      if (oldTrackId) {
+        const oldTrack = await docClient.send(new GetCommand({
+          TableName: process.env.TRACKS_TABLE!,
+          Key: { userId: claims.userId, trackId: oldTrackId },
+        }));
+        if (oldTrack.Item) {
+          const filtered = ((oldTrack.Item.linkedProjects ?? []) as Array<string | { id: string }>)
+            .filter((item) => (typeof item === 'string' ? item !== projectId : item.id !== projectId));
+          await docClient.send(new UpdateCommand({
+            TableName: process.env.TRACKS_TABLE!,
+            Key: { userId: claims.userId, trackId: oldTrackId },
+            UpdateExpression: 'SET linkedProjects = :filtered',
+            ExpressionAttributeValues: { ':filtered': filtered },
+          }));
+        }
+      }
+
+      // 新トラックの linkedProjects にこのプロジェクトを追加
+      if (trackId) {
+        await docClient.send(new UpdateCommand({
+          TableName: process.env.TRACKS_TABLE!,
+          Key: { userId: claims.userId, trackId },
+          UpdateExpression: 'SET linkedProjects = list_append(if_not_exists(linkedProjects, :empty), :newProject)',
+          ExpressionAttributeValues: {
+            ':newProject': [{ id: projectId, name: projectName }],
+            ':empty': [],
+          },
+        }));
+      }
+    }
 
     const { projectId: pid, ...rest } = result.Attributes!;
     return createResponse({ ...rest, id: pid });

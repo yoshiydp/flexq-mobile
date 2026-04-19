@@ -1,4 +1,4 @@
-import { PutCommand } from '@aws-sdk/lib-dynamodb';
+import { PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from './db';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
@@ -29,6 +29,19 @@ export const handler = async (event: any) => {
       ...(waveformJsonKey ? { waveformJsonKey } : {}),
     },
   }));
+
+  // トラックの linkedProjects にこのプロジェクトを追加
+  if (trackId) {
+    await docClient.send(new UpdateCommand({
+      TableName: process.env.TRACKS_TABLE!,
+      Key: { userId: claims.userId, trackId },
+      UpdateExpression: 'SET linkedProjects = list_append(if_not_exists(linkedProjects, :empty), :newProject)',
+      ExpressionAttributeValues: {
+        ':newProject': [{ id: projectId, name: projectName }],
+        ':empty': [],
+      },
+    }));
+  }
 
   return createResponse({ id: projectId, projectName, updatedAt: now }, 201);
 };
