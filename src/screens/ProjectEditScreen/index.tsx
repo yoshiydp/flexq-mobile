@@ -107,6 +107,8 @@ export default function ProjectEditScreen() {
     recordErrorRef.current = recordError;
   }, [recordLoading, recordError]);
 
+  const hasShownTrackDeletedWarning = useRef(false);
+
   useEffect(() => {
     if (!project) return;
     setProjectName(project.projectName ?? '');
@@ -124,6 +126,29 @@ export default function ProjectEditScreen() {
         isActive: false,
       }));
     });
+
+    // 紐づいていたトラックが削除済みの場合にモーダルを表示
+    if (project.trackId && !project.trackSource && !hasShownTrackDeletedWarning.current) {
+      hasShownTrackDeletedWarning.current = true;
+      showConfirmModal({
+        message: 'トラックが見つかりません',
+        description: 'このプロジェクトに設定されていたトラックは削除されています。新しいトラックを設定してください。',
+        submitButton: {
+          label: 'SETTING',
+          onPress: () => {
+            closeModal();
+            navigation.navigate('ProjectSettings', {
+              id: id ?? '',
+              artwork: project.artwork ? { uri: project.artwork } : undefined,
+              trackSource: undefined,
+              trackId: undefined,
+              trackName: undefined,
+            });
+          },
+        },
+        closeLabel: 'CANCEL',
+      });
+    }
   }, [project]);
 
   // ProjectSettings から戻ったときに変更を反映

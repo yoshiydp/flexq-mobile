@@ -13,6 +13,7 @@ import {
   HEADER_TOOLBAR_TEMPLATES,
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
+import type { LinkedProject } from '@/hooks/useFetchTrack';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUpdateTrack } from '@/hooks/useUpdateTrack';
@@ -25,7 +26,7 @@ interface Track {
   title: string;
   source: string;
   artwork?: string;
-  linkedProjects: string[];
+  linkedProjects: LinkedProject[];
   extention: string;
   updatedAt: Date;
 }
