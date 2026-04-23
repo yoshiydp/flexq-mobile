@@ -63,6 +63,7 @@
 |-------|------|
 | Jest + jest-expo | ユニットテスト |
 | @testing-library/react-native | コンポーネントテスト |
+| Maestro | E2E テスト（画面操作フロー） |
 | ESLint (eslint-config-expo) | 静的解析 |
 | EAS Build / EAS Update | 実機ビルド・OTA 配信 |
 | AWS SAM CLI | Lambda・DynamoDB・API Gateway のデプロイ |
@@ -185,6 +186,64 @@ yarn test:ci            # Jest カバレッジ付き実行
 yarn mock:server        # ローカルモック API サーバー起動
 yarn generate:openapi   # API クライアント再生成
 ```
+
+---
+
+## E2Eテスト（Maestro）
+
+画面操作レベルの E2E テストに [Maestro](https://maestro.mobile.dev/) を使用しています。フローは `.maestro/flows/` に YAML 形式で管理します。
+
+### 前提条件
+
+```bash
+# Maestro CLI のインストール
+curl -Ls "https://get.maestro.mobile.dev" | bash
+
+# Java 17 以上が必要
+brew install --cask temurin@17
+```
+
+### テストの実行方法
+
+**1. 開発サーバーを起動（Staging DB に接続）**
+
+```bash
+yarn start:staging
+```
+
+**2. iOS シミュレーターでアプリを開く**
+
+ターミナルで `i` を押してシミュレーターを起動し、アプリが表示された状態にする。
+
+**3. Maestro でテストを実行**
+
+```bash
+# 単一フローを実行
+maestro test .maestro/flows/login.yaml
+
+# すべてのフローを実行
+maestro test .maestro/flows/
+```
+
+### テストアカウント（Staging）
+
+| 項目 | 値 |
+|------|---|
+| メールアドレス | `demo@example.com` |
+| パスワード | `password123` |
+
+### フロー一覧
+
+| ファイル | 内容 |
+|---------|------|
+| `.maestro/flows/login.yaml` | ログイン → PROJECT LIST 画面への遷移確認 |
+
+### フロー作成時の注意点
+
+- テキスト入力フィールドは**ラベルではなくプレースホルダーテキスト**を `tapOn` のターゲットにする
+- パスワード入力後は `pressKey: Enter` でキーボードを閉じてからボタンをタップする
+- `waitForAnimationToEnd` でログイン後の画面遷移アニメーションを待機する
+- 画面タイトルがアニメーション用に分割されている場合（例: `PROJECT LIST`）は部分テキスト（`PROJECT`）で assertVisible する
 
 ---
 

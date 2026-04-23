@@ -28,13 +28,15 @@ describe('LinkedProjectsButtonWithMenu コンポーネント', () => {
   const mockOnToggle = jest.fn();
 
   it('コンポーネントが正しくレンダリングされる', () => {
-    render(
+    const { getByTestId } = render(
       <LinkedProjectsButtonWithMenu
         projectItems={mockProjectItems}
         isOpen
         onToggle={mockOnToggle}
       />,
     );
+
+    expect(getByTestId('linked-projects-button')).toBeTruthy();
   });
 
   it('初期表示時に onToggle が呼ばれない', () => {
@@ -58,9 +60,33 @@ describe('LinkedProjectsButtonWithMenu コンポーネント', () => {
       />,
     );
 
-    const button = getByTestId('linked-projects-button'); // ← これで取得できる
+    const button = getByTestId('linked-projects-button');
     fireEvent.press(button);
 
     expect(mockOnToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('isOpen が true のとき、プロジェクト名がメニューに表示される', () => {
+    const { getByText } = render(
+      <LinkedProjectsButtonWithMenu
+        projectItems={mockProjectItems}
+        isOpen={true}
+        onToggle={mockOnToggle}
+      />,
+    );
+
+    expect(getByText('Project 1, Project 2, Project 3')).toBeTruthy();
+  });
+
+  it('isOpen が false のとき、メニューが表示されない', () => {
+    const { queryByText } = render(
+      <LinkedProjectsButtonWithMenu
+        projectItems={mockProjectItems}
+        isOpen={false}
+        onToggle={mockOnToggle}
+      />,
+    );
+
+    expect(queryByText('Project 1, Project 2, Project 3')).toBeNull();
   });
 });

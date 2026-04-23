@@ -14,12 +14,16 @@ yarn android              # Android エミュレーター
 # Lint & フォーマット
 yarn lint                 # expo lint (CI では --max-warnings=0)
 
-# テスト
+# テスト (Jest)
 yarn test                 # Jest ウォッチモード
 yarn test:ci              # Jest カバレッジ付き実行 (CI)
 
 # 単一テストファイルの実行
 yarn test src/components/ui/buttons/ArrowButton/ArrowButton.test.tsx
+
+# E2E テスト (Maestro) ※ yarn start:staging + iOS シミュレーター起動が前提
+maestro test .maestro/flows/login.yaml   # ログインフロー
+maestro test .maestro/flows/             # 全フロー実行
 
 # モック API サーバー (Swagger UI: http://localhost:3000)
 yarn mock:server
@@ -306,6 +310,22 @@ master へのマージを検知
 ### テスト
 
 テストはソースファイルと同じ場所に配置します (`Component.tsx` の隣に `Component.test.tsx`)。`@testing-library/react-native` を使用。Expo モジュールとアイコンのモックは `__mocks__/` と `jest.setup.js` にあります。
+
+### E2E テスト（Maestro）
+
+E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します。
+
+**実行前提:**
+- `yarn start:staging` で開発サーバーを起動済み
+- iOS シミュレーターでアプリが表示された状態
+
+**テストアカウント（Staging）:** `demo@example.com` / `password123`
+
+**フロー作成時のルール:**
+- `tapOn` のターゲットはラベル (`<Text>`) ではなくプレースホルダーテキスト（`<TextInput>` に紐づく）を使う
+- パスワード入力後は `pressKey: Enter` でキーボードを閉じてからボタンをタップする
+- ログイン後などアニメーションを伴う画面遷移には `waitForAnimationToEnd` を挟む
+- 画面タイトルがアニメーション分割されている場合（例: `PROJECT LIST`）は部分テキストで `assertVisible` する
 
 ---
 
