@@ -21,6 +21,7 @@ interface EditableFormControlProps {
   readOnly?: boolean;
   showSocialAccounts?: boolean;
   socialAccounts?: SocialAccount[] | undefined;
+  testID?: string;
   onChangeText?: (text: string) => void;
   onPressRemoveLink?: (index: number) => void;
   onPressLinkAccount?: (index: number) => void;
