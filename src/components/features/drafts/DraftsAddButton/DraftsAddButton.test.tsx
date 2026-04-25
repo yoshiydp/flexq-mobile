@@ -47,4 +47,15 @@ describe('DraftsAddButton コンポーネント', () => {
 
     getByText('plus');
   });
+
+  it('testID が Pressable に設定される', () => {
+    const { getByTestId } = render(
+      <DraftsAddButton
+        label={mockLabel}
+        onPress={mockOnPress}
+        testID="drafts-quick-memo-button"
+      />,
+    );
+    expect(getByTestId('drafts-quick-memo-button')).toBeTruthy();
+  });
 });

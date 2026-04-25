@@ -29,14 +29,14 @@
 
 ### コア技術
 
-| 項目 | バージョン / 内容 |
-|------|----------------|
-| React Native | 0.81.5 |
-| Expo SDK | 54.0.0 |
-| React | 19.1.0 |
-| TypeScript | 5.9.3 |
-| Node.js | 20.11.0 |
-| Yarn | 4.12.0 (Berry) |
+| 項目         | バージョン / 内容 |
+| ------------ | ----------------- |
+| React Native | 0.81.5            |
+| Expo SDK     | 54.0.0            |
+| React        | 19.1.0            |
+| TypeScript   | 5.9.3             |
+| Node.js      | 20.11.0           |
+| Yarn         | 4.12.0 (Berry)    |
 
 ### ナビゲーション
 
@@ -47,27 +47,27 @@
 
 ### 主要ライブラリ
 
-| カテゴリ | ライブラリ |
-|---------|----------|
-| 状態管理 | React Context (AuthContext, ModalContext) |
-| 音声再生 | expo-av |
-| ファイル選択 | expo-document-picker |
-| 画像選択 | expo-image-picker |
-| アニメーション | react-native-reanimated, moti |
+| カテゴリ         | ライブラリ                                |
+| ---------------- | ----------------------------------------- |
+| 状態管理         | React Context (AuthContext, ModalContext) |
+| 音声再生         | expo-av                                   |
+| ファイル選択     | expo-document-picker                      |
+| 画像選択         | expo-image-picker                         |
+| アニメーション   | react-native-reanimated, moti             |
 | 認証トークン保存 | @react-native-async-storage/async-storage |
-| API クライアント | openapi-typescript-codegen (自動生成) |
+| API クライアント | openapi-typescript-codegen (自動生成)     |
 
 ### 開発ツール
 
-| ツール | 用途 |
-|-------|------|
-| Jest + jest-expo | ユニットテスト |
-| @testing-library/react-native | コンポーネントテスト |
-| Maestro | E2E テスト（画面操作フロー） |
-| ESLint (eslint-config-expo) | 静的解析 |
-| EAS Build / EAS Update | 実機ビルド・OTA 配信 |
-| AWS SAM CLI | Lambda・DynamoDB・API Gateway のデプロイ |
-| Swagger UI (Express) | ローカルモック API の確認 |
+| ツール                        | 用途                                     |
+| ----------------------------- | ---------------------------------------- |
+| Jest + jest-expo              | ユニットテスト                           |
+| @testing-library/react-native | コンポーネントテスト                     |
+| Maestro                       | E2E テスト（画面操作フロー）             |
+| ESLint (eslint-config-expo)   | 静的解析                                 |
+| EAS Build / EAS Update        | 実機ビルド・OTA 配信                     |
+| AWS SAM CLI                   | Lambda・DynamoDB・API Gateway のデプロイ |
+| Swagger UI (Express)          | ローカルモック API の確認                |
 
 ---
 
@@ -90,10 +90,10 @@ DynamoDB       S3
 
 ### 環境
 
-| 環境 | SAM スタック名 | Expo チャンネル | エンドポイント |
-|------|--------------|----------------|-------------|
-| Staging | `lyrics-mock-api` | `staging` | `https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1` |
-| Production | `lyrics-prod-api` | `production` | SAM デプロイ後の Outputs に表示される URL |
+| 環境       | SAM スタック名    | Expo チャンネル | エンドポイント                                                   |
+| ---------- | ----------------- | --------------- | ---------------------------------------------------------------- |
+| Staging    | `lyrics-mock-api` | `staging`       | `https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1` |
+| Production | `lyrics-prod-api` | `production`    | SAM デプロイ後の Outputs に表示される URL                        |
 
 リージョン: `ap-northeast-1`（東京）
 
@@ -101,18 +101,18 @@ DynamoDB       S3
 
 全テーブルが複合キー構造 `PK=userId, SK=<resourceId>` を使用します。
 
-| テーブル | SAM リソース名 | SK |
-|---------|--------------|-----|
-| Tracks | `TracksTable` | `trackId` |
-| Memos | `MemosTable` | `memoId` |
+| テーブル | SAM リソース名  | SK          |
+| -------- | --------------- | ----------- |
+| Tracks   | `TracksTable`   | `trackId`   |
+| Memos    | `MemosTable`    | `memoId`    |
 | Projects | `ProjectsTable` | `projectId` |
-| Records | `RecordsTable` | `recordId` |
-| Users | `UsersTable` | `userId` |
+| Records  | `RecordsTable`  | `recordId`  |
+| Users    | `UsersTable`    | `userId`    |
 
 ### S3 バケット
 
-| バケット | SAM リソース名 | 用途 |
-|--------|--------------|------|
+| バケット           | SAM リソース名     | 用途                                                                            |
+| ------------------ | ------------------ | ------------------------------------------------------------------------------- |
 | `TrackAudioBucket` | `TrackAudioBucket` | 音源（`tracks/`）・アートワーク（`artworks/`）・プロフィール画像（`profiles/`） |
 
 ---
@@ -154,12 +154,13 @@ yarn start
 
 ### DB への接続方法
 
-| コマンド | 接続先 | 用途 |
-|---------|--------|------|
-| `yarn start:staging` | Staging AWS DynamoDB | 通常の開発・動作確認 |
-| `yarn start` | ローカルモック API (localhost:3000) | オフライン開発 |
+| コマンド             | 接続先                              | 用途                 |
+| -------------------- | ----------------------------------- | -------------------- |
+| `yarn start:staging` | Staging AWS DynamoDB                | 通常の開発・動作確認 |
+| `yarn start`         | ローカルモック API (localhost:3000) | オフライン開発       |
 
 **環境変数ファイル:**
+
 - `.env` — Staging の AWS URL を定義（git 管理対象）
 - `.env.local` — ローカル開発時に localhost へ上書き（gitignore 済み）
 
@@ -201,6 +202,9 @@ curl -Ls "https://get.maestro.mobile.dev" | bash
 
 # Java 17 以上が必要
 brew install --cask temurin@17
+
+# Maestro バージョン確認
+maestro -v
 ```
 
 ### テストの実行方法
@@ -227,15 +231,15 @@ maestro test .maestro/flows/
 
 ### テストアカウント（Staging）
 
-| 項目 | 値 |
-|------|---|
+| 項目           | 値                 |
+| -------------- | ------------------ |
 | メールアドレス | `demo@example.com` |
-| パスワード | `password123` |
+| パスワード     | `password123`      |
 
 ### フロー一覧
 
-| ファイル | 内容 |
-|---------|------|
+| ファイル                    | 内容                                     |
+| --------------------------- | ---------------------------------------- |
 | `.maestro/flows/login.yaml` | ログイン → PROJECT LIST 画面への遷移確認 |
 
 ### フロー作成時の注意点
@@ -251,12 +255,12 @@ maestro test .maestro/flows/
 
 ### ブランチ構成
 
-| ブランチ | 役割 |
-|---------|------|
-| `master` | Production リリース用。マージで本番デプロイが走る |
-| `staging` | Staging 検証用。マージで Staging デプロイが走る |
-| `develop` | 開発の起点となるメインブランチ |
-| `feature/*` | 機能開発用の作業ブランチ |
+| ブランチ    | 役割                                              |
+| ----------- | ------------------------------------------------- |
+| `master`    | Production リリース用。マージで本番デプロイが走る |
+| `staging`   | Staging 検証用。マージで Staging デプロイが走る   |
+| `develop`   | 開発の起点となるメインブランチ                    |
+| `feature/*` | 機能開発用の作業ブランチ                          |
 
 ### 開発フロー
 
@@ -290,10 +294,10 @@ git push origin feature/your-feature-name
 
 ### GitHub Actions による自動デプロイ
 
-| トリガー | 実行内容 |
-|---------|---------|
-| `staging` ブランチへのマージ | ESLint → Jest → EAS Update（staging チャンネル） |
-| `master` ブランチへのマージ | ESLint → Jest → EAS Update（production チャンネル） |
+| トリガー                     | 実行内容                                            |
+| ---------------------------- | --------------------------------------------------- |
+| `staging` ブランチへのマージ | ESLint → Jest → EAS Update（staging チャンネル）    |
+| `master` ブランチへのマージ  | ESLint → Jest → EAS Update（production チャンネル） |
 
 lint または test が失敗した場合はデプロイが中止されます。
 

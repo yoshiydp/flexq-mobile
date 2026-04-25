@@ -3,10 +3,10 @@ import { render, fireEvent } from '@testing-library/react-native';
 import DraftsAddItem from './index';
 
 jest.mock('@/components/features/drafts/DraftsAddButton', () => {
-  return jest.fn(({ label, onPress }) => {
+  return jest.fn(({ label, onPress, testID }) => {
     const { Text, Pressable } = require('react-native');
     return (
-      <Pressable onPress={onPress}>
+      <Pressable onPress={onPress} testID={testID}>
         <Text>{label}</Text>
       </Pressable>
     );
@@ -116,5 +116,21 @@ describe('DraftsAddItem コンポーネント', () => {
     );
 
     expect(getByTestId('drafts-list-button')).toBeTruthy();
+  });
+
+  it('addButtonTestID が DraftsAddButton に渡される', () => {
+    const { getByTestId } = render(
+      <DraftsAddItem
+        addButtonLabel={mockAddButtonLabel}
+        listButtonLabel={mockListButtonLabel}
+        onPressAddButton={mockOnPressAddButton}
+        onPressListButton={mockOnPressListButton}
+        translateX={new Animated.Value(0)}
+        opacity={new Animated.Value(1)}
+        addButtonTestID="drafts-quick-memo-button"
+      />,
+    );
+
+    expect(getByTestId('drafts-quick-memo-button')).toBeTruthy();
   });
 });

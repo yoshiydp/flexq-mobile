@@ -1,0 +1,23 @@
+# ID: REC-01
+# シナリオ名: 録音リスト（DRAFTS）表示
+# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 操作手順: ログイン → DRAFTS タブをタップ
+# 期待結果: DRAFTS タイトルと QUICK MEMO・QUICK RECORD ボタンが表示される
+
+appId: com.yoshiydp.lyricsapp
+---
+# ログイン
+- runFlow: ./helpers/login.yaml
+
+# DRAFTS 画面へ遷移
+- tapOn:
+    id: 'nav-Drafts'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# DRAFTS 画面のアサーション
+- assertVisible: 'DRAFTS'
+- assertVisible:
+    id: 'drafts-quick-memo-button'
+- assertVisible:
+    id: 'drafts-quick-record-button'

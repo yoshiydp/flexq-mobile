@@ -1,0 +1,30 @@
+# ID: AUTH-03
+# シナリオ名: 新規登録画面への遷移確認
+# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 操作手順: 新規登録へ リンクをタップ → 登録画面を確認 → 戻る
+# 期待結果: 登録画面が表示され、各入力フィールドと CREATE ボタンが確認できる
+# ※ 実際の登録処理は行わない（テスト用DBへの不要データ作成を防ぐため）
+
+appId: com.yoshiydp.lyricsapp
+---
+- launchApp
+- assertVisible: 'Your Email'
+
+# 新規登録画面へ遷移
+- tapOn: '新規登録へ'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 新規登録画面のアサーション
+- assertVisible: 'REGISTER'
+- assertVisible: 'User Name'
+- assertVisible: 'Email'
+- assertVisible: 'Password'
+- assertVisible: 'CREATE'
+
+# ログイン画面に戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Your Email'

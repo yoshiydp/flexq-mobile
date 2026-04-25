@@ -1,0 +1,36 @@
+# ID: PROJ-05
+# シナリオ名: プロジェクト編集・保存（戻るボタン経由）
+# 前提条件: ログアウト済み・ログイン画面が表示されている・Stagingにプロジェクトが存在する
+# 操作手順: ログイン → プロジェクトをタップ → 戻るボタンをタップ → 保存確認モーダルで SAVE
+# 期待結果: APIリクエストが実行されプロジェクトリストに戻る
+
+appId: com.yoshiydp.lyricsapp
+---
+# ログイン
+- runFlow: ./helpers/login.yaml
+
+# 先頭のプロジェクトをタップ
+- tapOn:
+    id: 'project-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# プロジェクト詳細画面のアサーション
+- assertVisible: 'Expo Go Sample test'
+
+# 戻るボタンをタップして保存確認モーダルを表示
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？'
+
+# SAVEをタップしてAPIリクエストを実行
+- tapOn: 'SAVE'
+# API保存 + navigation.goBack() の完了をプロジェクトリストの表示で判断
+- extendedWaitUntil:
+    visible: 'PROJECT'
+    timeout: 15000
+
+# プロジェクトリストに戻ったことを確認
+- assertVisible: 'PROJECT'
