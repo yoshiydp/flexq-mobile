@@ -17,6 +17,7 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { useCreateMemo } from '@/hooks/useCreateMemo';
 import { useUpdateMemo } from '@/hooks/useUpdateMemo';
 import { useDeleteMemo } from '@/hooks/useDeleteMemo';
+import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
 import styles from './QuickMemoScreen.styles';
 
 export default function QuickMemoScreen() {
@@ -40,6 +41,21 @@ export default function QuickMemoScreen() {
   const { createMemo } = useCreateMemo();
   const { updateMemo } = useUpdateMemo();
   const { deleteMemo } = useDeleteMemo();
+
+  const handleTranscriptionResult = (text: string) => {
+    richText.current?.insertText(text);
+  };
+  const { isListening, startListening, stopListening } = useVoiceTranscription(
+    handleTranscriptionResult,
+  );
+
+  const handleMicPress = () => {
+    if (isListening) {
+      stopListening();
+    } else {
+      startListening();
+    }
+  };
 
   useEffect(() => {
     if (params.body && richText.current) {
@@ -165,6 +181,8 @@ export default function QuickMemoScreen() {
             onChangeText={setBody}
             isEditing={true}
             fillContainer
+            isListening={isListening}
+            onMicPress={handleMicPress}
           />
         </View>
       </View>

@@ -83,4 +83,46 @@ describe('BodyInput コンポーネント', () => {
     const props = mockRichEditor.mock.calls[0][0];
     expect(typeof props.onFocus).toBe('function');
   });
+
+  describe('マイクボタン', () => {
+    it('onMicPress が渡されない場合マイクボタンが表示されない', () => {
+      const { queryByLabelText } = render(<BodyInput {...mockProps} isEditing />);
+      expect(queryByLabelText('音声入力開始')).toBeNull();
+    });
+
+    it('onMicPress が渡された場合マイクボタンが表示される', () => {
+      const { getByLabelText } = render(
+        <BodyInput {...mockProps} isEditing onMicPress={jest.fn()} />,
+      );
+      getByLabelText('音声入力開始');
+    });
+
+    it('マイクボタンを押すと onMicPress が呼ばれる', () => {
+      const mockOnMicPress = jest.fn();
+      const { getByLabelText } = render(
+        <BodyInput {...mockProps} isEditing onMicPress={mockOnMicPress} />,
+      );
+      fireEvent.press(getByLabelText('音声入力開始'));
+      expect(mockOnMicPress).toHaveBeenCalledTimes(1);
+    });
+
+    it('isListening=true のときアクセシビリティラベルが「録音停止」になる', () => {
+      const { getByLabelText } = render(
+        <BodyInput {...mockProps} isEditing onMicPress={jest.fn()} isListening />,
+      );
+      getByLabelText('録音停止');
+    });
+
+    it('isListening=false のときアクセシビリティラベルが「音声入力開始」になる', () => {
+      const { getByLabelText } = render(
+        <BodyInput
+          {...mockProps}
+          isEditing
+          onMicPress={jest.fn()}
+          isListening={false}
+        />,
+      );
+      getByLabelText('音声入力開始');
+    });
+  });
 });

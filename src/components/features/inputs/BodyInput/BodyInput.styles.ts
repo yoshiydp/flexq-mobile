@@ -27,6 +27,10 @@ export const styles = StyleSheet.create({
   toolbarFlex: {
     flex: 1,
   },
+  micButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+  },
   doneButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
