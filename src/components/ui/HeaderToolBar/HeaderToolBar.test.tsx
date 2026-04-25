@@ -11,7 +11,10 @@ jest.mock('@expo/vector-icons', () => {
 });
 
 jest.mock('@/components/ui/buttons/RippleButton', () => {
-  return jest.fn(() => null);
+  return jest.fn(({ testID, children }) => {
+    const { View } = require('react-native');
+    return <View testID={testID}>{children}</View>;
+  });
 });
 
 jest.mock(
@@ -129,5 +132,19 @@ describe('HeaderToolBar コンポーネント', () => {
           break;
       }
     });
+  });
+
+  it('back ボタンに item.id が testID として設定される', () => {
+    const { getByTestId } = render(
+      <HeaderToolBar items={audioPlayerScreenItems} isBookmarked={false} />,
+    );
+    expect(getByTestId('back')).toBeTruthy();
+  });
+
+  it('hamburger ボタンに item.id が testID として設定される', () => {
+    const { getByTestId } = render(
+      <HeaderToolBar items={projectEditorScreenItems} />,
+    );
+    expect(getByTestId('hamburger')).toBeTruthy();
   });
 });

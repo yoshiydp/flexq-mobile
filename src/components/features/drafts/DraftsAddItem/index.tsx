@@ -12,6 +12,7 @@ interface DraftsAddItemProps {
   translateX: Animated.Value;
   opacity: Animated.Value;
   showListButton?: boolean | undefined;
+  addButtonTestID?: string;
 }
 
 export default function DraftsAddItem({
@@ -22,12 +23,13 @@ export default function DraftsAddItem({
   translateX,
   opacity,
   showListButton,
+  addButtonTestID,
 }: DraftsAddItemProps) {
   return (
     <Animated.View
       style={[styles.container, { opacity, transform: [{ translateX }] }]}
     >
-      <DraftsAddButton label={addButtonLabel} onPress={onPressAddButton} />
+      <DraftsAddButton label={addButtonLabel} onPress={onPressAddButton} testID={addButtonTestID} />
       {showListButton && (
         <ArrowButton
           label={listButtonLabel}

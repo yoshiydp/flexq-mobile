@@ -6,10 +6,11 @@ import { NAVIGATION_ITEMS } from '@/constants/navigationItems';
 
 jest.mock('@/components/features/navigation/NavigationBarItem', () => {
   const { Pressable, Text } = require('react-native');
-  const MockNavItem = ({ label, onPress, onLayout }: any) => (
+  const MockNavItem = ({ label, onPress, onLayout, testID }: any) => (
     <Pressable
       onLayout={(e: LayoutChangeEvent) => onLayout && onLayout(e)}
       onPress={onPress}
+      testID={testID}
     >
       <Text>{label}</Text>
     </Pressable>
@@ -65,5 +66,26 @@ describe('NavigationBar コンポーネント', () => {
 
     fireEvent.press(targetItemButton);
     expect(mockNavigation.navigate).toHaveBeenCalledWith(targetItem.route);
+  });
+
+  it('各ナビゲーションアイテムに nav-{route} の testID が設定される', () => {
+    const mockState = {
+      index: 0,
+      routes: NAVIGATION_ITEMS.map((item) => ({ name: item.route })),
+    } as any;
+
+    const mockNavigation = {
+      navigate: jest.fn(),
+    } as any;
+
+    const { getByTestId } = render(
+      <NavigationBar
+        {...({ state: mockState, navigation: mockNavigation } as any)}
+      />,
+    );
+
+    NAVIGATION_ITEMS.forEach((item) => {
+      expect(getByTestId(`nav-${item.route}`)).toBeTruthy();
+    });
   });
 });

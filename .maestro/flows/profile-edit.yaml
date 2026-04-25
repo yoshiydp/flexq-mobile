@@ -1,0 +1,34 @@
+# ID: PROF-02
+# シナリオ名: プロフィール編集画面表示・閉じる
+# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 操作手順: ログイン → PROFILE → 編集ボタンをタップ → 閉じるボタンをタップ
+# 期待結果: 編集画面が開き、閉じるとプロフィール画面に戻る
+
+appId: com.yoshiydp.lyricsapp
+---
+# ログイン
+- runFlow: ./helpers/login.yaml
+
+# プロフィール画面へ遷移
+- tapOn:
+    id: 'nav-Profile'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# プロフィール編集画面を開く
+- tapOn:
+    id: 'header-action-button'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# プロフィール編集画面のアサーション
+- assertVisible: 'User Name'
+- assertVisible: 'Email'
+- assertVisible: 'SAVE'
+
+# 閉じてプロフィール画面に戻る
+- tapOn:
+    id: 'close-button'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'LOGOUT'

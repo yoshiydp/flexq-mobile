@@ -42,7 +42,7 @@ export default function HeaderToolBar({
     <View style={styles.container}>
       <View style={styles.left}>
         {leftItems.map((item) => (
-          <Pressable key={item.id} style={styles.button} onPress={item.onPress}>
+          <Pressable key={item.id} testID={item.id} style={styles.button} onPress={item.onPress}>
             <Icon
               component={FontAwesome}
               name="angle-left"
@@ -201,7 +201,7 @@ export default function HeaderToolBar({
 
             case 'hamburger':
               return (
-                <RippleButton key={item.id} onPress={item.onPress} size={52}>
+                <RippleButton key={item.id} testID={item.id} onPress={item.onPress} size={52}>
                   <Icon
                     component={FontAwesome}
                     name="bars"
