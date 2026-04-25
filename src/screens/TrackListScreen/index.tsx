@@ -133,6 +133,7 @@ export default function TrackListScreen() {
               onPress={() => handleTrackPress(index)}
               onLongPress={() => handleDeleteTrack(track.id, track.title)}
               startAnimation={startListAnimation}
+              testID={`track-item-${index}`}
             />
           ))
         ) : (

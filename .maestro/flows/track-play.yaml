@@ -1,0 +1,43 @@
+# ID: TRACK-02
+# シナリオ名: トラック再生
+# 前提条件: ログアウト済み・ログイン画面が表示されている・Stagingにトラックが存在する
+# 操作手順: ログイン → TRACK LIST → 先頭のトラックをタップ
+# 期待結果: オーディオプレイヤーが起動しトラックタイトルが表示される
+
+appId: com.yoshiydp.lyricsapp
+---
+- launchApp
+# ログイン
+- assertVisible: 'Your Email'
+- tapOn: 'メールアドレスを入力してください'
+- inputText: 'demo@example.com'
+- tapOn: 'パスワードを入力してください'
+- inputText: 'password123'
+- pressKey: Enter
+- tapOn: 'SIGN IN'
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# トラックリスト画面へ遷移
+- tapOn:
+    id: 'nav-TrackList'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 先頭のトラックをタップしてオーディオプレイヤーを起動
+- tapOn:
+    id: 'track-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# オーディオプレイヤー画面のアサーション
+- assertVisible:
+    id: 'audio-player-title'
+
+# 戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'TRACK'
+- assertVisible: 'LIST'

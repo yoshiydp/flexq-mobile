@@ -1,0 +1,32 @@
+# ID: PROF-01
+# シナリオ名: プロフィール画面表示
+# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 操作手順: ログイン → PROFILE タブをタップ
+# 期待結果: ユーザー名・メールアドレス・LOGOUT が表示される
+
+appId: com.yoshiydp.lyricsapp
+---
+- launchApp
+# ログイン
+- assertVisible: 'Your Email'
+- tapOn: 'メールアドレスを入力してください'
+- inputText: 'demo@example.com'
+- tapOn: 'パスワードを入力してください'
+- inputText: 'password123'
+- pressKey: Enter
+- tapOn: 'SIGN IN'
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# プロフィール画面へ遷移
+- tapOn:
+    id: 'nav-Profile'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# プロフィール画面のアサーション
+- assertVisible: 'PROFILE'
+- assertVisible: 'User Name'
+- assertVisible: 'Email'
+- assertVisible: 'demo@example.com'
+- assertVisible: 'LOGOUT'

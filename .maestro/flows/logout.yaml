@@ -1,0 +1,32 @@
+# ID: AUTH-02
+# シナリオ名: ログアウト
+# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 操作手順: ログイン → PROFILE → LOGOUT → OK をタップ
+# 期待結果: ログイン画面が表示される
+
+appId: com.yoshiydp.lyricsapp
+---
+- launchApp
+# ログイン
+- assertVisible: 'Your Email'
+- tapOn: 'メールアドレスを入力してください'
+- inputText: 'demo@example.com'
+- tapOn: 'パスワードを入力してください'
+- inputText: 'password123'
+- pressKey: Enter
+- tapOn: 'SIGN IN'
+- waitForAnimationToEnd:
+    timeout: 10000
+
+# プロフィール画面へ遷移してログアウト
+- tapOn:
+    id: 'nav-Profile'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: 'LOGOUT'
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# ログイン画面に戻ったことを確認
+- assertVisible: 'Your Email'

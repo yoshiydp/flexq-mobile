@@ -10,11 +10,12 @@ jest.mock('@/components/features/drafts/DraftsAddItem', () => {
       onPressAddButton,
       onPressListButton,
       showListButton = true,
+      addButtonTestID,
     }) => {
       const { Text, View, Pressable } = require('react-native');
       return (
         <View>
-          <Pressable onPress={onPressAddButton}>
+          <Pressable onPress={onPressAddButton} testID={addButtonTestID}>
             <Text>{addButtonLabel}</Text>
           </Pressable>
           {showListButton && (
@@ -93,5 +94,30 @@ describe('DraftsAddList コンポーネント', () => {
     );
 
     expect(queryByText('List Drafts 1')).toBeNull();
+  });
+
+  it('addButtonTestID が各 DraftsAddItem に渡される', () => {
+    const items = [
+      {
+        addButtonLabel: 'Add Draft 1',
+        listButtonLabel: 'List Drafts 1',
+        onPressAddButton: jest.fn(),
+        onPressListButton: jest.fn(),
+        addButtonTestID: 'drafts-quick-memo-button',
+      },
+      {
+        addButtonLabel: 'Add Draft 2',
+        listButtonLabel: 'List Drafts 2',
+        onPressAddButton: jest.fn(),
+        onPressListButton: jest.fn(),
+        addButtonTestID: 'drafts-quick-record-button',
+      },
+    ];
+    const { getByTestId } = render(
+      <DraftsAddList addItems={items} startAnimation />,
+    );
+
+    expect(getByTestId('drafts-quick-memo-button')).toBeTruthy();
+    expect(getByTestId('drafts-quick-record-button')).toBeTruthy();
   });
 });

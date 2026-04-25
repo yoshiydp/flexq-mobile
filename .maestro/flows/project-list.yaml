@@ -1,12 +1,13 @@
-# ID: AUTH-01
-# シナリオ名: ログイン
+# ID: PROJ-01
+# シナリオ名: プロジェクトリスト表示
 # 前提条件: ログアウト済み・ログイン画面が表示されている
-# 操作手順: メールアドレス・パスワード入力 → SIGN IN をタップ
-# 期待結果: PROJECT LIST が表示される
+# 操作手順: ログイン
+# 期待結果: PROJECT LIST タイトルとプロジェクト一覧が表示される
 
 appId: com.yoshiydp.lyricsapp
 ---
 - launchApp
+# ログイン
 - assertVisible: 'Your Email'
 - tapOn: 'メールアドレスを入力してください'
 - inputText: 'demo@example.com'
@@ -16,4 +17,8 @@ appId: com.yoshiydp.lyricsapp
 - tapOn: 'SIGN IN'
 - waitForAnimationToEnd:
     timeout: 10000
+
+# プロジェクトリスト画面のアサーション
 - assertVisible: 'PROJECT'
+- assertVisible: 'LIST'
+- assertVisible: 'New'

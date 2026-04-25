@@ -248,7 +248,7 @@ export default function AudioPlayerScreen() {
           testID="audio-player-artwork"
         />
         <View style={styles.infoWrapper}>
-          <Text style={styles.title}>{currentTrack.title}</Text>
+          <Text style={styles.title} testID="audio-player-title">{currentTrack.title}</Text>
           <View style={styles.dataInfo}>
             <Text style={styles.updateAt}>
               {formatDate(new Date(currentTrack.updatedAt))} UPLOAD
