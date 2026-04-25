@@ -17,6 +17,7 @@
       "channel": "preview"
     },
     "staging": {
+      "autoIncrement": true,
       "distribution": "store",
       "channel": "staging",
       "node": "20.11.0",
