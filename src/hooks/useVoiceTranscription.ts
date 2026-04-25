@@ -12,8 +12,9 @@ interface UseVoiceTranscriptionReturn {
 type SpeechMod = typeof import('expo-speech-recognition');
 let SpeechModule: SpeechMod | null = null;
 try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   SpeechModule = require('expo-speech-recognition');
-} catch (_) {
+} catch {
   // Running in Expo Go or an environment without the native module
 }
 
