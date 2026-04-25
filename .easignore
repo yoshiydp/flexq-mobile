@@ -12,6 +12,10 @@ node_modules
 coverage/
 __tests__/
 
+# iOS native build artifacts (reinstalled by pod install on EAS servers)
+ios/Pods
+ios/build
+
 # Build artifacts
 dist/
 .lambda-build/
