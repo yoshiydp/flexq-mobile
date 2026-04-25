@@ -338,12 +338,24 @@ eas submit --profile staging --platform ios
 
 完了すると App Store Connect の TestFlight にビルドが届きます（5〜10 分）。
 
-**ステップ 3: テスターに招待リンクを送る**
+**ステップ 3: 外部テストグループを作成（初回のみ）**
 
-1. [App Store Connect](https://appstoreconnect.apple.com/apps/6762039606/testflight/ios) を開く
-2. TestFlight タブ → 外部テストグループ → 「公開リンク」を LINE やメールで送る
+1. [App Store Connect → TestFlight](https://appstoreconnect.apple.com/apps/6762039606/testflight/ios) を開く
+2. 左サイドバー「外部テスト」の横の **「+」** をクリック
+3. グループ名を入力（例: `ベータテスター`）して作成
+4. 「ビルドを追加」→ アップロードしたビルドを選択
+5. **「Apple の審査に提出」** をクリック（数時間以内に完了）
+6. グループの「設定」タブ → **「公開リンク」をオン** にする
 
-> 初回の外部テスト審査通過後は、以降のビルド更新に審査は不要です。
+> **初回のみ Apple の審査が必要です。** 審査通過後は以降のビルド更新に審査は不要で、`eas submit` するだけで自動配信されます。
+
+**ステップ 4: テスターに招待リンクを送る**
+
+公開リンクを LINE やメールで送るだけです。テスター側の操作：
+
+1. App Store で **TestFlight** をインストール（無料・初回のみ）
+2. 届いたリンクをタップ → 「承認」
+3. TestFlight 上で「インストール」をタップ
 
 ### トラブルシューティング
 
@@ -362,3 +374,30 @@ yarn start -c
 2. [Expo ダッシュボード](https://expo.dev) でログを確認
 3. `Install dependencies` フェーズで失敗している場合は Yarn バージョン不一致が疑われる
 4. ローカルで `yarn install --immutable` を実行して lockfile が最新か確認する
+
+**`eas submit` でビルド番号の重複エラーが出る場合**
+
+```
+Increment Build Number: Build number X for app version 1.0.0 has already been used.
+```
+
+`eas.json` の該当プロファイルに `autoIncrement: true` を追加してから再ビルドしてください：
+
+```json
+"staging": {
+  "autoIncrement": true,
+  ...
+}
+```
+
+**`eas-cli` のバージョン警告が出る場合**
+
+```
+★ eas-cli@x.x.x is now available.
+```
+
+古いバージョンのままだと submit 時に予期せぬエラーが起きることがあります。定期的にアップデートしてください：
+
+```bash
+npm install -g eas-cli
+```
