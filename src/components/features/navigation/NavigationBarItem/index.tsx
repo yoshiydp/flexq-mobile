@@ -11,6 +11,7 @@ interface NavigationBarItemProps {
   onPress: (event: GestureResponderEvent) => void;
   active?: boolean;
   onLayout?: (event: any) => void;
+  testID?: string;
 }
 
 export default function NavigationBarItem({
@@ -19,9 +20,10 @@ export default function NavigationBarItem({
   onPress,
   active,
   onLayout,
+  testID,
 }: NavigationBarItemProps) {
   return (
-    <Pressable style={styles.item} onPress={onPress} onLayout={onLayout}>
+    <Pressable style={styles.item} onPress={onPress} onLayout={onLayout} testID={testID}>
       <Icon
         component={FontAwesome}
         name={icon}

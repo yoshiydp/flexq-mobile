@@ -88,6 +88,7 @@ export default function ProjectListScreen() {
               updatedAt={project.updatedAt}
               onPress={() => handleProjectPress(project.id)}
               startAnimation={startListAnimation}
+              testID={`project-item-${index}`}
             />
           ))
         ) : (

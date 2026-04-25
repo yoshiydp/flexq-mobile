@@ -10,6 +10,7 @@ interface AddItem {
   onPressAddButton: () => void;
   onPressListButton: () => void;
   showListButton?: boolean | undefined;
+  addButtonTestID?: string;
 }
 
 interface DraftsAddListProps {

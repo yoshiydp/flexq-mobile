@@ -45,4 +45,11 @@ describe('NavigationBarItem コンポーネント', () => {
 
     expect(mockProps.onLayout).toHaveBeenCalledTimes(1);
   });
+
+  it('testID が Pressable に設定される', () => {
+    const { getByTestId } = render(
+      <NavigationBarItem {...mockProps} testID="nav-home" />,
+    );
+    expect(getByTestId('nav-home')).toBeTruthy();
+  });
 });

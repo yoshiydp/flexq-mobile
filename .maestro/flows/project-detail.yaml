@@ -1,0 +1,30 @@
+# ID: PROJ-03
+# シナリオ名: プロジェクト詳細表示
+# 前提条件: ログアウト済み・ログイン画面が表示されている・Stagingにプロジェクトが存在する
+# 操作手順: ログイン → プロジェクトをタップ → 詳細画面を確認 → 戻る → 保存 → プロジェクトリストを確認
+# 期待結果: プロジェクト編集画面が表示される
+
+appId: com.yoshiydp.lyricsapp
+---
+# ログイン
+- runFlow: ./helpers/login.yaml
+
+# 先頭のプロジェクトをタップ
+- tapOn:
+    id: 'project-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# プロジェクト詳細画面のアサーション（プロジェクト名が表示される）
+- assertVisible: 'Expo Go Sample test'
+
+# プロジェクトリストに戻る（保存確認モーダルが表示されるのでSAVE）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？'
+- tapOn: 'SAVE'
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible: 'PROJECT'

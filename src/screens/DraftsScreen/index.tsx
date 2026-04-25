@@ -22,6 +22,7 @@ export default function DraftsScreen() {
         navigation.navigate('QuickMemo', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('MemoList', {}),
       showListButton: memosLoading ? undefined : memos.length > 0,
+      addButtonTestID: 'drafts-quick-memo-button',
     },
     {
       addButtonLabel: 'QUICK RECORD',
@@ -30,6 +31,7 @@ export default function DraftsScreen() {
         navigation.navigate('QuickRecord', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('RecordList', {}),
       showListButton: recordsLoading ? undefined : records.length > 0,
+      addButtonTestID: 'drafts-quick-record-button',
     },
   ];
 

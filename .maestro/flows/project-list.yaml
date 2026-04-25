@@ -1,0 +1,15 @@
+# ID: PROJ-01
+# シナリオ名: プロジェクトリスト表示
+# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 操作手順: ログイン
+# 期待結果: PROJECT LIST タイトルとプロジェクト一覧が表示される
+
+appId: com.yoshiydp.lyricsapp
+---
+# ログイン
+- runFlow: ./helpers/login.yaml
+
+# プロジェクトリスト画面のアサーション
+- assertVisible: 'PROJECT'
+- assertVisible: 'LIST'
+- assertVisible: 'New'

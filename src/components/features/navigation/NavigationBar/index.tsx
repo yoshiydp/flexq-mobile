@@ -47,6 +47,7 @@ export default function NavigationBar({
             active={state.routes[state.index].name === item.route}
             onPress={() => navigation.navigate(item.route)}
             onLayout={(e) => handleLayout(item.route, e.nativeEvent.layout)}
+            testID={`nav-${item.route}`}
           />
         ))}
       </View>
