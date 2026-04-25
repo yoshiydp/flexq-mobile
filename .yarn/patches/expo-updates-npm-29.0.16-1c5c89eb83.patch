@@ -1,0 +1,13 @@
+diff --git a/ios/EXUpdates.podspec b/ios/EXUpdates.podspec
+index 432294821e85b5ee0f1be8093bd0a9dd517aaa21..00d41d0ecb683d2000fc9a6bea0052df7eaa7c80 100644
+--- a/ios/EXUpdates.podspec
++++ b/ios/EXUpdates.podspec
+@@ -101,7 +101,7 @@ Pod::Spec.new do |s|
+     force_bundling_flag = ex_updates_native_debug ? "export FORCE_BUNDLING=1\n" : ""
+     s.script_phase = {
+       :name => 'Generate updates resources for expo-updates',
+-      :script => force_bundling_flag + 'bash -l -c "$PODS_TARGET_SRCROOT/../scripts/create-updates-resources-ios.sh"',
++      :script => force_bundling_flag + 'SCRIPT="$PODS_TARGET_SRCROOT/../scripts/create-updates-resources-ios.sh"; bash -l "$SCRIPT"',
+       :execution_position => :before_compile
+     }
+ 

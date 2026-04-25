@@ -12,7 +12,9 @@ import {
   RichToolbar,
   actions,
 } from 'react-native-pell-rich-editor';
+import { Ionicons } from '@expo/vector-icons';
 import { PLACEHOLDERS } from '@/constants/placeholders';
+import { COLORS } from '@/globalStyles';
 import { styles } from './BodyInput.styles';
 
 interface BodyInputProps {
@@ -22,6 +24,8 @@ interface BodyInputProps {
   richEditorAddStyle?: any;
   isEditing?: boolean;
   fillContainer?: boolean;
+  isListening?: boolean;
+  onMicPress?: () => void;
 }
 
 export default function BodyInput({
@@ -31,6 +35,8 @@ export default function BodyInput({
   richEditorAddStyle,
   isEditing,
   fillContainer = false,
+  isListening = false,
+  onMicPress,
 }: BodyInputProps) {
   const hasFirstFocused = useRef(false);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
@@ -75,6 +81,19 @@ export default function BodyInput({
               ),
             }}
           />
+          {onMicPress && (
+            <TouchableOpacity
+              style={styles.micButton}
+              onPress={onMicPress}
+              accessibilityLabel={isListening ? '録音停止' : '音声入力開始'}
+            >
+              <Ionicons
+                name={isListening ? 'mic' : 'mic-outline'}
+                size={20}
+                color={isListening ? COLORS.accent.goldPrimary : COLORS.form.default.text}
+              />
+            </TouchableOpacity>
+          )}
           <TouchableOpacity
             style={styles.doneButton}
             onPress={() => editorRef?.current?.blurContentEditor()}

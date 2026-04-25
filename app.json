@@ -48,7 +48,14 @@
       ],
       "expo-font",
       "expo-asset",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "音声文字起こしのためにマイクへのアクセスを許可してください。",
+          "speechRecognitionPermission": "音声をテキストに変換するために音声認識の使用を許可してください。"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
