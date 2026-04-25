@@ -6652,7 +6652,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-constants@npm:~18.0.11, expo-constants@npm:~18.0.12, expo-constants@npm:~18.0.13":
+"expo-constants@npm:18.0.13":
   version: 18.0.13
   resolution: "expo-constants@npm:18.0.13"
   dependencies:
@@ -6662,6 +6662,19 @@ __metadata:
     expo: "*"
     react-native: "*"
   checksum: 10c0/bbe33c0611b8085ecd965434d71d27f065427146fe23f3162d170812f8c917b032604c79e0cd129f39147f58f7dc581ee3c6b64a84bf865dd325595289dc77e6
+  languageName: node
+  linkType: hard
+
+"expo-constants@patch:expo-constants@npm%3A18.0.13#./.yarn/patches/expo-constants-npm-18.0.13-98767075b3.patch::locator=lyrics-mobile%40workspace%3A.":
+  version: 18.0.13
+  resolution: "expo-constants@patch:expo-constants@npm%3A18.0.13#./.yarn/patches/expo-constants-npm-18.0.13-98767075b3.patch::version=18.0.13&hash=606403&locator=lyrics-mobile%40workspace%3A."
+  dependencies:
+    "@expo/config": "npm:~12.0.13"
+    "@expo/env": "npm:~2.0.8"
+  peerDependencies:
+    expo: "*"
+    react-native: "*"
+  checksum: 10c0/ee921a3bb30fd7492672b8ee3a8a65af13ce71684caba589159dd178768ece87bfa37027a57f70072d41280921d88d5b84de20e4b966066fe43945b518b62632
   languageName: node
   linkType: hard
 
@@ -7055,7 +7068,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-updates@npm:~29.0.16":
+"expo-updates@npm:29.0.16":
   version: 29.0.16
   resolution: "expo-updates@npm:29.0.16"
   dependencies:
@@ -7080,6 +7093,34 @@ __metadata:
   bin:
     expo-updates: bin/cli.js
   checksum: 10c0/2dfadc04df7a6e37c1162a4d1eca76f6249e2c3fb8f8e6ac0ccd6f55cce34acf6867c2dfbd75c2d0a37c0578386d19d1a2fbc97a2b5efba0b5217f2a83e3a85d
+  languageName: node
+  linkType: hard
+
+"expo-updates@patch:expo-updates@npm%3A29.0.16#./.yarn/patches/expo-updates-npm-29.0.16-1c5c89eb83.patch::locator=lyrics-mobile%40workspace%3A.":
+  version: 29.0.16
+  resolution: "expo-updates@patch:expo-updates@npm%3A29.0.16#./.yarn/patches/expo-updates-npm-29.0.16-1c5c89eb83.patch::version=29.0.16&hash=2cf5ed&locator=lyrics-mobile%40workspace%3A."
+  dependencies:
+    "@expo/code-signing-certificates": "npm:^0.0.6"
+    "@expo/plist": "npm:^0.4.8"
+    "@expo/spawn-async": "npm:^1.7.2"
+    arg: "npm:4.1.0"
+    chalk: "npm:^4.1.2"
+    debug: "npm:^4.3.4"
+    expo-eas-client: "npm:~1.0.8"
+    expo-manifests: "npm:~1.0.10"
+    expo-structured-headers: "npm:~5.0.0"
+    expo-updates-interface: "npm:~2.0.0"
+    getenv: "npm:^2.0.0"
+    glob: "npm:^13.0.0"
+    ignore: "npm:^5.3.1"
+    resolve-from: "npm:^5.0.0"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+  bin:
+    expo-updates: bin/cli.js
+  checksum: 10c0/96a4253cf711744e29589a9a9cc6f4bb550fb2184ef35e0bad78bfa5dad9ba29d59654eab2427e8d8f453b0adc48708ed0d052f24c64a8f9df4bfe0c8df8e842
   languageName: node
   linkType: hard
 
@@ -9747,7 +9788,7 @@ __metadata:
     expo-auth-session: "npm:~7.0.10"
     expo-av: "npm:~16.0.8"
     expo-blur: "npm:~15.0.8"
-    expo-constants: "npm:~18.0.13"
+    expo-constants: "patch:expo-constants@npm%3A18.0.13#./.yarn/patches/expo-constants-npm-18.0.13-98767075b3.patch"
     expo-dev-client: "npm:~6.0.20"
     expo-document-picker: "npm:~14.0.8"
     expo-file-system: "npm:^19.0.0"
@@ -9765,7 +9806,7 @@ __metadata:
     expo-status-bar: "npm:~3.0.9"
     expo-symbols: "npm:~1.0.8"
     expo-system-ui: "npm:~6.0.9"
-    expo-updates: "npm:~29.0.16"
+    expo-updates: "patch:expo-updates@npm%3A29.0.16#./.yarn/patches/expo-updates-npm-29.0.16-1c5c89eb83.patch"
     expo-web-browser: "npm:~15.0.10"
     express: "npm:^5.1.0"
     framer-motion: "npm:^12.23.12"
