@@ -6,17 +6,8 @@
 
 appId: com.yoshiydp.lyricsapp
 ---
-- launchApp
 # ログイン
-- assertVisible: 'Your Email'
-- tapOn: 'メールアドレスを入力してください'
-- inputText: 'demo@example.com'
-- tapOn: 'パスワードを入力してください'
-- inputText: 'password123'
-- pressKey: Enter
-- tapOn: 'SIGN IN'
-- waitForAnimationToEnd:
-    timeout: 10000
+- runFlow: ./helpers/login.yaml
 
 # 先頭のプロジェクトをタップ
 - tapOn:

@@ -1,0 +1,16 @@
+# 共通ログインフロー
+# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 使い方: 各フローから `- runFlow: ./helpers/login.yaml` で呼び出す
+
+appId: com.yoshiydp.lyricsapp
+---
+- launchApp
+- assertVisible: 'Your Email'
+- tapOn: 'メールアドレスを入力してください'
+- inputText: 'demo@example.com'
+- tapOn: 'パスワードを入力してください'
+- inputText: 'password123'
+- pressKey: Enter
+- tapOn: 'SIGN IN'
+- waitForAnimationToEnd:
+    timeout: 10000
