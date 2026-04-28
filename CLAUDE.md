@@ -539,4 +539,87 @@ cd api && sam build && sam deploy --stack-name lyrics-mock-api
 - **`src/apiClient/` は自動生成のため手動編集不可**。変更は `src/data/*.ts` → `yarn generate:openapi` の順で行う
 - **Email フィールドは読み取り専用**（GSI のパーティションキーのため変更不可）
 - **シードデータ（legacySource / legacyArtwork）**: `s3Key` を持たない既存トラックは `legacySource`/`legacyArtwork` フィールドにフォールバックする
+
+---
+
+## タスク管理（Notion × GitHub 連携）
+
+### 概要
+
+Claude Code から Notion MCP を経由してタスク管理を行う。GitHub との連携により、ブランチ・PR を Notion タスクと紐付けて管理する。
+
+| 連携 | 内容 |
+|------|------|
+| Notion MCP | Claude Code から Notion を直接操作（タスク作成・更新） |
+| GitHub × Notion | PR URL を Notion タスクに紐付け。Notion に GitHub リンクプレビューを表示 |
+
+### Notion データベース
+
+- **場所**: Lyrics タスク管理 > タスク一覧
+- **URL**: https://www.notion.so/350780496c2f80dfaf79cba5e078123c
+
+| プロパティ | 型 | 内容 |
+|-----------|-----|------|
+| タイトル | テキスト | タスク名 |
+| 簡単な詳細 | テキスト | 概要（1行） |
+| デバイス | セレクト | Android / iPhone |
+| 優先度 | セレクト | Low / Middle / High |
+| ステータス | ステータス | Not started / In progress / Done |
+| GitHub PR | URL | 対応する PR の URL |
+
+### ブランチ命名規則
+
+Notion の ID プロパティ（`TASK-X`）をブランチ名の冒頭に付ける：
+
+```
+feature/TASK-X-タスクの概要
+```
+
+例：
+```bash
+git checkout -b feature/TASK-4-fix-default-thumbnail
+```
+
+### 運用フロー
+
+#### タスク追加
+
+Claude Code に以下の形式で伝えるだけでよい：
+
+```
+タスク一覧にタスクを追加して
+タイトル：〇〇〇
+詳細：〇〇〇〇
+デバイス：iPhone
+優先度：High
+```
+
+Claude が自動で以下を実施する：
+- Notion にタスクを作成（ステータス: Not started）
+- ページ本文に `## 詳細` セクションを挿入
+
+#### ブランチ作成
+
+Notion でタスクの ID（`TASK-X`）を確認してからブランチを切る：
+
+```bash
+git checkout develop
+git checkout -b feature/TASK-X-brief-description
+```
+
+#### PR 作成後の紐付け
+
+PR 作成後、Claude Code に伝えるだけで Notion タスクに URL が登録される：
+
+```
+TASK-X に PR URL を登録して
+https://github.com/yoshiydp/lyrics-mobile/pull/XX
+```
+
+#### ステータス更新
+
+```
+TASK-X を In progress にして   # 作業開始時
+TASK-X を Done にして           # マージ完了時
+```
 - **ファイルアップロードの mime タイプ**: `get-track-upload-url.ts` は `audio/mpeg`, `audio/wav`, `image/jpeg`, `image/png` のみ受け付ける
