@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import DraftsAddList from '@/components/features/drafts/DraftsAddList';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
@@ -11,8 +11,15 @@ import styles from './DraftsScreen.styles';
 export default function DraftsScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
   const navigation = useNavigation();
-  const { memos, loading: memosLoading, cachedHasItems: cachedMemosHasItems } = useFetchMemo();
-  const { records, loading: recordsLoading, cachedHasItems: cachedRecordsHasItems } = useFetchRecord();
+  const { memos, loading: memosLoading, cachedHasItems: cachedMemosHasItems, refreshMemo } = useFetchMemo();
+  const { records, loading: recordsLoading, cachedHasItems: cachedRecordsHasItems, refreshRecord } = useFetchRecord();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshMemo();
+      refreshRecord();
+    }, [refreshMemo, refreshRecord]),
+  );
 
   const ADD_LIST = [
     {
