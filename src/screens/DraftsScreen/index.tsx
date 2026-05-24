@@ -11,8 +11,8 @@ import styles from './DraftsScreen.styles';
 export default function DraftsScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
   const navigation = useNavigation();
-  const { memos, loading: memosLoading, cachedHasItems: cachedMemosHasItems, refreshMemo } = useFetchMemo();
-  const { records, loading: recordsLoading, cachedHasItems: cachedRecordsHasItems, refreshRecord } = useFetchRecord();
+  const { hasItems: memosHasItems, refreshMemo } = useFetchMemo();
+  const { hasItems: recordsHasItems, refreshRecord } = useFetchRecord();
 
   useFocusEffect(
     useCallback(() => {
@@ -28,7 +28,7 @@ export default function DraftsScreen() {
       onPressAddButton: () =>
         navigation.navigate('QuickMemo', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('MemoList', {}),
-      showListButton: memosLoading ? cachedMemosHasItems : memos.length > 0,
+      showListButton: memosHasItems,
       addButtonTestID: 'drafts-quick-memo-button',
     },
     {
@@ -37,7 +37,7 @@ export default function DraftsScreen() {
       onPressAddButton: () =>
         navigation.navigate('QuickRecord', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('RecordList', {}),
-      showListButton: recordsLoading ? cachedRecordsHasItems : records.length > 0,
+      showListButton: recordsHasItems,
       addButtonTestID: 'drafts-quick-record-button',
     },
   ];

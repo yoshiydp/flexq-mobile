@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 
@@ -17,6 +17,7 @@ export function useFetchMemo() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
   const [cachedHasItems, setCachedHasItems] = useState<boolean | undefined>(undefined);
+  const hasFetchedOnce = useRef(false);
 
   useEffect(() => {
     AsyncStorage.getItem(CACHE_KEY).then((val) => {
@@ -41,6 +42,7 @@ export function useFetchMemo() {
       setError(err as Error);
     } finally {
       setLoading(false);
+      hasFetchedOnce.current = true;
     }
   }, []);
 
@@ -48,5 +50,11 @@ export function useFetchMemo() {
     fetchMemo();
   }, [fetchMemo]);
 
-  return { memos, loading, error, refreshMemo: fetchMemo, cachedHasItems };
+  // 初回フェッチ前はキャッシュ値、以降は前回フェッチ結果を使うことで
+  // 再フォーカス時に古いキャッシュでボタンが一瞬表示されるフラッシュを防ぐ
+  const hasItems = loading
+    ? (hasFetchedOnce.current ? memos.length > 0 : cachedHasItems)
+    : memos.length > 0;
+
+  return { memos, loading, error, refreshMemo: fetchMemo, hasItems };
 }
