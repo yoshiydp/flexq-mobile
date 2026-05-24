@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, fireEvent } from '@testing-library/react-native';
+import { render, fireEvent, act } from '@testing-library/react-native';
 import DraftsAddItem from './index';
 
 jest.mock('@/components/features/drafts/DraftsAddButton', () => {
@@ -132,5 +132,35 @@ describe('DraftsAddItem コンポーネント', () => {
     );
 
     expect(getByTestId('drafts-quick-memo-button')).toBeTruthy();
+  });
+
+  it('showListButton が undefined から true に変わったとき Listボタンがフェードインで表示される', () => {
+    const { rerender, getByTestId } = render(
+      <DraftsAddItem
+        addButtonLabel={mockAddButtonLabel}
+        listButtonLabel={mockListButtonLabel}
+        onPressAddButton={mockOnPressAddButton}
+        onPressListButton={mockOnPressListButton}
+        translateX={new Animated.Value(0)}
+        opacity={new Animated.Value(1)}
+        showListButton={undefined}
+      />,
+    );
+
+    act(() => {
+      rerender(
+        <DraftsAddItem
+          addButtonLabel={mockAddButtonLabel}
+          listButtonLabel={mockListButtonLabel}
+          onPressAddButton={mockOnPressAddButton}
+          onPressListButton={mockOnPressListButton}
+          translateX={new Animated.Value(0)}
+          opacity={new Animated.Value(1)}
+          showListButton={true}
+        />,
+      );
+    });
+
+    expect(getByTestId('drafts-list-button')).toBeTruthy();
   });
 });
