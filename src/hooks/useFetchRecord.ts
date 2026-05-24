@@ -1,5 +1,8 @@
 import { useEffect, useState, useCallback } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+
+const CACHE_KEY = 'record_has_items';
 
 export interface RecordType {
   id: string;
@@ -13,6 +16,13 @@ export function useFetchRecord() {
   const [records, setRecords] = useState<RecordType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const [cachedHasItems, setCachedHasItems] = useState<boolean | undefined>(undefined);
+
+  useEffect(() => {
+    AsyncStorage.getItem(CACHE_KEY).then((val) => {
+      if (val !== null) setCachedHasItems(val === 'true');
+    });
+  }, []);
 
   const fetchRecord = useCallback(async () => {
     setLoading(true);
@@ -33,6 +43,7 @@ export function useFetchRecord() {
         });
 
       setRecords(sortedRecords);
+      await AsyncStorage.setItem(CACHE_KEY, String(sortedRecords.length > 0));
     } catch (err) {
       console.error('Failed to fetch record:', err);
       setError(err as Error);
@@ -45,5 +56,5 @@ export function useFetchRecord() {
     fetchRecord();
   }, [fetchRecord]);
 
-  return { records, loading, error, refreshRecord: fetchRecord };
+  return { records, loading, error, refreshRecord: fetchRecord, cachedHasItems };
 }
