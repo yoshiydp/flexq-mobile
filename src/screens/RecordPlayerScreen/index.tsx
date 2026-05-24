@@ -59,6 +59,12 @@ export default function RecordPlayerScreen() {
   const loadTrack = async (autoPlay = false) => {
     if (!recordedFile) return;
 
+    await Audio.setAudioModeAsync({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+    });
+
     if (sound) {
       await sound.stopAsync();
       await sound.unloadAsync();
