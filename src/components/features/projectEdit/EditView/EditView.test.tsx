@@ -6,8 +6,8 @@ import EditView from './index';
 
 jest.mock('@/components/features/inputs/TitleInput', () => {
   const { TextInput } = require('react-native');
-  return jest.fn(({ value, onChangeText }: any) => (
-    <TextInput value={value} onChangeText={onChangeText} />
+  return jest.fn(({ value, onChangeText, onFocus }: any) => (
+    <TextInput value={value} onChangeText={onChangeText} onFocus={onFocus} />
   ));
 });
 
@@ -155,5 +155,24 @@ describe('EditView コンポーネント', () => {
 
     expect(mockProps.onVolumeChange).toHaveBeenCalledWith(1);
     expect(mockProps.onVolumeChange).toHaveBeenCalledTimes(1);
+  });
+
+  it('TitleInput フォーカス時に onBlurEditor が呼ばれる', () => {
+    const mockOnBlurEditor = jest.fn();
+    const { getByDisplayValue } = render(
+      <EditView {...mockProps} onBlurEditor={mockOnBlurEditor} />,
+    );
+    const titleInput = getByDisplayValue('Sample Project');
+
+    fireEvent(titleInput, 'focus');
+
+    expect(mockOnBlurEditor).toHaveBeenCalledTimes(1);
+  });
+
+  it('onBlurEditor が渡されなくてもエラーにならない', () => {
+    const { getByDisplayValue } = render(<EditView {...mockProps} />);
+    const titleInput = getByDisplayValue('Sample Project');
+
+    expect(() => fireEvent(titleInput, 'focus')).not.toThrow();
   });
 });

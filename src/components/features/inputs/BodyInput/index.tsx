@@ -2,9 +2,8 @@ import React, { useRef, useState } from 'react';
 import {
   Button,
   Platform,
+  Pressable,
   ScrollView,
-  Text,
-  TouchableOpacity,
   View,
 } from 'react-native';
 import {
@@ -82,7 +81,7 @@ export default function BodyInput({
             }}
           />
           {onMicPress && (
-            <TouchableOpacity
+            <Pressable
               style={styles.micButton}
               onPress={onMicPress}
               accessibilityLabel={isListening ? '録音停止' : '音声入力開始'}
@@ -92,14 +91,8 @@ export default function BodyInput({
                 size={20}
                 color={isListening ? COLORS.accent.goldPrimary : COLORS.form.default.text}
               />
-            </TouchableOpacity>
+            </Pressable>
           )}
-          <TouchableOpacity
-            style={styles.doneButton}
-            onPress={() => editorRef?.current?.blurContentEditor()}
-          >
-            <Text style={styles.doneButtonText}>完了</Text>
-          </TouchableOpacity>
         </View>
       )}
       <ScrollView
