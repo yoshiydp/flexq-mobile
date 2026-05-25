@@ -31,15 +31,6 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 8,
   },
-  doneButton: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-  },
-  doneButtonText: {
-    color: COLORS.accent.goldPrimary,
-    fontSize: 14,
-    fontWeight: '600',
-  },
   richEditor: {
     color: COLORS.form.default.text,
     fontSize: 18,
