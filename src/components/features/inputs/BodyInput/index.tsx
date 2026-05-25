@@ -27,6 +27,18 @@ interface BodyInputProps {
   onMicPress?: () => void;
 }
 
+const isEditorEmpty = (html: string) =>
+  !html || html === '<p></p>' || html === '<p><br></p>' || html.trim() === '';
+
+// iOS WKWebView bug: first character typed in an empty editor gets duplicated.
+// When duplication occurs the HTML starts with <tag>XX... where X is the first char.
+const removeFirstCharDuplicate = (html: string): string => {
+  const text = html.replace(/<[^>]+>/g, '');
+  if (text.length < 2 || text[0] !== text[1]) return html;
+  const escaped = text[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return html.replace(new RegExp(`(<[^>]+>)${escaped}${escaped}`), `$1${text[0]}`);
+};
+
 export default function BodyInput({
   editorRef,
   value,
@@ -38,6 +50,7 @@ export default function BodyInput({
   onMicPress,
 }: BodyInputProps) {
   const isFocusFixInProgress = useRef(false);
+  const isFirstChangeAfterEmptyFocus = useRef(false);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(200);
 
@@ -56,19 +69,37 @@ export default function BodyInput({
       return;
     }
 
-    // 空の状態でフォーカスしたときのみ実行
+    if (!isEditorEmpty(value)) return;
+
     // iOS WKWebView は空コンテンツへの初回入力時に UITextInput 接続が未確立で
     // 最初の1文字が二重送信される。blur→refocus で接続を確立してから入力を受け付ける。
-    const isEmpty =
-      !value ||
-      value === '<p></p>' ||
-      value === '<p><br></p>' ||
-      value.trim() === '';
-    if (!isEmpty) return;
-
+    // 300ms はキーボードアニメーション完了（約250ms）を超えるタイムアウトで設定。
+    isFirstChangeAfterEmptyFocus.current = true;
     isFocusFixInProgress.current = true;
     editorRef?.current?.blurContentEditor();
-    setTimeout(() => editorRef?.current?.focusContentEditor(), 100);
+    setTimeout(() => editorRef?.current?.focusContentEditor(), 300);
+  };
+
+  // blur→refocus タイムアウト内に入力された場合のフォールバック。
+  // isFocusFixInProgress が true の間（=300ms 以内）に onChange が来たとき
+  // 先頭文字の重複を検出して修正する。
+  const handleChange = (html: string) => {
+    if (
+      Platform.OS === 'ios' &&
+      isFirstChangeAfterEmptyFocus.current &&
+      isFocusFixInProgress.current
+    ) {
+      isFirstChangeAfterEmptyFocus.current = false;
+      const fixed = removeFirstCharDuplicate(html);
+      if (fixed !== html) {
+        onChangeText(fixed);
+        editorRef?.current?.setContentHTML(fixed);
+        setTimeout(() => editorRef?.current?.focusContentEditor(), 10);
+        return;
+      }
+    }
+    isFirstChangeAfterEmptyFocus.current = false;
+    onChangeText(html);
   };
 
   return (
@@ -134,7 +165,7 @@ export default function BodyInput({
           }}
           style={[styles.editor, { height: editorHeight }]}
           initialContentHTML={value}
-          onChange={onChangeText}
+          onChange={handleChange}
           placeholder={PLACEHOLDERS.bodyInput}
           useContainer={false}
           onFocus={handleFocus}
