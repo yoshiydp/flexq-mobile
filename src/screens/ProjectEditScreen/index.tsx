@@ -655,7 +655,13 @@ export default function ProjectEditScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onStartShouldSetResponder={() => {
+        blurEditor();
+        return false;
+      }}
+    >
       {/* 高さを常に確保することでトランジション中のレイアウトシフトを防ぐ */}
       <View
         pointerEvents={
