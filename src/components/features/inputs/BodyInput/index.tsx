@@ -38,7 +38,7 @@ export default function BodyInput({
   isListening = false,
   onMicPress,
 }: BodyInputProps) {
-  const hasFirstFocused = useRef(false);
+  const isFocusFixInProgress = useRef(false);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(200);
 
@@ -49,12 +49,27 @@ export default function BodyInput({
       : contentHeight;
 
   const handleFocus = () => {
-    if (Platform.OS !== 'ios' || hasFirstFocused.current) return;
-    hasFirstFocused.current = true;
-    // iOS WebView は最初のフォーカス時に入力接続が未確立で最初の1文字が二重送信される。
-    // 初回フォーカス時のみ即座に blur して再フォーカスすることで入力接続を確立する。
+    if (Platform.OS !== 'ios') return;
+
+    // blur→refocus サイクル中の再入を防ぐ
+    if (isFocusFixInProgress.current) {
+      isFocusFixInProgress.current = false;
+      return;
+    }
+
+    // 空の状態でフォーカスしたときのみ実行
+    // iOS WKWebView は空コンテンツへの初回入力時に UITextInput 接続が未確立で
+    // 最初の1文字が二重送信される。blur→refocus で接続を確立してから入力を受け付ける。
+    const isEmpty =
+      !value ||
+      value === '<p></p>' ||
+      value === '<p><br></p>' ||
+      value.trim() === '';
+    if (!isEmpty) return;
+
+    isFocusFixInProgress.current = true;
     editorRef?.current?.blurContentEditor();
-    setTimeout(() => editorRef?.current?.focusContentEditor(), 50);
+    setTimeout(() => editorRef?.current?.focusContentEditor(), 100);
   };
 
   return (
