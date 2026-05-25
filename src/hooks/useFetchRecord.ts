@@ -1,5 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+
+const CACHE_KEY = 'record_has_items';
 
 export interface RecordType {
   id: string;
@@ -13,6 +16,14 @@ export function useFetchRecord() {
   const [records, setRecords] = useState<RecordType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const [cachedHasItems, setCachedHasItems] = useState<boolean | undefined>(undefined);
+  const hasFetchedOnce = useRef(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(CACHE_KEY).then((val) => {
+      if (val !== null) setCachedHasItems(val === 'true');
+    });
+  }, []);
 
   const fetchRecord = useCallback(async () => {
     setLoading(true);
@@ -33,11 +44,13 @@ export function useFetchRecord() {
         });
 
       setRecords(sortedRecords);
+      await AsyncStorage.setItem(CACHE_KEY, String(sortedRecords.length > 0));
     } catch (err) {
       console.error('Failed to fetch record:', err);
       setError(err as Error);
     } finally {
       setLoading(false);
+      hasFetchedOnce.current = true;
     }
   }, []);
 
@@ -45,5 +58,11 @@ export function useFetchRecord() {
     fetchRecord();
   }, [fetchRecord]);
 
-  return { records, loading, error, refreshRecord: fetchRecord };
+  // 初回フェッチ前はキャッシュ値、以降は前回フェッチ結果を使うことで
+  // 再フォーカス時に古いキャッシュでボタンが一瞬表示されるフラッシュを防ぐ
+  const hasItems = loading
+    ? (hasFetchedOnce.current ? records.length > 0 : cachedHasItems)
+    : records.length > 0;
+
+  return { records, loading, error, refreshRecord: fetchRecord, hasItems };
 }
