@@ -57,7 +57,11 @@ export default function BodyInput({
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onStartShouldSetResponder={() => true}
+      onResponderTerminationRequest={() => true}
+    >
       {isEditing && (
         <View style={styles.toolbarRow}>
           <RichToolbar
