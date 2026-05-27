@@ -51,6 +51,7 @@ export default function BodyInput({
 }: BodyInputProps) {
   const isFocusFixInProgress = useRef(false);
   const isFirstChangeAfterEmptyFocus = useRef(false);
+  const isClearedWhileFocused = useRef(false);
   const [scrollViewHeight, setScrollViewHeight] = useState(0);
   const [contentHeight, setContentHeight] = useState(200);
 
@@ -82,8 +83,7 @@ export default function BodyInput({
 
   const handleChange = (html: string) => {
     if (Platform.OS === 'ios') {
-      // blur→refocus タイムアウト内に入力された場合のフォールバック。
-      // isFocusFixInProgress が true の間に onChange が来たとき先頭文字の重複を検出して修正する。
+      // 初回フォーカス時の blur→refocus タイムアウト内に入力された場合のフォールバック。
       if (isFirstChangeAfterEmptyFocus.current && isFocusFixInProgress.current) {
         isFirstChangeAfterEmptyFocus.current = false;
         const fixed = removeFirstCharDuplicate(html);
@@ -95,17 +95,24 @@ export default function BodyInput({
         }
       }
 
-      // フォーカスを保ったままコンテンツが空になった場合、同じ blur→refocus サイクルを
-      // 再実行して UITextInput 接続を再確立する。
-      // handleFocus は呼ばれないためここでフラグをセットする。
-      // キーボードは既に出ているため 50ms の短いタイムアウトを使用する。
+      // フォーカスを保ったままコンテンツが全削除された場合のフラグ管理。
+      // この状態では blur→refocus が呼ばれないため UITextInput 接続が不安定なまま残り、
+      // 次の入力で1文字目が複製される。複製を前提として検出・除去する。
       if (isEditorEmpty(html) && !isFocusFixInProgress.current) {
-        isFirstChangeAfterEmptyFocus.current = true;
-        isFocusFixInProgress.current = true;
-        editorRef?.current?.blurContentEditor();
-        setTimeout(() => editorRef?.current?.focusContentEditor(), 50);
+        isClearedWhileFocused.current = true;
         onChangeText(html);
         return;
+      }
+
+      if (isClearedWhileFocused.current) {
+        isClearedWhileFocused.current = false;
+        const fixed = removeFirstCharDuplicate(html);
+        if (fixed !== html) {
+          onChangeText(fixed);
+          editorRef?.current?.setContentHTML(fixed);
+          setTimeout(() => editorRef?.current?.focusContentEditor(), 10);
+          return;
+        }
       }
     }
 
