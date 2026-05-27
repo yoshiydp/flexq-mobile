@@ -307,9 +307,12 @@ export default function ProjectEditScreen() {
     })();
   }, [volume]);
 
+  const blurEditor = () => richText.current?.blurContentEditor();
+
   const handleToggleEditLyrics = () => {
     const nextState = !isEditingLyrics;
     setIsEditingLyrics(nextState);
+    if (!nextState) blurEditor();
 
     if (mode === 'edit') {
       Animated.parallel([
@@ -652,7 +655,13 @@ export default function ProjectEditScreen() {
   }
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      onStartShouldSetResponder={() => {
+        blurEditor();
+        return false;
+      }}
+    >
       {/* 高さを常に確保することでトランジション中のレイアウトシフトを防ぐ */}
       <View
         pointerEvents={
@@ -680,6 +689,7 @@ export default function ProjectEditScreen() {
               onChangeBody={setBody}
               isEditingLyrics={isEditingLyrics}
               onToggleEditLyrics={handleToggleEditLyrics}
+              onBlurEditor={blurEditor}
               trackSource={trackSource}
               sound={sound}
               waveformData={waveformData}

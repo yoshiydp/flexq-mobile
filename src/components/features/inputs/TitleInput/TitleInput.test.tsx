@@ -21,4 +21,22 @@ describe('TitleInput コンポーネント', () => {
     fireEvent.changeText(input, '新しいタイトル');
     expect(mockProps.onChangeText).toHaveBeenCalledWith('新しいタイトル');
   });
+
+  it('フォーカス時に onFocus が呼ばれる', () => {
+    const mockOnFocus = jest.fn();
+    const { getByPlaceholderText } = render(
+      <TitleInput {...mockProps} onFocus={mockOnFocus} />,
+    );
+    const input = getByPlaceholderText('タイトルを入力してください');
+
+    fireEvent(input, 'focus');
+    expect(mockOnFocus).toHaveBeenCalledTimes(1);
+  });
+
+  it('onFocus が渡されなくてもエラーにならない', () => {
+    const { getByPlaceholderText } = render(<TitleInput {...mockProps} />);
+    const input = getByPlaceholderText('タイトルを入力してください');
+
+    expect(() => fireEvent(input, 'focus')).not.toThrow();
+  });
 });

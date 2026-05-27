@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useCallback } from 'react';
 import { View } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import DraftsAddList from '@/components/features/drafts/DraftsAddList';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
@@ -11,8 +11,15 @@ import styles from './DraftsScreen.styles';
 export default function DraftsScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
   const navigation = useNavigation();
-  const { memos, loading: memosLoading } = useFetchMemo();
-  const { records, loading: recordsLoading } = useFetchRecord();
+  const { hasItems: memosHasItems, refreshMemo } = useFetchMemo();
+  const { hasItems: recordsHasItems, refreshRecord } = useFetchRecord();
+
+  useFocusEffect(
+    useCallback(() => {
+      refreshMemo();
+      refreshRecord();
+    }, [refreshMemo, refreshRecord]),
+  );
 
   const ADD_LIST = [
     {
@@ -21,7 +28,7 @@ export default function DraftsScreen() {
       onPressAddButton: () =>
         navigation.navigate('QuickMemo', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('MemoList', {}),
-      showListButton: memosLoading ? undefined : memos.length > 0,
+      showListButton: memosHasItems,
       addButtonTestID: 'drafts-quick-memo-button',
     },
     {
@@ -30,7 +37,7 @@ export default function DraftsScreen() {
       onPressAddButton: () =>
         navigation.navigate('QuickRecord', { source: 'Drafts' }),
       onPressListButton: () => navigation.navigate('RecordList', {}),
-      showListButton: recordsLoading ? undefined : records.length > 0,
+      showListButton: recordsHasItems,
       addButtonTestID: 'drafts-quick-record-button',
     },
   ];

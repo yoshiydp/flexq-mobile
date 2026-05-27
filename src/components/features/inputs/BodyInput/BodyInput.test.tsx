@@ -1,6 +1,5 @@
-import React, { createRef } from 'react';
+import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
-import { RichEditor } from 'react-native-pell-rich-editor';
 import BodyInput from './index';
 
 jest.mock('react-native-webview', () => {
@@ -53,29 +52,19 @@ describe('BodyInput コンポーネント', () => {
     expect(mockProps.onChangeText).toHaveBeenCalledWith('新しい本文');
   });
 
-  it('isEditing=true のとき完了ボタンが表示される', () => {
-    const { getByText } = render(<BodyInput {...mockProps} isEditing />);
-    getByText('完了');
+  it('isEditing=true のときツールバーが表示される', () => {
+    const { getByTestId } = render(<BodyInput {...mockProps} isEditing />);
+    getByTestId('rich-toolbar');
   });
 
-  it('isEditing=false のとき完了ボタンが表示されない', () => {
-    const { queryByText } = render(<BodyInput {...mockProps} isEditing={false} />);
+  it('isEditing=false のときツールバーが表示されない', () => {
+    const { queryByTestId } = render(<BodyInput {...mockProps} isEditing={false} />);
+    expect(queryByTestId('rich-toolbar')).toBeNull();
+  });
+
+  it('完了ボタンが存在しない', () => {
+    const { queryByText } = render(<BodyInput {...mockProps} isEditing />);
     expect(queryByText('完了')).toBeNull();
-  });
-
-  it('完了ボタンを押すと blurContentEditor が呼ばれる', () => {
-    const editorRef = createRef<RichEditor>();
-    const mockBlur = jest.fn();
-    (editorRef as React.MutableRefObject<RichEditor>).current = {
-      blurContentEditor: mockBlur,
-    } as unknown as RichEditor;
-
-    const { getByText } = render(
-      <BodyInput {...mockProps} isEditing editorRef={editorRef} />,
-    );
-
-    fireEvent.press(getByText('完了'));
-    expect(mockBlur).toHaveBeenCalledTimes(1);
   });
 
   it('onFocus ハンドラーが RichEditor に渡される', () => {
