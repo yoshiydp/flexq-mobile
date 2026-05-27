@@ -1,5 +1,8 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+
+const CACHE_KEY = 'memo_has_items';
 
 export interface MemoType {
   id: string;
@@ -13,6 +16,14 @@ export function useFetchMemo() {
   const [memos, setMemos] = useState<MemoType[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
+  const [cachedHasItems, setCachedHasItems] = useState<boolean | undefined>(undefined);
+  const hasFetchedOnce = useRef(false);
+
+  useEffect(() => {
+    AsyncStorage.getItem(CACHE_KEY).then((val) => {
+      if (val !== null) setCachedHasItems(val === 'true');
+    });
+  }, []);
 
   const fetchMemo = useCallback(async () => {
     setLoading(true);
@@ -20,17 +31,18 @@ export function useFetchMemo() {
 
     try {
       const res = await DefaultService.getMemo();
-      setMemos(
-        res.map((memo: any) => ({
-          ...memo,
-          updatedAt: new Date(memo.updatedAt),
-        })),
-      );
+      const mapped = res.map((memo: any) => ({
+        ...memo,
+        updatedAt: new Date(memo.updatedAt),
+      }));
+      setMemos(mapped);
+      await AsyncStorage.setItem(CACHE_KEY, String(mapped.length > 0));
     } catch (err) {
       console.error('Failed to fetch memo:', err);
       setError(err as Error);
     } finally {
       setLoading(false);
+      hasFetchedOnce.current = true;
     }
   }, []);
 
@@ -38,5 +50,11 @@ export function useFetchMemo() {
     fetchMemo();
   }, [fetchMemo]);
 
-  return { memos, loading, error, refreshMemo: fetchMemo };
+  // 初回フェッチ前はキャッシュ値、以降は前回フェッチ結果を使うことで
+  // 再フォーカス時に古いキャッシュでボタンが一瞬表示されるフラッシュを防ぐ
+  const hasItems = loading
+    ? (hasFetchedOnce.current ? memos.length > 0 : cachedHasItems)
+    : memos.length > 0;
+
+  return { memos, loading, error, refreshMemo: fetchMemo, hasItems };
 }
