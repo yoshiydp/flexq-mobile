@@ -248,7 +248,6 @@ describe('BodyInput コンポーネント', () => {
   });
 
   describe('handleChange - フォーカス継続中のコンテンツ全削除後の再入力', () => {
-    let mockBlur: jest.Mock;
     let mockFocusEditor: jest.Mock;
     let mockSetContent: jest.Mock;
     let editorRef: React.RefObject<any>;
@@ -258,12 +257,11 @@ describe('BodyInput コンポーネント', () => {
       jest.useFakeTimers();
       originalOS = Platform.OS;
       (Platform as any).OS = 'ios';
-      mockBlur = jest.fn();
       mockFocusEditor = jest.fn();
       mockSetContent = jest.fn();
       editorRef = createRef();
       (editorRef as React.MutableRefObject<any>).current = {
-        blurContentEditor: mockBlur,
+        blurContentEditor: jest.fn(),
         focusContentEditor: mockFocusEditor,
         setContentHTML: mockSetContent,
       };
@@ -274,50 +272,29 @@ describe('BodyInput コンポーネント', () => {
       (Platform as any).OS = originalOS;
     });
 
-    it('コンテンツが空になったとき blurContentEditor が呼ばれる', () => {
-      const { getByTestId } = render(
-        <BodyInput value="テキスト" onChangeText={jest.fn()} editorRef={editorRef} />,
-      );
-      fireEvent(getByTestId('rich-editor'), 'onChange', '<p><br></p>');
-      expect(mockBlur).toHaveBeenCalledTimes(1);
-    });
-
-    it('コンテンツが空になったとき 50ms 後に focusContentEditor が呼ばれる', () => {
-      const { getByTestId } = render(
-        <BodyInput value="テキスト" onChangeText={jest.fn()} editorRef={editorRef} />,
-      );
-      fireEvent(getByTestId('rich-editor'), 'onChange', '<p><br></p>');
-      jest.advanceTimersByTime(50);
-      expect(mockFocusEditor).toHaveBeenCalledTimes(1);
-    });
-
-    it('全削除後 50ms 以内の入力で先頭文字の重複を除去する', () => {
+    it('全削除後の次の入力で先頭文字の重複を除去する', () => {
       const onChangeText = jest.fn();
       const { getByTestId } = render(
         <BodyInput value="テキスト" onChangeText={onChangeText} editorRef={editorRef} />,
       );
       const editor = getByTestId('rich-editor');
-      fireEvent(editor, 'onChange', '');           // 全削除
+      fireEvent(editor, 'onChange', '');
       onChangeText.mockClear();
-      fireEvent(editor, 'onChange', '<p>aa</p>'); // 50ms 以内に入力
+      fireEvent(editor, 'onChange', '<p>aa</p>');
       expect(onChangeText).toHaveBeenCalledWith('<p>a</p>');
       expect(mockSetContent).toHaveBeenCalledWith('<p>a</p>');
     });
 
-    it('全削除後 50ms 経過後（refocus 完了後）の入力は重複除去しない', () => {
+    it('複数文字入力で先頭のみ重複している場合も除去する', () => {
       const onChangeText = jest.fn();
       const { getByTestId } = render(
         <BodyInput value="テキスト" onChangeText={onChangeText} editorRef={editorRef} />,
       );
       const editor = getByTestId('rich-editor');
-      fireEvent(editor, 'onChange', '');           // 全削除
-      jest.advanceTimersByTime(50);                // 50ms 経過
-      // refocus による 2 回目の handleFocus でフラグをリセット
-      mockRichEditor.mock.calls[mockRichEditor.mock.calls.length - 1][0].onFocus();
+      fireEvent(editor, 'onChange', '');
       onChangeText.mockClear();
-      fireEvent(editor, 'onChange', '<p>aa</p>');
-      expect(onChangeText).toHaveBeenCalledWith('<p>aa</p>');
-      expect(mockSetContent).not.toHaveBeenCalled();
+      fireEvent(editor, 'onChange', '<p>aabc</p>');
+      expect(onChangeText).toHaveBeenCalledWith('<p>abc</p>');
     });
 
     it('全削除後に重複なし入力はそのまま渡す', () => {
@@ -333,13 +310,42 @@ describe('BodyInput コンポーネント', () => {
       expect(mockSetContent).not.toHaveBeenCalled();
     });
 
-    it('Android ではコンテンツが空になっても blurContentEditor が呼ばれない', () => {
-      (Platform as any).OS = 'android';
+    it('全削除後2文字目以降は重複除去しない', () => {
+      const onChangeText = jest.fn();
+      const { getByTestId } = render(
+        <BodyInput value="テキスト" onChangeText={onChangeText} editorRef={editorRef} />,
+      );
+      const editor = getByTestId('rich-editor');
+      fireEvent(editor, 'onChange', '');
+      fireEvent(editor, 'onChange', '<p>a</p>');  // 1文字目（重複なし）
+      onChangeText.mockClear();
+      fireEvent(editor, 'onChange', '<p>aa</p>'); // 意図的な "aa"
+      expect(onChangeText).toHaveBeenCalledWith('<p>aa</p>');
+      expect(mockSetContent).not.toHaveBeenCalled();
+    });
+
+    it('除去後に focusContentEditor が 10ms 後に呼ばれる', () => {
       const { getByTestId } = render(
         <BodyInput value="テキスト" onChangeText={jest.fn()} editorRef={editorRef} />,
       );
-      fireEvent(getByTestId('rich-editor'), 'onChange', '');
-      expect(mockBlur).not.toHaveBeenCalled();
+      const editor = getByTestId('rich-editor');
+      fireEvent(editor, 'onChange', '');
+      fireEvent(editor, 'onChange', '<p>aa</p>');
+      jest.advanceTimersByTime(10);
+      expect(mockFocusEditor).toHaveBeenCalledTimes(1);
+    });
+
+    it('Android では重複除去しない', () => {
+      (Platform as any).OS = 'android';
+      const onChangeText = jest.fn();
+      const { getByTestId } = render(
+        <BodyInput value="テキスト" onChangeText={onChangeText} editorRef={editorRef} />,
+      );
+      const editor = getByTestId('rich-editor');
+      fireEvent(editor, 'onChange', '');
+      fireEvent(editor, 'onChange', '<p>aa</p>');
+      expect(onChangeText).toHaveBeenLastCalledWith('<p>aa</p>');
+      expect(mockSetContent).not.toHaveBeenCalled();
     });
   });
 
