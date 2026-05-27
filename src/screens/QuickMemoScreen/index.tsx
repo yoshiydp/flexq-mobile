@@ -170,10 +170,18 @@ export default function QuickMemoScreen() {
     <KeyboardAvoidingView
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      onStartShouldSetResponder={() => {
+        richText.current?.blurContentEditor();
+        return false;
+      }}
     >
       <HeaderToolBar items={items} isBookmarked={isBookmarked} />
       <View style={styles.inputContainer}>
-        <TitleInput value={title} onChangeText={setTitle} />
+        <TitleInput
+            value={title}
+            onChangeText={setTitle}
+            onFocus={() => richText.current?.blurContentEditor()}
+          />
         <View style={styles.bodyInputWrapper}>
           <BodyInput
             editorRef={richText as React.RefObject<RichEditor>}

@@ -17,6 +17,7 @@ interface EditViewProps {
   onChangeBody: (text: string) => void;
   isEditingLyrics: boolean;
   onToggleEditLyrics: () => void;
+  onBlurEditor?: () => void;
   trackSource: string | null;
   sound: any;
   waveformData: number[];
@@ -49,6 +50,7 @@ export default function EditView({
   onChangeBody,
   isEditingLyrics,
   onToggleEditLyrics,
+  onBlurEditor,
   trackSource,
   sound,
   waveformData,
@@ -74,8 +76,18 @@ export default function EditView({
   richText,
 }: EditViewProps) {
   return (
-    <View style={styles.container}>
-      <TitleInput value={projectName} onChangeText={onChangeProjectName} />
+    <View
+      style={styles.container}
+      onStartShouldSetResponder={() => {
+        onBlurEditor?.();
+        return false;
+      }}
+    >
+      <TitleInput
+        value={projectName}
+        onChangeText={onChangeProjectName}
+        onFocus={onBlurEditor}
+      />
 
       <Animated.View
         style={[styles.bodyInputWrapper, { height: animatedHeight }]}
