@@ -80,24 +80,35 @@ export default function BodyInput({
     setTimeout(() => editorRef?.current?.focusContentEditor(), 300);
   };
 
-  // blur→refocus タイムアウト内に入力された場合のフォールバック。
-  // isFocusFixInProgress が true の間（=300ms 以内）に onChange が来たとき
-  // 先頭文字の重複を検出して修正する。
   const handleChange = (html: string) => {
-    if (
-      Platform.OS === 'ios' &&
-      isFirstChangeAfterEmptyFocus.current &&
-      isFocusFixInProgress.current
-    ) {
-      isFirstChangeAfterEmptyFocus.current = false;
-      const fixed = removeFirstCharDuplicate(html);
-      if (fixed !== html) {
-        onChangeText(fixed);
-        editorRef?.current?.setContentHTML(fixed);
-        setTimeout(() => editorRef?.current?.focusContentEditor(), 10);
+    if (Platform.OS === 'ios') {
+      // blur→refocus タイムアウト内に入力された場合のフォールバック。
+      // isFocusFixInProgress が true の間に onChange が来たとき先頭文字の重複を検出して修正する。
+      if (isFirstChangeAfterEmptyFocus.current && isFocusFixInProgress.current) {
+        isFirstChangeAfterEmptyFocus.current = false;
+        const fixed = removeFirstCharDuplicate(html);
+        if (fixed !== html) {
+          onChangeText(fixed);
+          editorRef?.current?.setContentHTML(fixed);
+          setTimeout(() => editorRef?.current?.focusContentEditor(), 10);
+          return;
+        }
+      }
+
+      // フォーカスを保ったままコンテンツが空になった場合、同じ blur→refocus サイクルを
+      // 再実行して UITextInput 接続を再確立する。
+      // handleFocus は呼ばれないためここでフラグをセットする。
+      // キーボードは既に出ているため 50ms の短いタイムアウトを使用する。
+      if (isEditorEmpty(html) && !isFocusFixInProgress.current) {
+        isFirstChangeAfterEmptyFocus.current = true;
+        isFocusFixInProgress.current = true;
+        editorRef?.current?.blurContentEditor();
+        setTimeout(() => editorRef?.current?.focusContentEditor(), 50);
+        onChangeText(html);
         return;
       }
     }
+
     isFirstChangeAfterEmptyFocus.current = false;
     onChangeText(html);
   };
