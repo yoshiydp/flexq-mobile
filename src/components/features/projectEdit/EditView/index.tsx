@@ -1,6 +1,6 @@
 import React from 'react';
 import { View, Animated } from 'react-native';
-import { RichEditor } from 'react-native-pell-rich-editor';
+import { type EditorBridge } from '@10play/tentap-editor';
 import TitleInput from '@/components/features/inputs/TitleInput';
 import BodyInput from '@/components/features/inputs/BodyInput';
 import OverlayToggleButton from '@/components/features/projectEdit/OverlayToggleButton';
@@ -13,7 +13,6 @@ import styles from './EditView.styles';
 interface EditViewProps {
   projectName: string;
   onChangeProjectName: (text: string) => void;
-  body: string;
   onChangeBody: (text: string) => void;
   isEditingLyrics: boolean;
   onToggleEditLyrics: () => void;
@@ -40,13 +39,12 @@ interface EditViewProps {
   volumeOpacity: Animated.Value;
   volumeTranslateY: Animated.Value;
   bottomSectionTranslateY: Animated.Value;
-  richText: React.RefObject<RichEditor>;
+  editor: EditorBridge;
 }
 
 export default function EditView({
   projectName,
   onChangeProjectName,
-  body,
   onChangeBody,
   isEditingLyrics,
   onToggleEditLyrics,
@@ -73,7 +71,7 @@ export default function EditView({
   volumeOpacity,
   volumeTranslateY,
   bottomSectionTranslateY,
-  richText,
+  editor,
 }: EditViewProps) {
   return (
     <View
@@ -93,8 +91,7 @@ export default function EditView({
         style={[styles.bodyInputWrapper, { height: animatedHeight }]}
       >
         <BodyInput
-          editorRef={richText}
-          value={body}
+          editor={editor}
           onChangeText={onChangeBody}
           isEditing={isEditingLyrics}
         />
