@@ -53,7 +53,7 @@ export default function QuickMemoScreen() {
       }),
     ],
     initialContent: params.body ?? '',
-    avoidIosKeyboard: true,
+    avoidIosKeyboard: false,
     theme: {
       ...darkEditorTheme,
       webview: { backgroundColor: COLORS.base.bgDefault },
