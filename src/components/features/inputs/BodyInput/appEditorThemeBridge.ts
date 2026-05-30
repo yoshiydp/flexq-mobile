@@ -15,6 +15,7 @@ export const AppEditorThemeBridge = new BridgeExtension({
       font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
       caret-color: ${COLORS.form.default.text};
       background-color: ${COLORS.base.bgDefault};
+      padding: 16px 0;
     }
     .ProseMirror p {
       margin: 0;
