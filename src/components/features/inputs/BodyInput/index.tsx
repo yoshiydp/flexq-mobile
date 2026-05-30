@@ -1,124 +1,36 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect } from 'react';
+import { Button, Pressable, ScrollView, View } from 'react-native';
 import {
-  Button,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from 'react-native';
-import {
-  RichEditor,
-  RichToolbar,
-  actions,
-} from 'react-native-pell-rich-editor';
+  RichText,
+  useEditorContent,
+  type EditorBridge,
+} from '@10play/tentap-editor';
 import { Ionicons } from '@expo/vector-icons';
-import { PLACEHOLDERS } from '@/constants/placeholders';
 import { COLORS } from '@/globalStyles';
 import { styles } from './BodyInput.styles';
 
 interface BodyInputProps {
-  editorRef?: React.RefObject<RichEditor>;
-  value: string;
+  editor: EditorBridge;
   onChangeText: (text: string) => void;
-  richEditorAddStyle?: any;
   isEditing?: boolean;
   fillContainer?: boolean;
   isListening?: boolean;
   onMicPress?: () => void;
 }
 
-const isEditorEmpty = (html: string) =>
-  !html || html === '<p></p>' || html === '<p><br></p>' || html.trim() === '';
-
-// iOS WKWebView bug: first character typed in an empty editor gets duplicated.
-// When duplication occurs the HTML starts with <tag>XX... where X is the first char.
-const removeFirstCharDuplicate = (html: string): string => {
-  const text = html.replace(/<[^>]+>/g, '');
-  if (text.length < 2 || text[0] !== text[1]) return html;
-  const escaped = text[0].replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-  return html.replace(new RegExp(`(<[^>]+>)${escaped}${escaped}`), `$1${text[0]}`);
-};
-
 export default function BodyInput({
-  editorRef,
-  value,
+  editor,
   onChangeText,
-  richEditorAddStyle,
   isEditing,
   fillContainer = false,
   isListening = false,
   onMicPress,
 }: BodyInputProps) {
-  const isFocusFixInProgress = useRef(false);
-  const isFirstChangeAfterEmptyFocus = useRef(false);
-  const isClearedWhileFocused = useRef(false);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  const [contentHeight, setContentHeight] = useState(200);
+  const html = useEditorContent(editor, { type: 'html' });
 
-  const SCROLL_PADDING = 32;
-  const editorHeight =
-    fillContainer && scrollViewHeight > 0
-      ? Math.max(scrollViewHeight - SCROLL_PADDING, contentHeight)
-      : contentHeight;
-
-  const handleFocus = () => {
-    if (Platform.OS !== 'ios') return;
-
-    // blur→refocus サイクル中の再入を防ぐ
-    if (isFocusFixInProgress.current) {
-      isFocusFixInProgress.current = false;
-      return;
-    }
-
-    if (!isEditorEmpty(value)) return;
-
-    // iOS WKWebView は空コンテンツへの初回入力時に UITextInput 接続が未確立で
-    // 最初の1文字が二重送信される。blur→refocus で接続を確立してから入力を受け付ける。
-    // 300ms はキーボードアニメーション完了（約250ms）を超えるタイムアウトで設定。
-    isFirstChangeAfterEmptyFocus.current = true;
-    isFocusFixInProgress.current = true;
-    editorRef?.current?.blurContentEditor();
-    setTimeout(() => editorRef?.current?.focusContentEditor(), 300);
-  };
-
-  const handleChange = (html: string) => {
-    if (Platform.OS === 'ios') {
-      // 初回フォーカス時の blur→refocus タイムアウト内に入力された場合のフォールバック。
-      if (isFirstChangeAfterEmptyFocus.current && isFocusFixInProgress.current) {
-        isFirstChangeAfterEmptyFocus.current = false;
-        const fixed = removeFirstCharDuplicate(html);
-        if (fixed !== html) {
-          onChangeText(fixed);
-          editorRef?.current?.setContentHTML(fixed);
-          setTimeout(() => editorRef?.current?.focusContentEditor(), 10);
-          return;
-        }
-      }
-
-      // フォーカスを保ったままコンテンツが全削除された場合のフラグ管理。
-      // この状態では blur→refocus が呼ばれないため UITextInput 接続が不安定なまま残り、
-      // 次の入力で1文字目が複製される。複製を前提として検出・除去する。
-      if (isEditorEmpty(html) && !isFocusFixInProgress.current) {
-        isClearedWhileFocused.current = true;
-        onChangeText(html);
-        return;
-      }
-
-      if (isClearedWhileFocused.current) {
-        isClearedWhileFocused.current = false;
-        const fixed = removeFirstCharDuplicate(html);
-        if (fixed !== html) {
-          onChangeText(fixed);
-          editorRef?.current?.setContentHTML(fixed);
-          setTimeout(() => editorRef?.current?.focusContentEditor(), 10);
-          return;
-        }
-      }
-    }
-
-    isFirstChangeAfterEmptyFocus.current = false;
-    onChangeText(html);
-  };
+  useEffect(() => {
+    if (html !== undefined) onChangeText(html);
+  }, [html, onChangeText]);
 
   return (
     <View
@@ -128,26 +40,12 @@ export default function BodyInput({
     >
       {isEditing && (
         <View style={styles.toolbarRow}>
-          <RichToolbar
-            editor={editorRef}
-            style={[styles.toolbar, styles.toolbarFlex]}
-            actions={[
-              actions.setBold,
-              actions.setItalic,
-              actions.insertBulletsList,
-              actions.insertOrderedList,
-            ]}
-            iconMap={{
-              [actions.setBold]: () => <Button title="B" onPress={() => {}} />,
-              [actions.setItalic]: () => <Button title="I" onPress={() => {}} />,
-              [actions.insertBulletsList]: () => (
-                <Button title="•" onPress={() => {}} />
-              ),
-              [actions.insertOrderedList]: () => (
-                <Button title="1." onPress={() => {}} />
-              ),
-            }}
-          />
+          <View style={[styles.toolbar, styles.toolbarFlex]}>
+            <Button title="B" onPress={() => editor.toggleBold()} />
+            <Button title="I" onPress={() => editor.toggleItalic()} />
+            <Button title="•" onPress={() => editor.toggleBulletList()} />
+            <Button title="1." onPress={() => editor.toggleOrderedList()} />
+          </View>
           {onMicPress && (
             <Pressable
               style={styles.micButton}
@@ -165,29 +63,16 @@ export default function BodyInput({
       )}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          fillContainer ? { flexGrow: 1 } : undefined,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        onLayout={
-          fillContainer
-            ? (e) => setScrollViewHeight(e.nativeEvent.layout.height)
-            : undefined
-        }
       >
-        <RichEditor
-          ref={editorRef}
-          editorStyle={{
-            ...styles.richEditor,
-            placeholderColor: '#666',
-            ...(richEditorAddStyle ? richEditorAddStyle : {}),
-          }}
-          style={[styles.editor, { height: editorHeight }]}
-          initialContentHTML={value}
-          onChange={handleChange}
-          placeholder={PLACEHOLDERS.bodyInput}
-          useContainer={false}
-          onFocus={handleFocus}
-          onHeightChange={(h) => setContentHeight(Math.max(200, h))}
+        <RichText
+          editor={editor}
+          style={[styles.editor, fillContainer ? { flex: 1, minHeight: 200 } : undefined]}
         />
       </ScrollView>
     </View>

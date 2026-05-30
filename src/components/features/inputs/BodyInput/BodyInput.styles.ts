@@ -14,6 +14,7 @@ export const styles = StyleSheet.create({
   },
   editor: {
     minHeight: 200,
+    backgroundColor: COLORS.base.bgDefault,
   },
   toolbarRow: {
     flexDirection: 'row',
@@ -21,6 +22,8 @@ export const styles = StyleSheet.create({
     backgroundColor: COLORS.navigation.bg,
   },
   toolbar: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: COLORS.navigation.bg,
     paddingVertical: 4,
   },
@@ -30,11 +33,5 @@ export const styles = StyleSheet.create({
   micButton: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-  },
-  richEditor: {
-    color: COLORS.form.default.text,
-    fontSize: 18,
-    fontWeight: 600,
-    backgroundColor: COLORS.base.bgDefault,
   },
 });
