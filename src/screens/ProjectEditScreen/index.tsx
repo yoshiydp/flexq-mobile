@@ -3,7 +3,6 @@ import React, {
   useRef,
   useEffect,
   useCallback,
-  type RefObject,
 } from 'react';
 import {
   View,
@@ -14,7 +13,14 @@ import {
   Text,
   StyleSheet,
 } from 'react-native';
-import { RichEditor } from 'react-native-pell-rich-editor';
+import {
+  useEditorBridge,
+  TenTapStartKit,
+  PlaceholderBridge,
+  darkEditorTheme,
+} from '@10play/tentap-editor';
+import { AppEditorThemeBridge } from '@/components/features/inputs/BodyInput/appEditorThemeBridge';
+import { COLORS } from '@/globalStyles';
 import { Audio } from 'expo-av';
 import {
   useNavigation,
@@ -82,6 +88,7 @@ export default function ProjectEditScreen() {
   const [artworkUri, setArtworkUri] = useState<string | undefined>(undefined);
   const [artworkKey, setArtworkKey] = useState<string | undefined>(undefined);
   const [body, setBody] = useState('');
+  const bodyRef = useRef(body);
   const [cueButtons, setCueButtons] = useState<CuePointType[]>([]);
   const [waveformData, setWaveformData] = useState<number[]>(() => {
     if (id) {
@@ -107,6 +114,11 @@ export default function ProjectEditScreen() {
     recordErrorRef.current = recordError;
   }, [recordLoading, recordError]);
 
+  useEffect(() => {
+    bodyRef.current = body;
+  }, [body]);
+
+
   const hasShownTrackDeletedWarning = useRef(false);
 
   useEffect(() => {
@@ -116,7 +128,8 @@ export default function ProjectEditScreen() {
     setTrackId(project.trackId);
     setTrackName(project.trackName);
     setArtworkUri(project.artwork ?? undefined);
-    setBody((project as any).body ?? '');
+    const projectBody = (project as any).body ?? '';
+    setBody(projectBody);
     setCueButtons(() => {
       const source = project.cueButtons;
       if (Array.isArray(source) && source.length > 0) return source;
@@ -213,7 +226,21 @@ export default function ProjectEditScreen() {
     hideLoading,
   } = useModal();
 
-  const richText = useRef<RichEditor>(null);
+  const editor = useEditorBridge({
+    bridgeExtensions: [
+      ...TenTapStartKit,
+      AppEditorThemeBridge,
+      PlaceholderBridge.configureExtension({
+        placeholder: PLACEHOLDERS.bodyInput,
+      }),
+    ],
+    initialContent: (project as any)?.body ?? '',
+    avoidIosKeyboard: true,
+    theme: {
+      ...darkEditorTheme,
+      webview: { backgroundColor: COLORS.base.bgDefault },
+    },
+  });
   const soundRef = useRef<Audio.Sound | null>(null);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const isSeekingRef = useRef(false);
@@ -307,7 +334,8 @@ export default function ProjectEditScreen() {
     })();
   }, [volume]);
 
-  const blurEditor = () => richText.current?.blurContentEditor();
+  const blurEditor = () => editor.blur();
+
 
   const handleToggleEditLyrics = () => {
     const nextState = !isEditingLyrics;
@@ -505,7 +533,7 @@ export default function ProjectEditScreen() {
       await updateProject({
         id,
         projectName,
-        body,
+        body: bodyRef.current,
         cueButtons,
         ...(artworkKey !== undefined ? { artworkKey } : {}),
         ...(trackId !== undefined ? { trackId } : {}),
@@ -685,7 +713,6 @@ export default function ProjectEditScreen() {
             <EditView
               projectName={projectName}
               onChangeProjectName={setProjectName}
-              body={body}
               onChangeBody={setBody}
               isEditingLyrics={isEditingLyrics}
               onToggleEditLyrics={handleToggleEditLyrics}
@@ -712,7 +739,7 @@ export default function ProjectEditScreen() {
               volumeOpacity={volumeOpacity}
               volumeTranslateY={volumeTranslateY}
               bottomSectionTranslateY={bottomSectionTranslateY}
-              richText={richText as unknown as RefObject<RichEditor>}
+              editor={editor}
             />
           )}
           {/* preloadRecView=true のとき不可視でプリマウント、currentView='rec' で通常表示 */}

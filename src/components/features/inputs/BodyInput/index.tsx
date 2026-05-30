@@ -1,26 +1,17 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect } from 'react';
+import { Button, Pressable, ScrollView, View } from 'react-native';
 import {
-  Button,
-  Platform,
-  Pressable,
-  ScrollView,
-  View,
-} from 'react-native';
-import {
-  RichEditor,
-  RichToolbar,
-  actions,
-} from 'react-native-pell-rich-editor';
+  RichText,
+  useEditorContent,
+  type EditorBridge,
+} from '@10play/tentap-editor';
 import { Ionicons } from '@expo/vector-icons';
-import { PLACEHOLDERS } from '@/constants/placeholders';
 import { COLORS } from '@/globalStyles';
 import { styles } from './BodyInput.styles';
 
 interface BodyInputProps {
-  editorRef?: React.RefObject<RichEditor>;
-  value: string;
+  editor: EditorBridge;
   onChangeText: (text: string) => void;
-  richEditorAddStyle?: any;
   isEditing?: boolean;
   fillContainer?: boolean;
   isListening?: boolean;
@@ -28,33 +19,18 @@ interface BodyInputProps {
 }
 
 export default function BodyInput({
-  editorRef,
-  value,
+  editor,
   onChangeText,
-  richEditorAddStyle,
   isEditing,
   fillContainer = false,
   isListening = false,
   onMicPress,
 }: BodyInputProps) {
-  const hasFirstFocused = useRef(false);
-  const [scrollViewHeight, setScrollViewHeight] = useState(0);
-  const [contentHeight, setContentHeight] = useState(200);
+  const html = useEditorContent(editor, { type: 'html' });
 
-  const SCROLL_PADDING = 32;
-  const editorHeight =
-    fillContainer && scrollViewHeight > 0
-      ? Math.max(scrollViewHeight - SCROLL_PADDING, contentHeight)
-      : contentHeight;
-
-  const handleFocus = () => {
-    if (Platform.OS !== 'ios' || hasFirstFocused.current) return;
-    hasFirstFocused.current = true;
-    // iOS WebView は最初のフォーカス時に入力接続が未確立で最初の1文字が二重送信される。
-    // 初回フォーカス時のみ即座に blur して再フォーカスすることで入力接続を確立する。
-    editorRef?.current?.blurContentEditor();
-    setTimeout(() => editorRef?.current?.focusContentEditor(), 50);
-  };
+  useEffect(() => {
+    if (html !== undefined) onChangeText(html);
+  }, [html, onChangeText]);
 
   return (
     <View
@@ -64,26 +40,12 @@ export default function BodyInput({
     >
       {isEditing && (
         <View style={styles.toolbarRow}>
-          <RichToolbar
-            editor={editorRef}
-            style={[styles.toolbar, styles.toolbarFlex]}
-            actions={[
-              actions.setBold,
-              actions.setItalic,
-              actions.insertBulletsList,
-              actions.insertOrderedList,
-            ]}
-            iconMap={{
-              [actions.setBold]: () => <Button title="B" onPress={() => {}} />,
-              [actions.setItalic]: () => <Button title="I" onPress={() => {}} />,
-              [actions.insertBulletsList]: () => (
-                <Button title="•" onPress={() => {}} />
-              ),
-              [actions.insertOrderedList]: () => (
-                <Button title="1." onPress={() => {}} />
-              ),
-            }}
-          />
+          <View style={[styles.toolbar, styles.toolbarFlex]}>
+            <Button title="B" onPress={() => editor.toggleBold()} />
+            <Button title="I" onPress={() => editor.toggleItalic()} />
+            <Button title="•" onPress={() => editor.toggleBulletList()} />
+            <Button title="1." onPress={() => editor.toggleOrderedList()} />
+          </View>
           {onMicPress && (
             <Pressable
               style={styles.micButton}
@@ -101,29 +63,16 @@ export default function BodyInput({
       )}
       <ScrollView
         style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
+        contentContainerStyle={[
+          styles.scrollContent,
+          fillContainer ? { flexGrow: 1 } : undefined,
+        ]}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
-        onLayout={
-          fillContainer
-            ? (e) => setScrollViewHeight(e.nativeEvent.layout.height)
-            : undefined
-        }
       >
-        <RichEditor
-          ref={editorRef}
-          editorStyle={{
-            ...styles.richEditor,
-            placeholderColor: '#666',
-            ...(richEditorAddStyle ? richEditorAddStyle : {}),
-          }}
-          style={[styles.editor, { height: editorHeight }]}
-          initialContentHTML={value}
-          onChange={onChangeText}
-          placeholder={PLACEHOLDERS.bodyInput}
-          useContainer={false}
-          onFocus={handleFocus}
-          onHeightChange={(h) => setContentHeight(Math.max(200, h))}
+        <RichText
+          editor={editor}
+          style={[styles.editor, fillContainer ? { flex: 1, minHeight: 200 } : undefined]}
         />
       </ScrollView>
     </View>
