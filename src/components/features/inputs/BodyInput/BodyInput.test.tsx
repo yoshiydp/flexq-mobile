@@ -1,4 +1,5 @@
 import React from 'react';
+import { ScrollView } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 import BodyInput from './index';
 
@@ -30,6 +31,29 @@ describe('BodyInput コンポーネント', () => {
       <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} />,
     );
     getByTestId('rich-text');
+  });
+
+  it('RichText が ScrollView を介さず直接描画される', () => {
+    const { UNSAFE_queryAllByType } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} />,
+    );
+    expect(UNSAFE_queryAllByType(ScrollView)).toHaveLength(0);
+  });
+
+  describe('fillContainer プロパティ', () => {
+    it('fillContainer=true でも RichText が描画される', () => {
+      const { getByTestId } = render(
+        <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} fillContainer />,
+      );
+      getByTestId('rich-text');
+    });
+
+    it('fillContainer=false でも RichText が描画される', () => {
+      const { getByTestId } = render(
+        <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} fillContainer={false} />,
+      );
+      getByTestId('rich-text');
+    });
   });
 
   it('isEditing=true のときツールバーが表示される', () => {

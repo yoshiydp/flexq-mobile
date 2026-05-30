@@ -5,15 +5,8 @@ export const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
-  scroll: {
+  richText: {
     flex: 1,
-    backgroundColor: COLORS.base.bgDefault,
-  },
-  scrollContent: {
-    paddingVertical: 16,
-  },
-  editor: {
-    minHeight: 200,
     backgroundColor: COLORS.base.bgDefault,
   },
   toolbarRow: {

@@ -235,7 +235,7 @@ export default function ProjectEditScreen() {
       }),
     ],
     initialContent: (project as any)?.body ?? '',
-    avoidIosKeyboard: true,
+    avoidIosKeyboard: false,
     theme: {
       ...darkEditorTheme,
       webview: { backgroundColor: COLORS.base.bgDefault },
