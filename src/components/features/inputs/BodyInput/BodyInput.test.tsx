@@ -2,86 +2,115 @@ import React from 'react';
 import { render, fireEvent } from '@testing-library/react-native';
 import BodyInput from './index';
 
-jest.mock('react-native-webview', () => {
-  const { View } = require('react-native');
-  return { WebView: View };
-});
+const mockEditor = {
+  toggleBold: jest.fn(),
+  toggleItalic: jest.fn(),
+  toggleBulletList: jest.fn(),
+  toggleOrderedList: jest.fn(),
+};
 
-const mockRichEditor = jest.fn();
+const mockUseEditorContent = jest.fn();
 
-jest.mock('react-native-pell-rich-editor', () => {
+jest.mock('@10play/tentap-editor', () => {
   const { View } = require('react-native');
   return {
-    RichEditor: (props: {
-      onChange?: (text: string) => void;
-      onFocus?: () => void;
-    }) => {
-      mockRichEditor(props);
-      return <View testID="rich-editor" onChange={props.onChange} />;
-    },
-    RichToolbar: () => <View testID="rich-toolbar" />,
-    actions: {
-      setBold: 'setBold',
-      setItalic: 'setItalic',
-      insertBulletsList: 'insertBulletsList',
-      insertOrderedList: 'insertOrderedList',
-    },
+    RichText: (props: any) => <View testID="rich-text" {...props} />,
+    useEditorContent: (...args: any[]) => mockUseEditorContent(...args),
   };
 });
 
 describe('BodyInput コンポーネント', () => {
-  const mockProps = {
-    value: 'サンプル本文',
-    onChangeText: jest.fn(),
-  };
-
   beforeEach(() => {
-    mockRichEditor.mockClear();
+    jest.clearAllMocks();
+    mockUseEditorContent.mockReturnValue(undefined);
   });
 
   it('コンポーネントが正しくレンダリングされる', () => {
-    const { getByTestId } = render(<BodyInput {...mockProps} />);
-    getByTestId('rich-editor');
-  });
-
-  it('エディタの onChange が呼ばれたら onChangeText が呼ばれる', () => {
-    const { getByTestId } = render(<BodyInput {...mockProps} />);
-    const editor = getByTestId('rich-editor');
-
-    fireEvent(editor, 'onChange', '新しい本文');
-    expect(mockProps.onChangeText).toHaveBeenCalledWith('新しい本文');
+    const { getByTestId } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} />,
+    );
+    getByTestId('rich-text');
   });
 
   it('isEditing=true のときツールバーが表示される', () => {
-    const { getByTestId } = render(<BodyInput {...mockProps} isEditing />);
-    getByTestId('rich-toolbar');
+    const { getByText } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} isEditing />,
+    );
+    getByText('B');
+    getByText('I');
+    getByText('•');
+    getByText('1.');
   });
 
   it('isEditing=false のときツールバーが表示されない', () => {
-    const { queryByTestId } = render(<BodyInput {...mockProps} isEditing={false} />);
-    expect(queryByTestId('rich-toolbar')).toBeNull();
+    const { queryByText } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} isEditing={false} />,
+    );
+    expect(queryByText('B')).toBeNull();
   });
 
-  it('完了ボタンが存在しない', () => {
-    const { queryByText } = render(<BodyInput {...mockProps} isEditing />);
-    expect(queryByText('完了')).toBeNull();
+  it('Bold ボタンを押すと editor.toggleBold が呼ばれる', () => {
+    const { getByText } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} isEditing />,
+    );
+    fireEvent.press(getByText('B'));
+    expect(mockEditor.toggleBold).toHaveBeenCalledTimes(1);
   });
 
-  it('onFocus ハンドラーが RichEditor に渡される', () => {
-    render(<BodyInput {...mockProps} />);
-    const props = mockRichEditor.mock.calls[0][0];
-    expect(typeof props.onFocus).toBe('function');
+  it('Italic ボタンを押すと editor.toggleItalic が呼ばれる', () => {
+    const { getByText } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} isEditing />,
+    );
+    fireEvent.press(getByText('I'));
+    expect(mockEditor.toggleItalic).toHaveBeenCalledTimes(1);
+  });
+
+  it('BulletList ボタンを押すと editor.toggleBulletList が呼ばれる', () => {
+    const { getByText } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} isEditing />,
+    );
+    fireEvent.press(getByText('•'));
+    expect(mockEditor.toggleBulletList).toHaveBeenCalledTimes(1);
+  });
+
+  it('OrderedList ボタンを押すと editor.toggleOrderedList が呼ばれる', () => {
+    const { getByText } = render(
+      <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} isEditing />,
+    );
+    fireEvent.press(getByText('1.'));
+    expect(mockEditor.toggleOrderedList).toHaveBeenCalledTimes(1);
+  });
+
+  it('useEditorContent から HTML が返ったとき onChangeText が呼ばれる', () => {
+    mockUseEditorContent.mockReturnValue('<p>テスト</p>');
+    const onChangeText = jest.fn();
+    render(<BodyInput editor={mockEditor as any} onChangeText={onChangeText} />);
+    expect(onChangeText).toHaveBeenCalledWith('<p>テスト</p>');
+  });
+
+  it('useEditorContent が undefined のとき onChangeText は呼ばれない', () => {
+    mockUseEditorContent.mockReturnValue(undefined);
+    const onChangeText = jest.fn();
+    render(<BodyInput editor={mockEditor as any} onChangeText={onChangeText} />);
+    expect(onChangeText).not.toHaveBeenCalled();
   });
 
   describe('マイクボタン', () => {
     it('onMicPress が渡されない場合マイクボタンが表示されない', () => {
-      const { queryByLabelText } = render(<BodyInput {...mockProps} isEditing />);
+      const { queryByLabelText } = render(
+        <BodyInput editor={mockEditor as any} onChangeText={jest.fn()} isEditing />,
+      );
       expect(queryByLabelText('音声入力開始')).toBeNull();
     });
 
     it('onMicPress が渡された場合マイクボタンが表示される', () => {
       const { getByLabelText } = render(
-        <BodyInput {...mockProps} isEditing onMicPress={jest.fn()} />,
+        <BodyInput
+          editor={mockEditor as any}
+          onChangeText={jest.fn()}
+          isEditing
+          onMicPress={jest.fn()}
+        />,
       );
       getByLabelText('音声入力開始');
     });
@@ -89,7 +118,12 @@ describe('BodyInput コンポーネント', () => {
     it('マイクボタンを押すと onMicPress が呼ばれる', () => {
       const mockOnMicPress = jest.fn();
       const { getByLabelText } = render(
-        <BodyInput {...mockProps} isEditing onMicPress={mockOnMicPress} />,
+        <BodyInput
+          editor={mockEditor as any}
+          onChangeText={jest.fn()}
+          isEditing
+          onMicPress={mockOnMicPress}
+        />,
       );
       fireEvent.press(getByLabelText('音声入力開始'));
       expect(mockOnMicPress).toHaveBeenCalledTimes(1);
@@ -97,7 +131,13 @@ describe('BodyInput コンポーネント', () => {
 
     it('isListening=true のときアクセシビリティラベルが「録音停止」になる', () => {
       const { getByLabelText } = render(
-        <BodyInput {...mockProps} isEditing onMicPress={jest.fn()} isListening />,
+        <BodyInput
+          editor={mockEditor as any}
+          onChangeText={jest.fn()}
+          isEditing
+          onMicPress={jest.fn()}
+          isListening
+        />,
       );
       getByLabelText('録音停止');
     });
@@ -105,7 +145,8 @@ describe('BodyInput コンポーネント', () => {
     it('isListening=false のときアクセシビリティラベルが「音声入力開始」になる', () => {
       const { getByLabelText } = render(
         <BodyInput
-          {...mockProps}
+          editor={mockEditor as any}
+          onChangeText={jest.fn()}
           isEditing
           onMicPress={jest.fn()}
           isListening={false}

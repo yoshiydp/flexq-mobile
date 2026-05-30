@@ -1,8 +1,9 @@
 import React from 'react';
 import { Animated } from 'react-native';
-import { RichEditor } from 'react-native-pell-rich-editor';
 import { render, fireEvent } from '@testing-library/react-native';
 import EditView from './index';
+
+jest.mock('@10play/tentap-editor', () => ({}));
 
 jest.mock('@/components/features/inputs/TitleInput', () => {
   const { TextInput } = require('react-native');
@@ -13,8 +14,8 @@ jest.mock('@/components/features/inputs/TitleInput', () => {
 
 jest.mock('@/components/features/inputs/BodyInput', () => {
   const { TextInput } = require('react-native');
-  return jest.fn(({ value, onChangeText }: any) => (
-    <TextInput value={value} onChangeText={onChangeText} multiline />
+  return jest.fn(({ onChangeText }: any) => (
+    <TextInput testID="body-input" onChangeText={onChangeText} />
   ));
 });
 
@@ -66,6 +67,19 @@ jest.mock('@/components/ui/VolumeSlider', () => {
   ));
 });
 
+const mockEditor = {
+  blur: jest.fn(),
+  focus: jest.fn(),
+  toggleBold: jest.fn(),
+  toggleItalic: jest.fn(),
+  toggleBulletList: jest.fn(),
+  toggleOrderedList: jest.fn(),
+  injectCSS: jest.fn(),
+  injectJS: jest.fn(),
+  setContent: jest.fn(),
+  getHTML: jest.fn(),
+};
+
 describe('EditView コンポーネント', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -74,7 +88,6 @@ describe('EditView コンポーネント', () => {
   const mockProps = {
     projectName: 'Sample Project',
     onChangeProjectName: jest.fn(),
-    body: 'サンプル本文テキスト。',
     onChangeBody: jest.fn(),
     isEditingLyrics: false,
     onToggleEditLyrics: jest.fn(),
@@ -100,20 +113,29 @@ describe('EditView コンポーネント', () => {
     volumeOpacity: new Animated.Value(1),
     volumeTranslateY: new Animated.Value(0),
     bottomSectionTranslateY: new Animated.Value(0),
-    richText: React.createRef<RichEditor>() as React.RefObject<RichEditor>,
+    editor: mockEditor as any,
   };
 
   it('コンポーネントが正しくレンダリングされる', () => {
-    const { getByDisplayValue, getByText } = render(
+    const { getByDisplayValue, getByText, getByTestId } = render(
       <EditView {...mockProps} />,
     );
 
     getByDisplayValue('Sample Project');
-    getByDisplayValue('サンプル本文テキスト。');
+    getByTestId('body-input');
     getByText('Waveform Player');
     getByText('Cue Button List');
     getByText('Player Controls');
     getByText('Volume Slider');
+  });
+
+  it('本文が変更されたときに onChangeBody が呼ばれる', () => {
+    const { getByTestId } = render(<EditView {...mockProps} />);
+    const bodyInput = getByTestId('body-input');
+
+    fireEvent.changeText(bodyInput, '更新された本文テキスト。');
+
+    expect(mockProps.onChangeBody).toHaveBeenCalledWith('更新された本文テキスト。');
   });
 
   it('プロジェクト名が変更されたときに onChangeProjectName が呼ばれる', () => {
@@ -134,17 +156,6 @@ describe('EditView コンポーネント', () => {
     fireEvent.press(toggleButton);
 
     expect(mockProps.onToggleEditLyrics).toHaveBeenCalled();
-  });
-
-  it('本文が変更されたときに onChangeBody が呼ばれる', () => {
-    const { getByDisplayValue } = render(<EditView {...mockProps} />);
-    const bodyInput = getByDisplayValue('サンプル本文テキスト。');
-
-    fireEvent.changeText(bodyInput, '更新された本文テキスト。');
-
-    expect(mockProps.onChangeBody).toHaveBeenCalledWith(
-      '更新された本文テキスト。',
-    );
   });
 
   it('音量が変更されたときに onVolumeChange が呼ばれる', () => {

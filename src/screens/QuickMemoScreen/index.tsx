@@ -1,6 +1,13 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Alert, KeyboardAvoidingView, Platform } from 'react-native';
-import { RichEditor } from 'react-native-pell-rich-editor';
+import {
+  useEditorBridge,
+  TenTapStartKit,
+  PlaceholderBridge,
+  darkEditorTheme,
+} from '@10play/tentap-editor';
+import { AppEditorThemeBridge } from '@/components/features/inputs/BodyInput/appEditorThemeBridge';
+import { COLORS } from '@/globalStyles';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -14,6 +21,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { MODAL_MESSAGES } from '@/constants/messages';
+import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useCreateMemo } from '@/hooks/useCreateMemo';
 import { useUpdateMemo } from '@/hooks/useUpdateMemo';
 import { useDeleteMemo } from '@/hooks/useDeleteMemo';
@@ -36,14 +44,29 @@ export default function QuickMemoScreen() {
     params.isBookmarked ?? false,
   );
 
+  const editor = useEditorBridge({
+    bridgeExtensions: [
+      ...TenTapStartKit,
+      AppEditorThemeBridge,
+      PlaceholderBridge.configureExtension({
+        placeholder: PLACEHOLDERS.bodyInput,
+      }),
+    ],
+    initialContent: params.body ?? '',
+    avoidIosKeyboard: true,
+    theme: {
+      ...darkEditorTheme,
+      webview: { backgroundColor: COLORS.base.bgDefault },
+    },
+  });
+
   const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
-  const richText = useRef<RichEditor | null>(null);
   const { createMemo } = useCreateMemo();
   const { updateMemo } = useUpdateMemo();
   const { deleteMemo } = useDeleteMemo();
 
   const handleTranscriptionResult = (text: string) => {
-    richText.current?.insertText(text);
+    editor.injectJS(`window.editor.commands.insertContent(${JSON.stringify(text)})`);
   };
   const { isListening, startListening, stopListening } = useVoiceTranscription(
     handleTranscriptionResult,
@@ -58,8 +81,8 @@ export default function QuickMemoScreen() {
   };
 
   useEffect(() => {
-    if (params.body && richText.current) {
-      richText.current.setContentHTML(params.body);
+    if (params.body) {
+      editor.setContent(params.body);
     }
   }, [params.body]);
 
@@ -97,20 +120,17 @@ export default function QuickMemoScreen() {
   const handleSave = async () => {
     try {
       showLoading();
-      const html = await richText.current?.getContentHtml();
+      const html = await editor.getHTML();
       const bodyContent = html || '';
 
       if (params.id) {
-        // 既存メモを更新
         await updateMemo(params.id, {
           title,
           body: bodyContent,
           isBookmarked,
         });
       } else {
-        // 新規作成
         const created = await createMemo(title, bodyContent);
-        // ブックマークONの場合は作成後に更新
         if (isBookmarked && created?.id) {
           await updateMemo(created.id, { isBookmarked: true });
         }
@@ -148,7 +168,6 @@ export default function QuickMemoScreen() {
     });
   };
 
-  // 編集時はブックマーク＋削除ボタン、新規作成時はブックマークのみ
   const rightButton: HeaderToolBarButton = params.id
     ? {
         id: 'toolbar-rightGroup',
@@ -171,21 +190,20 @@ export default function QuickMemoScreen() {
       style={styles.container}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       onStartShouldSetResponder={() => {
-        richText.current?.blurContentEditor();
+        editor.blur();
         return false;
       }}
     >
       <HeaderToolBar items={items} isBookmarked={isBookmarked} />
       <View style={styles.inputContainer}>
         <TitleInput
-            value={title}
-            onChangeText={setTitle}
-            onFocus={() => richText.current?.blurContentEditor()}
-          />
+          value={title}
+          onChangeText={setTitle}
+          onFocus={() => editor.blur()}
+        />
         <View style={styles.bodyInputWrapper}>
           <BodyInput
-            editorRef={richText as React.RefObject<RichEditor>}
-            value={body}
+            editor={editor}
             onChangeText={setBody}
             isEditing={true}
             fillContainer
