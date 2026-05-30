@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Button, Pressable, ScrollView, View } from 'react-native';
+import { Button, Pressable, View } from 'react-native';
 import {
   RichText,
   useEditorContent,
@@ -61,20 +61,7 @@ export default function BodyInput({
           )}
         </View>
       )}
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[
-          styles.scrollContent,
-          fillContainer ? { flexGrow: 1 } : undefined,
-        ]}
-        keyboardShouldPersistTaps="handled"
-        showsVerticalScrollIndicator={false}
-      >
-        <RichText
-          editor={editor}
-          style={[styles.editor, fillContainer ? { flex: 1, minHeight: 200 } : undefined]}
-        />
-      </ScrollView>
+      <RichText editor={editor} style={styles.richText} />
     </View>
   );
 }
