@@ -1,22 +1,16 @@
 import React, { useEffect } from 'react';
-import { Modal, BackHandler, ScrollView, Text } from 'react-native';
+import { Modal, BackHandler, View } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
+import {
+  useEditorBridge,
+  RichText,
+  TenTapStartKit,
+  darkEditorTheme,
+} from '@10play/tentap-editor';
+import { AppEditorThemeBridge } from '@/components/features/inputs/BodyInput/appEditorThemeBridge';
+import { COLORS } from '@/globalStyles';
 import RecRecordingSection from '@/components/features/record/RecRecordingSection';
 import styles from './RecRecordingModal.styles';
-
-function stripHtml(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, '\n')
-    .replace(/<\/p>/gi, '\n')
-    .replace(/<[^>]+>/g, '')
-    .replace(/&nbsp;/g, ' ')
-    .replace(/&amp;/g, '&')
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
-}
 
 interface RecRecordingModalProps {
   visible: boolean;
@@ -47,6 +41,22 @@ export default function RecRecordingModal({
     return () => backHandler.remove();
   }, [visible, onClose]);
 
+  const editor = useEditorBridge({
+    bridgeExtensions: [...TenTapStartKit, AppEditorThemeBridge],
+    editable: false,
+    initialContent: lyrics ?? '',
+    theme: {
+      ...darkEditorTheme,
+      webview: { backgroundColor: COLORS.navigation.bg },
+    },
+  });
+
+  useEffect(() => {
+    if (visible && lyrics) {
+      editor.setContent(lyrics);
+    }
+  }, [visible, lyrics, editor]);
+
   if (!visible) return null;
 
   const hasLyrics = !!lyrics && lyrics.trim().length > 0;
@@ -69,12 +79,9 @@ export default function RecRecordingModal({
           exiting={FadeOut.duration(200)}
         >
           {hasLyrics && (
-            <ScrollView
-              style={styles.lyricsScrollView}
-              showsVerticalScrollIndicator={false}
-            >
-              <Text style={styles.lyricsText}>{stripHtml(lyrics!)}</Text>
-            </ScrollView>
+            <View style={styles.lyricsContainer}>
+              <RichText editor={editor} />
+            </View>
           )}
           <RecRecordingSection onStop={onStop} trackSource={trackSource} />
         </Animated.View>

@@ -7,6 +7,22 @@ jest.mock('@/components/features/record/RecRecordingSection', () => {
   return jest.fn(() => null);
 });
 
+const mockEditor = { setContent: jest.fn() };
+
+jest.mock('@10play/tentap-editor', () => {
+  const { View } = require('react-native');
+  return {
+    RichText: (props: any) => <View testID="rich-text" {...props} />,
+    useEditorBridge: () => mockEditor,
+    TenTapStartKit: [],
+    darkEditorTheme: {},
+  };
+});
+
+jest.mock('@/components/features/inputs/BodyInput/appEditorThemeBridge', () => ({
+  AppEditorThemeBridge: {},
+}));
+
 describe('RecRecordingModal コンポーネント', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -56,19 +72,19 @@ describe('RecRecordingModal コンポーネント', () => {
     expect(propsPassed.trackSource).toBeUndefined();
   });
 
-  it('lyrics が指定された場合、HTMLタグを除去したテキストが表示される', () => {
+  it('lyrics が指定された場合、RichText コンポーネントが表示される', () => {
     const lyrics = '<p>Verse 1</p><p>Verse 2</p>';
-    const { getByText } = render(<RecRecordingModal {...mockProps} lyrics={lyrics} />);
-    expect(getByText('Verse 1\nVerse 2')).toBeTruthy();
+    const { getByTestId } = render(<RecRecordingModal {...mockProps} lyrics={lyrics} />);
+    expect(getByTestId('rich-text')).toBeTruthy();
   });
 
-  it('lyrics が未指定の場合、リリックセクションが表示されない', () => {
-    const { queryByText } = render(<RecRecordingModal {...mockProps} />);
-    expect(queryByText(/Verse/)).toBeNull();
+  it('lyrics が未指定の場合、RichText コンポーネントが表示されない', () => {
+    const { queryByTestId } = render(<RecRecordingModal {...mockProps} />);
+    expect(queryByTestId('rich-text')).toBeNull();
   });
 
-  it('lyrics が空文字の場合、リリックセクションが表示されない', () => {
-    const { queryByText } = render(<RecRecordingModal {...mockProps} lyrics="" />);
-    expect(queryByText(/./)).toBeNull();
+  it('lyrics が空文字の場合、RichText コンポーネントが表示されない', () => {
+    const { queryByTestId } = render(<RecRecordingModal {...mockProps} lyrics="" />);
+    expect(queryByTestId('rich-text')).toBeNull();
   });
 });
