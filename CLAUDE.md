@@ -542,6 +542,18 @@ cd api && sam build && sam deploy --stack-name lyrics-mock-api
 
 ---
 
+## スラッシュコマンド一覧
+
+| コマンド | 定義ファイル | 用途 |
+|----------|-------------|------|
+| `/notion` | `.claude/commands/notion.md` | Notion タスクの追加・更新・PR URL 登録・ページ追記 |
+| `/pr-staging` | `.claude/commands/pr-staging.md` | 現在のブランチから staging への PR 作成 |
+| `/pr-develop` | `.claude/commands/pr-develop.md` | 現在のブランチから develop への PR 作成 |
+| `/pr-master` | `.claude/commands/pr-master.md` | develop から master への PR 作成（リリース用） |
+| `/testflight` | `.claude/commands/testflight.md` | EAS Build → TestFlight 配信 |
+
+---
+
 ## タスク管理（Notion × GitHub 連携）
 
 ### 概要
