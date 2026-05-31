@@ -580,23 +580,48 @@ feature/TASK-X-タスクの概要
 git checkout -b feature/TASK-4-fix-default-thumbnail
 ```
 
-### 運用フロー
+### /notion スラッシュコマンド
+
+Notion タスク管理操作は `/notion` スラッシュコマンドで実行する。
+コマンド定義: `.claude/commands/notion.md`
 
 #### タスク追加
 
-Claude Code に以下の形式で伝えるだけでよい：
-
 ```
-タスク一覧にタスクを追加して
+/notion タスクを追加して
 タイトル：〇〇〇
 詳細：〇〇〇〇
 デバイス：iPhone
 優先度：High
 ```
 
-Claude が自動で以下を実施する：
+自動で実施される内容：
+- データベースの最大 TASK-X 番号を確認して次の ID を採番
 - Notion にタスクを作成（ステータス: Not started）
 - ページ本文に `## 詳細` セクションを挿入
+
+#### ステータス更新
+
+```
+/notion TASK-X を In progress にして   # 作業開始時
+/notion TASK-X を Done にして           # マージ完了時
+```
+
+#### PR URL 登録
+
+```
+/notion TASK-X に PR URL を登録して
+https://github.com/yoshiydp/lyrics-mobile/pull/XX
+```
+
+#### ページ内容の追記・更新
+
+```
+/notion TASK-X に〇〇を追記して
+/notion TASK-X の〇〇を修正して
+```
+
+### 運用フロー
 
 #### ブランチ作成
 
@@ -605,21 +630,5 @@ Notion でタスクの ID（`TASK-X`）を確認してからブランチを切�
 ```bash
 git checkout develop
 git checkout -b feature/TASK-X-brief-description
-```
-
-#### PR 作成後の紐付け
-
-PR 作成後、Claude Code に伝えるだけで Notion タスクに URL が登録される：
-
-```
-TASK-X に PR URL を登録して
-https://github.com/yoshiydp/lyrics-mobile/pull/XX
-```
-
-#### ステータス更新
-
-```
-TASK-X を In progress にして   # 作業開始時
-TASK-X を Done にして           # マージ完了時
 ```
 - **ファイルアップロードの mime タイプ**: `get-track-upload-url.ts` は `audio/mpeg`, `audio/wav`, `image/jpeg`, `image/png` のみ受け付ける
