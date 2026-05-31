@@ -45,8 +45,8 @@ api/.aws-sam/
 # Yarn
 .yarn/install-state.gz
 
-# Claude Code
-.claude/
+# Claude Code (settings files contain secrets, commands are shared)
+.claude/*.json
 
 # Test
 coverage/
