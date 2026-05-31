@@ -7046,7 +7046,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"expo-av@npm:~16.0.8":
+"expo-av@npm:16.0.8":
   version: 16.0.8
   resolution: "expo-av@npm:16.0.8"
   peerDependencies:
@@ -7058,6 +7058,21 @@ __metadata:
     react-native-web:
       optional: true
   checksum: 10c0/2f40b8fcc7824d4f3e0078e6dff25ccb5b12b21abfcf6de30f4ea831716c6be18f9b59ab085e7b88ece5b0d314f998798e864f4b4a3c0f493c66060f4fc94955
+  languageName: node
+  linkType: hard
+
+"expo-av@patch:expo-av@npm%3A16.0.8#~/.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch":
+  version: 16.0.8
+  resolution: "expo-av@patch:expo-av@npm%3A16.0.8#~/.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch::version=16.0.8&hash=fae866"
+  peerDependencies:
+    expo: "*"
+    react: "*"
+    react-native: "*"
+    react-native-web: "*"
+  peerDependenciesMeta:
+    react-native-web:
+      optional: true
+  checksum: 10c0/38507893db9df41be0bd52ae3793e0317a11e91ea03802c6fb5069b6e06b383a0831594ffa35c64c99c0eb05086412efea98f28585316d2a720977b1bdafb96d
   languageName: node
   linkType: hard
 
@@ -10228,7 +10243,7 @@ __metadata:
     expo: "npm:^54.0.0"
     expo-asset: "npm:~12.0.12"
     expo-auth-session: "npm:~7.0.10"
-    expo-av: "npm:~16.0.8"
+    expo-av: "patch:expo-av@npm%3A16.0.8#~/.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch"
     expo-blur: "npm:~15.0.8"
     expo-constants: "patch:expo-constants@npm%3A18.0.13#./.yarn/patches/expo-constants-npm-18.0.13-98767075b3.patch"
     expo-dev-client: "npm:~6.0.20"

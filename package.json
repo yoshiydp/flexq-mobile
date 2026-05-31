@@ -39,7 +39,7 @@
     "expo": "^54.0.0",
     "expo-asset": "~12.0.12",
     "expo-auth-session": "~7.0.10",
-    "expo-av": "~16.0.8",
+    "expo-av": "patch:expo-av@npm%3A16.0.8#~/.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch",
     "expo-blur": "~15.0.8",
     "expo-constants": "patch:expo-constants@npm%3A18.0.13#./.yarn/patches/expo-constants-npm-18.0.13-98767075b3.patch",
     "expo-dev-client": "~6.0.20",

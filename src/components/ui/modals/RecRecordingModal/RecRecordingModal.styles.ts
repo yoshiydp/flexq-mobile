@@ -21,15 +21,9 @@ export default StyleSheet.create({
   containerWithLyrics: {
     justifyContent: 'flex-start',
   },
-  lyricsScrollView: {
+  lyricsContainer: {
     width: '100%',
     height: 200,
     marginBottom: 16,
-  },
-  lyricsText: {
-    color: COLORS.font.default,
-    fontFamily: 'NotoSans_400Regular',
-    fontSize: 13,
-    lineHeight: 22,
   },
 });
