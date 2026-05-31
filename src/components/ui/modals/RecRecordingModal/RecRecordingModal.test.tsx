@@ -16,12 +16,9 @@ jest.mock('@10play/tentap-editor', () => {
     useEditorBridge: () => mockEditor,
     TenTapStartKit: [],
     darkEditorTheme: {},
+    BridgeExtension: jest.fn().mockImplementation(() => ({})),
   };
 });
-
-jest.mock('@/components/features/inputs/BodyInput/appEditorThemeBridge', () => ({
-  AppEditorThemeBridge: {},
-}));
 
 describe('RecRecordingModal コンポーネント', () => {
   beforeEach(() => {

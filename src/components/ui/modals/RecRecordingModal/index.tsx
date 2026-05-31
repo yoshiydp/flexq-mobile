@@ -6,11 +6,25 @@ import {
   RichText,
   TenTapStartKit,
   darkEditorTheme,
+  BridgeExtension,
 } from '@10play/tentap-editor';
-import { AppEditorThemeBridge } from '@/components/features/inputs/BodyInput/appEditorThemeBridge';
-import { COLORS } from '@/globalStyles';
 import RecRecordingSection from '@/components/features/record/RecRecordingSection';
 import styles from './RecRecordingModal.styles';
+
+const RecLyricsThemeBridge = new BridgeExtension({
+  extendCSS: `
+    html, body { background: transparent; margin: 0; padding: 0; }
+    .ProseMirror {
+      color: #EFEFEF;
+      font-size: 13px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif;
+      line-height: 22px;
+      background: transparent;
+      padding: 0;
+    }
+    .ProseMirror p { margin: 0; }
+  `,
+});
 
 interface RecRecordingModalProps {
   visible: boolean;
@@ -42,12 +56,12 @@ export default function RecRecordingModal({
   }, [visible, onClose]);
 
   const editor = useEditorBridge({
-    bridgeExtensions: [...TenTapStartKit, AppEditorThemeBridge],
+    bridgeExtensions: [...TenTapStartKit, RecLyricsThemeBridge],
     editable: false,
     initialContent: lyrics ?? '',
     theme: {
       ...darkEditorTheme,
-      webview: { backgroundColor: COLORS.navigation.bg },
+      webview: { backgroundColor: 'transparent' },
     },
   });
 
