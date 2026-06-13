@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Alert } from 'react-native';
+import { View, ScrollView, Alert, Keyboard } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
@@ -46,6 +46,7 @@ export default function RegisterScreen() {
   };
 
   const handleCreate = async () => {
+    Keyboard.dismiss();
     if (!username || !email || !password) {
       Alert.alert('Error', '全ての項目を入力してください。');
       return;
@@ -89,7 +90,7 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
       <HeaderToolBar items={headerItems} />
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         <ProfileIcon
           thumbnail={thumbnail}
           editable

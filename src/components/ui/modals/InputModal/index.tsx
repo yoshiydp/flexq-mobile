@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { TouchableWithoutFeedback, Keyboard, View } from 'react-native';
 import BaseModal from '@/components/ui/modals/BaseModal';
 import EditableFormControl from '@/components/ui/form/EditableFormControl';
 
@@ -40,11 +41,15 @@ export default function InputModal({
         disabled: isSubmitDisabled,
       }}
     >
-      <EditableFormControl
-        formValue={value}
-        onChangeText={setValue}
-        placeholder={placeholder}
-      />
+      <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+        <View>
+          <EditableFormControl
+            formValue={value}
+            onChangeText={setValue}
+            placeholder={placeholder}
+          />
+        </View>
+      </TouchableWithoutFeedback>
     </BaseModal>
   );
 }

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Alert } from 'react-native';
+import { View, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
@@ -61,31 +61,33 @@ export default function PasswordResetScreen() {
   ];
 
   return (
-    <View style={styles.container}>
-      <HeaderToolBar items={headerItems} />
-      <View style={styles.formContainer}>
-        <EditableFormControl
-          label="Email"
-          darkMode
-          formValue={email}
-          onChangeText={setEmail}
-          placeholder={PLACEHOLDERS.passwordReset.emailInput}
-        />
-        <EditableFormControl
-          label="New Password"
-          darkMode
-          secureTextEntry
-          formValue={newPassword}
-          onChangeText={setNewPassword}
-          placeholder={PLACEHOLDERS.passwordReset.newPasswordInput}
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <HeaderToolBar items={headerItems} />
+        <View style={styles.formContainer}>
+          <EditableFormControl
+            label="Email"
+            darkMode
+            formValue={email}
+            onChangeText={setEmail}
+            placeholder={PLACEHOLDERS.passwordReset.emailInput}
+          />
+          <EditableFormControl
+            label="New Password"
+            darkMode
+            secureTextEntry
+            formValue={newPassword}
+            onChangeText={setNewPassword}
+            placeholder={PLACEHOLDERS.passwordReset.newPasswordInput}
+          />
+        </View>
+        <SubmitButton
+          containerClassName={styles.submitButton}
+          label="PASSWORD RESET"
+          onPress={handlePasswordReset}
+          disabled={!email || !newPassword}
         />
       </View>
-      <SubmitButton
-        containerClassName={styles.submitButton}
-        label="PASSWORD RESET"
-        onPress={handlePasswordReset}
-        disabled={!email || !newPassword}
-      />
-    </View>
+    </TouchableWithoutFeedback>
   );
 }

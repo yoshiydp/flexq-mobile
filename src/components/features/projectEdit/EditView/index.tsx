@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Animated } from 'react-native';
+import { View, Animated, Keyboard } from 'react-native';
 import { type EditorBridge } from '@10play/tentap-editor';
 import TitleInput from '@/components/features/inputs/TitleInput';
 import BodyInput from '@/components/features/inputs/BodyInput';
@@ -78,6 +78,7 @@ export default function EditView({
       style={styles.container}
       onStartShouldSetResponder={() => {
         onBlurEditor?.();
+        Keyboard.dismiss();
         return false;
       }}
     >

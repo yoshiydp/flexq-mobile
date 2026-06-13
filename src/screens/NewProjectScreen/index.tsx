@@ -9,6 +9,7 @@ import {
   Modal,
   FlatList,
   Alert,
+  Keyboard,
 } from 'react-native';
 import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
@@ -123,6 +124,7 @@ export default function NewProjectScreen() {
   };
 
   const handleCreate = async () => {
+    Keyboard.dismiss();
     showLoading();
     try {
       let trackId: string | undefined;
@@ -262,7 +264,7 @@ export default function NewProjectScreen() {
     <View style={styles.container}>
       <HeaderToolBar items={headerItems} />
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <ScrollView contentContainerStyle={styles.scrollContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         <Text style={styles.sectionLabel}>PROJECT TITLE</Text>
         <TextInput
           style={styles.titleInput}
