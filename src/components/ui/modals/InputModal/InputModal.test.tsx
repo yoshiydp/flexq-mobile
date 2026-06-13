@@ -58,4 +58,5 @@ describe('InputModal コンポーネント', () => {
 
     expect(mockOnClose).toHaveBeenCalledTimes(0);
   });
+
 });

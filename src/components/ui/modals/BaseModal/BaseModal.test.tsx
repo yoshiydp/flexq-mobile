@@ -1,4 +1,5 @@
 import React from 'react';
+import { Keyboard } from 'react-native';
 import { render } from '@testing-library/react-native';
 import BaseModal from './index';
 
@@ -53,5 +54,22 @@ describe('BaseModal コンポーネント', () => {
     );
 
     expect(mockOnClose).toHaveBeenCalledTimes(0);
+  });
+
+  it('モーダルコンテナタップ時に Keyboard.dismiss が呼ばれる', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const { UNSAFE_getAllByType } = render(
+      <BaseModal visible onClose={mockOnClose}>
+        <Text>モーダルコンテンツ</Text>
+      </BaseModal>,
+    );
+
+    const { View } = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const container = views.find((v: any) => v.props.onStartShouldSetResponder);
+    container?.props.onStartShouldSetResponder();
+
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 });
