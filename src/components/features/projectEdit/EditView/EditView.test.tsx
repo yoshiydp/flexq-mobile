@@ -1,5 +1,5 @@
 import React from 'react';
-import { Animated } from 'react-native';
+import { Animated, Keyboard } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 import EditView from './index';
 
@@ -185,5 +185,35 @@ describe('EditView コンポーネント', () => {
     const titleInput = getByDisplayValue('Sample Project');
 
     expect(() => fireEvent(titleInput, 'focus')).not.toThrow();
+  });
+
+  it('コンテナ外タップ時に Keyboard.dismiss と onBlurEditor が呼ばれる', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const mockOnBlurEditor = jest.fn();
+    const { UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} onBlurEditor={mockOnBlurEditor} />,
+    );
+
+    const { View } = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const container = views.find((v: any) => v.props.onStartShouldSetResponder);
+    container?.props.onStartShouldSetResponder();
+
+    expect(mockOnBlurEditor).toHaveBeenCalled();
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
+  });
+
+  it('onBlurEditor が未指定でもコンテナ外タップ時に Keyboard.dismiss が呼ばれる', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const { UNSAFE_getAllByType } = render(<EditView {...mockProps} />);
+
+    const { View } = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const container = views.find((v: any) => v.props.onStartShouldSetResponder);
+    container?.props.onStartShouldSetResponder();
+
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 });

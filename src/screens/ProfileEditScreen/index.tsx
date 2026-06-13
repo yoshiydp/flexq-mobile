@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, View, ActivityIndicator } from 'react-native';
+import { ScrollView, View, ActivityIndicator, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';
 import ProfileIcon from '@/components/features/profile/ProfileIcon';
@@ -74,6 +74,7 @@ export default function ProfileEditScreen() {
   };
 
   const onSaveProfile = async () => {
+    Keyboard.dismiss();
     if (!profile) return;
     showLoading();
     try {
@@ -190,7 +191,7 @@ export default function ProfileEditScreen() {
 
   return (
     <OverlayScreenTemplate>
-      <ScrollView style={styles.container}>
+      <ScrollView style={styles.container} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         <ProfileIcon
           thumbnail={currentThumbnail}
           editable

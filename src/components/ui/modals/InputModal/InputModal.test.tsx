@@ -1,9 +1,10 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { Keyboard, TouchableWithoutFeedback } from 'react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import InputModal from './index';
 
 jest.mock('@/components/ui/modals/BaseModal', () => {
-  return jest.fn(() => null);
+  return jest.fn(({ children }: any) => children);
 });
 
 jest.mock('@/components/ui/form/EditableFormControl', () => {
@@ -57,5 +58,16 @@ describe('InputModal コンポーネント', () => {
     render(<InputModal {...mockProps} />);
 
     expect(mockOnClose).toHaveBeenCalledTimes(0);
+  });
+
+  it('テキストフィールド外タップ時に Keyboard.dismiss が呼ばれる', () => {
+    const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
+    const { UNSAFE_getByType } = render(<InputModal {...mockProps} />);
+
+    const twf = UNSAFE_getByType(TouchableWithoutFeedback);
+    twf.props.onPress();
+
+    expect(dismissSpy).toHaveBeenCalled();
+    dismissSpy.mockRestore();
   });
 });

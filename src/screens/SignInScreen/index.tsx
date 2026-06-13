@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, Alert } from 'react-native';
+import { View, Text, Pressable, Alert, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import AppLogo from '@/components/ui/logo/AppLogo';
@@ -35,46 +35,48 @@ export default function SignInScreen() {
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.appLogoContainer}>
-        <AppLogo />
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
+        <View style={styles.appLogoContainer}>
+          <AppLogo />
+        </View>
+        <View style={styles.formControlContainer}>
+          <EditableFormControl
+            label="Your Email"
+            darkMode
+            formValue={email}
+            onChangeText={setEmail}
+            placeholder={PLACEHOLDERS.signIn.emailInput}
+          />
+          <EditableFormControl
+            label="Password"
+            darkMode
+            secureTextEntry
+            formValue={password}
+            onChangeText={setPassword}
+            placeholder={PLACEHOLDERS.signIn.passwordInput}
+          />
+          <Pressable
+            style={styles.resetPasswordLink}
+            onPress={() => navigation.navigate('PasswordReset')}
+          >
+            <Text style={styles.resetPasswordText}>パスワードをリセットする</Text>
+          </Pressable>
+        </View>
+        <View style={styles.signInButtonWrapper}>
+          <SubmitButton
+            label="Sign In"
+            onPress={submitSignIn}
+            disabled={!email || !password}
+          />
+        </View>
+        <View style={styles.registerLinkContainer}>
+          <Text style={styles.registerLinkLabel}>アカウントはお持ちですか？</Text>
+          <Pressable onPress={() => navigation.navigate('Register')}>
+            <Text style={styles.registerLinkText}>新規登録へ</Text>
+          </Pressable>
+        </View>
       </View>
-      <View style={styles.formControlContainer}>
-        <EditableFormControl
-          label="Your Email"
-          darkMode
-          formValue={email}
-          onChangeText={setEmail}
-          placeholder={PLACEHOLDERS.signIn.emailInput}
-        />
-        <EditableFormControl
-          label="Password"
-          darkMode
-          secureTextEntry
-          formValue={password}
-          onChangeText={setPassword}
-          placeholder={PLACEHOLDERS.signIn.passwordInput}
-        />
-        <Pressable
-          style={styles.resetPasswordLink}
-          onPress={() => navigation.navigate('PasswordReset')}
-        >
-          <Text style={styles.resetPasswordText}>パスワードをリセットする</Text>
-        </Pressable>
-      </View>
-      <View style={styles.signInButtonWrapper}>
-        <SubmitButton
-          label="Sign In"
-          onPress={submitSignIn}
-          disabled={!email || !password}
-        />
-      </View>
-      <View style={styles.registerLinkContainer}>
-        <Text style={styles.registerLinkLabel}>アカウントはお持ちですか？</Text>
-        <Pressable onPress={() => navigation.navigate('Register')}>
-          <Text style={styles.registerLinkText}>新規登録へ</Text>
-        </Pressable>
-      </View>
-    </View>
+    </TouchableWithoutFeedback>
   );
 }
