@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Modal, View, BackHandler } from 'react-native';
+import { Modal, View, BackHandler, Keyboard } from 'react-native';
 import Animated, { FadeIn, FadeOut, runOnJS } from 'react-native-reanimated';
 import CancelButton from '@/components/ui/buttons/CancelButton';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
@@ -70,6 +70,10 @@ export default function BaseModal({
           style={styles.container}
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
+          onStartShouldSetResponder={() => {
+            Keyboard.dismiss();
+            return false;
+          }}
         >
           {children}
           <View style={styles.buttonWrapper}>
