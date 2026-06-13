@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Alert, KeyboardAvoidingView, Platform } from 'react-native';
+import { View, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
 import {
   useEditorBridge,
   TenTapStartKit,
@@ -191,6 +191,7 @@ export default function QuickMemoScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       onStartShouldSetResponder={() => {
         editor.blur();
+        Keyboard.dismiss();
         return false;
       }}
     >

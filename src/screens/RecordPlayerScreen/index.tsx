@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View } from 'react-native';
+import { View, TouchableWithoutFeedback, Keyboard } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -254,7 +254,8 @@ export default function RecordPlayerScreen() {
         ];
 
   return (
-    <View style={styles.container}>
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={styles.container}>
       <HeaderToolBar items={items} isBookmarked={isBookmarked} />
       <View style={styles.inputContainer}>
         <View style={styles.titleInputWrapper}>
@@ -286,6 +287,7 @@ export default function RecordPlayerScreen() {
         containerClassName={styles.submitButton}
         onPress={handleSave}
       />
-    </View>
+      </View>
+    </TouchableWithoutFeedback>
   );
 }
