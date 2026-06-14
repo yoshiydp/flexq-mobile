@@ -1,8 +1,9 @@
 import React, { useEffect } from 'react';
-import { Button, Pressable, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import {
   RichText,
   useEditorContent,
+  useBridgeState,
   type EditorBridge,
 } from '@10play/tentap-editor';
 import { Ionicons } from '@expo/vector-icons';
@@ -18,6 +19,15 @@ interface BodyInputProps {
   onMicPress?: () => void;
 }
 
+type ToolItem = {
+  label: string;
+  onPress: () => void;
+  isActive: boolean;
+  fontWeight?: 'bold';
+  fontStyle?: 'italic';
+  textDecorationLine?: 'underline';
+};
+
 export default function BodyInput({
   editor,
   onChangeText,
@@ -27,10 +37,52 @@ export default function BodyInput({
   onMicPress,
 }: BodyInputProps) {
   const html = useEditorContent(editor, { type: 'html' });
+  const editorState = useBridgeState(editor);
 
   useEffect(() => {
     if (html !== undefined) onChangeText(html);
   }, [html, onChangeText]);
+
+  const tools: ToolItem[] = [
+    {
+      label: 'H1',
+      onPress: () => editor.toggleHeading(1),
+      isActive: editorState.headingLevel === 1,
+    },
+    {
+      label: 'H2',
+      onPress: () => editor.toggleHeading(2),
+      isActive: editorState.headingLevel === 2,
+    },
+    {
+      label: 'B',
+      onPress: () => editor.toggleBold(),
+      isActive: editorState.isBoldActive,
+      fontWeight: 'bold',
+    },
+    {
+      label: 'I',
+      onPress: () => editor.toggleItalic(),
+      isActive: editorState.isItalicActive,
+      fontStyle: 'italic',
+    },
+    {
+      label: 'U',
+      onPress: () => editor.toggleUnderline(),
+      isActive: editorState.isUnderlineActive,
+      textDecorationLine: 'underline',
+    },
+    {
+      label: '•',
+      onPress: () => editor.toggleBulletList(),
+      isActive: editorState.isBulletListActive,
+    },
+    {
+      label: '1.',
+      onPress: () => editor.toggleOrderedList(),
+      isActive: editorState.isOrderedListActive,
+    },
+  ];
 
   return (
     <View
@@ -40,21 +92,36 @@ export default function BodyInput({
     >
       {isEditing && (
         <View style={styles.toolbarRow}>
-          <View style={[styles.toolbar, styles.toolbarFlex]}>
-            <Button title="B" onPress={() => editor.toggleBold()} />
-            <Button title="I" onPress={() => editor.toggleItalic()} />
-            <Button title="•" onPress={() => editor.toggleBulletList()} />
-            <Button title="1." onPress={() => editor.toggleOrderedList()} />
-          </View>
+          {tools.map((tool) => (
+            <Pressable
+              key={tool.label}
+              style={[styles.toolbarButton, tool.isActive && styles.toolbarButtonActive]}
+              onPress={tool.onPress}
+            >
+              <Text
+                style={[
+                  styles.toolbarButtonText,
+                  tool.isActive && styles.toolbarButtonTextActive,
+                  tool.fontWeight ? { fontWeight: tool.fontWeight } : undefined,
+                  tool.fontStyle ? { fontStyle: tool.fontStyle } : undefined,
+                  tool.textDecorationLine
+                    ? { textDecorationLine: tool.textDecorationLine }
+                    : undefined,
+                ]}
+              >
+                {tool.label}
+              </Text>
+            </Pressable>
+          ))}
           {onMicPress && (
             <Pressable
-              style={styles.micButton}
+              style={[styles.toolbarButton, isListening && styles.toolbarButtonActive]}
               onPress={onMicPress}
               accessibilityLabel={isListening ? '録音停止' : '音声入力開始'}
             >
               <Ionicons
                 name={isListening ? 'mic' : 'mic-outline'}
-                size={20}
+                size={18}
                 color={isListening ? COLORS.accent.goldPrimary : COLORS.form.default.text}
               />
             </Pressable>

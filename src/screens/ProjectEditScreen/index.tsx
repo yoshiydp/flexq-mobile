@@ -709,7 +709,17 @@ export default function ProjectEditScreen() {
             transform: [{ translateY: slideAnim }],
           }}
         >
-          {currentView === 'edit' && (
+          {/* EditView は常にマウントし続け RecView 表示中は不可視にする。
+              アンマウントすると RichText WebView が破棄され、再マウント時に
+              initialContent（保存済み内容）で初期化されて編集内容が失われるため。 */}
+          <View
+            pointerEvents={currentView !== 'edit' ? 'none' : 'auto'}
+            style={
+              currentView !== 'edit'
+                ? [StyleSheet.absoluteFillObject, { opacity: 0 }]
+                : { flex: 1 }
+            }
+          >
             <EditView
               projectName={projectName}
               onChangeProjectName={setProjectName}
@@ -741,7 +751,7 @@ export default function ProjectEditScreen() {
               bottomSectionTranslateY={bottomSectionTranslateY}
               editor={editor}
             />
-          )}
+          </View>
           {/* preloadRecView=true のとき不可視でプリマウント、currentView='rec' で通常表示 */}
           {(currentView === 'rec' || preloadRecView) && (
             <View
