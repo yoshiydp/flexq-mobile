@@ -50,4 +50,34 @@ describe('AppEditorThemeBridge', () => {
   it('プレースホルダーの ::before セレクターが含まれる', () => {
     expect(css).toContain('::before');
   });
+
+  describe('見出しスタイル', () => {
+    it('.ProseMirror h1 セレクターが含まれる', () => {
+      expect(css).toContain('.ProseMirror h1');
+    });
+
+    it('.ProseMirror h2 セレクターが含まれる', () => {
+      expect(css).toContain('.ProseMirror h2');
+    });
+
+    it('h1 の font-size が 22px である', () => {
+      const h1Block = css.match(/\.ProseMirror h1\s*\{([^}]+)\}/)?.[1] ?? '';
+      expect(h1Block).toContain('font-size: 22px');
+    });
+
+    it('h2 の font-size が 20px である', () => {
+      const h2Block = css.match(/\.ProseMirror h2\s*\{([^}]+)\}/)?.[1] ?? '';
+      expect(h2Block).toContain('font-size: 20px');
+    });
+
+    it('h1 に margin-bottom が設定されている', () => {
+      const h1Block = css.match(/\.ProseMirror h1\s*\{([^}]+)\}/)?.[1] ?? '';
+      expect(h1Block).toContain('12px');
+    });
+
+    it('h2 に margin-bottom が設定されている', () => {
+      const h2Block = css.match(/\.ProseMirror h2\s*\{([^}]+)\}/)?.[1] ?? '';
+      expect(h2Block).toContain('12px');
+    });
+  });
 });
