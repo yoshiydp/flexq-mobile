@@ -10,7 +10,6 @@ export default StyleSheet.create({
     color: COLORS.font.default,
   },
   message: {
-    textAlign: 'center',
     fontSize: 18,
     fontWeight: 700,
   },
@@ -18,5 +17,8 @@ export default StyleSheet.create({
     marginTop: 10,
     fontSize: 14,
     lineHeight: 21,
+  },
+  centered: {
+    textAlign: 'center',
   },
 });

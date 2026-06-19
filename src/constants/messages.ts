@@ -58,4 +58,9 @@ export const MODAL_MESSAGES = {
     description: '削除した録音データは復元できません。',
     submitButtonLabel: 'OK',
   },
+  confirmAllCueReset: {
+    message: 'ALL CUE RESET',
+    description: '全てのCUEポイントをリセットしますか？',
+    submitButtonLabel: 'OK',
+  },
 };

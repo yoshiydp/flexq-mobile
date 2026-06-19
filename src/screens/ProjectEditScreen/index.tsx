@@ -518,9 +518,22 @@ export default function ProjectEditScreen() {
   const handleAllCueReset = () => {
     const hasActiveCue = cueButtons.some((btn) => btn.isActive);
     if (!hasActiveCue) return;
-    setCueButtons((prev) =>
-      prev.map((btn) => ({ ...btn, isActive: false, time: 0 })),
-    );
+    const { message, description, submitButtonLabel } =
+      MODAL_MESSAGES.confirmAllCueReset;
+    showConfirmModal({
+      message,
+      description,
+      submitButton: {
+        label: submitButtonLabel,
+        onPress: () => {
+          setCueButtons((prev) =>
+            prev.map((btn) => ({ ...btn, isActive: false, time: 0 })),
+          );
+          closeModal();
+        },
+      },
+      closeLabel: 'CANCEL',
+    });
   };
 
   const handleAllCueResetDisabled = () =>
