@@ -10,10 +10,6 @@ jest.mock('expo-linear-gradient', () => {
   };
 });
 
-jest.mock('@/components/ui/Icon', () => {
-  return jest.fn(() => null);
-});
-
 describe('OverlayToggleButton コンポーネント', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -22,39 +18,52 @@ describe('OverlayToggleButton コンポーネント', () => {
   const mockGradientOpacity = new Animated.Value(1);
   const mockOnPress = jest.fn();
 
-  it('オーバーレイ表示時に文字が正しく表示される', () => {
-    const { getByText } = render(
-      <OverlayToggleButton
-        gradientOpacity={mockGradientOpacity}
-        isEditing
-        onPress={mockOnPress}
-      />,
-    );
-    getByText('CLOSE LYRICS');
-  });
-
-  it('オーバーレイ非表示時に文字が正しく表示される', () => {
-    const { getByText } = render(
+  it('グラジエントオーバーレイをタップすると onPress が呼ばれる', () => {
+    const { UNSAFE_getAllByProps } = render(
       <OverlayToggleButton
         gradientOpacity={mockGradientOpacity}
         isEditing={false}
         onPress={mockOnPress}
       />,
     );
-    getByText('EDIT LYRICS');
+
+    const pressables = UNSAFE_getAllByProps({ onPress: mockOnPress });
+    fireEvent.press(pressables[0]);
+
+    expect(mockOnPress).toHaveBeenCalledTimes(1);
   });
 
-  it('ボタンが押されたら onPress が呼ばれる', () => {
-    const { getByText } = render(
+  it('isEditing=true のときオーバーレイが pointerEvents=none になる', () => {
+    const { UNSAFE_getAllByType } = render(
       <OverlayToggleButton
         gradientOpacity={mockGradientOpacity}
         isEditing
         onPress={mockOnPress}
       />,
     );
-    const button = getByText('CLOSE LYRICS').parent;
-    fireEvent.press(button);
 
-    expect(mockOnPress).toHaveBeenCalledTimes(1);
+    const { Animated: RNAnimated } = require('react-native');
+    const animatedViews = UNSAFE_getAllByType(RNAnimated.View);
+    const overlay = animatedViews.find(
+      (v: any) => v.props.pointerEvents !== undefined,
+    );
+    expect(overlay?.props.pointerEvents).toBe('none');
+  });
+
+  it('isEditing=false のときオーバーレイが pointerEvents=auto になる', () => {
+    const { UNSAFE_getAllByType } = render(
+      <OverlayToggleButton
+        gradientOpacity={mockGradientOpacity}
+        isEditing={false}
+        onPress={mockOnPress}
+      />,
+    );
+
+    const { Animated: RNAnimated } = require('react-native');
+    const animatedViews = UNSAFE_getAllByType(RNAnimated.View);
+    const overlay = animatedViews.find(
+      (v: any) => v.props.pointerEvents !== undefined,
+    );
+    expect(overlay?.props.pointerEvents).toBe('auto');
   });
 });
