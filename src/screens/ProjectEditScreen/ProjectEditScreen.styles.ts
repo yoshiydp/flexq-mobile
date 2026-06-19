@@ -20,4 +20,10 @@ export default StyleSheet.create({
     alignItems: 'center',
     zIndex: 1000,
   },
+  lyricsCloseButton: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 100,
+    padding: 10,
+  },
 });
