@@ -12,7 +12,11 @@ import {
   ActivityIndicator,
   Text,
   StyleSheet,
+  Keyboard,
+  Platform,
+  Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   useEditorBridge,
   TenTapStartKit,
@@ -203,6 +207,17 @@ export default function ProjectEditScreen() {
   }, [project?.waveformJson]);
 
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const animatedHeight = useRef(new Animated.Value(MIN_BODY_HEIGHT)).current;
   const gradientOpacity = useRef(new Animated.Value(1)).current;
   const bottomSectionTranslateY = useRef(new Animated.Value(0)).current;
@@ -819,6 +834,15 @@ export default function ProjectEditScreen() {
           </View>
         )}
       </View>
+
+      {isEditingLyrics && keyboardHeight > 0 && (
+        <Pressable
+          style={[styles.lyricsCloseButton, { bottom: keyboardHeight }]}
+          onPress={handleToggleEditLyrics}
+        >
+          <Ionicons name="checkmark" size={28} color={COLORS.font.navigation} />
+        </Pressable>
+      )}
     </View>
   );
 }

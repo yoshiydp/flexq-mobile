@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { View, Animated, Keyboard } from 'react-native';
 import { type EditorBridge } from '@10play/tentap-editor';
 import TitleInput from '@/components/features/inputs/TitleInput';
@@ -73,6 +73,8 @@ export default function EditView({
   bottomSectionTranslateY,
   editor,
 }: EditViewProps) {
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
+
   return (
     <View
       style={styles.container}
@@ -85,11 +87,13 @@ export default function EditView({
       <TitleInput
         value={projectName}
         onChangeText={onChangeProjectName}
-        onFocus={onBlurEditor}
+        onFocus={() => { onBlurEditor?.(); setIsTitleFocused(true); }}
+        onBlur={() => setIsTitleFocused(false)}
       />
 
       <Animated.View
         style={[styles.bodyInputWrapper, { height: animatedHeight }]}
+        pointerEvents={isTitleFocused ? 'none' : 'auto'}
       >
         <BodyInput
           editor={editor}
@@ -97,10 +101,12 @@ export default function EditView({
           isEditing={isEditingLyrics}
         />
         <OverlayToggleButton
-          onPress={onToggleEditLyrics}
+          onPress={() => {
+            onToggleEditLyrics();
+            editor.focus();
+          }}
           gradientOpacity={gradientOpacity}
           isEditing={isEditingLyrics}
-          extraBottomOffset={bottomSectionTranslateY}
         />
       </Animated.View>
 

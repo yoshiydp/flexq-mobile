@@ -8,15 +8,17 @@ interface TitleInputProps {
   value: string;
   onChangeText: (text: string) => void;
   onFocus?: () => void;
+  onBlur?: () => void;
 }
 
-export default function TitleInput({ value, onChangeText, onFocus }: TitleInputProps) {
+export default function TitleInput({ value, onChangeText, onFocus, onBlur }: TitleInputProps) {
   return (
     <TextInput
       style={styles.textInput}
       value={value}
       onChangeText={onChangeText}
       onFocus={onFocus}
+      onBlur={onBlur}
       placeholder={PLACEHOLDERS.titleInput}
       placeholderTextColor={COLORS.form.placeholder}
     />

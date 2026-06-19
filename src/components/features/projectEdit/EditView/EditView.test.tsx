@@ -216,4 +216,38 @@ describe('EditView コンポーネント', () => {
     expect(dismissSpy).toHaveBeenCalled();
     dismissSpy.mockRestore();
   });
+
+  it('TitleInput フォーカス時に bodyInputWrapper の pointerEvents が none になる', () => {
+    const mockOnBlurEditor = jest.fn();
+    const { getByDisplayValue, UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} onBlurEditor={mockOnBlurEditor} />,
+    );
+    const titleInput = getByDisplayValue('Sample Project');
+
+    fireEvent(titleInput, 'focus');
+
+    const { Animated } = require('react-native');
+    const animatedViews = UNSAFE_getAllByType(Animated.View);
+    const bodyWrapper = animatedViews.find(
+      (v: any) => v.props.pointerEvents !== undefined,
+    );
+    expect(bodyWrapper?.props.pointerEvents).toBe('none');
+  });
+
+  it('TitleInput ブラー時に bodyInputWrapper の pointerEvents が auto に戻る', () => {
+    const { getByDisplayValue, UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} />,
+    );
+    const titleInput = getByDisplayValue('Sample Project');
+
+    fireEvent(titleInput, 'focus');
+    fireEvent(titleInput, 'blur');
+
+    const { Animated } = require('react-native');
+    const animatedViews = UNSAFE_getAllByType(Animated.View);
+    const bodyWrapper = animatedViews.find(
+      (v: any) => v.props.pointerEvents !== undefined,
+    );
+    expect(bodyWrapper?.props.pointerEvents).toBe('auto');
+  });
 });
