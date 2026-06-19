@@ -207,7 +207,14 @@ export default function ProjectEditScreen() {
   }, [project?.waveformJson]);
 
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
+  const isEditingLyricsRef = useRef(false);
+  const skipKeyboardHideCloseRef = useRef(false);
+  const handleToggleEditLyricsRef = useRef<(() => void) | null>(null);
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    isEditingLyricsRef.current = isEditingLyrics;
+  }, [isEditingLyrics]);
 
   useEffect(() => {
     const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
@@ -215,7 +222,16 @@ export default function ProjectEditScreen() {
     const show = Keyboard.addListener(showEvent, (e) =>
       setKeyboardHeight(e.endCoordinates.height),
     );
-    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    const hide = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      if (skipKeyboardHideCloseRef.current) {
+        skipKeyboardHideCloseRef.current = false;
+        return;
+      }
+      if (isEditingLyricsRef.current) {
+        handleToggleEditLyricsRef.current?.();
+      }
+    });
     return () => { show.remove(); hide.remove(); };
   }, []);
   const animatedHeight = useRef(new Animated.Value(MIN_BODY_HEIGHT)).current;
@@ -355,7 +371,10 @@ export default function ProjectEditScreen() {
   const handleToggleEditLyrics = () => {
     const nextState = !isEditingLyrics;
     setIsEditingLyrics(nextState);
-    if (!nextState) blurEditor();
+    if (!nextState) {
+      skipKeyboardHideCloseRef.current = true;
+      blurEditor();
+    }
 
     if (mode === 'edit') {
       Animated.parallel([
@@ -403,6 +422,7 @@ export default function ProjectEditScreen() {
       });
     }
   };
+  handleToggleEditLyricsRef.current = handleToggleEditLyrics;
 
   const isValidLoaded = async () => {
     const s = soundRef.current;
