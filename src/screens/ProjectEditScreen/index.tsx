@@ -840,7 +840,7 @@ export default function ProjectEditScreen() {
           style={[styles.lyricsCloseButton, { bottom: keyboardHeight }]}
           onPress={handleToggleEditLyrics}
         >
-          <Ionicons name="checkmark" size={28} color={COLORS.font.navigation} />
+          <Ionicons name="checkmark" size={28} color={COLORS.base.bgDefault} />
         </Pressable>
       )}
     </View>
