@@ -79,6 +79,7 @@ export default function EditView({
     <View
       style={styles.container}
       onStartShouldSetResponder={() => {
+        if (isEditingLyrics) onToggleEditLyrics();
         onBlurEditor?.();
         Keyboard.dismiss();
         return false;

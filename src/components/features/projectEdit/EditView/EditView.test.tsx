@@ -217,6 +217,34 @@ describe('EditView コンポーネント', () => {
     dismissSpy.mockRestore();
   });
 
+  it('isEditingLyrics=true のときコンテナ外タップで onToggleEditLyrics が呼ばれる', () => {
+    const mockOnToggle = jest.fn();
+    const { UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} isEditingLyrics onToggleEditLyrics={mockOnToggle} />,
+    );
+
+    const { View } = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const container = views.find((v: any) => v.props.onStartShouldSetResponder);
+    container?.props.onStartShouldSetResponder();
+
+    expect(mockOnToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('isEditingLyrics=false のときコンテナ外タップで onToggleEditLyrics は呼ばれない', () => {
+    const mockOnToggle = jest.fn();
+    const { UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} isEditingLyrics={false} onToggleEditLyrics={mockOnToggle} />,
+    );
+
+    const { View } = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const container = views.find((v: any) => v.props.onStartShouldSetResponder);
+    container?.props.onStartShouldSetResponder();
+
+    expect(mockOnToggle).not.toHaveBeenCalled();
+  });
+
   it('TitleInput フォーカス時に bodyInputWrapper の pointerEvents が none になる', () => {
     const mockOnBlurEditor = jest.fn();
     const { getByDisplayValue, UNSAFE_getAllByType } = render(

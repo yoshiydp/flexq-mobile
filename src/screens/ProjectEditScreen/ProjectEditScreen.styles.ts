@@ -24,6 +24,11 @@ export default StyleSheet.create({
     position: 'absolute',
     right: 16,
     zIndex: 100,
-    padding: 10,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.accent.goldPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 });
