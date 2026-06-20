@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { View, Alert, KeyboardAvoidingView, Platform, Keyboard } from 'react-native';
+import { View, Alert, KeyboardAvoidingView, Platform, Keyboard, Pressable } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   useEditorBridge,
   TenTapStartKit,
@@ -40,6 +41,8 @@ export default function QuickMemoScreen() {
 
   const [title, setTitle] = useState(params.title ?? '');
   const [body, setBody] = useState(params.body ?? '');
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
   const [isBookmarked, setIsBookmarked] = useState(
     params.isBookmarked ?? false,
   );
@@ -85,6 +88,14 @@ export default function QuickMemoScreen() {
       editor.setContent(params.body);
     }
   }, [params.body]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvent, () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
 
   const isBodyEmpty = !body || body === '<p></p>' || body.trim() === '';
 
@@ -186,38 +197,49 @@ export default function QuickMemoScreen() {
   ];
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      onStartShouldSetResponder={() => {
-        editor.blur();
-        Keyboard.dismiss();
-        return false;
-      }}
-    >
-      <HeaderToolBar items={items} isBookmarked={isBookmarked} />
-      <View style={styles.inputContainer}>
-        <TitleInput
-          value={title}
-          onChangeText={setTitle}
-          onFocus={() => editor.blur()}
-        />
-        <View style={styles.bodyInputWrapper}>
-          <BodyInput
-            editor={editor}
-            onChangeText={setBody}
-            isEditing={true}
-            fillContainer
-            isListening={isListening}
-            onMicPress={handleMicPress}
+    <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        onStartShouldSetResponder={() => {
+          editor.blur();
+          Keyboard.dismiss();
+          return false;
+        }}
+      >
+        <HeaderToolBar items={items} isBookmarked={isBookmarked} />
+        <View style={styles.inputContainer}>
+          <TitleInput
+            value={title}
+            onChangeText={setTitle}
+            onFocus={() => { editor.blur(); setIsTitleFocused(true); }}
+            onBlur={() => setIsTitleFocused(false)}
           />
+          <View style={styles.bodyInputWrapper} pointerEvents={isTitleFocused ? 'none' : 'auto'}>
+            <BodyInput
+              editor={editor}
+              onChangeText={setBody}
+              isEditing={true}
+              fillContainer
+              isListening={isListening}
+              onMicPress={handleMicPress}
+            />
+          </View>
         </View>
-      </View>
-      <SubmitButton
-        containerClassName={styles.submitButton}
-        onPress={handleSave}
-        disabled={!title.trim() || isBodyEmpty}
-      />
-    </KeyboardAvoidingView>
+        <SubmitButton
+          containerClassName={styles.submitButton}
+          onPress={handleSave}
+          disabled={!title.trim() || isBodyEmpty}
+        />
+      </KeyboardAvoidingView>
+      {keyboardHeight > 0 && !isTitleFocused && (
+        <Pressable
+          style={[styles.checkmarkButton, { bottom: keyboardHeight }]}
+          onPress={() => editor.blur()}
+        >
+          <Ionicons name="checkmark" size={28} color={COLORS.base.bgDefault} />
+        </Pressable>
+      )}
+    </View>
   );
 }

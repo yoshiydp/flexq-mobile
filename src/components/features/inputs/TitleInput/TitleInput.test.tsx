@@ -39,4 +39,22 @@ describe('TitleInput コンポーネント', () => {
 
     expect(() => fireEvent(input, 'focus')).not.toThrow();
   });
+
+  it('ブラー時に onBlur が呼ばれる', () => {
+    const mockOnBlur = jest.fn();
+    const { getByPlaceholderText } = render(
+      <TitleInput {...mockProps} onBlur={mockOnBlur} />,
+    );
+    const input = getByPlaceholderText('タイトルを入力してください');
+
+    fireEvent(input, 'blur');
+    expect(mockOnBlur).toHaveBeenCalledTimes(1);
+  });
+
+  it('onBlur が渡されなくてもエラーにならない', () => {
+    const { getByPlaceholderText } = render(<TitleInput {...mockProps} />);
+    const input = getByPlaceholderText('タイトルを入力してください');
+
+    expect(() => fireEvent(input, 'blur')).not.toThrow();
+  });
 });
