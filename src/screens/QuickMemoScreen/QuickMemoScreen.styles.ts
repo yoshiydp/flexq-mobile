@@ -21,4 +21,15 @@ export default StyleSheet.create({
     marginHorizontal: 20,
     marginBottom: 20,
   },
+  checkmarkButton: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 100,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: COLORS.accent.goldPrimary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });
