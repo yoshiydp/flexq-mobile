@@ -232,7 +232,7 @@ export default function QuickMemoScreen() {
           disabled={!title.trim() || isBodyEmpty}
         />
       </KeyboardAvoidingView>
-      {keyboardHeight > 0 && (
+      {keyboardHeight > 0 && !isTitleFocused && (
         <Pressable
           style={[styles.checkmarkButton, { bottom: keyboardHeight }]}
           onPress={() => editor.blur()}
