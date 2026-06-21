@@ -88,7 +88,7 @@ export default function RecRecordingSection({
     } catch (err) {
       console.error('Recording start failed', err);
     }
-  }, [trackSource]);
+  }, [trackSource, startPositionMs]);
 
   const stopRecording = async () => {
     try {

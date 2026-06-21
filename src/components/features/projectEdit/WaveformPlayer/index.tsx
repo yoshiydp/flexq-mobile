@@ -108,7 +108,7 @@ export default function WaveformPlayer({
         // ignore if clearing isn't supported
       }
     };
-  }, [sound, onPlaybackFinish]);
+  }, [sound, onPlaybackFinish, onPlaybackStatusUpdate]);
 
   useEffect(() => {
     if (!sound) return;
