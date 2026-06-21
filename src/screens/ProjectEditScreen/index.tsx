@@ -12,7 +12,11 @@ import {
   ActivityIndicator,
   Text,
   StyleSheet,
+  Keyboard,
+  Platform,
+  Pressable,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import {
   useEditorBridge,
   TenTapStartKit,
@@ -203,6 +207,33 @@ export default function ProjectEditScreen() {
   }, [project?.waveformJson]);
 
   const [isEditingLyrics, setIsEditingLyrics] = useState(false);
+  const isEditingLyricsRef = useRef(false);
+  const skipKeyboardHideCloseRef = useRef(false);
+  const handleToggleEditLyricsRef = useRef<(() => void) | null>(null);
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+
+  useEffect(() => {
+    isEditingLyricsRef.current = isEditingLyrics;
+  }, [isEditingLyrics]);
+
+  useEffect(() => {
+    const showEvent = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvent = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvent, (e) =>
+      setKeyboardHeight(e.endCoordinates.height),
+    );
+    const hide = Keyboard.addListener(hideEvent, () => {
+      setKeyboardHeight(0);
+      if (skipKeyboardHideCloseRef.current) {
+        skipKeyboardHideCloseRef.current = false;
+        return;
+      }
+      if (isEditingLyricsRef.current) {
+        handleToggleEditLyricsRef.current?.();
+      }
+    });
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const animatedHeight = useRef(new Animated.Value(MIN_BODY_HEIGHT)).current;
   const gradientOpacity = useRef(new Animated.Value(1)).current;
   const bottomSectionTranslateY = useRef(new Animated.Value(0)).current;
@@ -340,7 +371,10 @@ export default function ProjectEditScreen() {
   const handleToggleEditLyrics = () => {
     const nextState = !isEditingLyrics;
     setIsEditingLyrics(nextState);
-    if (!nextState) blurEditor();
+    if (!nextState) {
+      skipKeyboardHideCloseRef.current = true;
+      blurEditor();
+    }
 
     if (mode === 'edit') {
       Animated.parallel([
@@ -388,6 +422,7 @@ export default function ProjectEditScreen() {
       });
     }
   };
+  handleToggleEditLyricsRef.current = handleToggleEditLyrics;
 
   const isValidLoaded = async () => {
     const s = soundRef.current;
@@ -518,9 +553,22 @@ export default function ProjectEditScreen() {
   const handleAllCueReset = () => {
     const hasActiveCue = cueButtons.some((btn) => btn.isActive);
     if (!hasActiveCue) return;
-    setCueButtons((prev) =>
-      prev.map((btn) => ({ ...btn, isActive: false, time: 0 })),
-    );
+    const { message, description, submitButtonLabel } =
+      MODAL_MESSAGES.confirmAllCueReset;
+    showConfirmModal({
+      message,
+      description,
+      submitButton: {
+        label: submitButtonLabel,
+        onPress: () => {
+          setCueButtons((prev) =>
+            prev.map((btn) => ({ ...btn, isActive: false, time: 0 })),
+          );
+          closeModal();
+        },
+      },
+      closeLabel: 'CANCEL',
+    });
   };
 
   const handleAllCueResetDisabled = () =>
@@ -559,6 +607,10 @@ export default function ProjectEditScreen() {
   };
 
   const handleEnterRecMode = () => {
+    if (soundRef.current) {
+      soundRef.current.pauseAsync().catch(() => {});
+      setIsPlaying(false);
+    }
     setMode('transition');
     // フェードアウト開始と同時に RecView をプリマウント（350ms 後の切り替え時に既にレンダリング済みにする）
     setPreloadRecView(true);
@@ -601,6 +653,10 @@ export default function ProjectEditScreen() {
   };
 
   const handleExitRecMode = () => {
+    if (soundRef.current) {
+      soundRef.current.pauseAsync().catch(() => {});
+      setIsPlaying(false);
+    }
     setMode('transition');
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -762,7 +818,7 @@ export default function ProjectEditScreen() {
                       StyleSheet.absoluteFillObject,
                       { opacity: 0 },
                     ])
-                  : { flex: 1 }
+                  : { flex: 1, marginTop: -40 }
               }
             >
               <RecView
@@ -770,6 +826,19 @@ export default function ProjectEditScreen() {
                 trackSource={trackSource}
                 records={projectRecords}
                 lyrics={body}
+                sound={sound}
+                waveformData={waveformData}
+                cueButtons={cueButtons}
+                onCueButtonPress={onCueButtonPress}
+                onCueButtonLongPress={handleCueButtonLongPress}
+                onCuePointUpdate={handleCuePointUpdate}
+                onSeek={handleSeek}
+                isPlaying={isPlaying}
+                onPlayPause={() => setIsPlaying((prev) => !prev)}
+                isLooping={isLooping}
+                onLoopToggle={handleLoopToggle}
+                onAllCueReset={handleAllCueReset}
+                isAllCueResetDisabled={handleAllCueResetDisabled()}
                 onBeforeRecord={() => {
                   if (soundRef.current) {
                     soundRef.current.pauseAsync().catch(() => {});
@@ -799,13 +868,22 @@ export default function ProjectEditScreen() {
         {currentView === 'rec' && mode !== 'transition' && (
           <View style={StyleSheet.absoluteFill}>
             <BottomUpButton
-              label="CLOSE"
+              label="EDIT MODE"
               iconName="angle-down"
               onPress={handleExitRecMode}
             />
           </View>
         )}
       </View>
+
+      {isEditingLyrics && keyboardHeight > 0 && (
+        <Pressable
+          style={[styles.lyricsCloseButton, { bottom: keyboardHeight }]}
+          onPress={handleToggleEditLyrics}
+        >
+          <Ionicons name="checkmark" size={28} color={COLORS.base.bgDefault} />
+        </Pressable>
+      )}
     </View>
   );
 }

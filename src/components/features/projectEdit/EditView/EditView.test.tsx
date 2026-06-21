@@ -216,4 +216,66 @@ describe('EditView コンポーネント', () => {
     expect(dismissSpy).toHaveBeenCalled();
     dismissSpy.mockRestore();
   });
+
+  it('isEditingLyrics=true のときコンテナ外タップで onToggleEditLyrics が呼ばれる', () => {
+    const mockOnToggle = jest.fn();
+    const { UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} isEditingLyrics onToggleEditLyrics={mockOnToggle} />,
+    );
+
+    const { View } = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const container = views.find((v: any) => v.props.onStartShouldSetResponder);
+    container?.props.onStartShouldSetResponder();
+
+    expect(mockOnToggle).toHaveBeenCalledTimes(1);
+  });
+
+  it('isEditingLyrics=false のときコンテナ外タップで onToggleEditLyrics は呼ばれない', () => {
+    const mockOnToggle = jest.fn();
+    const { UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} isEditingLyrics={false} onToggleEditLyrics={mockOnToggle} />,
+    );
+
+    const { View } = require('react-native');
+    const views = UNSAFE_getAllByType(View);
+    const container = views.find((v: any) => v.props.onStartShouldSetResponder);
+    container?.props.onStartShouldSetResponder();
+
+    expect(mockOnToggle).not.toHaveBeenCalled();
+  });
+
+  it('TitleInput フォーカス時に bodyInputWrapper の pointerEvents が none になる', () => {
+    const mockOnBlurEditor = jest.fn();
+    const { getByDisplayValue, UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} onBlurEditor={mockOnBlurEditor} />,
+    );
+    const titleInput = getByDisplayValue('Sample Project');
+
+    fireEvent(titleInput, 'focus');
+
+    const { Animated } = require('react-native');
+    const animatedViews = UNSAFE_getAllByType(Animated.View);
+    const bodyWrapper = animatedViews.find(
+      (v: any) => v.props.pointerEvents !== undefined,
+    );
+    expect(bodyWrapper?.props.pointerEvents).toBe('none');
+  });
+
+  it('TitleInput ブラー時に bodyInputWrapper の pointerEvents が auto に戻る', () => {
+    const { getByDisplayValue, UNSAFE_getAllByType } = render(
+      <EditView {...mockProps} />,
+    );
+    const titleInput = getByDisplayValue('Sample Project');
+
+    fireEvent(titleInput, 'focus');
+    fireEvent(titleInput, 'blur');
+
+    const { Animated } = require('react-native');
+    const animatedViews = UNSAFE_getAllByType(Animated.View);
+    const bodyWrapper = animatedViews.find(
+      (v: any) => v.props.pointerEvents !== undefined,
+    );
+    expect(bodyWrapper?.props.pointerEvents).toBe('auto');
+  });
 });
