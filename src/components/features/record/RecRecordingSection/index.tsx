@@ -8,6 +8,7 @@ import styles from './RecRecordingSection.styles';
 interface RecRecordingSectionProps {
   onStop: (durationMs: number, recordingFile: string) => void;
   trackSource?: string | null;
+  startPositionMs?: number;
   countdownSeconds?: number;
   testID?: string;
 }
@@ -15,6 +16,7 @@ interface RecRecordingSectionProps {
 export default function RecRecordingSection({
   onStop,
   trackSource,
+  startPositionMs = 0,
   countdownSeconds = 5,
   testID = 'rec-recording-section-pressable',
 }: RecRecordingSectionProps) {
@@ -73,11 +75,11 @@ export default function RecRecordingSection({
       await recording.startAsync();
       recordingRef.current = recording;
 
-      // 音源がある場合は先頭から再生（マイクが物理的にスピーカー/イヤホン音を収録）
+      // 音源がある場合は指定位置から再生（マイクが物理的にスピーカー/イヤホン音を収録）
       if (trackSource) {
         const { sound } = await Audio.Sound.createAsync(
           { uri: trackSource },
-          { shouldPlay: true, positionMillis: 0, volume: 1.0 },
+          { shouldPlay: true, positionMillis: startPositionMs, volume: 1.0 },
         );
         trackSoundRef.current = sound;
       }
@@ -86,7 +88,7 @@ export default function RecRecordingSection({
     } catch (err) {
       console.error('Recording start failed', err);
     }
-  }, [trackSource]);
+  }, [trackSource, startPositionMs]);
 
   const stopRecording = async () => {
     try {

@@ -4,6 +4,7 @@ import {
   waitFor,
   screen,
   fireEvent,
+  act,
 } from '@testing-library/react-native';
 import { Dimensions } from 'react-native';
 import WaveformPlayer from './index';
@@ -110,12 +111,14 @@ describe('WaveformPlayer コンポーネント', () => {
       expect(sound.setOnPlaybackStatusUpdate).toHaveBeenCalled();
     });
 
-    await capturedCallback!({
-      isLoaded: true,
-      positionMillis: 120000,
-      durationMillis: 120000,
-      didJustFinish: true,
-      isLooping: false,
+    await act(async () => {
+      await capturedCallback!({
+        isLoaded: true,
+        positionMillis: 120000,
+        durationMillis: 120000,
+        didJustFinish: true,
+        isLooping: false,
+      });
     });
 
     await waitFor(() => {

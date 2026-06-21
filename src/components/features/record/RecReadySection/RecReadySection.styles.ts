@@ -7,13 +7,9 @@ export default StyleSheet.create({
     flexDirection: 'column',
     alignItems: 'center',
   },
-  microphoneIcon: {
-    color: COLORS.icon.default,
-  },
   textWrapper: {
     width: '100%',
     maxWidth: 300,
-    marginTop: 16,
     padding: 10,
     borderRadius: 8,
     borderWidth: 2,
