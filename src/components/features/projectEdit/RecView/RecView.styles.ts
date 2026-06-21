@@ -1,34 +1,51 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { COLORS } from '@/globalStyles';
-
-const screenHeight = Dimensions.get('window').height;
-
-const recordListHeight = screenHeight * 0.4;
 
 export default StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: COLORS.base.bgDefault,
-  },
-  content: {
-    flex: 1,
-    display: 'flex',
-    justifyContent: 'center',
-    alignItems: 'center',
+    paddingHorizontal: 20,
   },
   recordListWrapper: {
-    width: '95%',
-    height: recordListHeight,
-    paddingHorizontal: 12,
-    borderStyle: 'solid',
+    height: 190,
     borderWidth: 1,
     borderColor: COLORS.base.borderDefault,
     borderRadius: 8,
+    marginBottom: 20,
   },
   recordListInner: {
+    flex: 1,
+  },
+  recordListContent: {
     paddingTop: 20,
+    paddingBottom: 0,
+    paddingHorizontal: 12,
+  },
+  recordListContentEmpty: {
+    flexGrow: 1,
+  },
+  emptyState: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyStateText: {
+    marginTop: -12,
+    color: COLORS.font.label,
+    fontSize: 15,
+    fontFamily: 'NotoSans_400Regular',
+  },
+  seekBarWrapper: {
+    marginTop: 8,
+  },
+  cueButtonListWrapper: {
+    marginTop: 20,
+  },
+  playerControlsWrapper: {
+    marginTop: 20,
   },
   recReadySectionWrapper: {
-    marginTop: 40,
+    alignItems: 'center',
   },
 });

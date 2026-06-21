@@ -13,6 +13,7 @@ interface WaveformPlayerProps {
   cuePoints?: CuePointType[];
   onCuePointUpdate?: (index: number, updatedCue: CuePointType) => void;
   onPlaybackFinish?: () => void;
+  onPlaybackStatusUpdate?: (status: any) => void;
   testID?: string;
 }
 
@@ -23,6 +24,7 @@ export default function WaveformPlayer({
   cuePoints = [],
   onCuePointUpdate,
   onPlaybackFinish,
+  onPlaybackStatusUpdate,
   testID = 'waveform-container',
 }: WaveformPlayerProps) {
   const [waveform, setWaveform] = useState<number[]>([]);
@@ -84,6 +86,8 @@ export default function WaveformPlayer({
         positionRef.current = status.positionMillis;
         setDuration(status.durationMillis || 1);
       }
+
+      onPlaybackStatusUpdate?.(status);
 
       if (status.didJustFinish && !status.isLooping) {
         try {

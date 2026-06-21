@@ -1,3 +1,12 @@
+export const REC_LABELS = {
+  emptyState: '録音データがありません',
+  readyInstruction:
+    'デバイスのマイク、または外部接続のマイクに近づいてからRECボタンをタップして下さい',
+  startModalTitle: '録音開始位置を選択',
+  fromBeginning: 'はじめから',
+  currentPosition: '現在位置',
+};
+
 export const MODAL_MESSAGES = {
   confirmProjectEditSave: {
     message: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？',
