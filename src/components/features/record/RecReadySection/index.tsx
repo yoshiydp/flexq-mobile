@@ -1,17 +1,18 @@
 import React, { useRef } from 'react';
 import { Pressable, View, Text, Animated } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
-import Icon from '@/components/ui/Icon';
 import { runBounce } from '@/utils/animations';
+import { REC_LABELS } from '@/constants/messages';
 import styles from './RecReadySection.styles';
 
 interface RecReadySectionProps {
   onPressStartRecording: () => void;
+  showText?: boolean;
   testID?: string;
 }
 
 export default function RecReadySection({
   onPressStartRecording,
+  showText = true,
   testID = 'rec-ready-section-pressable',
 }: RecReadySectionProps) {
   const outerScale = useRef(new Animated.Value(1)).current;
@@ -28,17 +29,13 @@ export default function RecReadySection({
 
   return (
     <View style={styles.container}>
-      <Icon
-        component={FontAwesome}
-        name="microphone"
-        size={30}
-        style={styles.microphoneIcon}
-      />
-      <View style={styles.textWrapper}>
-        <Text style={styles.text}>
-          デバイスのマイク、または外部接続のマイクに近づいてからRECボタンをタップして下さい
-        </Text>
-      </View>
+      {showText && (
+        <View style={styles.textWrapper}>
+          <Text style={styles.text}>
+            {REC_LABELS.readyInstruction}
+          </Text>
+        </View>
+      )}
 
       <Pressable
         testID={testID}

@@ -607,6 +607,10 @@ export default function ProjectEditScreen() {
   };
 
   const handleEnterRecMode = () => {
+    if (soundRef.current) {
+      soundRef.current.pauseAsync().catch(() => {});
+      setIsPlaying(false);
+    }
     setMode('transition');
     // フェードアウト開始と同時に RecView をプリマウント（350ms 後の切り替え時に既にレンダリング済みにする）
     setPreloadRecView(true);
@@ -649,6 +653,10 @@ export default function ProjectEditScreen() {
   };
 
   const handleExitRecMode = () => {
+    if (soundRef.current) {
+      soundRef.current.pauseAsync().catch(() => {});
+      setIsPlaying(false);
+    }
     setMode('transition');
     Animated.parallel([
       Animated.timing(fadeAnim, {
@@ -810,7 +818,7 @@ export default function ProjectEditScreen() {
                       StyleSheet.absoluteFillObject,
                       { opacity: 0 },
                     ])
-                  : { flex: 1 }
+                  : { flex: 1, marginTop: -40 }
               }
             >
               <RecView
@@ -818,6 +826,19 @@ export default function ProjectEditScreen() {
                 trackSource={trackSource}
                 records={projectRecords}
                 lyrics={body}
+                sound={sound}
+                waveformData={waveformData}
+                cueButtons={cueButtons}
+                onCueButtonPress={onCueButtonPress}
+                onCueButtonLongPress={handleCueButtonLongPress}
+                onCuePointUpdate={handleCuePointUpdate}
+                onSeek={handleSeek}
+                isPlaying={isPlaying}
+                onPlayPause={() => setIsPlaying((prev) => !prev)}
+                isLooping={isLooping}
+                onLoopToggle={handleLoopToggle}
+                onAllCueReset={handleAllCueReset}
+                isAllCueResetDisabled={handleAllCueResetDisabled()}
                 onBeforeRecord={() => {
                   if (soundRef.current) {
                     soundRef.current.pauseAsync().catch(() => {});
@@ -847,7 +868,7 @@ export default function ProjectEditScreen() {
         {currentView === 'rec' && mode !== 'transition' && (
           <View style={StyleSheet.absoluteFill}>
             <BottomUpButton
-              label="CLOSE"
+              label="EDIT MODE"
               iconName="angle-down"
               onPress={handleExitRecMode}
             />

@@ -31,6 +31,7 @@ interface RecRecordingModalProps {
   onClose: () => void;
   onStop: (durationMs: number, recordingFile: string) => void;
   trackSource?: string | null;
+  startPositionMs?: number;
   lyrics?: string;
 }
 
@@ -39,6 +40,7 @@ export default function RecRecordingModal({
   onClose,
   onStop,
   trackSource,
+  startPositionMs = 0,
   lyrics,
 }: RecRecordingModalProps) {
   useEffect(() => {
@@ -97,7 +99,7 @@ export default function RecRecordingModal({
               <RichText editor={editor} />
             </View>
           )}
-          <RecRecordingSection onStop={onStop} trackSource={trackSource} />
+          <RecRecordingSection onStop={onStop} trackSource={trackSource} startPositionMs={startPositionMs} />
         </Animated.View>
       </Animated.View>
     </Modal>
