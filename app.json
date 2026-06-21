@@ -19,7 +19,9 @@
             ]
           }
         ],
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "プロフィール画像やトラックのアートワークを設定するために写真へのアクセスを許可してください。",
+        "NSSpeechRecognitionUsageDescription": "音声をテキストに変換するために音声認識の使用を許可してください。"
       }
     },
     "android": {
