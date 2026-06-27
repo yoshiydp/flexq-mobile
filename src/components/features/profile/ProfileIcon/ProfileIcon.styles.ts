@@ -31,4 +31,13 @@ export default StyleSheet.create({
   uploadButtonIcon: {
     color: COLORS.accent.purple,
   },
+  loadingIndicator: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

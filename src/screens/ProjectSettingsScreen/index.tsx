@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   ScrollView,
   View,
@@ -6,7 +6,7 @@ import {
   Modal,
   FlatList,
   Pressable,
-  Image,
+  Animated,
   ActivityIndicator,
   Alert,
 } from 'react-native';
@@ -55,6 +55,26 @@ export default function ProjectSettingsScreen() {
   const [audioExt, setAudioExt] = useState('');
   const [showTrackPicker, setShowTrackPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [loadedTrackIds, setLoadedTrackIds] = useState<Set<string>>(new Set());
+  const trackAnimatedValuesRef = useRef<Map<string, { img: Animated.Value; spinner: Animated.Value }>>(new Map());
+
+  const getTrackAnimatedValues = (id: string) => {
+    if (!trackAnimatedValuesRef.current.has(id)) {
+      trackAnimatedValuesRef.current.set(id, {
+        img: new Animated.Value(0),
+        spinner: new Animated.Value(1),
+      });
+    }
+    return trackAnimatedValuesRef.current.get(id)!;
+  };
+
+  const handleTrackArtworkLoadEnd = (id: string) => {
+    const { img, spinner } = getTrackAnimatedValues(id);
+    Animated.parallel([
+      Animated.timing(img, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(spinner, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setLoadedTrackIds((prev) => new Set([...prev, id])));
+  };
 
   // pending changes to pass back
   const [pendingArtworkUri, setPendingArtworkUri] = useState<string | null>(null);
@@ -267,7 +287,18 @@ export default function ProjectSettingsScreen() {
                   onPress={() => handleSelectTrack(item)}
                 >
                   {item.artwork ? (
-                    <Image source={{ uri: item.artwork }} style={styles.trackItemArtwork} />
+                    <View style={styles.trackItemArtwork}>
+                      <Animated.Image
+                        source={{ uri: item.artwork }}
+                        style={[styles.trackItemArtworkImage, { opacity: getTrackAnimatedValues(item.id).img }]}
+                        onLoadEnd={() => handleTrackArtworkLoadEnd(item.id)}
+                      />
+                      {!loadedTrackIds.has(item.id) && (
+                        <Animated.View style={[styles.trackItemArtworkLoading, { opacity: getTrackAnimatedValues(item.id).spinner }]}>
+                          <ActivityIndicator size="small" color={COLORS.accent.goldPrimary} />
+                        </Animated.View>
+                      )}
+                    </View>
                   ) : (
                     <View style={styles.trackItemArtwork}>
                       <Icon

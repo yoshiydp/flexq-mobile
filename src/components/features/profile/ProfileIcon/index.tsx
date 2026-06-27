@@ -1,8 +1,9 @@
-import React from 'react';
-import { View, Image, Pressable } from 'react-native';
+import React, { useState, useRef, useEffect } from 'react';
+import { View, Animated, Pressable, ActivityIndicator } from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import type { FontAwesome6IconName } from '@/types/iconTypes';
+import { COLORS } from '@/globalStyles';
 import styles from './ProfileIcon.styles';
 
 const DEFAULT_PROFILE = require('@/assets/images/default-profile.png');
@@ -18,11 +19,40 @@ export default function ProfileIcon({
   editable = false,
   onPressUpload,
 }: ProfileIconProps) {
-  const source = thumbnail?.uri ? thumbnail : DEFAULT_PROFILE;
+  const isRemote = !!thumbnail?.uri;
+  const [loading, setLoading] = useState(isRemote);
+  const imageOpacity = useRef(new Animated.Value(isRemote ? 0 : 1)).current;
+  const spinnerOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    if (thumbnail?.uri) {
+      imageOpacity.setValue(0);
+      spinnerOpacity.setValue(1);
+      setLoading(true);
+    }
+  }, [thumbnail?.uri]);
+
+  const handleLoadEnd = () => {
+    Animated.parallel([
+      Animated.timing(imageOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(spinnerOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setLoading(false));
+  };
+
+  const source = isRemote ? thumbnail : DEFAULT_PROFILE;
 
   return (
     <View style={styles.container}>
-      <Image source={source} style={styles.thumbnail} />
+      <Animated.Image
+        source={source}
+        style={[styles.thumbnail, { opacity: imageOpacity }]}
+        onLoadEnd={handleLoadEnd}
+      />
+      {loading && (
+        <Animated.View style={[styles.loadingIndicator, { opacity: spinnerOpacity }]}>
+          <ActivityIndicator size="small" color={COLORS.accent.goldPrimary} />
+        </Animated.View>
+      )}
       {editable && (
         <Pressable style={styles.uploadButton} onPress={onPressUpload}>
           <Icon
