@@ -30,7 +30,7 @@ export default function ProfileIcon({
       spinnerOpacity.setValue(1);
       setLoading(true);
     }
-  }, [thumbnail?.uri]);
+  }, [thumbnail?.uri, imageOpacity, spinnerOpacity]);
 
   const handleLoadEnd = () => {
     Animated.parallel([
