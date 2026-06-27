@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import {
   View,
   Text,
   TextInput,
   ScrollView,
   Pressable,
-  Image,
+  Animated,
+  ActivityIndicator,
   Modal,
   FlatList,
   Alert,
@@ -80,8 +81,47 @@ export default function NewProjectScreen() {
   const [selectedTrack, setSelectedTrack] = useState<TrackType | null>(null);
   const [artworkUri, setArtworkUri] = useState<string | null>(null);
   const [artworkIsDataUri, setArtworkIsDataUri] = useState(false);
+  const [artworkLoading, setArtworkLoading] = useState(false);
+  const [loadedTrackIds, setLoadedTrackIds] = useState<Set<string>>(new Set());
   const [showTrackPicker, setShowTrackPicker] = useState(false);
   const { showLoading, hideLoading } = useModal();
+
+  const artworkImageOpacity = useRef(new Animated.Value(0)).current;
+  const artworkSpinnerOpacity = useRef(new Animated.Value(1)).current;
+  const trackAnimatedValuesRef = useRef<Map<string, { img: Animated.Value; spinner: Animated.Value }>>(new Map());
+
+  const getTrackAnimatedValues = (id: string) => {
+    if (!trackAnimatedValuesRef.current.has(id)) {
+      trackAnimatedValuesRef.current.set(id, {
+        img: new Animated.Value(0),
+        spinner: new Animated.Value(1),
+      });
+    }
+    return trackAnimatedValuesRef.current.get(id)!;
+  };
+
+  useEffect(() => {
+    if (artworkUri) {
+      artworkImageOpacity.setValue(0);
+      artworkSpinnerOpacity.setValue(1);
+      setArtworkLoading(true);
+    }
+  }, [artworkUri]);
+
+  const handleArtworkLoadEnd = () => {
+    Animated.parallel([
+      Animated.timing(artworkImageOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(artworkSpinnerOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setArtworkLoading(false));
+  };
+
+  const handleTrackArtworkLoadEnd = (id: string) => {
+    const { img, spinner } = getTrackAnimatedValues(id);
+    Animated.parallel([
+      Animated.timing(img, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(spinner, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setLoadedTrackIds((prev) => new Set([...prev, id])));
+  };
 
   const audioDisplayName = pendingAudio?.name ?? selectedTrack?.title ?? null;
 
@@ -298,7 +338,18 @@ export default function NewProjectScreen() {
         <Text style={styles.sectionLabel}>ARTWORK</Text>
         <View style={styles.artworkContainer}>
           {artworkUri ? (
-            <Image source={{ uri: artworkUri }} style={styles.artworkImage} />
+            <View style={styles.artworkImageWrapper}>
+              <Animated.Image
+                source={{ uri: artworkUri }}
+                style={[styles.artworkImage, { opacity: artworkImageOpacity }]}
+                onLoadEnd={handleArtworkLoadEnd}
+              />
+              {artworkLoading && (
+                <Animated.View style={[styles.artworkImageLoading, { opacity: artworkSpinnerOpacity }]}>
+                  <ActivityIndicator size="small" color={COLORS.accent.goldPrimary} />
+                </Animated.View>
+              )}
+            </View>
           ) : (
             <View style={styles.artworkPlaceholder}>
               <Icon
@@ -343,10 +394,18 @@ export default function NewProjectScreen() {
                   onPress={() => handleSelectExistingTrack(item)}
                 >
                   {item.artwork ? (
-                    <Image
-                      source={{ uri: item.artwork }}
-                      style={styles.trackItemArtwork}
-                    />
+                    <View style={styles.trackItemArtwork}>
+                      <Animated.Image
+                        source={{ uri: item.artwork }}
+                        style={[styles.trackItemArtworkImage, { opacity: getTrackAnimatedValues(item.id).img }]}
+                        onLoadEnd={() => handleTrackArtworkLoadEnd(item.id)}
+                      />
+                      {!loadedTrackIds.has(item.id) && (
+                        <Animated.View style={[styles.trackItemArtworkLoading, { opacity: getTrackAnimatedValues(item.id).spinner }]}>
+                          <ActivityIndicator size="small" color={COLORS.accent.goldPrimary} />
+                        </Animated.View>
+                      )}
+                    </View>
                   ) : (
                     <View style={styles.trackItemArtwork}>
                       <Icon

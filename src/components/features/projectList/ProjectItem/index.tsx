@@ -1,13 +1,14 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   View,
   Pressable,
   Text,
   Animated,
   Easing,
-  Image,
+  ActivityIndicator,
   GestureResponderEvent,
 } from 'react-native';
+import { COLORS } from '@/globalStyles';
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import type { FontAwesomeIconName } from '@/types/iconTypes';
@@ -42,6 +43,16 @@ export default function ProjectItem({
   const translateX = useRef(new Animated.Value(50)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const animatedStarted = useRef(false);
+  const [artworkLoading, setArtworkLoading] = useState(!!artwork?.uri);
+  const artworkImageOpacity = useRef(new Animated.Value(artwork?.uri ? 0 : 1)).current;
+  const artworkSpinnerOpacity = useRef(new Animated.Value(1)).current;
+
+  const handleArtworkLoadEnd = () => {
+    Animated.parallel([
+      Animated.timing(artworkImageOpacity, { toValue: 1, duration: 300, useNativeDriver: true }),
+      Animated.timing(artworkSpinnerOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
+    ]).start(() => setArtworkLoading(false));
+  };
 
   useEffect(() => {
     if (startAnimation && !animatedStarted.current) {
@@ -70,7 +81,16 @@ export default function ProjectItem({
     <Animated.View style={{ transform: [{ translateX }], opacity }}>
       <Pressable style={styles.container} onPress={onPress} testID={testID}>
         <View style={styles.artworkContainer}>
-          <Image source={artwork ?? DEFAULT_ARTWORK} style={styles.artwork} />
+          <Animated.Image
+            source={artwork ?? DEFAULT_ARTWORK}
+            style={[styles.artwork, { opacity: artworkImageOpacity }]}
+            onLoadEnd={handleArtworkLoadEnd}
+          />
+          {artworkLoading && (
+            <Animated.View style={[styles.artworkLoadingIndicator, { opacity: artworkSpinnerOpacity }]}>
+              <ActivityIndicator size="small" color={COLORS.accent.goldPrimary} />
+            </Animated.View>
+          )}
         </View>
         <View style={styles.infoContainer}>
           <Text style={styles.projectName}>{projectName}</Text>
