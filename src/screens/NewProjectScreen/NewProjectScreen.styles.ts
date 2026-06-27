@@ -59,10 +59,23 @@ export default StyleSheet.create({
   artworkContainer: {
     alignItems: 'center',
   },
+  artworkImageWrapper: {
+    width: 160,
+    height: 160,
+  },
   artworkImage: {
     width: 160,
     height: 160,
     borderRadius: 8,
+  },
+  artworkImageLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   artworkPlaceholder: {
     width: 160,
@@ -136,6 +149,20 @@ export default StyleSheet.create({
     borderRadius: 4,
     backgroundColor: COLORS.surface.waveform,
     marginRight: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
+    overflow: 'hidden',
+  },
+  trackItemArtworkImage: {
+    width: '100%',
+    height: '100%',
+  },
+  trackItemArtworkLoading: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
   },
