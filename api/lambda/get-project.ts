@@ -46,6 +46,13 @@ export const handler = async (event: any) => {
         if (trackResult.Item?.title) {
           trackNameFromRecord = trackResult.Item.title;
         }
+        if (!artwork && trackResult.Item?.artworkKey) {
+          artwork = await getSignedUrl(
+            s3Client,
+            new GetObjectCommand({ Bucket: process.env.TRACK_AUDIO_BUCKET!, Key: trackResult.Item.artworkKey }),
+            { expiresIn: 3600 }
+          );
+        }
       }
 
       return {
