@@ -50,7 +50,10 @@ export default function ProjectSettingsScreen() {
 
   const initialTrackName = route.params?.trackName ?? null;
 
-  const [thumbnail, setThumbnail] = useState<{ uri: string } | undefined>(undefined);
+  const [thumbnail, setThumbnail] = useState<{ uri: string } | undefined>(() => {
+    if (artworkParam == null) return undefined;
+    return typeof artworkParam === 'string' ? { uri: artworkParam } : artworkParam;
+  });
   const [audioTitle, setAudioTitle] = useState('');
   const [audioExt, setAudioExt] = useState('');
   const [showTrackPicker, setShowTrackPicker] = useState(false);
@@ -82,14 +85,6 @@ export default function ProjectSettingsScreen() {
   const [pendingTrackId, setPendingTrackId] = useState<string | null>(null);
   const [pendingTrackName, setPendingTrackName] = useState<string | null>(null);
   const [pendingTrackSource, setPendingTrackSource] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (artworkParam != null) {
-      setThumbnail(typeof artworkParam === 'string' ? { uri: artworkParam } : artworkParam);
-    } else {
-      setThumbnail(undefined);
-    }
-  }, [artworkParam]);
 
   useEffect(() => {
     const source = pendingTrackSource ?? initialTrackSource;
