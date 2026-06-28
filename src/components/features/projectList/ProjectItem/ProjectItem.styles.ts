@@ -15,7 +15,6 @@ export default StyleSheet.create({
     height: 120,
     borderRadius: 4,
     overflow: 'hidden',
-    backgroundColor: COLORS.surface.waveform,
   },
   artwork: {
     width: 120,
