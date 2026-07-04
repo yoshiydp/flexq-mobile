@@ -8,6 +8,7 @@ export interface RecordType {
   id: string;
   title: string;
   source: string;
+  projectId?: string;
   updatedAt: Date;
   isBookmarked: boolean;
 }

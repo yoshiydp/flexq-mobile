@@ -43,6 +43,33 @@ describe('RecordItem コンポーネント', () => {
     expect(bookmarkIcon).toBeNull();
   });
 
+  it('projectLabel が指定されたときにプロジェクトバッジが表示される', () => {
+    const { getByText } = render(
+      <RecordItem
+        title={mockTitle}
+        updatedAt={mockUpdatedAt}
+        isBookmarked={false}
+        projectLabel="PROJECT: 夏の新曲"
+        onPress={mockOnPress}
+      />,
+    );
+
+    expect(getByText('PROJECT: 夏の新曲')).toBeTruthy();
+  });
+
+  it('projectLabel が未指定のときにプロジェクトバッジが表示されない', () => {
+    const { queryByText } = render(
+      <RecordItem
+        title={mockTitle}
+        updatedAt={mockUpdatedAt}
+        isBookmarked={false}
+        onPress={mockOnPress}
+      />,
+    );
+
+    expect(queryByText(/PROJECT/)).toBeNull();
+  });
+
   it('RecordItem を押したときに onPress が呼び出される', () => {
     const { getByText } = render(
       <RecordItem
