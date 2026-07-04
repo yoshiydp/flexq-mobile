@@ -46,4 +46,24 @@ describe('ProjectItem コンポーネント', () => {
     const { queryByText } = render(<ProjectItem {...mockProps} />);
     expect(queryByText('Hip Hop, R&B')).toBeNull();
   });
+
+  it('画像ロード失敗時（onError）、デフォルト画像にフォールバックする', () => {
+    const DEFAULT_ARTWORK = require('@/assets/images/default-artwork.png');
+    const { getByTestId } = render(<ProjectItem {...mockProps} />);
+
+    fireEvent(getByTestId('project-item-artwork'), 'error');
+
+    expect(getByTestId('project-item-artwork').props.source).toEqual(DEFAULT_ARTWORK);
+  });
+
+  it('エラー後に artwork の uri が変わるとリモート画像の表示を再試行する', () => {
+    const { getByTestId, rerender } = render(<ProjectItem {...mockProps} />);
+
+    fireEvent(getByTestId('project-item-artwork'), 'error');
+
+    const newArtwork = { uri: 'https://example.com/refreshed-presigned-url.jpg' };
+    rerender(<ProjectItem {...mockProps} artwork={newArtwork} />);
+
+    expect(getByTestId('project-item-artwork').props.source).toEqual(newArtwork);
+  });
 });
