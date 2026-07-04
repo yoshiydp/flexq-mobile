@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { ScrollView, View, ActivityIndicator, Keyboard } from 'react-native';
+import { ScrollView, View, ActivityIndicator, Keyboard, Alert } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';
 import ProfileIcon from '@/components/features/profile/ProfileIcon';
@@ -92,6 +92,7 @@ export default function ProfileEditScreen() {
       navigation.goBack();
     } catch (err) {
       console.error('Failed to save profile:', err);
+      Alert.alert('エラー', 'プロフィールの保存に失敗しました。');
     } finally {
       hideLoading();
     }
