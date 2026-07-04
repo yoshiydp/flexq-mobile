@@ -5,11 +5,11 @@ export function useCreateMemo() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const createMemo = async (title: string, body: string = '') => {
+  const createMemo = async (title: string, body: string = '', isBookmarked: boolean = false) => {
     setLoading(true);
     setError(null);
     try {
-      const res = await DefaultService.createMemo({ title, body });
+      const res = await DefaultService.createMemo({ title, body, isBookmarked });
       return res;
     } catch (err) {
       setError(err as Error);

@@ -266,6 +266,8 @@ paths:
                   type: string
                 body:
                   type: string
+                isBookmarked:
+                  type: boolean
       responses:
         '201':
           description: Created

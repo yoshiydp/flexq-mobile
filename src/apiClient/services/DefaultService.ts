@@ -218,6 +218,7 @@ export class DefaultService {
         requestBody: {
             title: string;
             body?: string;
+            isBookmarked?: boolean;
         },
     ): CancelablePromise<{
         id?: string;
