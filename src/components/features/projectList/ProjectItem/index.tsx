@@ -44,6 +44,7 @@ export default function ProjectItem({
   const opacity = useRef(new Animated.Value(0)).current;
   const animatedStarted = useRef(false);
   const [artworkLoading, setArtworkLoading] = useState(!!artwork?.uri);
+  const [artworkError, setArtworkError] = useState(false);
   const artworkImageOpacity = useRef(new Animated.Value(artwork?.uri ? 0 : 1)).current;
   const artworkSpinnerOpacity = useRef(new Animated.Value(1)).current;
 
@@ -53,6 +54,18 @@ export default function ProjectItem({
       Animated.timing(artworkSpinnerOpacity, { toValue: 0, duration: 300, useNativeDriver: true }),
     ]).start(() => setArtworkLoading(false));
   };
+
+  const handleArtworkError = () => {
+    setArtworkError(true);
+    setArtworkLoading(false);
+    artworkImageOpacity.setValue(1);
+    artworkSpinnerOpacity.setValue(0);
+  };
+
+  // 画像ソースが変わったらエラー状態をリセットする（リスト再利用・URL 再発行時）
+  useEffect(() => {
+    setArtworkError(false);
+  }, [artwork?.uri]);
 
   useEffect(() => {
     if (startAnimation && !animatedStarted.current) {
@@ -82,9 +95,11 @@ export default function ProjectItem({
       <Pressable style={styles.container} onPress={onPress} testID={testID}>
         <View style={styles.artworkContainer}>
           <Animated.Image
-            source={artwork ?? DEFAULT_ARTWORK}
+            source={!artworkError && artwork ? artwork : DEFAULT_ARTWORK}
             style={[styles.artwork, { opacity: artworkImageOpacity }]}
             onLoadEnd={handleArtworkLoadEnd}
+            onError={handleArtworkError}
+            testID="project-item-artwork"
           />
           {artworkLoading && (
             <Animated.View style={[styles.artworkLoadingIndicator, { opacity: artworkSpinnerOpacity }]}>
