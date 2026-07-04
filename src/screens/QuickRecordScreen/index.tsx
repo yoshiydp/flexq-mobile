@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -6,7 +6,6 @@ import type { RootStackParamList } from '@/navigation/types';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import RecReadySection from '@/components/features/record/RecReadySection';
 import RecRecordingModal from '@/components/ui/modals/RecRecordingModal';
-import { useModal } from '@/contexts/ModalContext';
 import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
 import styles from './QuickRecordScreen.styles';
 
@@ -17,10 +16,6 @@ export default function QuickRecordScreen() {
   const params = route.params;
 
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
-  const recordedFileRef = useRef<string | null>(null);
-  const recordedDurationRef = useRef(0);
-
-  const { showLoading, hideLoading } = useModal();
 
   const handleGoBack = () => {
     navigator.goBack();
@@ -30,18 +25,12 @@ export default function QuickRecordScreen() {
 
   const handleStopRecording = (duration: number, file: string) => {
     if (!file || duration <= 0) return;
-    recordedDurationRef.current = duration;
-    recordedFileRef.current = file;
     setRecordingModalVisible(false);
-    showLoading();
-    setTimeout(() => {
-      hideLoading();
-      navigator.navigate('RecordPlayer', {
-        recordedFile: recordedFileRef.current ?? undefined,
-        recordedDuration: recordedDurationRef.current,
-        source: params?.source || undefined,
-      });
-    }, 3000);
+    navigator.navigate('RecordPlayer', {
+      recordedFile: file,
+      recordedDuration: duration,
+      source: params?.source || undefined,
+    });
   };
 
   const navigateRecordList = () => {
