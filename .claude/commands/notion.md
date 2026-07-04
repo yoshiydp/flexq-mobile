@@ -21,6 +21,7 @@ Notionのタスク管理操作を行うコマンドです。以下の操作に�
 - 優先度（select）: Low / Middle / High
 - デバイス（select）: Android / iPhone
 - 簡単な詳細（rich_text）: 任意
+- リリース（checkbox）: 作成時は OFF のまま
 
 ### ステータス更新
 「TASK-X を〇〇にして」と伝えられたら以下を実行：
@@ -28,6 +29,13 @@ Notionのタスク管理操作を行うコマンドです。以下の操作に�
 2. `PATCH /v1/pages/{page_id}` でステータスを更新
 
 ステータス値: "Not started" / "In progress" / "Done" / "Pending"
+
+### リリースフラグ更新
+「TASK-X をリリース済みにして」と伝えられたら以下を実行：
+1. データベースをクエリして対象ページIDを取得
+2. ステータスを "Done"、リリース（checkbox）を ON に更新
+
+運用ルール: リリースフラグは **staging へマージして正常に動作確認がとれた時点で ON** にする（TestFlight 配信対象の目印）。マージのみで動作確認が未了の場合は OFF のまま。まとめて行う場合は `/task-done` を使う。
 
 ### GitHub PR URL 登録
 「TASK-X に PR URL を登録して」と伝えられたら以下を実行：
@@ -43,10 +51,7 @@ Notionのタスク管理操作を行うコマンドです。以下の操作に�
 ## 実装ルール
 
 - Notion MCP ツール（`mcp__notion__*`）が利用可能な場合は優先して使用する
-- 利用できない場合は curl で Notion REST API を直接呼び出す
-- API トークンは以下のコマンドで取得する:
-  ```bash
-  cat "/Volumes/SHPP41-2 000GM Media/projects/lyrics-template/apps/mobile/.claude/settings.local.json" | python3 -c "import json,sys; d=json.load(sys.stdin); [print(v) for s in d.get('mcpServers',{}).values() for k,v in s.get('env',{}).items() if 'NOTION' in k]"
-  ```
+- SQL クエリ系の MCP ツール（`query-data-sources`）は Notion のプラン制限で使えないため、ページ取得は `fetch`、検索は `search`、更新は `update-page` / `create-pages` を使う
+- MCP が利用できない場合は curl で Notion REST API を直接呼び出す。API トークンはリポジトリの `.claude/settings.local.json`（`mcpServers.*.env` の `NOTION_API_KEY`）を参照し、見つからない場合はユーザーに確認する
 - レスポンスの `object` が `page` / `list` / `block` であれば成功
 - コードブロックの language は Notion が受け付ける値を使うこと（例: `objective-c` ではなく `objective-c` が無効なら `plain text`）

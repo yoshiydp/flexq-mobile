@@ -3,6 +3,7 @@ import { Pressable, Text, View, GestureResponderEvent } from 'react-native';
 import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import { formatDate } from '@/utils/formatDate';
+import { stripHtml } from '@/utils/stripHtml';
 import styles from './MemoItem.styles';
 
 interface MemoItemProps {
@@ -31,7 +32,7 @@ export default function MemoItem({
         </View>
         <View style={styles.infoRow}>
           <Text style={styles.bodyText} numberOfLines={1} ellipsizeMode="tail">
-            {body}
+            {stripHtml(body)}
           </Text>
         </View>
       </View>

@@ -6,6 +6,15 @@ import RecView from './index';
 import RecRecordingModal from '@/components/ui/modals/RecRecordingModal';
 import RecStartModal from '@/components/ui/modals/RecStartModal';
 
+const mockNavigate = jest.fn();
+jest.mock('@react-navigation/native', () => {
+  const actual = jest.requireActual('@react-navigation/native');
+  return {
+    ...actual,
+    useNavigation: () => ({ navigate: mockNavigate }),
+  };
+});
+
 jest.mock('@/components/features/drafts/RecordItem', () => {
   const { Pressable, Text } = require('react-native');
   return jest.fn(({ title, onPress }: any) => (
@@ -111,6 +120,19 @@ describe('RecView コンポーネント', () => {
   it('録音データがある場合 RecordItem が表示される', () => {
     const { getByText } = renderWithProviders(<RecView {...mockProps} />);
     expect(getByText('Intro Take 1')).toBeTruthy();
+  });
+
+  it('RecordItem タップで id と projectId を含むパラメーターで RecordPlayer に遷移する', async () => {
+    const { getByText } = renderWithProviders(<RecView {...mockProps} />);
+    await act(async () => { fireEvent.press(getByText('Intro Take 1')); });
+    expect(mockNavigate).toHaveBeenCalledWith('RecordPlayer', {
+      id: '101',
+      recordedFile: 'http://localhost:3000/record/sample-1.m4a',
+      title: 'Intro Take 1',
+      isBookmarked: true,
+      source: 'ProjectEdit',
+      projectId: 'project-1',
+    });
   });
 
   it('WaveformPlayer・CueButtonList・PlayerControls が表示される', () => {
