@@ -136,6 +136,8 @@ cd api && sam build && sam deploy \
   --parameter-overrides JwtSecret="<本番用の強いシークレット>"
 ```
 
+> **非対話実行の注意:** `api/samconfig.toml` は `confirm_changeset = true` のため、Claude Code などから自動実行する場合は `--no-confirm-changeset` を付ける（Staging へのデプロイは `/deploy-api-staging` で自動化されている）。
+
 **Production デプロイ後に行うこと:**
 1. `sam deploy` の Outputs に表示される `ApiUrl` を GitHub Secrets の `EXPO_PUBLIC_API_BASE_URL_PROD` に設定する
 
@@ -268,6 +270,9 @@ staging へのマージを検知
 - リポジトリの Actions タブ → `Deploy to Staging (EAS Update)`
 
 **注意:** lint または test が失敗した場合はデプロイが中止されます。
+
+**6. 動作確認後、develop へ反映**
+- 同じ feature ブランチから develop への PR を作成してマージする（`/task-done` で Notion 更新とあわせて自動化。詳細は「運用フロー」参照）
 
 #### Production へのデプロイ
 
@@ -552,10 +557,15 @@ cd api && sam build && sam deploy --stack-name lyrics-mock-api
 
 | コマンド | 定義ファイル | 用途 |
 |----------|-------------|------|
-| `/notion` | `.claude/commands/notion.md` | Notion タスクの追加・更新・PR URL 登録・ページ追記 |
+| `/notion` | `.claude/commands/notion.md` | Notion タスクの追加・更新・PR URL 登録・リリースフラグ・ページ追記 |
+| `/task-parallel` | `.claude/commands/task-parallel.md` | 複数タスクを worktree + サブエージェントで並行実装 |
+| `/task-done` | `.claude/commands/task-done.md` | staging 検証済みタスクの完了処理（Notion Done + リリース ON + develop PR） |
+| `/commit` | `.claude/commands/commit.md` | コミットメッセージ規約（英語タイトル + 日本語本文）でコミット作成 |
+| `/codex-review` | `.claude/commands/codex-review.md` | Codex CLI でコードレビュー実行 + 指摘対応 |
 | `/pr-staging` | `.claude/commands/pr-staging.md` | 現在のブランチから staging への PR 作成 |
 | `/pr-develop` | `.claude/commands/pr-develop.md` | 現在のブランチから develop への PR 作成 |
 | `/pr-master` | `.claude/commands/pr-master.md` | develop から master への PR 作成（リリース用） |
+| `/deploy-api-staging` | `.claude/commands/deploy-api-staging.md` | staging 最新から Lambda を AWS Staging へ SAM デプロイ |
 | `/testflight` | `.claude/commands/testflight.md` | EAS Build → TestFlight 配信 |
 
 ---
@@ -578,12 +588,14 @@ Claude Code から Notion MCP を経由してタスク管理を行う。GitHub �
 
 | プロパティ | 型 | 内容 |
 |-----------|-----|------|
+| リリース | チェックボックス | staging マージ + 動作確認完了で ON（TestFlight 配信対象の目印） |
 | タイトル | テキスト | タスク名 |
 | 簡単な詳細 | テキスト | 概要（1行） |
 | デバイス | セレクト | Android / iPhone |
 | 優先度 | セレクト | Low / Middle / High |
-| ステータス | ステータス | Not started / In progress / Done |
+| ステータス | ステータス | Not started / In progress / Done / Pending |
 | GitHub PR | URL | 対応する PR の URL |
+| 備考 | テキスト | 補足メモ |
 
 ### ブランチ命名規則
 
@@ -625,6 +637,14 @@ Notion タスク管理操作は `/notion` スラッシュコマンドで実行�
 /notion TASK-X を Done にして           # マージ完了時
 ```
 
+#### リリースフラグ更新
+
+```
+/notion TASK-X をリリース済みにして    # staging マージ + 動作確認完了時（Done + リリース ON）
+```
+
+develop への PR 作成まで含めてまとめて行う場合は `/task-done TASK-X` を使う。
+
 #### PR URL 登録
 
 ```
@@ -641,12 +661,58 @@ https://github.com/yoshiydp/lyrics-mobile/pull/XX
 
 ### 運用フロー
 
+タスクの着手からリリースまでの標準フロー。各ステップはスラッシュコマンドで自動実行できる。
+
+```
+① 着手          /task-parallel TASK-X ...  最新 develop から worktree + ブランチ作成、
+                                           Notion を In progress に更新、並行実装
+② 実装・検証    yarn test:ci + yarn lint → /codex-review → /commit
+③ staging PR    /pr-staging → マージ（GitHub Actions が EAS Update を staging へ配信）
+                └ Lambda（api/ 配下）に変更がある場合はマージ後に /deploy-api-staging
+④ 動作確認      iPhone（Expo Go）で Test plan の項目を確認
+⑤ 完了処理      /task-done TASK-X          Notion を Done + リリース ON、develop への PR 作成
+⑥ develop 反映  develop PR をマージ → worktree を掃除
+⑦ リリース      /testflight（TestFlight 配信）・/pr-master（production リリース）
+```
+
 #### ブランチ作成
 
-Notion でタスクの ID（`TASK-X`）を確認してからブランチを切る：
+Notion でタスクの ID（`TASK-X`）を確認し、**最新の origin/develop** からブランチを切る：
 
 ```bash
-git checkout develop
+git checkout develop && git pull
 git checkout -b feature/TASK-X-brief-description
 ```
-- **ファイルアップロードの mime タイプ**: `get-track-upload-url.ts` は `audio/mpeg`, `audio/wav`, `image/jpeg`, `image/png` のみ受け付ける
+
+複数タスクを並行する場合は git worktree を使う（`/task-parallel` が自動化）：
+
+```bash
+git worktree add ../lyrics-mobile-worktrees/TASK-X -b feature/TASK-X-brief-description origin/develop
+# develop へのマージ完了後に掃除
+git worktree remove ../lyrics-mobile-worktrees/TASK-X
+```
+
+#### コミットメッセージ規約
+
+`/commit` が自動整形する。手動で書く場合も同じ形式にする：
+
+- **タイトルは英語**の Conventional Commits 形式（`feat:` / `fix:` / `docs:` など）で 70 文字以内。ブランチに `TASK-X` が含まれる場合は末尾に `(TASK-X)` を付ける
+- **本文は日本語**で変更の背景・原因・対応内容を記載する（タイトルのみのコミットは不可）
+- 末尾に Claude の `Co-Authored-By` トレーラーを付ける
+
+#### コードレビュー（Codex CLI）
+
+コミット前に `/codex-review` を実行し、妥当な指摘に対応してからコミットする。実体は `codex review --base develop`（要 Codex CLI: `npm install -g @openai/codex` + `codex login`）。今回の diff と無関係な既存問題・誤検知は対応せず、その旨を報告する。
+
+#### staging 検証後の develop 反映
+
+feature ブランチは staging へのマージだけでは develop に取り込まれない。**staging で動作確認が完了したら、同じ feature ブランチから develop への PR を作成してマージする**（`/task-done` が Notion 更新とあわせて自動化）。同一ファイルを変更したブランチが複数ある場合は、マージ順を決めて 1 本ずつマージする。
+
+#### リリースフラグ
+
+Notion の「リリース」チェックボックスは **staging へマージして正常に動作確認がとれた時点で ON** にする（`/task-done` が自動化）。TestFlight 配信時に、どのタスクが配信対象かをこのフラグで判別する。マージのみで動作確認が未了の場合は OFF のまま。
+
+#### ファイルアップロードの mime タイプ
+
+- `get-track-upload-url.ts`: `audio/mpeg`, `audio/wav`, `image/jpeg`, `image/png` のみ受け付ける
+- `get-record-upload-url.ts`: 拡張子 `m4a`, `mp3`, `wav`, `aac` のみ受け付ける
