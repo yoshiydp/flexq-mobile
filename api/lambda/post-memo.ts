@@ -9,7 +9,7 @@ export const handler = async (event: any) => {
   if (!claims) return unauthorizedResponse();
 
   const body = JSON.parse(event.body || '{}');
-  const { title, body: memoBody } = body;
+  const { title, body: memoBody, isBookmarked } = body;
 
   if (!title) {
     return createResponse({ message: 'title is required' }, 400);
@@ -17,6 +17,7 @@ export const handler = async (event: any) => {
 
   const memoId = randomUUID();
   const now = new Date().toISOString();
+  const bookmarked = isBookmarked === true;
 
   await docClient.send(
     new PutCommand({
@@ -27,13 +28,13 @@ export const handler = async (event: any) => {
         title,
         body: memoBody || '',
         updatedAt: now,
-        isBookmarked: false,
+        isBookmarked: bookmarked,
       },
     })
   );
 
   return createResponse(
-    { id: memoId, title, body: memoBody || '', updatedAt: now, isBookmarked: false },
+    { id: memoId, title, body: memoBody || '', updatedAt: now, isBookmarked: bookmarked },
     201
   );
 };
