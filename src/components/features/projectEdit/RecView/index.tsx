@@ -114,10 +114,12 @@ export default function RecView({
                 isBookmarked={record.isBookmarked}
                 onPress={() => {
                   navigator.navigate('RecordPlayer', {
+                    id: record.id,
                     recordedFile: record.source,
                     title: record.title,
                     isBookmarked: record.isBookmarked,
                     source: 'ProjectEdit',
+                    projectId,
                   });
                 }}
               />
