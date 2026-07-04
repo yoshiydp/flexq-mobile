@@ -14,10 +14,9 @@ import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
 import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
 import { MODAL_MESSAGES } from '@/constants/messages';
-import { useCreateRecord } from '@/hooks/useCreateRecord';
 import { useUpdateRecord } from '@/hooks/useUpdateRecord';
 import { useDeleteRecord } from '@/hooks/useDeleteRecord';
-import { useUploadProjectRecord } from '@/hooks/useUploadProjectRecord';
+import { useUploadRecord } from '@/hooks/useUploadRecord';
 import styles from './RecordPlayerScreen.styles';
 
 export default function RecordPlayerScreen() {
@@ -34,10 +33,9 @@ export default function RecordPlayerScreen() {
     params?.isBookmarked ?? false,
   );
 
-  const { createRecord } = useCreateRecord();
   const { updateRecord } = useUpdateRecord();
   const { deleteRecord } = useDeleteRecord();
-  const { uploadProjectRecord } = useUploadProjectRecord();
+  const { uploadRecord } = useUploadRecord();
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -202,9 +200,12 @@ export default function RecordPlayerScreen() {
       if (params?.id) {
         await updateRecord(params.id, { title, isBookmarked });
       } else if (params?.source === 'ProjectEdit' && params?.projectId && recordedFile) {
-        await uploadProjectRecord(recordedFile, title, params.projectId, isBookmarked);
+        await uploadRecord(recordedFile, title, {
+          projectId: params.projectId,
+          isBookmarked,
+        });
       } else {
-        await createRecord(title, recordedFile, isBookmarked);
+        await uploadRecord(recordedFile, title, { isBookmarked });
       }
       if (sound) await sound.stopAsync();
       navigation.goBack();

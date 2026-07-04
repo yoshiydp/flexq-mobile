@@ -1,16 +1,21 @@
 import { useState } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 
-export function useUploadProjectRecord() {
+type UploadRecordOptions = {
+  projectId?: string;
+  isBookmarked?: boolean;
+};
+
+export function useUploadRecord() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<Error | null>(null);
 
-  const uploadProjectRecord = async (
+  const uploadRecord = async (
     localFileUri: string,
     title: string,
-    projectId: string,
-    isBookmarked: boolean = false,
+    options: UploadRecordOptions = {},
   ) => {
+    const { projectId, isBookmarked = false } = options;
     setLoading(true);
     setError(null);
     try {
@@ -33,7 +38,7 @@ export function useUploadProjectRecord() {
       const record = await DefaultService.createRecord({
         title: resolvedTitle,
         s3Key: key,
-        projectId,
+        ...(projectId ? { projectId } : {}),
         isBookmarked,
       });
 
@@ -46,5 +51,5 @@ export function useUploadProjectRecord() {
     }
   };
 
-  return { uploadProjectRecord, loading, error };
+  return { uploadRecord, loading, error };
 }
