@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { View, TouchableWithoutFeedback, Keyboard } from 'react-native';
+import { View, TouchableWithoutFeedback, Keyboard, Alert } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -142,11 +142,12 @@ export default function RecordPlayerScreen() {
     try {
       if (params?.id) await deleteRecord(params.id);
       if (sound) await sound.stopAsync();
+      navigation.goBack();
     } catch (error) {
       console.error(error);
+      Alert.alert('エラー', '削除に失敗しました。');
     } finally {
       hideLoading();
-      navigation.goBack();
     }
   };
 
@@ -206,11 +207,12 @@ export default function RecordPlayerScreen() {
         await createRecord(title, recordedFile, isBookmarked);
       }
       if (sound) await sound.stopAsync();
+      navigation.goBack();
     } catch (error) {
       console.error(error);
+      Alert.alert('エラー', '保存に失敗しました。');
     } finally {
       hideLoading();
-      navigation.goBack();
     }
   };
 
