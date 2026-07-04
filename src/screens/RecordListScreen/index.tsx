@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useMemo } from 'react';
 import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
@@ -8,6 +8,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { useFetchRecord } from '@/hooks/useFetchRecord';
+import { useFetchProject } from '@/hooks/useFetchProject';
 import styles from './RecordListScreen.styles';
 
 export default function RecordListScreen() {
@@ -16,12 +17,27 @@ export default function RecordListScreen() {
   const params = (route as any).params || {};
 
   const { records, loading, error, refreshRecord } = useFetchRecord();
+  const { projects, refreshProject } = useFetchProject();
 
   useFocusEffect(
     useCallback(() => {
       refreshRecord();
-    }, [refreshRecord]),
+      refreshProject();
+    }, [refreshRecord, refreshProject]),
   );
+
+  const projectNameById = useMemo(
+    () => new Map(projects.map((project) => [project.id, project.projectName])),
+    [projects],
+  );
+
+  // プロジェクト録音（projectId あり）にのみバッジラベルを付与する。
+  // プロジェクト名を解決できない場合（削除済みなど）は汎用の「PROJECT」を表示する
+  const getProjectLabel = (projectId?: string) => {
+    if (!projectId) return undefined;
+    const projectName = projectNameById.get(projectId);
+    return projectName ? `PROJECT: ${projectName}` : 'PROJECT';
+  };
 
   const handleGoBack = () => {
     if (params.source === 'Drafts') {
@@ -65,6 +81,7 @@ export default function RecordListScreen() {
             title={record.title}
             updatedAt={record.updatedAt}
             isBookmarked={record.isBookmarked}
+            projectLabel={getProjectLabel(record.projectId)}
             onPress={() => {
               navigation.navigate('RecordPlayer', {
                 id: record.id,

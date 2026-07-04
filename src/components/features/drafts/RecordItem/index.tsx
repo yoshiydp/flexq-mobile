@@ -9,6 +9,7 @@ interface RecordItemProps {
   title: string;
   updatedAt: Date;
   isBookmarked: boolean;
+  projectLabel?: string;
   onPress: (event: GestureResponderEvent) => void;
 }
 
@@ -16,6 +17,7 @@ export default function RecordItem({
   title,
   updatedAt,
   isBookmarked,
+  projectLabel,
   onPress,
 }: RecordItemProps) {
   return (
@@ -27,6 +29,15 @@ export default function RecordItem({
           </Text>
           <Text style={styles.updatedAt}>{formatDate(updatedAt)} RECORDED</Text>
         </View>
+        {projectLabel && (
+          <Text
+            style={styles.projectBadge}
+            numberOfLines={1}
+            ellipsizeMode="tail"
+          >
+            {projectLabel}
+          </Text>
+        )}
       </View>
       <Icon
         component={FontAwesome}

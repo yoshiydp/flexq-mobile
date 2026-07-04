@@ -453,7 +453,14 @@ export class DefaultService {
      * @returns any OK
      * @throws ApiError
      */
-    public static getRecord(): CancelablePromise<any> {
+    public static getRecord(): CancelablePromise<Array<{
+        id?: string;
+        title?: string;
+        source?: string;
+        projectId?: string;
+        updatedAt?: string;
+        isBookmarked?: boolean;
+    }>> {
         return __request(OpenAPI, {
             method: 'GET',
             url: '/data/record',
