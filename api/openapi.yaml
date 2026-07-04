@@ -551,6 +551,23 @@ paths:
           description: OK
           content:
             application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    title:
+                      type: string
+                    source:
+                      type: string
+                    projectId:
+                      type: string
+                    updatedAt:
+                      type: string
+                    isBookmarked:
+                      type: boolean
               examples:
                 RECORD_DATA:
                   $ref: '#/components/examples/RECORD_DATA'
