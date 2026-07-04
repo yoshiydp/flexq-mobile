@@ -12,7 +12,6 @@ import RecStartModal from '@/components/ui/modals/RecStartModal';
 import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
 import CueButtonList from '@/components/features/projectEdit/CueButtonList';
 import PlayerControls from '@/components/features/audioPlayer/PlayerControls';
-import { useModal } from '@/contexts/ModalContext';
 import type { ProjectRecordType } from '@/hooks/useFetchProjectRecords';
 import { REC_LABELS } from '@/constants/messages';
 import styles from './RecView.styles';
@@ -59,7 +58,6 @@ export default function RecView({
   isAllCueResetDisabled,
 }: RecViewProps) {
   const navigator = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { showLoading, hideLoading } = useModal();
 
   const [recStartModalVisible, setRecStartModalVisible] = useState(false);
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
@@ -79,16 +77,12 @@ export default function RecView({
   const handleStopRecording = (duration: number, file: string) => {
     if (!file || duration <= 0) return;
     setRecordingModalVisible(false);
-    showLoading();
-    setTimeout(() => {
-      hideLoading();
-      navigator.navigate('RecordPlayer', {
-        recordedFile: file,
-        recordedDuration: duration,
-        source: 'ProjectEdit',
-        projectId,
-      });
-    }, 3000);
+    navigator.navigate('RecordPlayer', {
+      recordedFile: file,
+      recordedDuration: duration,
+      source: 'ProjectEdit',
+      projectId,
+    });
   };
 
   return (
