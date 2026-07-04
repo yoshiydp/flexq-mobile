@@ -444,8 +444,7 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 *レコード（録音）*
 - `src/hooks/useFetchRecord.ts` — レコード一覧取得
 - `src/hooks/useFetchProjectRecords.ts` — プロジェクトに紐づくレコード一覧取得
-- `src/hooks/useCreateRecord.ts` — レコード作成
-- `src/hooks/useUploadProjectRecord.ts` — 録音ファイルを S3 にアップロード → プロジェクトに紐づけて保存
+- `src/hooks/useUploadRecord.ts` — 録音ファイルを S3 にアップロード → レコードとして保存（`projectId` 指定時はプロジェクトに紐づけ）
 - `src/hooks/useUpdateRecord.ts` — レコード更新
 - `src/hooks/useDeleteRecord.ts` — レコード削除
 
