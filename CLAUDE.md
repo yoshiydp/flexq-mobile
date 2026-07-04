@@ -28,8 +28,11 @@ maestro test .maestro/flows/             # 全フロー実行
 # モック API サーバー (Swagger UI: http://localhost:3000)
 yarn mock:server
 
-# OpenAPI クライアント生成
-yarn generate:openapi     # src/data/ から src/apiClient/ を生成
+# API クライアント生成 (api/openapi.yaml から src/apiClient/ を再生成)
+yarn openapi --input api/openapi.yaml --output src/apiClient
+
+# API Gateway 用 OpenAPI 定義の生成 (src/data/ から api/openapi-aws.yaml を生成)
+yarn generate:openapi
 
 # AWS SAM (api/ ディレクトリで実行)
 cd api
@@ -89,10 +92,12 @@ const { data, loading } = useFetchProject();
 ### モック API & API クライアント
 
 API クライアント (`src/apiClient/`) は `openapi-typescript-codegen` で**自動生成**されるため、手動編集は不可です。更新する場合：
-1. `src/data/*.ts` のデータを編集
-2. `yarn generate:openapi` を実行して `api/openapi.yaml` と `src/apiClient/` を再生成
+1. `api/openapi.yaml`（手動管理の OpenAPI 定義）を編集
+2. `yarn openapi --input api/openapi.yaml --output src/apiClient` を実行して `src/apiClient/` を再生成
 
-モックサーバー (`yarn mock:server`) はこのデータを Express でローカルに配信します。
+なお `yarn generate:openapi` は `src/data/*.ts` と `api/templates/base.yaml` から **API Gateway 用の `api/openapi-aws.yaml` / `.json` を生成する別コマンド**で、`api/openapi.yaml` や `src/apiClient/` には影響しません。
+
+モックサーバー (`yarn mock:server`) は `src/data/*.ts` のデータを Express でローカルに配信します。
 
 ### AWS API Gateway
 
@@ -502,10 +507,12 @@ await DefaultService.postDataTrack({ requestBody: { title, s3Key: key, extention
 2. **Lambda ハンドラーを作成** (`api/lambda/`)
    - CRUD の操作ごとにファイルを作成（get, post, put, delete）
 
-3. **OpenAPI 定義を更新** (`src/data/*.ts` → `api/openapi.yaml`)
+3. **OpenAPI 定義を更新**
+   - `api/openapi.yaml` にエンドポイント定義を追加し、API クライアントを再生成
    ```bash
-   yarn generate:openapi   # openapi.yaml と src/apiClient/ を再生成
+   yarn openapi --input api/openapi.yaml --output src/apiClient
    ```
+   - API Gateway 用定義が必要な場合は `src/data/*.ts` を更新し `yarn generate:openapi` で `api/openapi-aws.yaml` を再生成
 
 4. **AWS Staging にデプロイ**
    ```bash
@@ -527,7 +534,7 @@ src/data/memos.ts      # メモ
 src/data/projects.ts   # プロジェクト
 src/data/users.ts      # ユーザー
 
-# 2. openapi.yaml と apiClient を再生成
+# 2. API Gateway 用 OpenAPI 定義 (api/openapi-aws.yaml) を再生成
 yarn generate:openapi
 
 # 3. Lambda をビルドして AWS Staging にデプロイ
@@ -536,7 +543,7 @@ cd api && sam build && sam deploy --stack-name lyrics-mock-api
 
 ### 注意事項
 
-- **`src/apiClient/` は自動生成のため手動編集不可**。変更は `src/data/*.ts` → `yarn generate:openapi` の順で行う
+- **`src/apiClient/` は自動生成のため手動編集不可**。`api/openapi.yaml` を編集 → `yarn openapi --input api/openapi.yaml --output src/apiClient` で再生成する
 - **Email フィールドは読み取り専用**（GSI のパーティションキーのため変更不可）
 - **シードデータ（legacySource / legacyArtwork）**: `s3Key` を持たない既存トラックは `legacySource`/`legacyArtwork` フィールドにフォールバックする
 

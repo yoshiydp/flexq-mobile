@@ -141,8 +141,9 @@ export default function QuickMemoScreen() {
           isBookmarked,
         });
       } else {
-        const created = await createMemo(title, bodyContent);
-        if (isBookmarked && created?.id) {
+        const created = await createMemo(title, bodyContent, isBookmarked);
+        // 旧 Lambda が isBookmarked を無視した場合のフォールバック（デプロイ順序対策）
+        if (isBookmarked && created?.id && created.isBookmarked !== true) {
           await updateMemo(created.id, { isBookmarked: true });
         }
       }
