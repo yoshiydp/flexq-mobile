@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Text } from 'react-native';
+import { View, ScrollView, Text, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
@@ -185,6 +185,7 @@ export default function AudioPlayerScreen() {
       );
     } catch (err) {
       console.error('Failed to update track name:', err);
+      Alert.alert('エラー', 'トラック名の変更に失敗しました。');
     } finally {
       hideLoading();
     }
@@ -205,10 +206,16 @@ export default function AudioPlayerScreen() {
       await deleteTrack(currentTrack.id);
     } catch (err) {
       console.error('Failed to delete track:', err);
+      Alert.alert('エラー', 'トラックの削除に失敗しました。');
+      return;
     } finally {
       hideLoading();
-      handleGoBack();
     }
+    // 削除に成功したときのみ前の画面へ戻る
+    try {
+      if (sound) await sound.stopAsync();
+    } catch {}
+    navigation.goBack();
   };
 
   const onPressDeleteConfirm = () => {

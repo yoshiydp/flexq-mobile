@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
+import { ScrollView, ActivityIndicator, View, Text, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -53,9 +53,11 @@ export default function TrackListScreen() {
           showLoading();
           try {
             await deleteTrack(id);
+            // refreshTrack は内部でエラーを処理するため reject しない
             await refreshTrack();
           } catch (err) {
             console.error('Delete failed:', err);
+            Alert.alert('エラー', 'トラックの削除に失敗しました。');
           } finally {
             hideLoading();
           }
