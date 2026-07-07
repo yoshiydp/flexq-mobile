@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
+import { ScrollView, ActivityIndicator, View, Text, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -37,6 +37,7 @@ export default function TrackListScreen() {
       if (track) await refreshTrack();
     } catch (err) {
       console.error('Upload failed:', err);
+      Alert.alert('エラー', 'トラックのアップロードに失敗しました。');
     } finally {
       hideLoading();
     }
