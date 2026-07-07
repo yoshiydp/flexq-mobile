@@ -721,6 +721,44 @@ paths:
             application/json:
               example:
                 message: Logged out successfully
+  /data/auth/refresh:
+    post:
+      summary: Refresh access token
+      description: Issues a new token pair from a valid refresh token.
+      operationId: postDataAuthRefresh
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - refreshToken
+              properties:
+                refreshToken:
+                  type: string
+                  example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mock_refresh_token
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      expiresIn:
+                        type: integer
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
   /data/auth/register:
     post:
       summary: Register a new user
