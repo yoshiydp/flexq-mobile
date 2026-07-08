@@ -3,6 +3,7 @@ import * as jwt from 'jsonwebtoken';
 export interface TokenPayload {
   userId: string;
   email: string;
+  type?: string;
 }
 
 export function verifyToken(event: any): TokenPayload | null {
@@ -12,7 +13,10 @@ export function verifyToken(event: any): TokenPayload | null {
 
   const token = authHeader.slice(7);
   try {
-    return jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload;
+    const payload = jwt.verify(token, process.env.JWT_SECRET!) as TokenPayload;
+    // refreshToken（type: 'refresh'）は保護 API のアクセストークンとして使えない
+    if (payload.type === 'refresh') return null;
+    return payload;
   } catch {
     return null;
   }

@@ -7,9 +7,11 @@ import AnimatedSplashScreen from '@/components/ui/AnimatedSplashScreen';
 import { COLORS } from '@/globalStyles';
 import { OpenAPI } from '@/apiClient';
 import { getAccessToken } from '@/utils/authStorage';
+import { installAuthTokenInterceptor } from '@/utils/authTokenInterceptor';
 
 OpenAPI.BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 OpenAPI.TOKEN = () => getAccessToken().then((t) => t ?? '');
+installAuthTokenInterceptor();
 
 function AppContent() {
   const { loading } = useAuthContext();

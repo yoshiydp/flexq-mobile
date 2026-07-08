@@ -590,6 +590,35 @@ export class DefaultService {
         });
     }
     /**
+     * Refresh access token
+     * Issues a new token pair from a valid refresh token.
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataAuthRefresh(
+        requestBody: {
+            refreshToken: string;
+        },
+    ): CancelablePromise<{
+        token?: {
+            accessToken?: string;
+            refreshToken?: string;
+            expiresIn?: number;
+        };
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/refresh',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+            },
+        });
+    }
+    /**
      * Register a new user
      * @param requestBody
      * @returns any Created
