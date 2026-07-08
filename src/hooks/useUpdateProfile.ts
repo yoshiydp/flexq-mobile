@@ -1,22 +1,13 @@
 import { useState } from 'react';
 import * as ImagePicker from 'expo-image-picker';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { uploadFileToS3 } from '@/utils/uploadToS3';
 
 export interface UpdateProfileInput {
   username?: string;
   email?: string;
   thumbnailKey?: string;
   socialAccounts?: { provider: string; username: string; isLinked: boolean }[];
-}
-
-async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
-  const res = await fetch(uri);
-  const blob = await res.blob();
-  await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: blob,
-  });
 }
 
 export function useUpdateProfile() {
@@ -41,7 +32,7 @@ export function useUpdateProfile() {
 
     const { uploadUrl, key } =
       await DefaultService.getTrackUploadUrl(filename, contentType) as any;
-    await uploadToS3(uploadUrl, uri, contentType);
+    await uploadFileToS3(uploadUrl, uri, contentType);
     return key;
   };
 
