@@ -17,6 +17,8 @@ export const MODAL_MESSAGES = {
     message: 'このトラックを削除してもいいですか？',
     description:
       'プロジェクトの音源に設定している場合、再度プロジェクト編集で音源を設定し直す必要があります。',
+    linkedProjectsWarning: (count: number) =>
+      `このトラックは ${count} 個のプロジェクトで使用されています。削除するとプロジェクトの音源も再生できなくなります。`,
     submitButtonLabel: 'OK',
   },
   confirmLogout: {

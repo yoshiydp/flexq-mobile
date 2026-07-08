@@ -1,4 +1,4 @@
-import { DeleteCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, GetCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { docClient } from './db';
 import { s3Client } from './s3';
@@ -12,7 +12,7 @@ export const handler = async (event: any) => {
   const trackId = event.pathParameters?.id;
   if (!trackId) return createResponse({ message: 'id is required' }, 400);
 
-  // Fetch item first to get s3Key
+  // Fetch item first to get s3Key / artworkKey / linkedProjects
   const getResult = await docClient.send(new GetCommand({
     TableName: process.env.TRACKS_TABLE!,
     Key: { userId: claims.userId, trackId },
@@ -22,13 +22,63 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Track not found' }, 404);
   }
 
-  const { s3Key } = getResult.Item;
+  const { s3Key, artworkKey, linkedProjects } = getResult.Item;
 
-  // Delete from S3
+  // 連携プロジェクトから trackId / trackName を除去
+  const projectIds = ((linkedProjects ?? []) as Array<string | { id: string }>)
+    .map((item) => (typeof item === 'string' ? item : item.id))
+    .filter(Boolean);
+  for (const projectId of projectIds) {
+    const projectResult = await docClient.send(new GetCommand({
+      TableName: process.env.PROJECTS_TABLE!,
+      Key: { userId: claims.userId, projectId },
+    }));
+    if (projectResult.Item?.trackId === trackId) {
+      await docClient.send(new UpdateCommand({
+        TableName: process.env.PROJECTS_TABLE!,
+        Key: { userId: claims.userId, projectId },
+        UpdateExpression: 'REMOVE trackId, trackName',
+      }));
+    }
+  }
+
+  // トラックと同じ artworkKey を参照しているプロジェクトが 1 つでもあれば
+  // S3 のアートワークは削除しない（別トラックへ差し替え済みで linkedProjects から
+  // 外れたプロジェクトも参照し続けるため、全プロジェクトを対象に確認する。
+  // プロジェクト削除時は delete-project.ts が S3 オブジェクトを削除する）
+  let artworkInUseByProject = false;
+  if (artworkKey) {
+    let exclusiveStartKey: Record<string, any> | undefined;
+    do {
+      const projectsResult = await docClient.send(new QueryCommand({
+        TableName: process.env.PROJECTS_TABLE!,
+        KeyConditionExpression: 'userId = :userId',
+        FilterExpression: 'artworkKey = :artworkKey',
+        ExpressionAttributeValues: { ':userId': claims.userId, ':artworkKey': artworkKey },
+        ExclusiveStartKey: exclusiveStartKey,
+      }));
+      if ((projectsResult.Items ?? []).length > 0) {
+        artworkInUseByProject = true;
+        break;
+      }
+      exclusiveStartKey = projectsResult.LastEvaluatedKey;
+    } while (exclusiveStartKey);
+  }
+
+  // Delete audio from S3
   if (s3Key) {
     await s3Client.send(new DeleteObjectCommand({
       Bucket: process.env.TRACK_AUDIO_BUCKET!,
       Key: s3Key,
+    }));
+  }
+
+  // Delete artwork from S3 (プロジェクトが同じ artworkKey を参照中の場合は削除しない。
+  // プロジェクト削除時に delete-project.ts が S3 オブジェクトを削除する)
+  if (artworkKey && !artworkInUseByProject) {
+    await s3Client.send(new DeleteObjectCommand({
+      Bucket: process.env.TRACK_AUDIO_BUCKET!,
+      Key: artworkKey,
     }));
   }
 
