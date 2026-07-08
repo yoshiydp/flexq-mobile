@@ -1,5 +1,5 @@
 import React, { useCallback } from 'react';
-import { Animated, View, ActivityIndicator } from 'react-native';
+import { Animated, View, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -112,6 +112,7 @@ export default function ProfileScreen() {
         );
       } catch (err) {
         console.error('Failed to link Google account:', err);
+        Alert.alert('エラー', 'Google アカウントの連携に失敗しました。');
       } finally {
         hideLoading();
       }
