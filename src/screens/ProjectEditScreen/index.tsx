@@ -15,6 +15,7 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -574,6 +575,13 @@ export default function ProjectEditScreen() {
   const handleAllCueResetDisabled = () =>
     !cueButtons.some((btn) => btn.isActive);
 
+  const stopSoundAndGoBack = async () => {
+    try {
+      await soundRef.current?.stopAsync();
+    } catch {}
+    navigation.goBack();
+  };
+
   const onSubmitSaveProject = async () => {
     closeModal();
     showLoading();
@@ -587,15 +595,35 @@ export default function ProjectEditScreen() {
         ...(trackId !== undefined ? { trackId } : {}),
         ...(trackName !== undefined ? { trackName } : {}),
       });
-    } catch {
-      // エラーが発生しても画面遷移は行う（オフライン時など考慮）
+    } catch (error) {
+      // 保存に失敗したら画面に留まり、破棄して戻るかはユーザーに明示的に選ばせる
+      // （オフライン時などを考慮）
+      console.error('Failed to save project:', error);
+      Alert.alert(
+        'エラー',
+        'プロジェクトの保存に失敗しました。通信環境をご確認ください。',
+        [
+          {
+            text: '再試行',
+            onPress: () => {
+              void onSubmitSaveProject();
+            },
+          },
+          {
+            text: '保存せずに戻る',
+            style: 'destructive',
+            onPress: () => {
+              void stopSoundAndGoBack();
+            },
+          },
+          { text: 'キャンセル', style: 'cancel' },
+        ],
+      );
+      return;
     } finally {
       hideLoading();
-      try {
-        await soundRef.current?.stopAsync();
-      } catch {}
-      navigation.goBack();
     }
+    await stopSoundAndGoBack();
   };
 
   const handleGoBack = () => {

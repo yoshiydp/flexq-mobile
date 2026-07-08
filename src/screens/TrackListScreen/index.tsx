@@ -54,9 +54,11 @@ export default function TrackListScreen() {
           showLoading();
           try {
             await deleteTrack(id);
+            // refreshTrack は内部でエラーを処理するため reject しない
             await refreshTrack();
           } catch (err) {
             console.error('Delete failed:', err);
+            Alert.alert('エラー', 'トラックの削除に失敗しました。');
           } finally {
             hideLoading();
           }
