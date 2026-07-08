@@ -491,6 +491,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TracksTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectsTable
         - S3CrudPolicy:
             BucketName: !Ref TrackAudioBucket
       Events:

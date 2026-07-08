@@ -219,9 +219,13 @@ export default function AudioPlayerScreen() {
   };
 
   const onPressDeleteConfirm = () => {
+    const linkedCount = currentTrack.linkedProjects?.length ?? 0;
     showConfirmModal({
       message: MODAL_MESSAGES.confirmDeleteTrack.message,
-      description: MODAL_MESSAGES.confirmDeleteTrack.description,
+      description:
+        linkedCount > 0
+          ? MODAL_MESSAGES.confirmDeleteTrack.linkedProjectsWarning(linkedCount)
+          : MODAL_MESSAGES.confirmDeleteTrack.description,
       submitButton: {
         label: MODAL_MESSAGES.confirmDeleteTrack.submitButtonLabel,
         onPress: onSubmitDeleteTrack,

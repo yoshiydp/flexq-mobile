@@ -9,6 +9,8 @@ import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
+import type { LinkedProject } from '@/hooks/useFetchTrack';
+import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
 import { useDeleteTrack } from '@/hooks/useDeleteTrack';
 import { useModal } from '@/contexts/ModalContext';
@@ -43,10 +45,19 @@ export default function TrackListScreen() {
     }
   };
 
-  const handleDeleteTrack = (id: string, title: string) => {
+  const handleDeleteTrack = (
+    id: string,
+    title: string,
+    linkedProjects?: LinkedProject[],
+  ) => {
+    const linkedCount = linkedProjects?.length ?? 0;
+    const baseDescription = 'この操作は元に戻せません。';
     showConfirmModal({
       message: `"${title}" を削除しますか？`,
-      description: 'この操作は元に戻せません。',
+      description:
+        linkedCount > 0
+          ? `${MODAL_MESSAGES.confirmDeleteTrack.linkedProjectsWarning(linkedCount)}${baseDescription}`
+          : baseDescription,
       submitButton: {
         label: '削除',
         onPress: async () => {
@@ -134,7 +145,9 @@ export default function TrackListScreen() {
               extention={track.extention}
               updatedAt={track.updatedAt}
               onPress={() => handleTrackPress(index)}
-              onLongPress={() => handleDeleteTrack(track.id, track.title)}
+              onLongPress={() =>
+                handleDeleteTrack(track.id, track.title, track.linkedProjects)
+              }
               startAnimation={startListAnimation}
               testID={`track-item-${index}`}
             />
