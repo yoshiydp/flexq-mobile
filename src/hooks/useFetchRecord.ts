@@ -26,7 +26,7 @@ export function useFetchRecord() {
     });
   }, []);
 
-  const fetchRecord = useCallback(async () => {
+  const fetchRecord = useCallback(async (): Promise<RecordType[] | undefined> => {
     setLoading(true);
     setError(null);
 
@@ -46,9 +46,11 @@ export function useFetchRecord() {
 
       setRecords(sortedRecords);
       await AsyncStorage.setItem(CACHE_KEY, String(sortedRecords.length > 0));
+      return sortedRecords;
     } catch (err) {
       console.error('Failed to fetch record:', err);
       setError(err as Error);
+      return undefined;
     } finally {
       setLoading(false);
       hasFetchedOnce.current = true;
