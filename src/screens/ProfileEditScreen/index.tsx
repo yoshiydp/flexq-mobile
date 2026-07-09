@@ -110,6 +110,7 @@ export default function ProfileEditScreen() {
       await saveSocialAccounts(updated);
     } catch (err) {
       console.error('Failed to link Google account:', err);
+      Alert.alert('エラー', 'Google アカウントの連携に失敗しました。');
     } finally {
       hideLoading();
     }
@@ -132,6 +133,7 @@ export default function ProfileEditScreen() {
           await saveSocialAccounts(updated);
         } catch (err) {
           console.error('Failed to link account:', err);
+          Alert.alert('エラー', 'アカウント連携に失敗しました。');
         } finally {
           hideLoading();
         }
@@ -169,6 +171,7 @@ export default function ProfileEditScreen() {
             await saveSocialAccounts(updated);
           } catch (err) {
             console.error('Failed to remove link:', err);
+            Alert.alert('エラー', '連携の解除に失敗しました。');
           } finally {
             hideLoading();
           }
