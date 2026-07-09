@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { ScrollView, ActivityIndicator, View, Text, Alert } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ScrollView, ActivityIndicator, View, Text, Alert, RefreshControl } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -14,6 +14,7 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
 import { useDeleteTrack } from '@/hooks/useDeleteTrack';
 import { useModal } from '@/contexts/ModalContext';
+import { COLORS } from '@/globalStyles';
 import styles from './TrackListScreen.styles';
 
 export default function TrackListScreen() {
@@ -25,12 +26,22 @@ export default function TrackListScreen() {
   const { pickAndUpload } = useUploadTrack();
   const { deleteTrack } = useDeleteTrack();
   const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       refreshTrack();
     }, [refreshTrack]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshTrack();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshTrack]);
 
   const handleAddTrack = async () => {
     try {
@@ -134,7 +145,17 @@ export default function TrackListScreen() {
           startAnimation={startListAnimation}
         />
       )}
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        testID="track-list-scroll"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.accent.goldPrimary}
+          />
+        }
+      >
         {tracks.length > 0 ? (
           tracks.map((track, index) => (
             <TrackItem

@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ScrollView, ActivityIndicator, View, Text, RefreshControl } from 'react-native';
 import ScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import ProjectItem from '@/components/features/projectList/ProjectItem';
@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchProject } from '@/hooks/useFetchProject';
+import { COLORS } from '@/globalStyles';
 import styles from './ProjectListScreen.styles';
 
 export default function ProjectListScreen() {
@@ -16,12 +17,22 @@ export default function ProjectListScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
   const { projects, loading, error, refreshProject } = useFetchProject();
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       refreshProject();
     }, [refreshProject]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshProject();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshProject]);
 
   const handleAddProject = () => {
     navigation.navigate('NewProject');
@@ -31,7 +42,7 @@ export default function ProjectListScreen() {
     navigation.navigate('ProjectEdit', { id });
   };
 
-  if (loading) {
+  if (loading && projects.length === 0) {
     return (
       <ScreenTemplate
         title="PROJECT LIST"
@@ -75,7 +86,17 @@ export default function ProjectListScreen() {
           startAnimation={startListAnimation}
         />
       )}
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        testID="project-list-scroll"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.accent.goldPrimary}
+          />
+        }
+      >
         {projects.length > 0 ? (
           projects.map((project, index) => (
             <ProjectItem

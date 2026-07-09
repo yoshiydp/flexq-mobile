@@ -1,5 +1,5 @@
-import React, { useCallback, useMemo } from 'react';
-import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
+import React, { useCallback, useMemo, useState } from 'react';
+import { View, ScrollView, ActivityIndicator, Text, RefreshControl } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import RecordItem from '@/components/features/drafts/RecordItem';
@@ -9,6 +9,7 @@ import {
 } from '@/constants/headerToolBarButtons';
 import { useFetchRecord } from '@/hooks/useFetchRecord';
 import { useFetchProject } from '@/hooks/useFetchProject';
+import { COLORS } from '@/globalStyles';
 import styles from './RecordListScreen.styles';
 
 export default function RecordListScreen() {
@@ -18,6 +19,7 @@ export default function RecordListScreen() {
 
   const { records, loading, error, refreshRecord } = useFetchRecord();
   const { projects, refreshProject } = useFetchProject();
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
@@ -25,6 +27,15 @@ export default function RecordListScreen() {
       refreshProject();
     }, [refreshRecord, refreshProject]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await Promise.all([refreshRecord(), refreshProject()]);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshRecord, refreshProject]);
 
   const projectNameById = useMemo(
     () => new Map(projects.map((project) => [project.id, project.projectName])),
@@ -74,7 +85,17 @@ export default function RecordListScreen() {
   return (
     <View style={styles.container}>
       <HeaderToolBar items={items} />
-      <ScrollView style={styles.listContainer}>
+      <ScrollView
+        style={styles.listContainer}
+        testID="record-list-scroll"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.accent.goldPrimary}
+          />
+        }
+      >
         {records.map((record) => (
           <RecordItem
             key={record.id}
