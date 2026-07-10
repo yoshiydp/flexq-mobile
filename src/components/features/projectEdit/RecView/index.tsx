@@ -6,6 +6,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import type { Audio } from 'expo-av';
 import type { CuePointType } from '@/types/cuePointType';
 import RecordItem from '@/components/features/drafts/RecordItem';
+import HeadphoneIndicator from '@/components/ui/HeadphoneIndicator';
 import RecReadySection from '@/components/features/record/RecReadySection';
 import RecRecordingModal from '@/components/ui/modals/RecRecordingModal';
 import RecStartModal from '@/components/ui/modals/RecStartModal';
@@ -87,6 +88,10 @@ export default function RecView({
 
   return (
     <View style={styles.container}>
+      {/* 表示/非表示でレイアウトが動かないよう高さを常に確保する */}
+      <View style={styles.headphoneIndicatorWrapper}>
+        <HeadphoneIndicator />
+      </View>
       <View style={styles.recordListWrapper}>
         <ScrollView
           style={styles.recordListInner}
