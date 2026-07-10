@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, ScrollView, ActivityIndicator, Text } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { View, ScrollView, ActivityIndicator, Text, RefreshControl } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -10,6 +10,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { useFetchMemo } from '@/hooks/useFetchMemo';
+import { COLORS } from '@/globalStyles';
 import styles from './MemoListScreen.styles';
 
 export default function MemoListScreen() {
@@ -19,13 +20,23 @@ export default function MemoListScreen() {
   const params = (route as any).params || {};
 
   const { memos, loading, error, refreshMemo } = useFetchMemo();
+  const [refreshing, setRefreshing] = useState(false);
 
   // 画面フォーカス時にメモ一覧を再取得
   useFocusEffect(
-    React.useCallback(() => {
+    useCallback(() => {
       refreshMemo();
     }, [refreshMemo]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshMemo();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshMemo]);
 
   const sortedMemos = [...memos].sort((a, b) => {
     if (a.isBookmarked !== b.isBookmarked) {
@@ -77,7 +88,17 @@ export default function MemoListScreen() {
   return (
     <View style={styles.container}>
       <HeaderToolBar items={items} />
-      <ScrollView style={styles.listContainer}>
+      <ScrollView
+        style={styles.listContainer}
+        testID="memo-list-scroll"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.accent.goldPrimary}
+          />
+        }
+      >
         {sortedMemos.map((memo) => (
           <MemoItem
             key={memo.id}
