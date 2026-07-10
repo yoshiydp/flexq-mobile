@@ -7,6 +7,11 @@ export const REC_LABELS = {
   currentPosition: '現在位置',
 };
 
+export const HEADPHONE_LABELS = {
+  wired: '有線イヤホン接続中',
+  bluetooth: 'Bluetoothイヤホン接続中',
+};
+
 export const MODAL_MESSAGES = {
   confirmProjectEditSave: {
     message: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？',

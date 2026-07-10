@@ -7063,7 +7063,7 @@ __metadata:
 
 "expo-av@patch:expo-av@npm%3A16.0.8#~/.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch":
   version: 16.0.8
-  resolution: "expo-av@patch:expo-av@npm%3A16.0.8#~/.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch::version=16.0.8&hash=fae866"
+  resolution: "expo-av@patch:expo-av@npm%3A16.0.8#~/.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch::version=16.0.8&hash=653bb9"
   peerDependencies:
     expo: "*"
     react: "*"
@@ -7072,7 +7072,7 @@ __metadata:
   peerDependenciesMeta:
     react-native-web:
       optional: true
-  checksum: 10c0/38507893db9df41be0bd52ae3793e0317a11e91ea03802c6fb5069b6e06b383a0831594ffa35c64c99c0eb05086412efea98f28585316d2a720977b1bdafb96d
+  checksum: 10c0/5342bf5bbbec7e5a6363826fac9f67b155db176dde17732310ada1be25332a62bd61fcd05ceaa8d5f53ba2e5c566b35041a29991f045c62478c7f632f37e1986
   languageName: node
   linkType: hard
 
@@ -10278,6 +10278,7 @@ __metadata:
     react: "npm:19.1.0"
     react-dom: "npm:19.1.0"
     react-native: "npm:0.81.5"
+    react-native-device-info: "npm:^15.0.2"
     react-native-gesture-handler: "npm:~2.28.0"
     react-native-markdown-display: "npm:^7.0.2"
     react-native-paper: "npm:^5.14.5"
@@ -12362,6 +12363,15 @@ __metadata:
   version: 19.2.4
   resolution: "react-is@npm:19.2.4"
   checksum: 10c0/477a7cfc900f24194606e315fa353856a3a13487ea8eca841678817cad4daef64339ea0d1e84e58459fc75dbe0d9ba00bb0cc626db3d07e0cf31edc64cb4fa37
+  languageName: node
+  linkType: hard
+
+"react-native-device-info@npm:^15.0.2":
+  version: 15.0.2
+  resolution: "react-native-device-info@npm:15.0.2"
+  peerDependencies:
+    react-native: "*"
+  checksum: 10c0/c4a1d9ae049f42f0aa3c5aba539a9826d2400cb15a6d17815824204e4e842fbc15c80afec7387acd07e02f80a1fa49aaef1d4d6e96bc9ec53c42ba63046e8ce1
   languageName: node
   linkType: hard
 
