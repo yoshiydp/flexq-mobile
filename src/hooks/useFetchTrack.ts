@@ -21,23 +21,24 @@ export function useFetchTrack() {
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
 
-  const fetchTrack = useCallback(async () => {
+  const fetchTrack = useCallback(async (): Promise<TrackType[] | undefined> => {
     setLoading(true);
     setError(null);
 
     try {
       const res = await DefaultService.getTrack();
-      setTracks(
-        res
-          .map((track: any) => ({
-            ...track,
-            updatedAt: new Date(track.updatedAt),
-          }))
-          .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime()),
-      );
+      const sorted = res
+        .map((track: any) => ({
+          ...track,
+          updatedAt: new Date(track.updatedAt),
+        }))
+        .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime());
+      setTracks(sorted);
+      return sorted;
     } catch (err) {
       console.error('Failed to fetch tracks:', err);
       setError(err as Error);
+      return undefined;
     } finally {
       setLoading(false);
     }
