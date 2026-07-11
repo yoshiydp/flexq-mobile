@@ -156,6 +156,38 @@ describe('RecStartModal コンポーネント', () => {
     expect(mockOnStartRecording).not.toHaveBeenCalled();
   });
 
+  it('onAiCleanupChange を渡すと AI クリーンアップトグルが表示される', () => {
+    const mockOnAiCleanupChange = jest.fn();
+    const { getByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        waveformData={[]}
+        cueButtons={[]}
+        aiCleanupEnabled={false}
+        onAiCleanupChange={mockOnAiCleanupChange}
+      />,
+    );
+    const toggle = getByTestId('ai-cleanup-toggle');
+    expect(toggle).toBeTruthy();
+    fireEvent(toggle, 'valueChange', true);
+    expect(mockOnAiCleanupChange).toHaveBeenCalledWith(true);
+  });
+
+  it('onAiCleanupChange を渡さない場合はトグルが表示されない', () => {
+    const { queryByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        waveformData={[]}
+        cueButtons={[]}
+      />,
+    );
+    expect(queryByTestId('ai-cleanup-toggle')).toBeNull();
+  });
+
   it('trackSource があるとき WaveformPlayer が表示される', async () => {
     const { getByTestId } = render(
       <RecStartModal

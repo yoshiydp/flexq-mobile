@@ -58,6 +58,12 @@ export type RootStackParamList = {
         startPositionMs?: number;
         /** 録音時に使用したトラック音源のソース（未保存のトラック差し替えを含む）。トラック同期再生に使用 */
         trackSource?: string;
+        /** 録音開始時点のイヤホン接続状態（AI クリーンアップ用） */
+        recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
+        /** 保存成功後に AI クリーンアップを自動実行するか */
+        autoCleanup?: boolean;
+        separationStatus?: 'none' | 'processing' | 'done' | 'failed';
+        separatedSource?: string;
       }
     | undefined;
   RecordList?: undefined;

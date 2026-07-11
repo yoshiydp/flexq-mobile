@@ -111,6 +111,9 @@ export default function RecordListScreen() {
                 isBookmarked: record.isBookmarked,
                 projectId: record.projectId,
                 startPositionMs: record.startPositionMs,
+                recordedWithHeadphones: record.recordedWithHeadphones,
+                separationStatus: record.separationStatus,
+                separatedSource: record.separatedSource,
               });
             }}
           />

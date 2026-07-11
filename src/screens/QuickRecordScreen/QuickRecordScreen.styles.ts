@@ -12,4 +12,8 @@ export default StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  aiCleanupToggleWrapper: {
+    marginTop: 24,
+    width: '70%',
+  },
 });

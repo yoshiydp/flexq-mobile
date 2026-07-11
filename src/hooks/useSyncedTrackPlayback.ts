@@ -8,7 +8,7 @@ import type { HeadphoneConnection } from '@/hooks/useHeadphonesConnected';
  * - `'enabled'`: 同時再生を有効化できた
  * - `'no-track'`: プロジェクトにトラック音源がない（削除・差し替え済み等）
  * - `'load-failed'`: トラック音源の読み込みに失敗した
- * - `'headphones-disconnected'`: ロード完了を待つ間にイヤホンが切断された
+ * - `'headphones-disconnected'`: ロード完了を待つ間にイヤホンの切断などで有効化条件を失った
  * - `'cancelled'`: ロード完了を待つ間に画面を離れた（エラーとして扱わない）
  */
 export type EnableSyncResult =
@@ -32,6 +32,12 @@ type UseSyncedTrackPlaybackOptions = {
   initialTrackSource?: string;
   /** イヤホンの接続状態。wired / bluetooth のときのみ同時再生を有効化できる */
   headphoneConnection: HeadphoneConnection;
+  /**
+   * イヤホン未接続でも同時再生を許可するか (TASK-38)。
+   * 声のみ（AI 分離済み）音源はトラック音がスピーカーから録音に混ざる懸念がないため、
+   * true の場合はイヤホンなしでも有効化でき、再生中の切断でも停止しない
+   */
+  allowWithoutHeadphones?: boolean;
 };
 
 /**
@@ -41,12 +47,14 @@ type UseSyncedTrackPlaybackOptions = {
  * - 再生 / 一時停止 / シークは常に録音側の位置を基準にトラック側を追従させる
  * - 録音（声）の再生終了でトラック側も停止する（録音尺をマスターとする）
  * - イヤホンが切断された場合は同時再生を自動で停止する
+ *   （allowWithoutHeadphones=true の間はイヤホンなしでも継続する / TASK-38）
  */
 export function useSyncedTrackPlayback({
   projectId,
   startPositionMs = 0,
   initialTrackSource,
   headphoneConnection,
+  allowWithoutHeadphones = false,
 }: UseSyncedTrackPlaybackOptions) {
   const trackSoundRef = useRef<Audio.Sound | null>(null);
   const syncEnabledRef = useRef(false);
@@ -59,9 +67,10 @@ export function useSyncedTrackPlayback({
 
   const headphonesConnected =
     headphoneConnection === 'wired' || headphoneConnection === 'bluetooth';
-  const canSync = Boolean(projectId) && headphonesConnected;
+  const canSync =
+    Boolean(projectId) && (headphonesConnected || allowWithoutHeadphones);
 
-  // enableSync のロード中にイヤホンが切断された場合を await 後に検知するための参照
+  // enableSync のロード中に有効化条件を失った場合を await 後に検知するための参照
   const canSyncRef = useRef(canSync);
   canSyncRef.current = canSync;
 
@@ -142,8 +151,8 @@ export function useSyncedTrackPlayback({
         trackSoundRef.current = result;
       }
 
-      // ロード完了を待つ間にイヤホンが切断されていた場合は有効化しない
-      // （切断時の自動停止 effect は syncEnabled=false のため何もしない）
+      // ロード完了を待つ間にイヤホンの切断などで有効化条件を失った場合は有効化しない
+      // （自動停止 effect は syncEnabled=false のため何もしない）
       if (!canSyncRef.current) return 'headphones-disconnected';
 
       try {
@@ -236,13 +245,18 @@ export function useSyncedTrackPlayback({
     }
   };
 
-  // 再生中にイヤホンが切断された場合は同時再生を停止する
+  // 再生中に有効化条件を失った場合は同時再生を停止する。
+  // - 元の録音（allowWithoutHeadphones=false）: イヤホンの切断で停止する（TASK-37 の従来仕様）
+  // - 声のみ（allowWithoutHeadphones=true）: イヤホンが切断されても canSync が維持される
+  //   ため停止せず、そのままスピーカーで再生を継続する (TASK-38)
+  // - 声のみ + イヤホン未接続で同時再生中に「元の録音」へ戻した場合は canSync が false に
+  //   なるため自動で無効化する
   useEffect(() => {
-    if (!headphonesConnected && syncEnabledRef.current) {
+    if (!canSync && syncEnabledRef.current) {
       disableSync();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [headphonesConnected]);
+  }, [canSync]);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -258,7 +272,7 @@ export function useSyncedTrackPlayback({
   }, []);
 
   return {
-    /** projectId があり、かつイヤホン接続中のときのみ true */
+    /** projectId があり、かつイヤホン接続中（または allowWithoutHeadphones=true）のときのみ true */
     canSync,
     syncEnabled,
     trackLoading,

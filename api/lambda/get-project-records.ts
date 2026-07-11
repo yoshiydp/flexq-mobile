@@ -26,7 +26,7 @@ export const handler = async (event: any) => {
   );
 
   const records = await Promise.all(
-    (result.Items || []).map(async ({ recordId, s3Key, source: legacySource, ...rest }) => {
+    (result.Items || []).map(async ({ recordId, s3Key, separatedS3Key, source: legacySource, ...rest }) => {
       let source = legacySource ?? '';
       if (s3Key) {
         source = await getSignedUrl(
@@ -35,7 +35,16 @@ export const handler = async (event: any) => {
           { expiresIn: 3600 }
         );
       }
-      return { ...rest, id: recordId, source };
+      // AI クリーンアップ済みの音源があれば presigned URL を付与する
+      let separatedSource: string | undefined;
+      if (separatedS3Key) {
+        separatedSource = await getSignedUrl(
+          s3Client,
+          new GetObjectCommand({ Bucket: process.env.TRACK_AUDIO_BUCKET!, Key: separatedS3Key }),
+          { expiresIn: 3600 }
+        );
+      }
+      return { ...rest, id: recordId, source, ...(separatedSource ? { separatedSource } : {}) };
     })
   );
 

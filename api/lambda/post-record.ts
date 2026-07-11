@@ -12,7 +12,7 @@ export const handler = async (event: any) => {
   if (!claims) return unauthorizedResponse();
 
   const body = JSON.parse(event.body || '{}');
-  const { title, s3Key, projectId, startPositionMs, isBookmarked } = body;
+  const { title, s3Key, projectId, startPositionMs, isBookmarked, recordedWithHeadphones } = body;
 
   if (!s3Key) {
     return createResponse({ message: 's3Key is required' }, 400);
@@ -41,6 +41,13 @@ export const handler = async (event: any) => {
     item.startPositionMs = startPositionMs;
   }
 
+  // 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う）
+  const allowedHeadphoneStates = ['wired', 'bluetooth', 'none'];
+  if (allowedHeadphoneStates.includes(recordedWithHeadphones)) {
+    item.recordedWithHeadphones = recordedWithHeadphones;
+  }
+  item.separationStatus = 'none';
+
   await docClient.send(
     new PutCommand({
       TableName: process.env.RECORDS_TABLE!,
@@ -63,6 +70,10 @@ export const handler = async (event: any) => {
       ...(item.startPositionMs !== undefined ? { startPositionMs: item.startPositionMs } : {}),
       updatedAt: now,
       isBookmarked: isBookmarked ?? false,
+      ...(item.recordedWithHeadphones
+        ? { recordedWithHeadphones: item.recordedWithHeadphones }
+        : {}),
+      separationStatus: 'none',
     },
     201
   );
