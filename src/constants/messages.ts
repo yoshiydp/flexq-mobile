@@ -7,6 +7,13 @@ export const REC_LABELS = {
   currentPosition: '現在位置',
 };
 
+export const REC_PERMISSION_MESSAGES = {
+  micPermissionDenied:
+    'マイクの使用が許可されていないため録音できません。設定アプリからこのアプリのマイクへのアクセスを許可してください。',
+  recordingStartFailed:
+    '録音を開始できませんでした。もう一度お試しください。',
+};
+
 export const HEADPHONE_LABELS = {
   wired: '有線イヤホン接続中',
   bluetooth: 'Bluetoothイヤホン接続中',
