@@ -75,7 +75,9 @@ export default function RecRecordingSection({
       await recording.startAsync();
       recordingRef.current = recording;
 
-      // 音源がある場合は指定位置から再生（マイクが物理的にスピーカー/イヤホン音を収録）
+      // 音源がある場合は指定位置から再生
+      // イヤホン接続時は音源がイヤホンへルーティングされ、マイクは声のみを収録する
+      // スピーカー再生時はマイクがスピーカー音も物理的に収録する
       if (trackSource) {
         const { sound } = await Audio.Sound.createAsync(
           { uri: trackSource },

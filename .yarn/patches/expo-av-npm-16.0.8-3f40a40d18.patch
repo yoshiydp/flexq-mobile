@@ -4,8 +4,10 @@ index 7153d286adb56461bfecf916e164c932a17b5d56..7fb9276c61e90ebdb1aa41ceadc78166
 +++ b/ios/EXAV/EXAV.m
 @@ -326,6 +326,8 @@ EX_EXPORT_MODULE(ExponentAV);
    if (_allowsAudioRecording) {
-     // Bluetooth input is only available when recording is allowed
-     requiredAudioCategoryOptions = requiredAudioCategoryOptions | AVAudioSessionCategoryOptionAllowBluetooth;
+-    // Bluetooth input is only available when recording is allowed
+-    requiredAudioCategoryOptions = requiredAudioCategoryOptions | AVAudioSessionCategoryOptionAllowBluetooth;
++    // A2DP: Bluetooth イヤホンへ高音質で出力しつつ、録音入力は本体マイクを維持する
++    requiredAudioCategoryOptions = requiredAudioCategoryOptions | AVAudioSessionCategoryOptionAllowBluetoothA2DP;
 +    // Route audio to speaker (not earpiece) in PlayAndRecord mode
 +    requiredAudioCategoryOptions = requiredAudioCategoryOptions | AVAudioSessionCategoryOptionDefaultToSpeaker;
    }

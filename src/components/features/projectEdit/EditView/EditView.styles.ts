@@ -6,6 +6,16 @@ export default StyleSheet.create({
     paddingTop: 10,
     paddingBottom: 20,
   },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  titleInputWrapper: {
+    flex: 1,
+  },
+  headphoneIndicator: {
+    marginLeft: 12,
+  },
   bodyInputWrapper: {
     position: 'relative',
     marginTop: 16,
