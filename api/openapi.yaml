@@ -568,6 +568,17 @@ paths:
                       type: string
                     isBookmarked:
                       type: boolean
+                    recordedWithHeadphones:
+                      type: string
+                      enum: [wired, bluetooth, none]
+                    separationStatus:
+                      type: string
+                      enum: [none, processing, done, failed]
+                    separationType:
+                      type: string
+                      enum: [separate, denoise]
+                    separatedSource:
+                      type: string
               examples:
                 RECORD_DATA:
                   $ref: '#/components/examples/RECORD_DATA'
@@ -591,6 +602,9 @@ paths:
                   type: string
                 isBookmarked:
                   type: boolean
+                recordedWithHeadphones:
+                  type: string
+                  enum: [wired, bluetooth, none]
       responses:
         '201':
           description: Created
@@ -609,10 +623,99 @@ paths:
                     type: string
                   isBookmarked:
                     type: boolean
+                  recordedWithHeadphones:
+                    type: string
+                    enum: [wired, bluetooth, none]
+                  separationStatus:
+                    type: string
+                    enum: [none, processing, done, failed]
         '400':
           description: Bad Request
         '401':
           description: Unauthorized
+  /data/record/{id}/separate:
+    post:
+      summary: Start AI cleanup (vocal separation / denoise) for a record
+      description: >
+        Starts an AI cleanup job for the recorded audio.
+        The processing type (separate / denoise) is chosen automatically from
+        the headphone connection state at recording time. If the record has
+        already been processed, the cached result is returned without starting
+        a new job.
+      operationId: separateRecord
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  separationStatus:
+                    type: string
+                    enum: [none, processing, done, failed]
+                  separationType:
+                    type: string
+                    enum: [separate, denoise]
+                  separatedSource:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '502':
+          description: Bad Gateway (failed to start the AI cleanup job)
+        '503':
+          description: Service Unavailable (AI cleanup is not configured)
+  /data/record/{id}/separate-status:
+    get:
+      summary: Get AI cleanup status for a record
+      description: >
+        Polls the AI cleanup job status. When the job has finished, the
+        processed audio is stored in S3 and a presigned URL is returned.
+      operationId: getRecordSeparateStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  separationStatus:
+                    type: string
+                    enum: [none, processing, done, failed]
+                  separationType:
+                    type: string
+                    enum: [separate, denoise]
+                  separatedSource:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '503':
+          description: Service Unavailable (AI cleanup is not configured)
   /data/record/{id}:
     put:
       summary: Update a record

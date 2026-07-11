@@ -1,10 +1,13 @@
 import { useState } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { uploadFileToS3 } from '@/utils/uploadToS3';
+import type { RecordedWithHeadphones } from '@/types/separationType';
 
 type UploadRecordOptions = {
   projectId?: string;
   isBookmarked?: boolean;
+  /** 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う） */
+  recordedWithHeadphones?: RecordedWithHeadphones;
 };
 
 export function useUploadRecord() {
@@ -16,7 +19,7 @@ export function useUploadRecord() {
     title: string,
     options: UploadRecordOptions = {},
   ) => {
-    const { projectId, isBookmarked = false } = options;
+    const { projectId, isBookmarked = false, recordedWithHeadphones } = options;
     setLoading(true);
     setError(null);
     try {
@@ -34,6 +37,7 @@ export function useUploadRecord() {
         s3Key: key,
         ...(projectId ? { projectId } : {}),
         isBookmarked,
+        ...(recordedWithHeadphones ? { recordedWithHeadphones } : {}),
       });
 
       return record;

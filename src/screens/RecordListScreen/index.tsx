@@ -109,6 +109,9 @@ export default function RecordListScreen() {
                 recordedFile: record.source,
                 title: record.title,
                 isBookmarked: record.isBookmarked,
+                recordedWithHeadphones: record.recordedWithHeadphones,
+                separationStatus: record.separationStatus,
+                separatedSource: record.separatedSource,
               });
             }}
           />

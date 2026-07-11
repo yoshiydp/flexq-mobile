@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -6,7 +6,13 @@ import type { RootStackParamList } from '@/navigation/types';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import RecReadySection from '@/components/features/record/RecReadySection';
 import RecRecordingModal from '@/components/ui/modals/RecRecordingModal';
+import AiCleanupToggle from '@/components/features/record/AiCleanupToggle';
 import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
+import {
+  useHeadphonesConnected,
+  type HeadphoneConnection,
+} from '@/hooks/useHeadphonesConnected';
+import { useAiCleanupSetting } from '@/hooks/useAiCleanupSetting';
 import styles from './QuickRecordScreen.styles';
 
 export default function QuickRecordScreen() {
@@ -17,11 +23,20 @@ export default function QuickRecordScreen() {
 
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
 
+  const headphoneConnection = useHeadphonesConnected();
+  // 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う）
+  const headphonesAtRecordStartRef = useRef<HeadphoneConnection>(null);
+  const { enabled: aiCleanupEnabled, setEnabled: setAiCleanupEnabled } =
+    useAiCleanupSetting();
+
   const handleGoBack = () => {
     navigator.goBack();
   };
 
-  const handleRecordPress = () => setRecordingModalVisible(true);
+  const handleRecordPress = () => {
+    headphonesAtRecordStartRef.current = headphoneConnection;
+    setRecordingModalVisible(true);
+  };
 
   const handleStopRecording = (duration: number, file: string) => {
     if (!file || duration <= 0) return;
@@ -30,6 +45,8 @@ export default function QuickRecordScreen() {
       recordedFile: file,
       recordedDuration: duration,
       source: params?.source || undefined,
+      recordedWithHeadphones: headphonesAtRecordStartRef.current ?? undefined,
+      autoCleanup: aiCleanupEnabled,
     });
   };
 
@@ -51,6 +68,12 @@ export default function QuickRecordScreen() {
       <HeaderToolBar items={items} />
       <View style={styles.content}>
         <RecReadySection onPressStartRecording={handleRecordPress} />
+        <View style={styles.aiCleanupToggleWrapper}>
+          <AiCleanupToggle
+            value={aiCleanupEnabled}
+            onChange={setAiCleanupEnabled}
+          />
+        </View>
       </View>
       <RecRecordingModal
         visible={recordingModalVisible}

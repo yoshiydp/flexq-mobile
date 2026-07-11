@@ -80,6 +80,32 @@ describe('useUploadRecord', () => {
     });
   });
 
+  it('recordedWithHeadphones を指定した場合、createRecord に含める', async () => {
+    const { result } = renderHook(() => useUploadRecord());
+
+    await act(async () => {
+      await result.current.uploadRecord(localFileUri, 'My Recording', {
+        recordedWithHeadphones: 'bluetooth',
+      });
+    });
+
+    expect(mockedService.createRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ recordedWithHeadphones: 'bluetooth' }),
+    );
+  });
+
+  it('recordedWithHeadphones 未指定の場合は createRecord に含めない', async () => {
+    const { result } = renderHook(() => useUploadRecord());
+
+    await act(async () => {
+      await result.current.uploadRecord(localFileUri, 'My Recording');
+    });
+
+    expect(mockedService.createRecord.mock.calls[0][0]).not.toHaveProperty(
+      'recordedWithHeadphones',
+    );
+  });
+
   it('タイトルが空白のみの場合は "No Title" で保存する', async () => {
     const { result } = renderHook(() => useUploadRecord());
 

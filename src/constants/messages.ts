@@ -7,6 +7,17 @@ export const REC_LABELS = {
   currentPosition: '現在位置',
 };
 
+export const SEPARATION_LABELS = {
+  button: 'AI クリーンアップ',
+  processing: '処理中…',
+  unsavedHint: '保存すると実行できます',
+  original: '元の録音',
+  cleaned: '声のみ',
+  toggleLabel: 'AI クリーンアップ',
+  startFailed: 'AI クリーンアップの開始に失敗しました。',
+  failed: 'AI クリーンアップに失敗しました。時間をおいて再度お試しください。',
+};
+
 export const HEADPHONE_LABELS = {
   wired: '有線イヤホン接続中',
   bluetooth: 'Bluetoothイヤホン接続中',

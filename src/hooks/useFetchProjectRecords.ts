@@ -1,5 +1,10 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import type {
+  RecordedWithHeadphones,
+  SeparationStatus,
+  SeparationType,
+} from '@/types/separationType';
 
 export interface ProjectRecordType {
   id: string;
@@ -7,6 +12,10 @@ export interface ProjectRecordType {
   source: string;
   updatedAt: Date;
   isBookmarked: boolean;
+  recordedWithHeadphones?: RecordedWithHeadphones;
+  separationStatus?: SeparationStatus;
+  separationType?: SeparationType;
+  separatedSource?: string;
 }
 
 /**

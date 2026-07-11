@@ -1,6 +1,11 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import type {
+  RecordedWithHeadphones,
+  SeparationStatus,
+  SeparationType,
+} from '@/types/separationType';
 
 const CACHE_KEY = 'record_has_items';
 
@@ -11,6 +16,10 @@ export interface RecordType {
   projectId?: string;
   updatedAt: Date;
   isBookmarked: boolean;
+  recordedWithHeadphones?: RecordedWithHeadphones;
+  separationStatus?: SeparationStatus;
+  separationType?: SeparationType;
+  separatedSource?: string;
 }
 
 export function useFetchRecord() {

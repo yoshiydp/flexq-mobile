@@ -54,6 +54,12 @@ export type RootStackParamList = {
         isBookmarked?: boolean;
         source?: 'Drafts' | 'ProjectEdit' | undefined;
         projectId?: string;
+        /** 録音開始時点のイヤホン接続状態（AI クリーンアップ用） */
+        recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
+        /** 保存成功後に AI クリーンアップを自動実行するか */
+        autoCleanup?: boolean;
+        separationStatus?: 'none' | 'processing' | 'done' | 'failed';
+        separatedSource?: string;
       }
     | undefined;
   RecordList?: undefined;
