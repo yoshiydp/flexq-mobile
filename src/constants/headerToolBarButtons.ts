@@ -4,6 +4,7 @@ export type HeaderToolBarButtonType =
   | 'back'
   | 'linkedProjects'
   | 'headerTitle'
+  | 'headphoneIndicator'
   | 'action'
   | 'hamburger'
   | 'bookmark'
@@ -30,6 +31,10 @@ export const HEADER_TOOLBAR_TEMPLATES = {
   headerTitle: {
     id: 'toolbar-headerTitle',
     type: 'headerTitle',
+  } as HeaderToolBarButton,
+  headphoneIndicator: {
+    id: 'toolbar-headphoneIndicator',
+    type: 'headphoneIndicator',
   } as HeaderToolBarButton,
   action: { id: 'toolbar-action', type: 'action' } as HeaderToolBarButton,
   hamburger: {

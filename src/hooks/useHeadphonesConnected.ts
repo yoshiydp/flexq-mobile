@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { NativeEventEmitter, NativeModules } from 'react-native';
+import { AppState, NativeEventEmitter, NativeModules } from 'react-native';
 
 /**
  * - `'wired'` / `'bluetooth'`: 接続中のイヤホン種別（同時接続時は無線を優先）
@@ -15,9 +15,15 @@ const HEADPHONE_CONNECTION_EVENTS = [
   'RNDeviceInfo_headphoneBluetoothConnectionDidChange',
 ];
 
+// 接続変更イベントを取りこぼした場合（iOS でオーディオセッションが
+// 非アクティブな間はルート変更通知が届かないことがある）に備えたポーリング間隔
+const CONNECTION_POLL_INTERVAL_MS = 3000;
+
 /**
  * イヤホン（有線・Bluetooth）の接続状態を種別付きで返すフック。
- * 接続変更イベントでリアルタイムに更新される。
+ * 接続変更イベントでリアルタイムに更新されるほか、イベントを取りこぼしても
+ * 再生状態に依存せず反映されるよう、ポーリングとフォアグラウンド復帰時の
+ * 再取得でフォールバックする。
  */
 export function useHeadphonesConnected(): HeadphoneConnection {
   const [connection, setConnection] = useState<HeadphoneConnection>(null);
@@ -61,11 +67,21 @@ export function useHeadphonesConnected(): HeadphoneConnection {
         subscriptions.push(emitter.addListener(event, refresh));
       });
     } catch {
-      // イベント購読に失敗しても初回取得の値は表示できる
+      // イベント購読に失敗しても初回取得・ポーリングの値は表示できる
     }
+
+    // イベントが発火しないケースでも接続状態を追従させるフォールバック
+    const pollIntervalId = setInterval(refresh, CONNECTION_POLL_INTERVAL_MS);
+
+    // バックグラウンド中の接続変更はフォアグラウンド復帰時に反映する
+    const appStateSubscription = AppState.addEventListener('change', (state) => {
+      if (state === 'active') refresh();
+    });
 
     return () => {
       isMounted = false;
+      clearInterval(pollIntervalId);
+      appStateSubscription.remove();
       subscriptions.forEach((subscription) => subscription.remove());
     };
   }, []);
