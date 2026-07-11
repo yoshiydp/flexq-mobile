@@ -48,6 +48,16 @@ describe('RecRecordingModal コンポーネント', () => {
     expect(mockOnStop).toHaveBeenCalledTimes(1);
   });
 
+  it('RecRecordingSection の onAbort が呼ばれると、onClose が呼ばれる', () => {
+    render(<RecRecordingModal {...mockProps} />);
+
+    const propsPassed = (RecRecordingSection as jest.Mock).mock.calls[0][0];
+
+    propsPassed.onAbort();
+
+    expect(mockOnClose).toHaveBeenCalledTimes(1);
+  });
+
   it('初期表示時に onClose が呼ばれない', () => {
     render(<RecRecordingModal {...mockProps} />);
 
