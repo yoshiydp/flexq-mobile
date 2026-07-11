@@ -135,6 +135,75 @@ describe('RecView コンポーネント', () => {
     });
   });
 
+  it('RecordItem タップで保存済みの startPositionMs が RecordPlayer に引き渡される (TASK-37)', async () => {
+    const records = [
+      {
+        ...mockProps.records[0],
+        startPositionMs: 12000,
+      },
+    ];
+    const { getByText } = renderWithProviders(
+      <RecView {...mockProps} records={records} />,
+    );
+    await act(async () => { fireEvent.press(getByText('Intro Take 1')); });
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'RecordPlayer',
+      expect.objectContaining({ startPositionMs: 12000 }),
+    );
+  });
+
+  it('録音停止時に録音開始位置（startPositionMs）を含めて RecordPlayer に遷移する (TASK-37)', async () => {
+    jest.useFakeTimers();
+    renderWithProviders(<RecView {...mockProps} />);
+
+    // RecStartModal で「現在位置（5000ms）」から録音開始
+    const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
+    await act(async () => {
+      recStartProps.onStartRecording(5000);
+      jest.runAllTimers();
+    });
+
+    // 録音停止で RecordPlayer へ遷移
+    const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
+    await act(async () => {
+      recModalProps.onStop(3000, 'file:///tmp/recording.m4a');
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith('RecordPlayer', {
+      recordedFile: 'file:///tmp/recording.m4a',
+      recordedDuration: 3000,
+      source: 'ProjectEdit',
+      projectId: 'project-1',
+      startPositionMs: 5000,
+      trackSource: undefined,
+    });
+    jest.useRealTimers();
+  });
+
+  it('録音時に使用していたトラック音源（trackSource）が RecordPlayer に引き渡される (TASK-37)', async () => {
+    jest.useFakeTimers();
+    renderWithProviders(
+      <RecView {...mockProps} trackSource="file:///pending/track.mp3" />,
+    );
+
+    const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
+    await act(async () => {
+      recStartProps.onStartRecording(0);
+      jest.runAllTimers();
+    });
+
+    const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
+    await act(async () => {
+      recModalProps.onStop(3000, 'file:///tmp/recording.m4a');
+    });
+
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'RecordPlayer',
+      expect.objectContaining({ trackSource: 'file:///pending/track.mp3' }),
+    );
+    jest.useRealTimers();
+  });
+
   it('WaveformPlayer・CueButtonList・PlayerControls が表示される', () => {
     const { getByTestId } = renderWithProviders(
       <RecView {...mockProps} trackSource="https://example.com/track.mp3" />,
