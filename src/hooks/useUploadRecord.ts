@@ -4,6 +4,8 @@ import { uploadFileToS3 } from '@/utils/uploadToS3';
 
 type UploadRecordOptions = {
   projectId?: string;
+  /** 録音開始時のトラック再生位置（ms）。トラック同期再生に使用 */
+  startPositionMs?: number;
   isBookmarked?: boolean;
 };
 
@@ -16,7 +18,7 @@ export function useUploadRecord() {
     title: string,
     options: UploadRecordOptions = {},
   ) => {
-    const { projectId, isBookmarked = false } = options;
+    const { projectId, startPositionMs, isBookmarked = false } = options;
     setLoading(true);
     setError(null);
     try {
@@ -33,6 +35,7 @@ export function useUploadRecord() {
         title: resolvedTitle,
         s3Key: key,
         ...(projectId ? { projectId } : {}),
+        ...(startPositionMs !== undefined ? { startPositionMs } : {}),
         isBookmarked,
       });
 
