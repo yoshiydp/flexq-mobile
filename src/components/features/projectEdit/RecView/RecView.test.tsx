@@ -160,7 +160,9 @@ describe('RecView コンポーネント', () => {
     const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
     await act(async () => {
       recStartProps.onStartRecording(5000);
-      jest.runAllTimers();
+      // RecRecordingModal を開くまでの 300ms のみ進める
+      // （runAllTimers は useHeadphonesConnected のポーリングで停止しないため使わない）
+      jest.advanceTimersByTime(300);
     });
 
     // 録音停止で RecordPlayer へ遷移
@@ -189,7 +191,9 @@ describe('RecView コンポーネント', () => {
     const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
     await act(async () => {
       recStartProps.onStartRecording(0);
-      jest.runAllTimers();
+      // RecRecordingModal を開くまでの 300ms のみ進める
+      // （runAllTimers は useHeadphonesConnected のポーリングで停止しないため使わない）
+      jest.advanceTimersByTime(300);
     });
 
     const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
