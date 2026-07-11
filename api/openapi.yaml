@@ -564,6 +564,8 @@ paths:
                       type: string
                     projectId:
                       type: string
+                    startPositionMs:
+                      type: number
                     updatedAt:
                       type: string
                     isBookmarked:
@@ -600,6 +602,8 @@ paths:
                   type: string
                 projectId:
                   type: string
+                startPositionMs:
+                  type: number
                 isBookmarked:
                   type: boolean
                 recordedWithHeadphones:
@@ -619,6 +623,10 @@ paths:
                     type: string
                   source:
                     type: string
+                  projectId:
+                    type: string
+                  startPositionMs:
+                    type: number
                   updatedAt:
                     type: string
                   isBookmarked:

@@ -27,6 +27,28 @@ export default StyleSheet.create({
   volumeSliderWrapper: {
     marginTop: 28,
   },
+  syncPlaybackWrapper: {
+    marginTop: 28,
+    marginHorizontal: 20,
+  },
+  syncToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  syncToggleLabel: {
+    color: COLORS.font.default,
+    fontSize: 14,
+  },
+  syncHintText: {
+    marginTop: 8,
+    color: COLORS.font.label,
+    fontSize: 12,
+  },
+  trackVolumeSliderWrapper: {
+    marginTop: 16,
+    marginHorizontal: -20,
+  },
   submitButton: {
     marginHorizontal: 20,
     marginBottom: 20,

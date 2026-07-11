@@ -4,6 +4,7 @@ import {
   Text,
   Pressable,
   ActivityIndicator,
+  Switch,
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
@@ -21,7 +22,11 @@ import VolumeSlider from '@/components/ui/VolumeSlider';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
 import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
-import { MODAL_MESSAGES, SEPARATION_LABELS } from '@/constants/messages';
+import {
+  MODAL_MESSAGES,
+  SEPARATION_LABELS,
+  SYNC_PLAYBACK_LABELS,
+} from '@/constants/messages';
 import { COLORS } from '@/globalStyles';
 import { useUpdateRecord } from '@/hooks/useUpdateRecord';
 import { useDeleteRecord } from '@/hooks/useDeleteRecord';
@@ -29,6 +34,8 @@ import { useUploadRecord } from '@/hooks/useUploadRecord';
 import { useFetchRecord } from '@/hooks/useFetchRecord';
 import { useSeparateRecord } from '@/hooks/useSeparateRecord';
 import type { SeparationStatus } from '@/types/separationType';
+import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
+import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
 import styles from './RecordPlayerScreen.styles';
 
 export default function RecordPlayerScreen() {
@@ -71,6 +78,17 @@ export default function RecordPlayerScreen() {
   // 音源再取得リトライ時に、切替直後でも最新の再生対象を参照するための ref
   const activeSourceRef = useRef<'original' | 'separated'>('original');
   const prevSeparationStatusRef = useRef<SeparationStatus>('none');
+
+  // プロジェクト録音のみ、イヤホン装着時にトラック音源との同期同時再生を有効化できる (TASK-37)
+  const headphoneConnection = useHeadphonesConnected();
+  const syncPlayback = useSyncedTrackPlayback({
+    projectId: params?.projectId,
+    startPositionMs: params?.startPositionMs,
+    initialTrackSource: params?.trackSource,
+    headphoneConnection,
+  });
+  const syncPlaybackRef = useRef(syncPlayback);
+  syncPlaybackRef.current = syncPlayback;
 
   const confirmModalMessageRef = useRef<{
     message: string;
@@ -143,9 +161,13 @@ export default function RecordPlayerScreen() {
         setPosition(status.positionMillis || 0);
         setDuration(status.durationMillis || recordedDuration || 1);
 
-        if (status.didJustFinish && !status.isLooping) {
-          setIsPlaying(false);
-          newSound.setPositionAsync(0);
+        if (status.didJustFinish) {
+          // 録音（声）の再生終了に合わせてトラック側も停止/巻き戻しする（録音尺をマスター）
+          syncPlaybackRef.current.handleRecordFinish(status.isLooping);
+          if (!status.isLooping) {
+            setIsPlaying(false);
+            newSound.setPositionAsync(0);
+          }
         }
       });
 
@@ -243,6 +265,7 @@ export default function RecordPlayerScreen() {
         label: modalMessage.submitButtonLabel,
         onPress: async () => {
           if (sound) await sound.stopAsync();
+          await syncPlayback.syncPause();
           closeModal();
           navigation.goBack();
         },
@@ -258,6 +281,7 @@ export default function RecordPlayerScreen() {
     try {
       if (params?.id) await deleteRecord(params.id);
       if (sound) await sound.stopAsync();
+      await syncPlayback.syncPause();
       navigation.goBack();
     } catch (error) {
       console.error(error);
@@ -283,10 +307,14 @@ export default function RecordPlayerScreen() {
     const status = await sound.getStatusAsync();
     if (status.isLoaded) {
       if (status.isPlaying) {
-        await sound.pauseAsync();
+        await Promise.all([sound.pauseAsync(), syncPlayback.syncPause()]);
         setIsPlaying(false);
       } else {
-        await sound.playAsync();
+        // 録音位置 t ⇔ トラック位置 startPositionMs + t で両音源を同時に再生開始する
+        await Promise.all([
+          sound.playAsync(),
+          syncPlayback.syncPlay(status.positionMillis || 0),
+        ]);
         setIsPlaying(true);
       }
     }
@@ -294,7 +322,10 @@ export default function RecordPlayerScreen() {
 
   const handleSeek = async (value: number) => {
     if (sound) {
-      await sound.setPositionAsync(value);
+      await Promise.all([
+        sound.setPositionAsync(value),
+        syncPlayback.syncSeek(value),
+      ]);
       if (!isPlaying) setIsPlaying(false);
     }
   };
@@ -334,6 +365,38 @@ export default function RecordPlayerScreen() {
     await loadTrack(false, uri);
   };
 
+  const handleSyncToggle = async (value: boolean) => {
+    if (!value) {
+      await syncPlayback.disableSync();
+      return;
+    }
+
+    const status = sound ? await sound.getStatusAsync() : null;
+    const recordPositionMs =
+      status?.isLoaded ? status.positionMillis || 0 : 0;
+
+    const result = await syncPlayback.enableSync(recordPositionMs);
+    if (result === 'no-track') {
+      // トラック削除・差し替え済みの場合は同時再生を無効化し録音単体再生にフォールバック
+      Alert.alert('エラー', SYNC_PLAYBACK_LABELS.noTrack);
+      return;
+    }
+    if (result === 'load-failed') {
+      Alert.alert('エラー', SYNC_PLAYBACK_LABELS.loadFailed);
+      return;
+    }
+    // ロード中にイヤホンが切断された場合はトグルが無効化されヒントが表示されるため何もしない。
+    // ロード中に画面を離れた（cancelled）場合もエラー表示は行わない
+    if (result === 'headphones-disconnected' || result === 'cancelled') return;
+
+    // 録音を再生中に有効化した場合はトラックも追従して再生を開始する。
+    // ロード待ちの間に再生位置が進む（または一時停止される）ため、最新の状態を取り直す
+    const latestStatus = sound ? await sound.getStatusAsync() : null;
+    if (latestStatus?.isLoaded && latestStatus.isPlaying) {
+      await syncPlayback.syncPlay(latestStatus.positionMillis || 0);
+    }
+  };
+
   const handleSave = async () => {
     showLoading();
     try {
@@ -344,6 +407,7 @@ export default function RecordPlayerScreen() {
         if (params?.source === 'ProjectEdit' && params?.projectId && recordedFile) {
           record = await uploadRecord(recordedFile, title, {
             projectId: params.projectId,
+            startPositionMs: params?.startPositionMs,
             isBookmarked,
             recordedWithHeadphones: params?.recordedWithHeadphones,
           });
@@ -364,6 +428,7 @@ export default function RecordPlayerScreen() {
         }
       }
       if (sound) await sound.stopAsync();
+      await syncPlayback.syncPause();
       navigation.goBack();
     } catch (error) {
       console.error(error);
@@ -515,6 +580,39 @@ export default function RecordPlayerScreen() {
             )}
           </View>
         )}
+        {params?.projectId ? (
+          <View style={styles.syncPlaybackWrapper}>
+            <View style={styles.syncToggleRow}>
+              <Text style={styles.syncToggleLabel}>
+                {SYNC_PLAYBACK_LABELS.toggleLabel}
+              </Text>
+              <Switch
+                testID="sync-playback-switch"
+                value={syncPlayback.syncEnabled}
+                onValueChange={handleSyncToggle}
+                disabled={!syncPlayback.canSync || syncPlayback.trackLoading}
+                trackColor={{
+                  true: COLORS.accent.goldPrimary,
+                  false: COLORS.controller.bg,
+                }}
+                thumbColor={COLORS.font.default}
+              />
+            </View>
+            {!syncPlayback.canSync && (
+              <Text style={styles.syncHintText}>
+                {SYNC_PLAYBACK_LABELS.headphonesRequired}
+              </Text>
+            )}
+            {syncPlayback.syncEnabled && (
+              <View style={styles.trackVolumeSliderWrapper}>
+                <VolumeSlider
+                  volume={syncPlayback.trackVolume}
+                  onVolumeChange={syncPlayback.setTrackVolume}
+                />
+              </View>
+            )}
+          </View>
+        ) : null}
       </View>
       <SubmitButton
         containerClassName={styles.submitButton}

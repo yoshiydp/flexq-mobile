@@ -14,6 +14,8 @@ export interface RecordType {
   title: string;
   source: string;
   projectId?: string;
+  /** 録音開始時のトラック再生位置（ms）。未保存の既存レコードは undefined（トラック先頭扱い） */
+  startPositionMs?: number;
   updatedAt: Date;
   isBookmarked: boolean;
   recordedWithHeadphones?: RecordedWithHeadphones;

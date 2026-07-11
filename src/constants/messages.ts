@@ -18,9 +18,23 @@ export const SEPARATION_LABELS = {
   failed: 'AI クリーンアップに失敗しました。時間をおいて再度お試しください。',
 };
 
+export const REC_PERMISSION_MESSAGES = {
+  micPermissionDenied:
+    'マイクの使用が許可されていないため録音できません。設定アプリからこのアプリのマイクへのアクセスを許可してください。',
+  recordingStartFailed:
+    '録音を開始できませんでした。もう一度お試しください。',
+};
+
 export const HEADPHONE_LABELS = {
   wired: '有線イヤホン接続中',
   bluetooth: 'Bluetoothイヤホン接続中',
+};
+
+export const SYNC_PLAYBACK_LABELS = {
+  toggleLabel: 'トラック同時再生',
+  headphonesRequired: 'イヤホン（有線 / Bluetooth）接続時に使用できます',
+  noTrack: 'プロジェクトにトラック音源がないため同時再生できません。',
+  loadFailed: 'トラック音源の読み込みに失敗しました。',
 };
 
 export const MODAL_MESSAGES = {

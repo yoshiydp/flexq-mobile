@@ -95,6 +95,10 @@ export default function RecView({
       recordedDuration: duration,
       source: 'ProjectEdit',
       projectId,
+      startPositionMs,
+      // ProjectSettings で差し替えた未保存のトラックも含め、録音時に実際に
+      // 使用していた音源をトラック同期再生でそのまま使えるように引き渡す
+      trackSource: trackSource ?? undefined,
       recordedWithHeadphones: headphonesAtRecordStartRef.current ?? undefined,
       autoCleanup: aiCleanupEnabled,
     });
@@ -133,6 +137,11 @@ export default function RecView({
                     isBookmarked: record.isBookmarked,
                     source: 'ProjectEdit',
                     projectId,
+                    startPositionMs: record.startPositionMs,
+                    // trackSource は引き渡さない: 保存済みレコードは永続化済みの
+                    // プロジェクトのトラックで録音されており、未保存の差し替え中
+                    // トラック（pending trackSource）とは一致しない可能性があるため、
+                    // RecordPlayer 側でプロジェクト詳細から取得させる
                     recordedWithHeadphones: record.recordedWithHeadphones,
                     separationStatus: record.separationStatus,
                     separatedSource: record.separatedSource,

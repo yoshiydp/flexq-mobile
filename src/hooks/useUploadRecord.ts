@@ -5,6 +5,8 @@ import type { RecordedWithHeadphones } from '@/types/separationType';
 
 type UploadRecordOptions = {
   projectId?: string;
+  /** 録音開始時のトラック再生位置（ms）。トラック同期再生に使用 */
+  startPositionMs?: number;
   isBookmarked?: boolean;
   /** 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う） */
   recordedWithHeadphones?: RecordedWithHeadphones;
@@ -19,7 +21,7 @@ export function useUploadRecord() {
     title: string,
     options: UploadRecordOptions = {},
   ) => {
-    const { projectId, isBookmarked = false, recordedWithHeadphones } = options;
+    const { projectId, startPositionMs, isBookmarked = false, recordedWithHeadphones } = options;
     setLoading(true);
     setError(null);
     try {
@@ -36,6 +38,7 @@ export function useUploadRecord() {
         title: resolvedTitle,
         s3Key: key,
         ...(projectId ? { projectId } : {}),
+        ...(startPositionMs !== undefined ? { startPositionMs } : {}),
         isBookmarked,
         ...(recordedWithHeadphones ? { recordedWithHeadphones } : {}),
       });

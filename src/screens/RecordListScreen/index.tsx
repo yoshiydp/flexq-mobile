@@ -109,6 +109,8 @@ export default function RecordListScreen() {
                 recordedFile: record.source,
                 title: record.title,
                 isBookmarked: record.isBookmarked,
+                projectId: record.projectId,
+                startPositionMs: record.startPositionMs,
                 recordedWithHeadphones: record.recordedWithHeadphones,
                 separationStatus: record.separationStatus,
                 separatedSource: record.separatedSource,

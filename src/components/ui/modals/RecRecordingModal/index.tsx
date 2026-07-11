@@ -99,7 +99,12 @@ export default function RecRecordingModal({
               <RichText editor={editor} />
             </View>
           )}
-          <RecRecordingSection onStop={onStop} trackSource={trackSource} startPositionMs={startPositionMs} />
+          <RecRecordingSection
+            onStop={onStop}
+            onAbort={onClose}
+            trackSource={trackSource}
+            startPositionMs={startPositionMs}
+          />
         </Animated.View>
       </Animated.View>
     </Modal>

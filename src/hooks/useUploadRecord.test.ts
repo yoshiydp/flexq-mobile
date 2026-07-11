@@ -80,6 +80,55 @@ describe('useUploadRecord', () => {
     });
   });
 
+  it('startPositionMs ありの場合、createRecord に startPositionMs を含める', async () => {
+    const { result } = renderHook(() => useUploadRecord());
+
+    await act(async () => {
+      await result.current.uploadRecord(localFileUri, 'My Recording', {
+        projectId: 'project-1',
+        startPositionMs: 12000,
+        isBookmarked: false,
+      });
+    });
+
+    expect(mockedService.createRecord).toHaveBeenCalledWith({
+      title: 'My Recording',
+      s3Key: 'records/abc.m4a',
+      projectId: 'project-1',
+      startPositionMs: 12000,
+      isBookmarked: false,
+    });
+  });
+
+  it('startPositionMs が 0 の場合もそのまま createRecord に含める', async () => {
+    const { result } = renderHook(() => useUploadRecord());
+
+    await act(async () => {
+      await result.current.uploadRecord(localFileUri, 'My Recording', {
+        projectId: 'project-1',
+        startPositionMs: 0,
+      });
+    });
+
+    expect(mockedService.createRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ startPositionMs: 0 }),
+    );
+  });
+
+  it('startPositionMs 未指定の場合は createRecord に含めない', async () => {
+    const { result } = renderHook(() => useUploadRecord());
+
+    await act(async () => {
+      await result.current.uploadRecord(localFileUri, 'My Recording', {
+        projectId: 'project-1',
+      });
+    });
+
+    expect(mockedService.createRecord.mock.calls[0][0]).not.toHaveProperty(
+      'startPositionMs',
+    );
+  });
+
   it('recordedWithHeadphones を指定した場合、createRecord に含める', async () => {
     const { result } = renderHook(() => useUploadRecord());
 

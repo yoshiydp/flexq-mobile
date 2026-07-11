@@ -458,6 +458,7 @@ export class DefaultService {
         title?: string;
         source?: string;
         projectId?: string;
+        startPositionMs?: number;
         updatedAt?: string;
         isBookmarked?: boolean;
         recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
@@ -481,6 +482,7 @@ export class DefaultService {
             title?: string;
             s3Key: string;
             projectId?: string;
+            startPositionMs?: number;
             isBookmarked?: boolean;
             recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
         },
@@ -488,6 +490,8 @@ export class DefaultService {
         id?: string;
         title?: string;
         source?: string;
+        projectId?: string;
+        startPositionMs?: number;
         updatedAt?: string;
         isBookmarked?: boolean;
         recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';

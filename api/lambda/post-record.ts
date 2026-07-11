@@ -12,7 +12,7 @@ export const handler = async (event: any) => {
   if (!claims) return unauthorizedResponse();
 
   const body = JSON.parse(event.body || '{}');
-  const { title, s3Key, projectId, isBookmarked, recordedWithHeadphones } = body;
+  const { title, s3Key, projectId, startPositionMs, isBookmarked, recordedWithHeadphones } = body;
 
   if (!s3Key) {
     return createResponse({ message: 's3Key is required' }, 400);
@@ -33,6 +33,12 @@ export const handler = async (event: any) => {
 
   if (projectId) {
     item.projectId = projectId;
+  }
+
+  // トラック同期再生用の録音開始位置（ミリ秒）。
+  // 不正値は保存せず、取得側では未保存レコードを 0（トラック先頭）として扱う
+  if (typeof startPositionMs === 'number' && Number.isFinite(startPositionMs) && startPositionMs >= 0) {
+    item.startPositionMs = startPositionMs;
   }
 
   // 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う）
@@ -60,6 +66,8 @@ export const handler = async (event: any) => {
       id: recordId,
       title: resolvedTitle,
       source,
+      ...(item.projectId ? { projectId: item.projectId } : {}),
+      ...(item.startPositionMs !== undefined ? { startPositionMs: item.startPositionMs } : {}),
       updatedAt: now,
       isBookmarked: isBookmarked ?? false,
       ...(item.recordedWithHeadphones
