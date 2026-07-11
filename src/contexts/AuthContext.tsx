@@ -11,6 +11,7 @@ import {
   getAccessToken,
   clearAuthTokens,
 } from '@/utils/authStorage';
+import { setOnSessionExpired } from '@/utils/authTokenInterceptor';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import type { AuthUser } from '@/types/auth';
 
@@ -70,12 +71,35 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
     } catch (err: any) {
       console.error('Failed to refresh profile:', err);
-      // トークン期限切れ(401)やユーザー削除(404)の場合はトークンを破棄してログアウト
-      if (err?.status === 401 || err?.status === 404) {
+      if (err?.status === 404) {
+        // ユーザー削除(404)の場合はトークンを破棄してログアウト
         await clearAuthTokens();
+        setUser(null);
+      } else if (err?.status === 401) {
+        // セッション失効による 401 はインターセプター側でトークン破棄済み。
+        // 一時的なリフレッシュ失敗（ネットワーク・5xx）ではトークンを保持し、
+        // 次回のリクエスト/起動時に再試行できるようにここでは破棄しない。
         setUser(null);
       }
     }
+  }, []);
+
+  // トークンリフレッシュ不能（セッション期限切れ）時の強制ログアウト導線。
+  // トークン破棄はインターセプター側で実施済みのため、ここでは
+  // ユーザーへの通知とログイン画面への遷移（user を null に）のみ行う。
+  useEffect(() => {
+    setOnSessionExpired(() => {
+      setUser((prev) => {
+        if (prev) {
+          Alert.alert(
+            'セッションの有効期限が切れました',
+            'お手数ですが、再度ログインしてください。'
+          );
+        }
+        return null;
+      });
+    });
+    return () => setOnSessionExpired(null);
   }, []);
 
   useEffect(() => {

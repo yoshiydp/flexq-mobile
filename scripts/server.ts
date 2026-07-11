@@ -54,6 +54,22 @@ app.post('/data/auth/reset-password', (req, res) => {
 });
 console.log('Mock endpoint ready: POST /data/auth/reset-password');
 
+// POST /data/auth/refresh
+app.post('/data/auth/refresh', (req, res) => {
+  const { refreshToken } = req.body;
+  if (!refreshToken) {
+    return res.status(400).json({ message: 'Refresh token is required' });
+  }
+  return res.json({
+    token: {
+      accessToken: `mock_access_token_refreshed_${Date.now()}`,
+      refreshToken: `mock_refresh_token_refreshed_${Date.now()}`,
+      expiresIn: 604800,
+    },
+  });
+});
+console.log('Mock endpoint ready: POST /data/auth/refresh');
+
 app.use(
   '/audio',
   express.static(path.resolve(__dirname, '../src/assets/audio')),

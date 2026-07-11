@@ -17,6 +17,7 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUpdateRecord } from '@/hooks/useUpdateRecord';
 import { useDeleteRecord } from '@/hooks/useDeleteRecord';
 import { useUploadRecord } from '@/hooks/useUploadRecord';
+import { useFetchRecord } from '@/hooks/useFetchRecord';
 import styles from './RecordPlayerScreen.styles';
 
 export default function RecordPlayerScreen() {
@@ -36,6 +37,7 @@ export default function RecordPlayerScreen() {
   const { updateRecord } = useUpdateRecord();
   const { deleteRecord } = useDeleteRecord();
   const { uploadRecord } = useUploadRecord();
+  const { refreshRecord } = useFetchRecord();
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -54,8 +56,17 @@ export default function RecordPlayerScreen() {
 
   const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
 
-  const loadTrack = async (autoPlay = false) => {
-    if (!recordedFile) return;
+  // 画面遷移などで既にアンマウント済みの場合、音源再取得リトライの継続処理
+  // （Alert 表示や Audio.Sound の生成）を行わないようにするための参照 (TASK-34)
+  const isMountedRef = useRef(true);
+
+  const loadTrack = async (
+    autoPlay = false,
+    fileOverride?: string,
+    isRetry = false,
+  ) => {
+    const fileToLoad = fileOverride ?? recordedFile;
+    if (!fileToLoad) return;
 
     await Audio.setAudioModeAsync({
       allowsRecordingIOS: false,
@@ -64,43 +75,98 @@ export default function RecordPlayerScreen() {
     });
 
     if (sound) {
-      await sound.stopAsync();
-      await sound.unloadAsync();
+      try {
+        await sound.stopAsync();
+        await sound.unloadAsync();
+      } catch {
+        // リトライ時など既にアンロード済みの場合があるため無視する
+      }
     }
 
     let source: any;
 
-    if (typeof recordedFile === 'string') {
-      source = { uri: recordedFile };
+    if (typeof fileToLoad === 'string') {
+      source = { uri: fileToLoad };
     } else {
-      const asset = Asset.fromModule(recordedFile);
+      const asset = Asset.fromModule(fileToLoad);
       await asset.downloadAsync();
       source = { uri: asset.uri };
     }
 
-    const { sound: newSound } = await Audio.Sound.createAsync(source, {
-      shouldPlay: autoPlay,
-    });
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(source, {
+        shouldPlay: autoPlay,
+      });
 
-    setSound(newSound);
-    setIsPlaying(autoPlay);
-
-    newSound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded) return;
-      setPosition(status.positionMillis || 0);
-      setDuration(status.durationMillis || recordedDuration || 1);
-
-      if (status.didJustFinish && !status.isLooping) {
-        setIsPlaying(false);
-        newSound.setPositionAsync(0);
+      // ロード完了を待つ間に画面を離れていた場合、
+      // この（リトライ含む）読み込み結果は適用しない
+      if (!isMountedRef.current) {
+        try {
+          await newSound.unloadAsync();
+        } catch {
+          // ignore
+        }
+        return;
       }
-    });
 
-    await newSound.setVolumeAsync(volume);
-    await newSound.setIsLoopingAsync(isLooping);
+      setSound(newSound);
+      setIsPlaying(autoPlay);
+
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
+        setPosition(status.positionMillis || 0);
+        setDuration(status.durationMillis || recordedDuration || 1);
+
+        if (status.didJustFinish && !status.isLooping) {
+          setIsPlaying(false);
+          newSound.setPositionAsync(0);
+        }
+      });
+
+      await newSound.setVolumeAsync(volume);
+      await newSound.setIsLoopingAsync(isLooping);
+    } catch (e) {
+      console.error('Failed to load audio:', e);
+
+      // 既に画面を離れている場合、状態更新や Alert 表示は行わない
+      if (!isMountedRef.current) return;
+
+      setSound(null);
+      setIsPlaying(false);
+
+      // S3 Presigned URL の期限切れ等でロードに失敗した場合、
+      // 保存済みレコード（id あり）に限り最新情報を再取得して 1 回だけリトライする
+      if (isRetry || !params?.id) {
+        Alert.alert('エラー', '音源の読み込みに失敗しました。');
+        return;
+      }
+
+      Alert.alert('エラー', '音源の読み込みに失敗しました。再取得します');
+
+      try {
+        const latestRecords = await refreshRecord();
+
+        // 再取得中に画面を離れた場合、取得できた URL の適用や
+        // Audio.Sound の生成は行わない
+        if (!isMountedRef.current) return;
+
+        const updated = latestRecords?.find((r) => r.id === params.id);
+        if (!updated) {
+          Alert.alert('エラー', '音源の再取得に失敗しました。');
+          return;
+        }
+        await loadTrack(autoPlay, updated.source, true);
+      } catch (refetchErr) {
+        console.error('Failed to refetch record:', refetchErr);
+        if (!isMountedRef.current) return;
+        Alert.alert('エラー', '音源の再取得に失敗しました。');
+      }
+    }
   };
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     const { message, description } = MODAL_MESSAGES.confirmRecordPlayerGoBack(
       params?.source,
     );
@@ -109,6 +175,7 @@ export default function RecordPlayerScreen() {
     loadTrack(false);
 
     return () => {
+      isMountedRef.current = false;
       sound?.stopAsync();
       sound?.unloadAsync();
     };

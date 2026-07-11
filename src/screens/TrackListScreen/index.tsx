@@ -1,5 +1,5 @@
-import React, { useCallback } from 'react';
-import { ScrollView, ActivityIndicator, View, Text } from 'react-native';
+import React, { useCallback, useState } from 'react';
+import { ScrollView, ActivityIndicator, View, Text, Alert, RefreshControl } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -9,9 +9,12 @@ import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
+import type { LinkedProject } from '@/hooks/useFetchTrack';
+import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
 import { useDeleteTrack } from '@/hooks/useDeleteTrack';
 import { useModal } from '@/contexts/ModalContext';
+import { COLORS } from '@/globalStyles';
 import styles from './TrackListScreen.styles';
 
 export default function TrackListScreen() {
@@ -23,12 +26,22 @@ export default function TrackListScreen() {
   const { pickAndUpload } = useUploadTrack();
   const { deleteTrack } = useDeleteTrack();
   const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
+  const [refreshing, setRefreshing] = useState(false);
 
   useFocusEffect(
     useCallback(() => {
       refreshTrack();
     }, [refreshTrack]),
   );
+
+  const handleRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      await refreshTrack();
+    } finally {
+      setRefreshing(false);
+    }
+  }, [refreshTrack]);
 
   const handleAddTrack = async () => {
     try {
@@ -37,15 +50,25 @@ export default function TrackListScreen() {
       if (track) await refreshTrack();
     } catch (err) {
       console.error('Upload failed:', err);
+      Alert.alert('エラー', 'トラックのアップロードに失敗しました。');
     } finally {
       hideLoading();
     }
   };
 
-  const handleDeleteTrack = (id: string, title: string) => {
+  const handleDeleteTrack = (
+    id: string,
+    title: string,
+    linkedProjects?: LinkedProject[],
+  ) => {
+    const linkedCount = linkedProjects?.length ?? 0;
+    const baseDescription = 'この操作は元に戻せません。';
     showConfirmModal({
       message: `"${title}" を削除しますか？`,
-      description: 'この操作は元に戻せません。',
+      description:
+        linkedCount > 0
+          ? `${MODAL_MESSAGES.confirmDeleteTrack.linkedProjectsWarning(linkedCount)}${baseDescription}`
+          : baseDescription,
       submitButton: {
         label: '削除',
         onPress: async () => {
@@ -53,9 +76,11 @@ export default function TrackListScreen() {
           showLoading();
           try {
             await deleteTrack(id);
+            // refreshTrack は内部でエラーを処理するため reject しない
             await refreshTrack();
           } catch (err) {
             console.error('Delete failed:', err);
+            Alert.alert('エラー', 'トラックの削除に失敗しました。');
           } finally {
             hideLoading();
           }
@@ -120,7 +145,17 @@ export default function TrackListScreen() {
           startAnimation={startListAnimation}
         />
       )}
-      <ScrollView style={styles.container}>
+      <ScrollView
+        style={styles.container}
+        testID="track-list-scroll"
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handleRefresh}
+            tintColor={COLORS.accent.goldPrimary}
+          />
+        }
+      >
         {tracks.length > 0 ? (
           tracks.map((track, index) => (
             <TrackItem
@@ -131,7 +166,9 @@ export default function TrackListScreen() {
               extention={track.extention}
               updatedAt={track.updatedAt}
               onPress={() => handleTrackPress(index)}
-              onLongPress={() => handleDeleteTrack(track.id, track.title)}
+              onLongPress={() =>
+                handleDeleteTrack(track.id, track.title, track.linkedProjects)
+              }
               startAnimation={startListAnimation}
               testID={`track-item-${index}`}
             />

@@ -3,6 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { readId3Artwork } from '@/utils/readId3Artwork';
+import { uploadFileToS3, uploadBase64ToS3 } from '@/utils/uploadToS3';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
 
 export interface UploadedTrack {
@@ -13,30 +14,6 @@ export interface UploadedTrack {
   linkedProjects: LinkedProject[];
   updatedAt: string;
   artwork?: string;
-}
-
-async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
-  const fileResponse = await fetch(uri);
-  const blob = await fileResponse.blob();
-  await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: blob,
-  });
-}
-
-async function uploadBase64ToS3(uploadUrl: string, dataUri: string, contentType: string) {
-  const base64 = dataUri.split(',')[1];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: bytes.buffer,
-  });
 }
 
 export function useUploadTrack() {
@@ -82,7 +59,7 @@ export function useUploadTrack() {
       // 4. 音源を S3 にアップロード
       const { uploadUrl: audioUploadUrl, key: audioKey } =
         await DefaultService.getTrackUploadUrl(audioFilename, audioContentType) as any;
-      await uploadToS3(audioUploadUrl, audioUri, audioContentType);
+      await uploadFileToS3(audioUploadUrl, audioUri, audioContentType);
 
       // 5. アートワークを S3 にアップロード
       let artworkKey: string | undefined;
@@ -97,7 +74,7 @@ export function useUploadTrack() {
         if (artworkSource === 'id3') {
           await uploadBase64ToS3(artworkUploadUrl, artworkDataUri, imageContentType);
         } else {
-          await uploadToS3(artworkUploadUrl, artworkDataUri, imageContentType);
+          await uploadFileToS3(artworkUploadUrl, artworkDataUri, imageContentType);
         }
         artworkKey = key;
       }

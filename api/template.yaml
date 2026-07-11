@@ -491,6 +491,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TracksTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectsTable
         - S3CrudPolicy:
             BucketName: !Ref TrackAudioBucket
       Events:
@@ -781,6 +783,30 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/post-auth-logout.ts
+
+  PostAuthRefreshFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-refresh.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        PostAuthRefresh:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/refresh
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-refresh.ts
 
   PostAuthRegisterFunction:
     Type: AWS::Serverless::Function

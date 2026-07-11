@@ -15,6 +15,7 @@ import {
   Keyboard,
   Platform,
   Pressable,
+  Alert,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -51,6 +52,7 @@ import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
 import { useUpdateProject } from '@/hooks/useUpdateProject';
+import { DefaultService } from '@/apiClient/services/DefaultService';
 import { getPendingWaveformData } from '@/utils/pendingWaveformData';
 import {
   getPendingProjectSettings,
@@ -273,6 +275,15 @@ export default function ProjectEditScreen() {
     },
   });
   const soundRef = useRef<Audio.Sound | null>(null);
+  // 音源ロード失敗時の再取得リトライを 1 回に制限するため、
+  // リトライとして setTrackSource した値を記録しておく (TASK-34)
+  const pendingAudioRetrySourceRef = useRef<string | null>(null);
+  // 再取得（getTrack）の完了を待つ間に trackId が変わった場合に、
+  // 古いトラックの URL を誤って適用しないようにするための参照 (TASK-34)
+  const trackIdRef = useRef(trackId);
+  useEffect(() => {
+    trackIdRef.current = trackId;
+  }, [trackId]);
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const isSeekingRef = useRef(false);
 
@@ -281,6 +292,10 @@ export default function ProjectEditScreen() {
 
   useEffect(() => {
     let isMounted = true;
+    // このエフェクト実行が、直前の失敗を受けて再取得した trackSource による
+    // リトライかどうかを判定する（リトライは 1 回のみに制限するため）
+    const isRetryAttempt = pendingAudioRetrySourceRef.current === trackSource;
+    pendingAudioRetrySourceRef.current = null;
 
     const loadSound = async () => {
       if (!trackSource) return;
@@ -307,6 +322,48 @@ export default function ProjectEditScreen() {
         setSound(createdSound);
       } catch (e) {
         console.error('Failed to load audio:', e);
+
+        // 画面が既にアンマウント済み、または trackSource が変わって
+        // このエフェクトが役目を終えている場合は Alert も再取得も行わない
+        if (!isMounted) return;
+
+        if (isRetryAttempt) {
+          Alert.alert('エラー', '音源の読み込みに失敗しました。');
+          return;
+        }
+
+        Alert.alert('エラー', '音源の読み込みに失敗しました。再取得します');
+
+        // 未保存でトラックを差し替え中の場合、保存済みプロジェクト情報
+        // (getDataProject) は古いトラックを指したままのため、
+        // 現在ローカルで選択中の trackId を基準にトラック自体を再取得する
+        const requestedTrackId = trackId;
+        if (!requestedTrackId) {
+          Alert.alert('エラー', '音源の再取得に失敗しました。');
+          return;
+        }
+
+        try {
+          const latestTracks = await DefaultService.getTrack();
+
+          // 再取得の完了を待つ間にユーザーが別トラックを選択した場合、
+          // 古いトラックの URL を誤って適用しないよう中断する
+          if (!isMounted || trackIdRef.current !== requestedTrackId) return;
+
+          const updated = Array.isArray(latestTracks)
+            ? latestTracks.find((t: any) => t.id === requestedTrackId)
+            : undefined;
+          if (updated?.source && updated.source !== trackSource) {
+            pendingAudioRetrySourceRef.current = updated.source;
+            setTrackSource(updated.source);
+          } else {
+            Alert.alert('エラー', '音源の再取得に失敗しました。');
+          }
+        } catch (refetchErr) {
+          console.error('Failed to refetch track for audio retry:', refetchErr);
+          if (!isMounted) return;
+          Alert.alert('エラー', '音源の再取得に失敗しました。');
+        }
       }
     };
 
@@ -574,6 +631,13 @@ export default function ProjectEditScreen() {
   const handleAllCueResetDisabled = () =>
     !cueButtons.some((btn) => btn.isActive);
 
+  const stopSoundAndGoBack = async () => {
+    try {
+      await soundRef.current?.stopAsync();
+    } catch {}
+    navigation.goBack();
+  };
+
   const onSubmitSaveProject = async () => {
     closeModal();
     showLoading();
@@ -587,15 +651,35 @@ export default function ProjectEditScreen() {
         ...(trackId !== undefined ? { trackId } : {}),
         ...(trackName !== undefined ? { trackName } : {}),
       });
-    } catch {
-      // エラーが発生しても画面遷移は行う（オフライン時など考慮）
+    } catch (error) {
+      // 保存に失敗したら画面に留まり、破棄して戻るかはユーザーに明示的に選ばせる
+      // （オフライン時などを考慮）
+      console.error('Failed to save project:', error);
+      Alert.alert(
+        'エラー',
+        'プロジェクトの保存に失敗しました。通信環境をご確認ください。',
+        [
+          {
+            text: '再試行',
+            onPress: () => {
+              void onSubmitSaveProject();
+            },
+          },
+          {
+            text: '保存せずに戻る',
+            style: 'destructive',
+            onPress: () => {
+              void stopSoundAndGoBack();
+            },
+          },
+          { text: 'キャンセル', style: 'cancel' },
+        ],
+      );
+      return;
     } finally {
       hideLoading();
-      try {
-        await soundRef.current?.stopAsync();
-      } catch {}
-      navigation.goBack();
     }
+    await stopSoundAndGoBack();
   };
 
   const handleGoBack = () => {

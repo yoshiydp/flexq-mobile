@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from 'react';
-import { View, ScrollView, Text } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { View, ScrollView, Text, Alert } from 'react-native';
 import { Audio } from 'expo-av';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
@@ -13,6 +13,7 @@ import {
   HEADER_TOOLBAR_TEMPLATES,
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
+import { useFetchTrack } from '@/hooks/useFetchTrack';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { MODAL_MESSAGES } from '@/constants/messages';
@@ -48,6 +49,20 @@ export default function AudioPlayerScreen() {
   const [volume, setVolume] = useState(1);
   const [isLooping, setIsLooping] = useState(false);
   const [shouldAutoPlay, setShouldAutoPlay] = useState(false);
+  // 音源再取得（refreshTrack）の完了を待つ間に currentIndex が変わった場合、
+  // 古いトラックの URL を誤って適用しないようにするための参照 (TASK-34)
+  const currentIndexRef = useRef(currentIndex);
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
+  // 再取得の完了を待つ間に画面を離れた場合、状態更新や Alert 表示、
+  // Audio.Sound の再生成を行わないようにするための参照 (TASK-34)
+  const isMountedRef = useRef(true);
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
 
   const currentTrack = localTracks[currentIndex];
 
@@ -61,8 +76,14 @@ export default function AudioPlayerScreen() {
 
   const { updateTrack } = useUpdateTrack();
   const { deleteTrack } = useDeleteTrack();
+  const { refreshTrack } = useFetchTrack();
 
-  const loadTrack = async (index: number, autoPlay = false) => {
+  const loadTrack = async (
+    index: number,
+    autoPlay = false,
+    sourceOverride?: string,
+    isRetry = false,
+  ) => {
     await Audio.setAudioModeAsync({
       playsInSilentModeIOS: true,
       staysActiveInBackground: false,
@@ -81,27 +102,87 @@ export default function AudioPlayerScreen() {
       }
     }
 
-    const { sound: newSound } = await Audio.Sound.createAsync(
-      { uri: localTracks[index].source },
-      { shouldPlay: autoPlay },
-    );
+    const source = sourceOverride ?? localTracks[index].source;
 
-    setSound(newSound);
-    setIsPlaying(autoPlay);
+    try {
+      const { sound: newSound } = await Audio.Sound.createAsync(
+        { uri: source },
+        { shouldPlay: autoPlay },
+      );
 
-    newSound.setOnPlaybackStatusUpdate((status) => {
-      if (!status.isLoaded) return;
-      setPosition(status.positionMillis ?? 0);
-      setDuration(status.durationMillis ?? 1);
-
-      if (status.didJustFinish && !status.isLooping) {
-        setIsPlaying(false);
-        newSound.setPositionAsync(0);
+      // ロード完了を待つ間に画面を離れた、または前後のトラックへ
+      // 移動していた場合、この（リトライ含む）読み込み結果は適用しない
+      if (!isMountedRef.current || currentIndexRef.current !== index) {
+        try {
+          await newSound.unloadAsync();
+        } catch {
+          // ignore
+        }
+        return;
       }
-    });
 
-    await newSound.setVolumeAsync(volume);
-    await newSound.setIsLoopingAsync(isLooping);
+      setSound(newSound);
+      setIsPlaying(autoPlay);
+
+      newSound.setOnPlaybackStatusUpdate((status) => {
+        if (!status.isLoaded) return;
+        setPosition(status.positionMillis ?? 0);
+        setDuration(status.durationMillis ?? 1);
+
+        if (status.didJustFinish && !status.isLooping) {
+          setIsPlaying(false);
+          newSound.setPositionAsync(0);
+        }
+      });
+
+      await newSound.setVolumeAsync(volume);
+      await newSound.setIsLoopingAsync(isLooping);
+    } catch (e) {
+      console.error('Failed to load audio:', e);
+
+      // この読み込み中にユーザーが前後のトラックへ移動していた場合、
+      // 既に別トラックの読み込みが進行しているはずなので、
+      // 古い index に対する状態のクリアや Alert は行わず中断する
+      if (!isMountedRef.current || currentIndexRef.current !== index) return;
+
+      setSound(null);
+      setIsPlaying(false);
+
+      // S3 Presigned URL の期限切れ等でロードに失敗した場合、
+      // 最新のトラック情報を再取得して 1 回だけリトライする
+      if (isRetry) {
+        Alert.alert('エラー', '音源の読み込みに失敗しました。');
+        return;
+      }
+
+      Alert.alert('エラー', '音源の読み込みに失敗しました。再取得します');
+
+      const requestedTrackId = localTracks[index].id;
+
+      try {
+        const latestTracks = await refreshTrack();
+
+        // 再取得中にユーザーが前後のトラックへ移動した場合、
+        // 古いトラックの URL を誤って適用しないよう中断する
+        if (!isMountedRef.current || currentIndexRef.current !== index) return;
+
+        const updated = latestTracks?.find((t) => t.id === requestedTrackId);
+        if (!updated) {
+          Alert.alert('エラー', '音源の再取得に失敗しました。');
+          return;
+        }
+        setLocalTracks((prev) =>
+          prev.map((t, i) =>
+            i === index ? { ...t, source: updated.source } : t,
+          ),
+        );
+        await loadTrack(index, autoPlay, updated.source, true);
+      } catch (refetchErr) {
+        console.error('Failed to refetch track:', refetchErr);
+        if (!isMountedRef.current || currentIndexRef.current !== index) return;
+        Alert.alert('エラー', '音源の再取得に失敗しました。');
+      }
+    }
   };
 
   useEffect(() => {
@@ -185,6 +266,7 @@ export default function AudioPlayerScreen() {
       );
     } catch (err) {
       console.error('Failed to update track name:', err);
+      Alert.alert('エラー', 'トラック名の変更に失敗しました。');
     } finally {
       hideLoading();
     }
@@ -205,16 +287,26 @@ export default function AudioPlayerScreen() {
       await deleteTrack(currentTrack.id);
     } catch (err) {
       console.error('Failed to delete track:', err);
+      Alert.alert('エラー', 'トラックの削除に失敗しました。');
+      return;
     } finally {
       hideLoading();
-      handleGoBack();
     }
+    // 削除に成功したときのみ前の画面へ戻る
+    try {
+      if (sound) await sound.stopAsync();
+    } catch {}
+    navigation.goBack();
   };
 
   const onPressDeleteConfirm = () => {
+    const linkedCount = currentTrack.linkedProjects?.length ?? 0;
     showConfirmModal({
       message: MODAL_MESSAGES.confirmDeleteTrack.message,
-      description: MODAL_MESSAGES.confirmDeleteTrack.description,
+      description:
+        linkedCount > 0
+          ? MODAL_MESSAGES.confirmDeleteTrack.linkedProjectsWarning(linkedCount)
+          : MODAL_MESSAGES.confirmDeleteTrack.description,
       submitButton: {
         label: MODAL_MESSAGES.confirmDeleteTrack.submitButtonLabel,
         onPress: onSubmitDeleteTrack,

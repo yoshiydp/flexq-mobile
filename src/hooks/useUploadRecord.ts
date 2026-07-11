@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { uploadFileToS3 } from '@/utils/uploadToS3';
 
 type UploadRecordOptions = {
   projectId?: string;
@@ -25,14 +26,7 @@ export function useUploadRecord() {
       const { uploadUrl, key } = await DefaultService.getRecordUploadUrl(filename, contentType);
       if (!uploadUrl || !key) throw new Error('Failed to get upload URL');
 
-      const response = await fetch(localFileUri);
-      const blob = await response.blob();
-      const uploadRes = await fetch(uploadUrl, {
-        method: 'PUT',
-        body: blob,
-        headers: { 'Content-Type': contentType },
-      });
-      if (!uploadRes.ok) throw new Error(`S3 upload failed: ${uploadRes.status}`);
+      await uploadFileToS3(uploadUrl, localFileUri, contentType);
 
       const resolvedTitle = title.trim() || 'No Title';
       const record = await DefaultService.createRecord({

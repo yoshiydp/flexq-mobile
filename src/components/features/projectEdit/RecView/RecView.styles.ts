@@ -7,6 +7,12 @@ export default StyleSheet.create({
     backgroundColor: COLORS.base.bgDefault,
     paddingHorizontal: 20,
   },
+  headphoneIndicatorWrapper: {
+    height: 20,
+    marginBottom: 4,
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+  },
   recordListWrapper: {
     height: 190,
     borderWidth: 1,
