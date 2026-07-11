@@ -461,6 +461,10 @@ export class DefaultService {
         startPositionMs?: number;
         updatedAt?: string;
         isBookmarked?: boolean;
+        recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
+        separationStatus?: 'none' | 'processing' | 'done' | 'failed';
+        separationType?: 'separate' | 'denoise';
+        separatedSource?: string;
     }>> {
         return __request(OpenAPI, {
             method: 'GET',
@@ -480,6 +484,7 @@ export class DefaultService {
             projectId?: string;
             startPositionMs?: number;
             isBookmarked?: boolean;
+            recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
         },
     ): CancelablePromise<{
         id?: string;
@@ -489,6 +494,8 @@ export class DefaultService {
         startPositionMs?: number;
         updatedAt?: string;
         isBookmarked?: boolean;
+        recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
+        separationStatus?: 'none' | 'processing' | 'done' | 'failed';
     }> {
         return __request(OpenAPI, {
             method: 'POST',
@@ -498,6 +505,67 @@ export class DefaultService {
             errors: {
                 400: `Bad Request`,
                 401: `Unauthorized`,
+            },
+        });
+    }
+    /**
+     * Start AI cleanup (vocal separation / denoise) for a record
+     * Starts an AI cleanup job for the recorded audio. The processing type (separate / denoise) is chosen automatically from the headphone connection state at recording time. If the record has already been processed, the cached result is returned without starting a new job.
+     *
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static separateRecord(
+        id: string,
+    ): CancelablePromise<{
+        id?: string;
+        separationStatus?: 'none' | 'processing' | 'done' | 'failed';
+        separationType?: 'separate' | 'denoise';
+        separatedSource?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/record/{id}/separate',
+            path: {
+                'id': id,
+            },
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+                404: `Not Found`,
+                502: `Bad Gateway (failed to start the AI cleanup job)`,
+                503: `Service Unavailable (AI cleanup is not configured)`,
+            },
+        });
+    }
+    /**
+     * Get AI cleanup status for a record
+     * Polls the AI cleanup job status. When the job has finished, the processed audio is stored in S3 and a presigned URL is returned.
+     *
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getRecordSeparateStatus(
+        id: string,
+    ): CancelablePromise<{
+        id?: string;
+        separationStatus?: 'none' | 'processing' | 'done' | 'failed';
+        separationType?: 'separate' | 'denoise';
+        separatedSource?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/record/{id}/separate-status',
+            path: {
+                'id': id,
+            },
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+                404: `Not Found`,
+                503: `Service Unavailable (AI cleanup is not configured)`,
             },
         });
     }

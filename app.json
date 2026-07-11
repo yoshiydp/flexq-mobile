@@ -52,6 +52,12 @@
       "expo-asset",
       "expo-web-browser",
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "プロフィール画像やトラックのアートワークを設定するために写真へのアクセスを許可してください。"
+        }
+      ],
+      [
         "expo-speech-recognition",
         {
           "microphonePermission": "音声文字起こしのためにマイクへのアクセスを許可してください。",

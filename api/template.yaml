@@ -12,6 +12,19 @@ Parameters:
     Type: String
     Default: ""
     Description: Verified SES sender email address
+  ReplicateApiToken:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: Replicate API token for AI record cleanup (empty disables the feature)
+  ReplicateSeparateModel:
+    Type: String
+    Default: "ryan5453/demucs"
+    Description: Replicate model (owner/name) used for vocal separation
+  ReplicateDenoiseModel:
+    Type: String
+    Default: "lucataco/resemble-enhance"
+    Description: Replicate model (owner/name) used for speech denoise
 
 Globals:
   Function:
@@ -29,6 +42,9 @@ Globals:
         JWT_SECRET: !Ref JwtSecret
         TRACK_AUDIO_BUCKET: !Ref TrackAudioBucket
         SENDER_EMAIL: !Ref SenderEmail
+        REPLICATE_API_TOKEN: !Ref ReplicateApiToken
+        REPLICATE_SEPARATE_MODEL: !Ref ReplicateSeparateModel
+        REPLICATE_DENOISE_MODEL: !Ref ReplicateDenoiseModel
   Api:
     Cors:
       AllowOrigin: "'*'"
@@ -636,6 +652,61 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/delete-record.ts
+
+  PostRecordSeparateFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-record-separate.handler
+      CodeUri: ./
+      Timeout: 25
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
+      Events:
+        PostRecordSeparate:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record/{id}/separate
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-record-separate.ts
+
+  GetRecordSeparateStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-record-separate-status.handler
+      CodeUri: ./
+      Timeout: 25
+      MemorySize: 512
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+        - S3CrudPolicy:
+            BucketName: !Ref TrackAudioBucket
+      Events:
+        GetRecordSeparateStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record/{id}/separate-status
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-record-separate-status.ts
 
   PostMemoFunction:
     Type: AWS::Serverless::Function

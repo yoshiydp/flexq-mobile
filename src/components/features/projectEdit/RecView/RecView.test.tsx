@@ -178,6 +178,9 @@ describe('RecView コンポーネント', () => {
       projectId: 'project-1',
       startPositionMs: 5000,
       trackSource: undefined,
+      // TASK-38: 録音開始時のイヤホン状態と AI クリーンアップ設定（デフォルト OFF）
+      recordedWithHeadphones: undefined,
+      autoCleanup: false,
     });
     jest.useRealTimers();
   });

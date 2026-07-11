@@ -7,6 +7,11 @@
  * - トラック音源なし（削除・差し替え済み）の場合は 'no-track' で無効化のまま
  * - Presigned URL の期限切れ等によるロード失敗時は再取得して 1 回だけリトライする
  * - イヤホン切断で同時再生を自動停止する
+ *
+ * TASK-38: 声のみ（AI 分離済み音源）再生時は allowWithoutHeadphones=true が渡され、
+ * イヤホン未接続でも有効化でき、再生中の切断でも停止しない。
+ * allowWithoutHeadphones が true → false（声のみ → 元の録音への切替）になった場合は
+ * 自動で無効化する。
  */
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { Audio } from 'expo-av';
@@ -46,15 +51,23 @@ const renderSyncHook = (
     startPositionMs?: number;
     initialTrackSource?: string;
     headphoneConnection?: HeadphoneConnection;
+    allowWithoutHeadphones?: boolean;
   } = {},
 ) =>
   renderHook(
-    ({ headphoneConnection }: { headphoneConnection: HeadphoneConnection }) =>
+    ({
+      headphoneConnection,
+      allowWithoutHeadphones,
+    }: {
+      headphoneConnection: HeadphoneConnection;
+      allowWithoutHeadphones?: boolean;
+    }) =>
       useSyncedTrackPlayback({
         projectId: options.projectId,
         startPositionMs: options.startPositionMs,
         initialTrackSource: options.initialTrackSource,
         headphoneConnection,
+        allowWithoutHeadphones,
       }),
     {
       initialProps: {
@@ -62,6 +75,7 @@ const renderSyncHook = (
           'headphoneConnection' in options
             ? options.headphoneConnection ?? null
             : 'bluetooth',
+        allowWithoutHeadphones: options.allowWithoutHeadphones,
       },
     },
   );
@@ -115,6 +129,30 @@ describe('useSyncedTrackPlayback', () => {
         headphoneConnection: null,
       });
       expect(unknown.current.canSync).toBe(false);
+    });
+
+    it('声のみ再生中（allowWithoutHeadphones=true）はイヤホン未接続でも true になる (TASK-38)', () => {
+      const { result: none } = renderSyncHook({
+        projectId: 'project-1',
+        headphoneConnection: 'none',
+        allowWithoutHeadphones: true,
+      });
+      expect(none.current.canSync).toBe(true);
+
+      const { result: unknown } = renderSyncHook({
+        projectId: 'project-1',
+        headphoneConnection: null,
+        allowWithoutHeadphones: true,
+      });
+      expect(unknown.current.canSync).toBe(true);
+    });
+
+    it('allowWithoutHeadphones=true でも projectId がない場合は false のまま', () => {
+      const { result } = renderSyncHook({
+        headphoneConnection: 'none',
+        allowWithoutHeadphones: true,
+      });
+      expect(result.current.canSync).toBe(false);
     });
   });
 
@@ -394,6 +432,79 @@ describe('useSyncedTrackPlayback', () => {
       });
       expect(trackSound.pauseAsync).toHaveBeenCalled();
       expect(result.current.canSync).toBe(false);
+    });
+
+    it('声のみ同時再生中（allowWithoutHeadphones=true）はイヤホンが切断されても停止しない (TASK-38)', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+
+      const { result, rerender } = renderSyncHook({
+        projectId: 'project-1',
+        headphoneConnection: 'bluetooth',
+        allowWithoutHeadphones: true,
+      });
+
+      await act(async () => {
+        await result.current.enableSync(0);
+      });
+      expect(result.current.syncEnabled).toBe(true);
+
+      rerender({ headphoneConnection: 'none', allowWithoutHeadphones: true });
+
+      // canSync が維持され、同時再生もそのまま継続する（スピーカー再生に切り替わるだけ）
+      expect(result.current.canSync).toBe(true);
+      expect(result.current.syncEnabled).toBe(true);
+      expect(trackSound.pauseAsync).not.toHaveBeenCalled();
+    });
+
+    it('声のみ + イヤホン未接続で同時再生中に「元の録音」へ戻すと自動で無効化しトラックを停止する (TASK-38)', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+
+      const { result, rerender } = renderSyncHook({
+        projectId: 'project-1',
+        headphoneConnection: 'none',
+        allowWithoutHeadphones: true,
+      });
+
+      // イヤホン未接続でも声のみ再生中は有効化できる
+      let enableResult: string = '';
+      await act(async () => {
+        enableResult = await result.current.enableSync(0);
+      });
+      expect(enableResult).toBe('enabled');
+      expect(result.current.syncEnabled).toBe(true);
+
+      // 「元の録音」へ切り替えると allowWithoutHeadphones=false になり canSync を失う
+      rerender({ headphoneConnection: 'none', allowWithoutHeadphones: false });
+
+      await waitFor(() => {
+        expect(result.current.syncEnabled).toBe(false);
+      });
+      expect(trackSound.pauseAsync).toHaveBeenCalled();
+      expect(result.current.canSync).toBe(false);
+    });
+
+    it('イヤホン接続中の「元の録音」→「声のみ」切替では同時再生を維持する (TASK-38)', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+
+      const { result, rerender } = renderSyncHook({
+        projectId: 'project-1',
+        headphoneConnection: 'bluetooth',
+        allowWithoutHeadphones: false,
+      });
+
+      await act(async () => {
+        await result.current.enableSync(0);
+      });
+      expect(result.current.syncEnabled).toBe(true);
+
+      rerender({ headphoneConnection: 'bluetooth', allowWithoutHeadphones: true });
+
+      expect(result.current.canSync).toBe(true);
+      expect(result.current.syncEnabled).toBe(true);
+      expect(trackSound.pauseAsync).not.toHaveBeenCalled();
     });
 
     it('ロード完了を待つ間にイヤホンが切断された場合、有効化せず headphones-disconnected を返す', async () => {
