@@ -6,6 +6,10 @@
  * - トグル ON/OFF で useSyncedTrackPlayback の enableSync / disableSync を呼ぶ
  * - トラック音源なし・ロード失敗時は Alert を表示する
  * - 同時再生有効時のみトラック音量用の VolumeSlider を追加表示する
+ *
+ * TASK-38: 声のみ（AI 分離済み音源, activeSource === 'separated'）を再生する場合は
+ * allowWithoutHeadphones: true を useSyncedTrackPlayback へ渡し、
+ * イヤホン未接続でも同時再生を許可する。
  */
 import React from 'react';
 import { Alert } from 'react-native';
@@ -69,6 +73,20 @@ jest.mock('@/hooks/useFetchRecord', () => ({
 }));
 jest.mock('@/hooks/useHeadphonesConnected', () => ({
   useHeadphonesConnected: jest.fn(() => 'bluetooth'),
+}));
+
+// AI クリーンアップ（声のみ音源）の状態。テストごとに status / separatedSource を上書きする
+const mockSeparation = {
+  status: 'none' as string,
+  separationType: null,
+  separatedSource: null as string | null,
+  error: null,
+  startSeparation: jest.fn(),
+  resumeStatus: jest.fn(),
+};
+
+jest.mock('@/hooks/useSeparateRecord', () => ({
+  useSeparateRecord: jest.fn(() => mockSeparation),
 }));
 
 const mockSyncPlayback = {
@@ -147,6 +165,10 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       trackVolume: 1,
     });
     mockSyncPlayback.enableSync.mockResolvedValue('enabled');
+    Object.assign(mockSeparation, {
+      status: 'none',
+      separatedSource: null,
+    });
     mockParams = {
       id: 'record-1',
       recordedFile: 'https://example.com/record.m4a',
@@ -279,5 +301,65 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
   it('同時再生が無効のとき、VolumeSlider は録音用の 1 つのみ表示される', async () => {
     const { getAllByTestId } = await renderScreen();
     expect(getAllByTestId('volume-slider')).toHaveLength(1);
+  });
+
+  describe('声のみ（AI 分離済み音源）のイヤホンなし同時再生 (TASK-38)', () => {
+    const setupSeparated = () => {
+      Object.assign(mockSeparation, {
+        status: 'done',
+        separatedSource: 'https://example.com/separated.m4a',
+      });
+    };
+
+    it('初期状態（元の録音）では allowWithoutHeadphones: false が渡される', async () => {
+      await renderScreen();
+      expect(mockedUseSyncedTrackPlayback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ allowWithoutHeadphones: false }),
+      );
+    });
+
+    it('「声のみ」へ切り替えると allowWithoutHeadphones: true が渡される', async () => {
+      setupSeparated();
+      const { getByTestId } = await renderScreen();
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-separated'));
+      });
+      expect(mockedUseSyncedTrackPlayback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ allowWithoutHeadphones: true }),
+      );
+    });
+
+    it('「声のみ」から「元の録音」へ戻すと allowWithoutHeadphones: false に戻る', async () => {
+      setupSeparated();
+      const { getByTestId } = await renderScreen();
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-separated'));
+      });
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-original'));
+      });
+      expect(mockedUseSyncedTrackPlayback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ allowWithoutHeadphones: false }),
+      );
+    });
+
+    it('声のみ選択中（canSync=true）はトグルが有効でイヤホン接続ヒントを表示しない', async () => {
+      setupSeparated();
+      const { getByTestId, queryByText } = await renderScreen();
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-separated'));
+      });
+      expect(getByTestId('sync-playback-switch').props.disabled).toBe(false);
+      expect(queryByText(SYNC_PLAYBACK_LABELS.headphonesRequired)).toBeNull();
+    });
+
+    it('音源を切り替えると同時再生中のトラックを一時停止する', async () => {
+      setupSeparated();
+      const { getByTestId } = await renderScreen();
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-separated'));
+      });
+      expect(mockSyncPlayback.syncPause).toHaveBeenCalled();
+    });
   });
 });

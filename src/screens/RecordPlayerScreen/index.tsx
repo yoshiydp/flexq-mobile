@@ -79,13 +79,16 @@ export default function RecordPlayerScreen() {
   const activeSourceRef = useRef<'original' | 'separated'>('original');
   const prevSeparationStatusRef = useRef<SeparationStatus>('none');
 
-  // プロジェクト録音のみ、イヤホン装着時にトラック音源との同期同時再生を有効化できる (TASK-37)
+  // プロジェクト録音のみ、イヤホン装着時にトラック音源との同期同時再生を有効化できる (TASK-37)。
+  // 声のみ（AI 分離済み音源）はトラック音がスピーカーから録音に混ざる懸念がないため、
+  // イヤホン未接続でも同時再生を許可する (TASK-38)
   const headphoneConnection = useHeadphonesConnected();
   const syncPlayback = useSyncedTrackPlayback({
     projectId: params?.projectId,
     startPositionMs: params?.startPositionMs,
     initialTrackSource: params?.trackSource,
     headphoneConnection,
+    allowWithoutHeadphones: activeSource === 'separated',
   });
   const syncPlaybackRef = useRef(syncPlayback);
   syncPlaybackRef.current = syncPlayback;
@@ -362,6 +365,9 @@ export default function RecordPlayerScreen() {
     activeSourceRef.current = target;
     setActiveSource(target);
     setPosition(0);
+    // 切替後のレコードは停止状態で読み込まれるため、同時再生中のトラックも一時停止する
+    // （同時再生の有効/無効状態は useSyncedTrackPlayback 側の canSync に応じて維持・解除される）
+    await syncPlayback.syncPause();
     await loadTrack(false, uri);
   };
 
