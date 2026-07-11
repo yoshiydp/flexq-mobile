@@ -1,5 +1,5 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
-import { NativeModules } from 'react-native';
+import { AppState, NativeModules } from 'react-native';
 // __mocks__/react-native-device-info.js（手動モック）が自動適用される
 import MockDeviceInfo from 'react-native-device-info';
 import { useHeadphonesConnected } from './useHeadphonesConnected';
@@ -90,5 +90,54 @@ describe('useHeadphonesConnected', () => {
     });
 
     await waitFor(() => expect(result.current).toBe('none'));
+  });
+
+  it('イベントが発火しなくてもポーリングで接続状態が更新されること', async () => {
+    jest.useFakeTimers();
+    try {
+      const { result } = renderHook(() => useHeadphonesConnected());
+
+      // 初回取得（マウント時）の非同期処理を消化する
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(0);
+      });
+      expect(result.current).toBe('none');
+
+      // イベントを発火させずに接続状態だけ変化させる
+      mockConnection(false, true);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(3000);
+      });
+      expect(result.current).toBe('bluetooth');
+
+      // 切断もポーリングで反映されること
+      mockConnection(false, false);
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(3000);
+      });
+      expect(result.current).toBe('none');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('フォアグラウンド復帰時に接続状態が再取得されること', async () => {
+    const addEventListenerSpy = jest.spyOn(AppState, 'addEventListener');
+    const { result } = renderHook(() => useHeadphonesConnected());
+
+    await waitFor(() => expect(result.current).toBe('none'));
+
+    const changeHandler = addEventListenerSpy.mock.calls.find(
+      ([event]) => event === 'change',
+    )?.[1] as (state: string) => void;
+    expect(changeHandler).toBeDefined();
+
+    mockConnection(true, false);
+    act(() => {
+      changeHandler('active');
+    });
+
+    await waitFor(() => expect(result.current).toBe('wired'));
+    addEventListenerSpy.mockRestore();
   });
 });

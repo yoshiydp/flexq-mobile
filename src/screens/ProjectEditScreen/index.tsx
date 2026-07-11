@@ -780,6 +780,8 @@ export default function ProjectEditScreen() {
 
   const items: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
+    // Edit Mode ではヘッダー中央にイヤホン接続インジケーターを表示する
+    { ...HEADER_TOOLBAR_TEMPLATES.headphoneIndicator },
     {
       ...HEADER_TOOLBAR_TEMPLATES.hamburger,
       onPress: () =>

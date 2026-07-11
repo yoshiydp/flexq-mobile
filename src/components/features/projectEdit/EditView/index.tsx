@@ -8,7 +8,6 @@ import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
 import CueButtonList from '@/components/features/projectEdit/CueButtonList';
 import PlayerControls from '@/components/features/audioPlayer/PlayerControls';
 import VolumeSlider from '@/components/ui/VolumeSlider';
-import HeadphoneIndicator from '@/components/ui/HeadphoneIndicator';
 import styles from './EditView.styles';
 
 interface EditViewProps {
@@ -86,17 +85,12 @@ export default function EditView({
         return false;
       }}
     >
-      <View style={styles.titleRow}>
-        <View style={styles.titleInputWrapper}>
-          <TitleInput
-            value={projectName}
-            onChangeText={onChangeProjectName}
-            onFocus={() => { onBlurEditor?.(); setIsTitleFocused(true); }}
-            onBlur={() => setIsTitleFocused(false)}
-          />
-        </View>
-        <HeadphoneIndicator style={styles.headphoneIndicator} />
-      </View>
+      <TitleInput
+        value={projectName}
+        onChangeText={onChangeProjectName}
+        onFocus={() => { onBlurEditor?.(); setIsTitleFocused(true); }}
+        onBlur={() => setIsTitleFocused(false)}
+      />
 
       <Animated.View
         style={[styles.bodyInputWrapper, { height: animatedHeight }]}

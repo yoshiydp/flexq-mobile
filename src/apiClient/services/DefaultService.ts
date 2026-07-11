@@ -458,6 +458,7 @@ export class DefaultService {
         title?: string;
         source?: string;
         projectId?: string;
+        startPositionMs?: number;
         updatedAt?: string;
         isBookmarked?: boolean;
     }>> {
@@ -477,12 +478,15 @@ export class DefaultService {
             title?: string;
             s3Key: string;
             projectId?: string;
+            startPositionMs?: number;
             isBookmarked?: boolean;
         },
     ): CancelablePromise<{
         id?: string;
         title?: string;
         source?: string;
+        projectId?: string;
+        startPositionMs?: number;
         updatedAt?: string;
         isBookmarked?: boolean;
     }> {

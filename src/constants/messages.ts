@@ -12,6 +12,13 @@ export const HEADPHONE_LABELS = {
   bluetooth: 'Bluetoothイヤホン接続中',
 };
 
+export const SYNC_PLAYBACK_LABELS = {
+  toggleLabel: 'トラック同時再生',
+  headphonesRequired: 'イヤホン（有線 / Bluetooth）接続時に使用できます',
+  noTrack: 'プロジェクトにトラック音源がないため同時再生できません。',
+  loadFailed: 'トラック音源の読み込みに失敗しました。',
+};
+
 export const MODAL_MESSAGES = {
   confirmProjectEditSave: {
     message: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？',
