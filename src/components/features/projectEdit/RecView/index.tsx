@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { View, ScrollView, Text } from 'react-native';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,6 +14,11 @@ import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
 import CueButtonList from '@/components/features/projectEdit/CueButtonList';
 import PlayerControls from '@/components/features/audioPlayer/PlayerControls';
 import type { ProjectRecordType } from '@/hooks/useFetchProjectRecords';
+import {
+  useHeadphonesConnected,
+  type HeadphoneConnection,
+} from '@/hooks/useHeadphonesConnected';
+import { useAiCleanupSetting } from '@/hooks/useAiCleanupSetting';
 import { REC_LABELS } from '@/constants/messages';
 import styles from './RecView.styles';
 
@@ -64,12 +69,19 @@ export default function RecView({
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
   const [startPositionMs, setStartPositionMs] = useState(0);
 
+  const headphoneConnection = useHeadphonesConnected();
+  // 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う）
+  const headphonesAtRecordStartRef = useRef<HeadphoneConnection>(null);
+  const { enabled: aiCleanupEnabled, setEnabled: setAiCleanupEnabled } =
+    useAiCleanupSetting();
+
   const handleRecordPress = () => {
     onBeforeRecord?.();
     setRecStartModalVisible(true);
   };
 
   const handleStartRecording = (positionMs: number) => {
+    headphonesAtRecordStartRef.current = headphoneConnection;
     setStartPositionMs(positionMs);
     setRecStartModalVisible(false);
     setTimeout(() => setRecordingModalVisible(true), 300);
@@ -87,6 +99,8 @@ export default function RecView({
       // ProjectSettings で差し替えた未保存のトラックも含め、録音時に実際に
       // 使用していた音源をトラック同期再生でそのまま使えるように引き渡す
       trackSource: trackSource ?? undefined,
+      recordedWithHeadphones: headphonesAtRecordStartRef.current ?? undefined,
+      autoCleanup: aiCleanupEnabled,
     });
   };
 
@@ -128,6 +142,9 @@ export default function RecView({
                     // プロジェクトのトラックで録音されており、未保存の差し替え中
                     // トラック（pending trackSource）とは一致しない可能性があるため、
                     // RecordPlayer 側でプロジェクト詳細から取得させる
+                    recordedWithHeadphones: record.recordedWithHeadphones,
+                    separationStatus: record.separationStatus,
+                    separatedSource: record.separatedSource,
                   });
                 }}
               />
@@ -184,6 +201,8 @@ export default function RecView({
         trackSource={trackSource}
         waveformData={waveformData}
         cueButtons={cueButtons}
+        aiCleanupEnabled={aiCleanupEnabled}
+        onAiCleanupChange={setAiCleanupEnabled}
       />
       <RecRecordingModal
         visible={recordingModalVisible}

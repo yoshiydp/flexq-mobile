@@ -57,6 +57,10 @@ export default StyleSheet.create({
     fontSize: 13,
     fontFamily: 'NotoSans_400Regular',
   },
+  aiCleanupToggleWrapper: {
+    marginTop: 12,
+    paddingHorizontal: 8,
+  },
   cancelButton: {
     marginTop: 20,
     backgroundColor: COLORS.form.default.background,

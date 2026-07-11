@@ -5,6 +5,7 @@ import { Audio } from 'expo-av';
 import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
 import PlayerControls from '@/components/features/audioPlayer/PlayerControls';
 import CancelButton from '@/components/ui/buttons/CancelButton';
+import AiCleanupToggle from '@/components/features/record/AiCleanupToggle';
 import { formatTime } from '@/utils/formatTime';
 import { REC_LABELS } from '@/constants/messages';
 import type { CuePointType } from '@/types/cuePointType';
@@ -17,6 +18,9 @@ interface RecStartModalProps {
   trackSource?: string | null;
   waveformData: number[];
   cueButtons: CuePointType[];
+  /** AI クリーンアップトグルの現在値（onAiCleanupChange とセットで指定すると表示される） */
+  aiCleanupEnabled?: boolean;
+  onAiCleanupChange?: (value: boolean) => void;
 }
 
 export default function RecStartModal({
@@ -26,6 +30,8 @@ export default function RecStartModal({
   trackSource,
   waveformData,
   cueButtons,
+  aiCleanupEnabled = false,
+  onAiCleanupChange,
 }: RecStartModalProps) {
   const [localSound, setLocalSound] = useState<Audio.Sound | null>(null);
   const [isModalPlaying, setIsModalPlaying] = useState(false);
@@ -171,6 +177,15 @@ export default function RecStartModal({
               </Pressable>
             )}
           </View>
+
+          {onAiCleanupChange && (
+            <View style={styles.aiCleanupToggleWrapper}>
+              <AiCleanupToggle
+                value={aiCleanupEnabled}
+                onChange={onAiCleanupChange}
+              />
+            </View>
+          )}
 
           <CancelButton onPress={onClose} containerClassName={styles.cancelButton} labelClassName={styles.cancelButtonLabel} />
         </Animated.View>
