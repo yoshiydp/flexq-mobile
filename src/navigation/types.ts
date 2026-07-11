@@ -54,6 +54,10 @@ export type RootStackParamList = {
         isBookmarked?: boolean;
         source?: 'Drafts' | 'ProjectEdit' | undefined;
         projectId?: string;
+        /** 録音開始時のトラック再生位置（ms）。トラック同期再生に使用 */
+        startPositionMs?: number;
+        /** 録音時に使用したトラック音源のソース（未保存のトラック差し替えを含む）。トラック同期再生に使用 */
+        trackSource?: string;
       }
     | undefined;
   RecordList?: undefined;
