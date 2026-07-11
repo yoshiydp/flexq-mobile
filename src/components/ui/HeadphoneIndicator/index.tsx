@@ -18,7 +18,7 @@ interface HeadphoneIndicatorProps {
  */
 export default function HeadphoneIndicator({
   style,
-  size = 16,
+  size = 24,
   testID = 'headphone-indicator',
 }: HeadphoneIndicatorProps) {
   const connection = useHeadphonesConnected();

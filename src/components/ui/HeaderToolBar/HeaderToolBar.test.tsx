@@ -1,6 +1,11 @@
 import React from 'react';
 import { render } from '@testing-library/react-native';
 import HeaderToolBar from './index';
+import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
+
+jest.mock('@/hooks/useHeadphonesConnected');
+
+const mockUseHeadphonesConnected = useHeadphonesConnected as jest.Mock;
 
 jest.mock('@expo/vector-icons', () => {
   return {
@@ -146,5 +151,31 @@ describe('HeaderToolBar コンポーネント', () => {
       <HeaderToolBar items={projectEditorScreenItems} />,
     );
     expect(getByTestId('hamburger')).toBeTruthy();
+  });
+
+  it('headphoneIndicator アイテムがあるとイヤホン接続時に中央へインジケーターが表示される', () => {
+    mockUseHeadphonesConnected.mockReturnValue('bluetooth');
+    const { getByTestId } = render(
+      <HeaderToolBar
+        items={[
+          ...projectEditorScreenItems,
+          { id: 'headphone', type: 'headphoneIndicator' as const },
+        ]}
+      />,
+    );
+    expect(getByTestId('headphone-indicator')).toBeTruthy();
+  });
+
+  it('headphoneIndicator アイテムがあってもイヤホン未接続時は何も表示されない', () => {
+    mockUseHeadphonesConnected.mockReturnValue('none');
+    const { queryByTestId } = render(
+      <HeaderToolBar
+        items={[
+          ...projectEditorScreenItems,
+          { id: 'headphone', type: 'headphoneIndicator' as const },
+        ]}
+      />,
+    );
+    expect(queryByTestId('headphone-indicator')).toBeNull();
   });
 });

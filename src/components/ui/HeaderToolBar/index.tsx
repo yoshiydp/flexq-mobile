@@ -4,6 +4,7 @@ import { FontAwesome } from '@expo/vector-icons';
 import RippleButton from '@/components/ui/buttons/RippleButton';
 import LinkedProjectsButtonWithMenu from '@/components/features/audioPlayer/LinkedProjectsButtonWithMenu';
 import ActionButtonWithMenu from '@/components/ui/ActionButtonWithMenu';
+import HeadphoneIndicator from '@/components/ui/HeadphoneIndicator';
 import Icon from '@/components/ui/Icon';
 import type { HeaderToolBarButton } from '@/constants/headerToolBarButtons';
 import styles from './HeaderToolBar.styles';
@@ -26,7 +27,10 @@ export default function HeaderToolBar({
   const leftItems = items.filter((item) => item.type === 'back');
 
   const centerItem = items.find(
-    (item) => item.type === 'headerTitle' || item.type === 'linkedProjects',
+    (item) =>
+      item.type === 'headerTitle' ||
+      item.type === 'linkedProjects' ||
+      item.type === 'headphoneIndicator',
   );
 
   const rightItems = items.filter(
@@ -67,6 +71,9 @@ export default function HeaderToolBar({
               onToggle={() => toggleMenu(centerItem.id)}
             />
           )}
+        {centerItem?.type === 'headphoneIndicator' && (
+          <HeadphoneIndicator key={centerItem.id} />
+        )}
       </View>
 
       <View style={styles.right}>

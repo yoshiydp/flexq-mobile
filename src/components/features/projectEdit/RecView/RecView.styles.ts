@@ -8,9 +8,9 @@ export default StyleSheet.create({
     paddingHorizontal: 20,
   },
   headphoneIndicatorWrapper: {
-    height: 20,
+    height: 28,
     marginBottom: 4,
-    alignItems: 'flex-end',
+    alignItems: 'center',
     justifyContent: 'center',
   },
   recordListWrapper: {
