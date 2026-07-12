@@ -5,7 +5,7 @@ import { docClient } from './db';
 import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
-import { isStaleSeparatedKey } from './separation-status';
+import { isStaleSeparation } from './separation-status';
 
 export const handler = async (event: any) => {
   const claims = verifyToken(event);
@@ -20,7 +20,7 @@ export const handler = async (event: any) => {
   );
 
   const items = await Promise.all(
-    (result.Items || []).map(async ({ recordId, s3Key, separatedS3Key, source: legacySource, ...rest }) => {
+    (result.Items || []).map(async ({ recordId, s3Key, separatedS3Key, separationAligned, source: legacySource, ...rest }) => {
       let source = legacySource ?? '';
       if (s3Key) {
         source = await getSignedUrl(
@@ -30,9 +30,9 @@ export const handler = async (event: any) => {
         );
       }
       // AI クリーンアップ済みの音源があれば presigned URL を付与する。
-      // flac 化以前の mp3 キャッシュ（同期ズレあり）は未処理（none）として返し、
-      // アプリから flac で再生成できるようにする（TASK-44）
-      const isStale = !!separatedS3Key && isStaleSeparatedKey(separatedS3Key);
+      // 位置合わせ適用前の分離音源（同期ズレあり）は未処理（none）として返し、
+      // アプリから再生成できるようにする（TASK-44）
+      const isStale = isStaleSeparation({ separatedS3Key, separationAligned });
       let separatedSource: string | undefined;
       if (separatedS3Key && !isStale) {
         separatedSource = await getSignedUrl(

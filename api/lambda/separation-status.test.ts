@@ -1,7 +1,7 @@
 import { ReplicateApiError } from './replicate';
 import {
   isPermanentDownloadStatus,
-  isStaleSeparatedKey,
+  isStaleSeparation,
   MAX_TRANSIENT_POLL_FAILURES,
   PermanentSeparationError,
   resolveSeparationErrorAction,
@@ -25,23 +25,30 @@ describe('isPermanentDownloadStatus', () => {
   });
 });
 
-describe('isStaleSeparatedKey', () => {
-  it('flac 化以前の mp3 キャッシュは stale（再生成対象）', () => {
+describe('isStaleSeparation', () => {
+  it('位置合わせフラグのない分離音源は stale（mp3 時代・flac 移行期の再生成対象）', () => {
     expect(
-      isStaleSeparatedKey('records/separated/user-1/rec-1.mp3')
+      isStaleSeparation({ separatedS3Key: 'records/separated/u/r.mp3' })
     ).toBe(true);
     expect(
-      isStaleSeparatedKey('records/separated/user-1/rec-1.MP3')
+      isStaleSeparation({
+        separatedS3Key: 'records/separated/u/r.wav',
+        separationAligned: undefined,
+      })
     ).toBe(true);
   });
 
-  it('flac / wav は stale ではない', () => {
+  it('位置合わせ適用済み（separationAligned: true）は stale ではない', () => {
     expect(
-      isStaleSeparatedKey('records/separated/user-1/rec-1.flac')
+      isStaleSeparation({
+        separatedS3Key: 'records/separated/u/r.wav',
+        separationAligned: true,
+      })
     ).toBe(false);
-    expect(
-      isStaleSeparatedKey('records/separated/user-1/rec-1.wav')
-    ).toBe(false);
+  });
+
+  it('分離音源がないレコードは stale ではない', () => {
+    expect(isStaleSeparation({})).toBe(false);
   });
 });
 

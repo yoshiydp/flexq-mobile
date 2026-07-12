@@ -28,13 +28,18 @@ export function isPermanentDownloadStatus(status: number): boolean {
 }
 
 /**
- * 保存済みの分離音源キーが作り直し対象（stale）かどうか。
- * flac 化（TASK-44）以前に生成された mp3 はエンコーダ遅延によりトラックとの
+ * 保存済みの分離音源が作り直し対象（stale）かどうか。
+ * 位置合わせ（先頭 priming トリム / TASK-44）適用済みのレコードには
+ * `separationAligned: true` を保存する。フラグのない分離音源
+ * （mp3 時代・flac 移行期のもの）はエンコーダ遅延によりトラックとの
  * 同時再生でズレるため、キャッシュとして返さず未処理（none）として扱い、
- * アプリの「AI クリーンアップ」ボタンから flac で再生成できるようにする。
+ * アプリの「AI クリーンアップ」ボタンから再生成できるようにする。
  */
-export function isStaleSeparatedKey(separatedS3Key: string): boolean {
-  return separatedS3Key.toLowerCase().endsWith('.mp3');
+export function isStaleSeparation(record: {
+  separatedS3Key?: string;
+  separationAligned?: boolean;
+}): boolean {
+  return !!record.separatedS3Key && record.separationAligned !== true;
 }
 
 export type SeparationErrorAction = 'fail' | 'retry';
