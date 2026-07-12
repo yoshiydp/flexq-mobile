@@ -14,5 +14,11 @@
     "skipLibCheck": true
   },
   "include": ["api/lambda/**/*.ts"],
-  "exclude": ["node_modules", "src", "App.tsx", "expo-env.d.ts"]
+  "exclude": [
+    "node_modules",
+    "src",
+    "App.tsx",
+    "expo-env.d.ts",
+    "api/lambda/**/*.test.ts"
+  ]
 }

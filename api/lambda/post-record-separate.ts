@@ -91,8 +91,9 @@ export const handler = async (event: any) => {
       new UpdateCommand({
         TableName: process.env.RECORDS_TABLE!,
         Key: { userId: claims.userId, recordId },
+        // 新しいジョブの開始時に前回の一時エラーカウントをリセットする
         UpdateExpression:
-          'SET separationStatus = :status, separationType = :type, separationPredictionId = :predictionId',
+          'SET separationStatus = :status, separationType = :type, separationPredictionId = :predictionId REMOVE separationRetryCount',
         ExpressionAttributeValues: {
           ':status': 'processing',
           ':type': separationType,
