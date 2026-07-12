@@ -15,10 +15,16 @@ export const RECORDING_OPTIONS_HIGH_QUALITY: Audio.RecordingOptions = {
   },
   ios: {
     extension: '.m4a',
+    // outputFormat 未指定だと非圧縮リニア PCM が M4A コンテナに書き込まれ、
+    // ffmpeg / torchaudio / librosa 系のツールで読めないファイルになるため
+    // AAC を明示する
+    outputFormat: Audio.IOSOutputFormat.MPEG4AAC,
     audioQuality: IOS_AUDIO_QUALITY_MAX,
     sampleRate: 44100,
     numberOfChannels: 2,
     bitRate: 256000,
+    // AAC では linearPCM 系フィールドは使用されないが、
+    // expo-av 標準の HIGH_QUALITY プリセットに合わせて残している
     linearPCMBitDepth: 16,
     linearPCMIsBigEndian: false,
     linearPCMIsFloat: false,
