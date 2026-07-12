@@ -18,6 +18,18 @@ export type EnableSyncResult =
   | 'headphones-disconnected'
   | 'cancelled';
 
+/**
+ * 開始タイミング補正の許容誤差（ms）。
+ * これ以下のズレはフラム/エコーとして知覚されにくい
+ */
+const SYNC_OFFSET_TOLERANCE_MS = 15;
+/** 開始タイミング補正の実測サンプリング間隔（ms） */
+const SYNC_OFFSET_CHECK_INTERVAL_MS = 150;
+/** 開始タイミング補正の最大試行回数 */
+const SYNC_OFFSET_MAX_CHECKS = 4;
+
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
 type UseSyncedTrackPlaybackOptions = {
   /** レコードが紐づくプロジェクト ID。未指定（QuickRecord 由来）の場合は同時再生不可 */
   projectId?: string;
@@ -190,6 +202,51 @@ export function useSyncedTrackPlayback({
     }
   };
 
+  /**
+   * 再生開始・シーク直後の実測ズレを補正する（TASK-44）。
+   * expo-av の 2 つの Audio.Sound は発音開始タイミングが保証されず、
+   * フォーマット差（wav / AAC）・バッファリング・シーク遅延により
+   * 数十 ms の系統的なオフセットが生じる。両プレイヤーの再生位置を
+   * 同時刻に実測し、対応位置（トラック = startPositionMs + 録音位置）
+   * との誤差が許容値を超えていればトラック側をシークして合わせる。
+   * 補正のシーク自体にも遅延があるため、許容値に収まるまで数回繰り返す。
+   * await せず投げ放しで呼んでよい（内部でガードする）
+   */
+  const correctSyncOffset = async (recordSound: Audio.Sound) => {
+    for (let attempt = 0; attempt < SYNC_OFFSET_MAX_CHECKS; attempt++) {
+      await delay(SYNC_OFFSET_CHECK_INTERVAL_MS);
+      const track = trackSoundRef.current;
+      if (!isMountedRef.current || !syncEnabledRef.current || !track) return;
+
+      let recordStatus;
+      let trackStatus;
+      try {
+        [recordStatus, trackStatus] = await Promise.all([
+          recordSound.getStatusAsync(),
+          track.getStatusAsync(),
+        ]);
+      } catch {
+        return;
+      }
+      if (!recordStatus.isLoaded || !trackStatus.isLoaded) return;
+      // どちらかがまだ発音を開始していない間に測ると誤補正になるため待つ
+      if (!recordStatus.isPlaying || !trackStatus.isPlaying) continue;
+
+      const offsetMs =
+        (trackStatus.positionMillis ?? 0) -
+        (startPositionMs + (recordStatus.positionMillis ?? 0));
+      if (Math.abs(offsetMs) <= SYNC_OFFSET_TOLERANCE_MS) return;
+
+      try {
+        await track.setPositionAsync(
+          Math.max(0, (trackStatus.positionMillis ?? 0) - offsetMs),
+        );
+      } catch {
+        return;
+      }
+    }
+  };
+
   /** 録音側の一時停止に合わせてトラックも一時停止する */
   const syncPause = async () => {
     const track = trackSoundRef.current;
@@ -215,14 +272,20 @@ export function useSyncedTrackPlayback({
   /**
    * 録音（声）の再生終了時の処理。録音尺をマスターとする。
    * - ループ再生中: トラックを録音開始位置に戻して再生を継続する
+   *   （録音側はネイティブループで即座に頭出しされる一方、トラック側は
+   *    JS コールバック経由で遅れて頭出しされるため、開始タイミング補正をかける）
    * - 通常再生: トラックを停止して録音開始位置に戻す
    */
-  const handleRecordFinish = async (isLooping: boolean) => {
+  const handleRecordFinish = async (
+    isLooping: boolean,
+    recordSound?: Audio.Sound,
+  ) => {
     const track = trackSoundRef.current;
     if (!syncEnabledRef.current || !track) return;
     try {
       if (isLooping) {
         await track.playFromPositionAsync(startPositionMs);
+        if (recordSound) void correctSyncOffset(recordSound);
       } else {
         await track.pauseAsync();
         await track.setPositionAsync(startPositionMs);
@@ -282,6 +345,7 @@ export function useSyncedTrackPlayback({
     syncPlay,
     syncPause,
     syncSeek,
+    correctSyncOffset,
     handleRecordFinish,
     setTrackVolume,
   };
