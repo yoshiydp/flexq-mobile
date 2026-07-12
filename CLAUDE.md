@@ -166,11 +166,12 @@ RecordPlayer「AI クリーンアップ」
 
 | 用途 | SAM パラメータ | デフォルト |
 |------|--------------|-----------|
-| separate | `ReplicateSeparateModel` | `ryan5453/demucs`（stem: vocals / output_format: mp3） |
+| separate | `ReplicateSeparateModel` | `ryan5453/demucs`（stem: vocals / output_format: flac） |
 | denoise | `ReplicateDenoiseModel` | `ryan5453/demucs`（ボーカル抽出で代用） |
 
 **モデル選定の経緯・制約（変更時は必ず確認）:**
 - **コミュニティモデルは「最新バージョン実行」エンドポイント（`POST /v1/models/{owner}/{name}/predictions`）が 404 になる**（公式モデル専用）。`replicate.ts` は `latest_version.id` を解決して `POST /v1/predictions` で作成する
+- **出力形式は flac 固定（mp3 に戻さないこと）**: mp3 はエンコーダ遅延（先頭無音 +40ms 程度）が再生時に除去されず、トラックとの同時再生で同期ズレが出る（TASK-44 で flac 化）。flac 化以前の mp3 キャッシュ（`separatedS3Key` が `.mp3`）は API が未処理（none）として返し、アプリの「AI クリーンアップ」ボタンから flac で再生成できる（再生成完了時に旧 mp3 は削除される）
 - 本来の denoise 候補だった `resemble-enhance` は **m4a コンテナ自体を読めない**（wav / mp3 / flac のみ）ため demucs で代用中。専用モデルに戻す場合は `ReplicateDenoiseModel` を差し替える（`inputFor` がモデル名で入力スキーマを切り替える）
 - **iOS 録音は AAC 必須**: `src/utils/recordingOptions.ts` の `outputFormat: Audio.IOSOutputFormat.MPEG4AAC` を削除しないこと。未指定だと PCM-in-M4A という特殊形式になり全モデルが読めず、ファイルサイズも約 5 倍になる（TASK-42 で修正）。**AAC 化以前の録音は AI クリーンアップ不可**（failed 遷移 → 再実行可能）
 

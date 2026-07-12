@@ -27,6 +27,16 @@ export function isPermanentDownloadStatus(status: number): boolean {
   return isPermanentHttpStatus(status);
 }
 
+/**
+ * 保存済みの分離音源キーが作り直し対象（stale）かどうか。
+ * flac 化（TASK-44）以前に生成された mp3 はエンコーダ遅延によりトラックとの
+ * 同時再生でズレるため、キャッシュとして返さず未処理（none）として扱い、
+ * アプリの「AI クリーンアップ」ボタンから flac で再生成できるようにする。
+ */
+export function isStaleSeparatedKey(separatedS3Key: string): boolean {
+  return separatedS3Key.toLowerCase().endsWith('.mp3');
+}
+
 export type SeparationErrorAction = 'fail' | 'retry';
 
 /**
