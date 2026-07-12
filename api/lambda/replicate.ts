@@ -101,8 +101,10 @@ export function inputFor(
   // モデル名（SAM パラメータで差し替え可能）から決定する
   if (model.includes('demucs')) {
     // demucs: stem 指定でボーカルのみ処理する（未指定だと 4 ステム全処理で時間・コスト増）。
-    // output_format を固定して出力拡張子を決定的にする
-    return { audio: audioUrl, stem: 'vocals', output_format: 'mp3' };
+    // output_format を固定して出力拡張子を決定的にする。
+    // mp3 はエンコーダ遅延（先頭無音 +40ms 程度）が除去されず、トラックとの
+    // 同時再生で同期ズレが出るため flac（遅延ゼロ・可逆）を使う（TASK-44）
+    return { audio: audioUrl, stem: 'vocals', output_format: 'flac' };
   }
   if (model.includes('resemble')) {
     // resemble-enhance: denoise_flag: true で環境ノイズ除去を有効化する

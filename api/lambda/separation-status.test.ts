@@ -1,6 +1,7 @@
 import { ReplicateApiError } from './replicate';
 import {
   isPermanentDownloadStatus,
+  isStaleSeparatedKey,
   MAX_TRANSIENT_POLL_FAILURES,
   PermanentSeparationError,
   resolveSeparationErrorAction,
@@ -21,6 +22,26 @@ describe('isPermanentDownloadStatus', () => {
   it('408 / 429 は一時エラー', () => {
     expect(isPermanentDownloadStatus(408)).toBe(false);
     expect(isPermanentDownloadStatus(429)).toBe(false);
+  });
+});
+
+describe('isStaleSeparatedKey', () => {
+  it('flac 化以前の mp3 キャッシュは stale（再生成対象）', () => {
+    expect(
+      isStaleSeparatedKey('records/separated/user-1/rec-1.mp3')
+    ).toBe(true);
+    expect(
+      isStaleSeparatedKey('records/separated/user-1/rec-1.MP3')
+    ).toBe(true);
+  });
+
+  it('flac / wav は stale ではない', () => {
+    expect(
+      isStaleSeparatedKey('records/separated/user-1/rec-1.flac')
+    ).toBe(false);
+    expect(
+      isStaleSeparatedKey('records/separated/user-1/rec-1.wav')
+    ).toBe(false);
   });
 });
 

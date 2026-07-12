@@ -16,6 +16,7 @@ import {
 } from './replicate';
 import {
   isPermanentDownloadStatus,
+  isStaleSeparatedKey,
   PermanentSeparationError,
   resolveSeparationErrorAction,
 } from './separation-status';
@@ -52,6 +53,20 @@ export const handler = async (event: any) => {
   }
 
   const status = record.separationStatus ?? 'none';
+
+  // flac 化以前の mp3 キャッシュ（同期ズレあり）は未処理として返し、
+  // アプリの「AI クリーンアップ」ボタンから flac で再生成できるようにする
+  if (
+    status === 'done' &&
+    record.separatedS3Key &&
+    isStaleSeparatedKey(record.separatedS3Key)
+  ) {
+    return createResponse({
+      id: recordId,
+      separationStatus: 'none',
+      separationType: record.separationType,
+    });
+  }
 
   if (status === 'done' && record.separatedS3Key) {
     const separatedSource = await getSignedUrl(
@@ -163,6 +178,24 @@ export const handler = async (event: any) => {
           });
         // DynamoDB 更新失敗は一時エラーとして次回ポーリングで再試行する
         throw updateErr;
+      }
+
+      // 再生成で拡張子が変わった場合（mp3 → flac 等）、旧キーのオブジェクトが
+      // 孤児として残るためベストエフォートで削除する（失敗はログのみ）
+      if (record.separatedS3Key && record.separatedS3Key !== separatedS3Key) {
+        await s3Client
+          .send(
+            new DeleteObjectCommand({
+              Bucket: process.env.TRACK_AUDIO_BUCKET!,
+              Key: record.separatedS3Key,
+            })
+          )
+          .catch((cleanupErr) => {
+            console.error(
+              'Failed to delete stale separated audio:',
+              cleanupErr
+            );
+          });
       }
 
       const separatedSource = await getSignedUrl(

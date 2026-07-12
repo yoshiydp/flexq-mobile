@@ -143,6 +143,77 @@ cd api && sam build && sam deploy \
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
+### AI クリーンアップ（Replicate 連携）
+
+#### 概要
+
+録音データから声（ボーカル）だけを抽出する機能（TASK-38/41/42 で構築）。処理は外部 AI API の [Replicate](https://replicate.com) でサーバーサイド非同期実行する。
+
+```
+RecordPlayer「AI クリーンアップ」
+  → POST /data/record/{id}/separate        (post-record-separate.ts)
+      Replicate に prediction を作成 → separationStatus: processing
+  → アプリが GET /data/record/{id}/separate-status をポーリング
+      (get-record-separate-status.ts が Replicate を確認し、完了時に
+       出力音源を S3 records/separated/ に保存 → done)
+  →「元の録音 / 声のみ」を切替再生（元データは常に保持）
+```
+
+- 実行トリガー: 録音前の「AI クリーンアップ」トグル（自動実行・AsyncStorage に記憶）と、再生画面の手動ボタンの 2 系統
+- 処理タイプは録音時のイヤホン接続状態（`recordedWithHeadphones`）から自動選択: イヤホンなし → separate（トラックかぶり分離）/ あり → denoise（ノイズ除去）
+
+#### モデル構成
+
+| 用途 | SAM パラメータ | デフォルト |
+|------|--------------|-----------|
+| separate | `ReplicateSeparateModel` | `ryan5453/demucs`（stem: vocals / output_format: flac） |
+| denoise | `ReplicateDenoiseModel` | `ryan5453/demucs`（ボーカル抽出で代用） |
+
+**モデル選定の経緯・制約（変更時は必ず確認）:**
+- **コミュニティモデルは「最新バージョン実行」エンドポイント（`POST /v1/models/{owner}/{name}/predictions`）が 404 になる**（公式モデル専用）。`replicate.ts` は `latest_version.id` を解決して `POST /v1/predictions` で作成する
+- **出力形式は flac 固定（mp3 に戻さないこと）**: mp3 はエンコーダ遅延（先頭無音 +40ms 程度）が再生時に除去されず、トラックとの同時再生で同期ズレが出る（TASK-44 で flac 化）。flac 化以前の mp3 キャッシュ（`separatedS3Key` が `.mp3`）は API が未処理（none）として返し、アプリの「AI クリーンアップ」ボタンから flac で再生成できる（再生成完了時に旧 mp3 は削除される）
+- 本来の denoise 候補だった `resemble-enhance` は **m4a コンテナ自体を読めない**（wav / mp3 / flac のみ）ため demucs で代用中。専用モデルに戻す場合は `ReplicateDenoiseModel` を差し替える（`inputFor` がモデル名で入力スキーマを切り替える）
+- **iOS 録音は AAC 必須**: `src/utils/recordingOptions.ts` の `outputFormat: Audio.IOSOutputFormat.MPEG4AAC` を削除しないこと。未指定だと PCM-in-M4A という特殊形式になり全モデルが読めず、ファイルサイズも約 5 倍になる（TASK-42 で修正）。**AAC 化以前の録音は AI クリーンアップ不可**（failed 遷移 → 再実行可能）
+
+#### Replicate アカウント・トークンのセットアップ
+
+1. [replicate.com](https://replicate.com) でアカウント作成
+2. Account settings > [API tokens](https://replicate.com/account/api-tokens) で**用途別の名前付きトークン**を作成（例: `lyrics-mobile`。Default は温存し、ローテーションしやすくする）
+3. [Billing](https://replicate.com/account/billing) でクレジットをプリペイド購入（$5〜10）。**auto-reload は OFF** にして残高を実質の支出上限として使う
+4. 注意: 残高 $5 未満の間は prediction 作成が 6 回/分にレート制限される（一時エラーとしてリトライされるため実害は小さい）
+
+#### SAM パラメータの設定（デプロイ）
+
+```bash
+# Staging
+cd api && sam build && sam deploy --stack-name lyrics-mock-api --no-confirm-changeset \
+  --parameter-overrides ReplicateApiToken="<トークン>"
+
+# Production（Replicate 系パラメータのみ手動デプロイで設定する）
+cd api && sam build && sam deploy --stack-name lyrics-prod-api --resolve-s3 \
+  --capabilities CAPABILITY_IAM --no-confirm-changeset \
+  --parameter-overrides ReplicateApiToken="<トークン>"
+```
+
+- `ReplicateApiToken` は NoEcho（CloudFormation コンソールに表示されない）。**未設定の間は分離エンドポイントが 503 を返す**が、他機能には影響しない
+- 一度設定した値は以後の未指定デプロイでも保持される（CloudFormation の UsePreviousValue）。ただし確実を期すなら毎回明示指定する
+- **`Sync Schema to Production` ワークフローは JwtSecret しか渡さない**ため、Replicate 系パラメータは上記の手動デプロイで設定する
+- トークンをローテーションした場合は staging / production 両方に再デプロイで反映する
+
+#### コスト
+
+- 従量課金（プリペイドクレジットから消費）。demucs は GPU 実行数秒〜十数秒で **1 回あたり数円程度**（実測: 8.7 秒の音源で処理 17 秒）
+- アプリ側の課金ガード: 実行はユーザーのオプトインのみ・処理済みレコードの再実行はキャッシュ（`separatedS3Key`）を返して二重課金を防止
+
+#### トラブルシューティング
+
+| 症状 | 原因 / 確認先 |
+|------|--------------|
+| 実行時に 503 | `ReplicateApiToken` 未設定（SAM パラメータを確認） |
+| 開始直後に 502 | `PostRecordSeparateFunction` の CloudWatch ログ（Replicate API エラーの詳細が出る） |
+| failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
+| processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
+
 ### EAS ビルド（実機配布）
 
 #### 概要

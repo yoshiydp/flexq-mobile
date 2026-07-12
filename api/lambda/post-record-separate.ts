@@ -10,10 +10,13 @@ import {
   isReplicateConfigured,
   resolveSeparationType,
 } from './replicate';
+import { isStaleSeparatedKey } from './separation-status';
 
 /**
  * AI クリーンアップ（ボーカル分離 / ノイズ除去）のジョブを開始する。
- * - 処理済み（separatedS3Key あり）の場合はキャッシュを返して二重課金を防ぐ
+ * - 処理済み（separatedS3Key あり）の場合はキャッシュを返して二重課金を防ぐ。
+ *   ただし flac 化以前の mp3 キャッシュ（同期ズレあり）は stale として
+ *   キャッシュを返さず、新しいジョブで flac に作り直す（TASK-44）
  * - 処理中の場合は現在のステータスをそのまま返す
  * - Replicate API トークン未設定時は 503 を返す
  */
@@ -38,7 +41,12 @@ export const handler = async (event: any) => {
   }
 
   // 既に処理済みならキャッシュ（保存済みの分離音源）を返す
-  if (record.separationStatus === 'done' && record.separatedS3Key) {
+  // （stale な mp3 キャッシュは除く: 下の新規ジョブ作成で flac に作り直す）
+  if (
+    record.separationStatus === 'done' &&
+    record.separatedS3Key &&
+    !isStaleSeparatedKey(record.separatedS3Key)
+  ) {
     const separatedSource = await getSignedUrl(
       s3Client,
       new GetObjectCommand({
