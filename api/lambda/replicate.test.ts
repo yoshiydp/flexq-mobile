@@ -1,4 +1,5 @@
 import {
+  createPrediction,
   extractOutputAudioUrl,
   inputFor,
   isPermanentReplicateError,
@@ -136,5 +137,52 @@ describe('resolveSeparationType', () => {
   it('イヤホンなし・不明は separate', () => {
     expect(resolveSeparationType('none')).toBe('separate');
     expect(resolveSeparationType(undefined)).toBe('separate');
+  });
+});
+
+describe('createPrediction', () => {
+  const originalFetch = global.fetch;
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    delete process.env.REPLICATE_API_TOKEN;
+    delete process.env.REPLICATE_DENOISE_MODEL;
+  });
+
+  it('モデルの最新バージョンを解決し /predictions にバージョン指定で作成する（バージョンはキャッシュ）', async () => {
+    // コミュニティモデルは /models/{owner}/{name}/predictions（最新バージョン実行）が
+    // 404 になるため、バージョン ID を解決して /predictions に渡す必要がある
+    process.env.REPLICATE_API_TOKEN = 'test-token';
+    process.env.REPLICATE_DENOISE_MODEL = 'test-owner/test-denoise';
+    const calls: { url: string; init?: RequestInit }[] = [];
+    global.fetch = jest.fn(async (url: unknown, init?: RequestInit) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith('/models/test-owner/test-denoise')) {
+        return {
+          ok: true,
+          json: async () => ({ latest_version: { id: 'ver-123' } }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ id: 'pred-1', status: 'starting' }),
+      };
+    }) as unknown as typeof fetch;
+
+    await createPrediction('denoise', 'https://example.com/a.m4a');
+    await createPrediction('denoise', 'https://example.com/b.m4a');
+
+    const modelCalls = calls.filter((c) =>
+      c.url.endsWith('/models/test-owner/test-denoise'),
+    );
+    expect(modelCalls).toHaveLength(1);
+
+    const predictionCalls = calls.filter((c) => c.url.endsWith('/predictions'));
+    expect(predictionCalls).toHaveLength(2);
+    expect(predictionCalls[0].init?.method).toBe('POST');
+    const body = JSON.parse(String(predictionCalls[0].init?.body));
+    expect(body.version).toBe('ver-123');
+    expect(body.input.input_audio).toBe('https://example.com/a.m4a');
+    expect(body.input.denoise_flag).toBe(true);
   });
 });

@@ -4,8 +4,10 @@
  * - separate: ボーカル分離（イヤホンなし録音でトラック音が混入したケース）
  * - denoise: ノイズ除去（イヤホンあり録音の環境ノイズ低減）
  *
- * モデルは環境変数で差し替え可能。バージョン指定を不要にするため
- * `POST /v1/models/{owner}/{name}/predictions`（最新バージョン実行）を使う。
+ * モデルは環境変数で差し替え可能。`POST /v1/models/{owner}/{name}/predictions`
+ * （最新バージョン実行）は公式モデル専用で、コミュニティモデル（demucs /
+ * resemble-enhance）では 404 になるため、モデルの最新バージョン ID を解決して
+ * `POST /v1/predictions` にバージョン指定で作成する。
  */
 
 const REPLICATE_API_BASE = 'https://api.replicate.com/v1';
@@ -105,14 +107,34 @@ async function replicateFetch(path: string, init?: RequestInit): Promise<any> {
   return res.json();
 }
 
+/** モデルの最新バージョン ID のキャッシュ（ウォームスタート時の再取得を避ける） */
+const latestVersionCache = new Map<string, string>();
+
+/** モデルの最新バージョン ID を解決する（コミュニティモデルは version 指定でしか実行できない） */
+async function resolveLatestVersion(model: string): Promise<string> {
+  const cached = latestVersionCache.get(model);
+  if (cached) return cached;
+  const detail = await replicateFetch(`/models/${model}`);
+  const version = detail?.latest_version?.id;
+  if (typeof version !== 'string' || version === '') {
+    throw new ReplicateApiError(
+      404,
+      `Replicate model ${model} has no latest version`,
+    );
+  }
+  latestVersionCache.set(model, version);
+  return version;
+}
+
 /** prediction を作成して処理を開始する */
 export async function createPrediction(
   type: SeparationType,
   audioUrl: string,
 ): Promise<ReplicatePrediction> {
-  return replicateFetch(`/models/${modelFor(type)}/predictions`, {
+  const version = await resolveLatestVersion(modelFor(type));
+  return replicateFetch('/predictions', {
     method: 'POST',
-    body: JSON.stringify({ input: inputFor(type, audioUrl) }),
+    body: JSON.stringify({ version, input: inputFor(type, audioUrl) }),
   });
 }
 
