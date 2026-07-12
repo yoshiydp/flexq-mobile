@@ -10,18 +10,24 @@ import {
 describe('inputFor', () => {
   const audioUrl = 'https://example.com/audio.m4a';
 
-  it('separate（demucs）は audio + stem: vocals を渡す', () => {
-    const input = inputFor('separate', audioUrl);
+  it('demucs 系モデルは audio + stem: vocals を渡す', () => {
+    const input = inputFor('ryan5453/demucs', audioUrl);
     expect(input.audio).toBe(audioUrl);
     // stem 未指定だと 4 ステム全処理になり時間・コストが増えるため必須
     expect(input.stem).toBe('vocals');
     expect(input.output_format).toBe('mp3');
   });
 
-  it('denoise（resemble-enhance）は input_audio + denoise_flag: true を渡す', () => {
-    const input = inputFor('denoise', audioUrl);
+  it('resemble 系モデルは input_audio + denoise_flag: true を渡す', () => {
+    const input = inputFor('lucataco/resemble-enhance', audioUrl);
     expect(input.input_audio).toBe(audioUrl);
     expect(input.denoise_flag).toBe(true);
+  });
+
+  it('未知のモデルは audio キーにフォールバックする', () => {
+    expect(inputFor('some-owner/unknown-model', audioUrl)).toEqual({
+      audio: audioUrl,
+    });
   });
 });
 
@@ -153,11 +159,11 @@ describe('createPrediction', () => {
     // コミュニティモデルは /models/{owner}/{name}/predictions（最新バージョン実行）が
     // 404 になるため、バージョン ID を解決して /predictions に渡す必要がある
     process.env.REPLICATE_API_TOKEN = 'test-token';
-    process.env.REPLICATE_DENOISE_MODEL = 'test-owner/test-denoise';
+    process.env.REPLICATE_DENOISE_MODEL = 'test-owner/test-resemble';
     const calls: { url: string; init?: RequestInit }[] = [];
     global.fetch = jest.fn(async (url: unknown, init?: RequestInit) => {
       calls.push({ url: String(url), init });
-      if (String(url).endsWith('/models/test-owner/test-denoise')) {
+      if (String(url).endsWith('/models/test-owner/test-resemble')) {
         return {
           ok: true,
           json: async () => ({ latest_version: { id: 'ver-123' } }),
@@ -173,7 +179,7 @@ describe('createPrediction', () => {
     await createPrediction('denoise', 'https://example.com/b.m4a');
 
     const modelCalls = calls.filter((c) =>
-      c.url.endsWith('/models/test-owner/test-denoise'),
+      c.url.endsWith('/models/test-owner/test-resemble'),
     );
     expect(modelCalls).toHaveLength(1);
 
@@ -182,7 +188,70 @@ describe('createPrediction', () => {
     expect(predictionCalls[0].init?.method).toBe('POST');
     const body = JSON.parse(String(predictionCalls[0].init?.body));
     expect(body.version).toBe('ver-123');
+    // resemble 系モデル名なので resemble-enhance 用の入力スキーマになる
     expect(body.input.input_audio).toBe('https://example.com/a.m4a');
     expect(body.input.denoise_flag).toBe(true);
+  });
+
+  it('denoise がデフォルト（demucs 代用）のときは demucs 用の入力を渡す', async () => {
+    // resemble-enhance が m4a を読めないため、denoise パスは demucs で代用する
+    process.env.REPLICATE_API_TOKEN = 'test-token';
+    const calls: { url: string; init?: RequestInit }[] = [];
+    global.fetch = jest.fn(async (url: unknown, init?: RequestInit) => {
+      calls.push({ url: String(url), init });
+      if (String(url).endsWith('/models/ryan5453/demucs')) {
+        return {
+          ok: true,
+          json: async () => ({ latest_version: { id: 'ver-demucs' } }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ id: 'pred-2', status: 'starting' }),
+      };
+    }) as unknown as typeof fetch;
+
+    await createPrediction('denoise', 'https://example.com/rec.m4a');
+
+    const predictionCalls = calls.filter((c) => c.url.endsWith('/predictions'));
+    expect(predictionCalls).toHaveLength(1);
+    const body = JSON.parse(String(predictionCalls[0].init?.body));
+    expect(body.version).toBe('ver-demucs');
+    expect(body.input.audio).toBe('https://example.com/rec.m4a');
+    expect(body.input.stem).toBe('vocals');
+    expect(body.input.output_format).toBe('mp3');
+  });
+
+  it('旧デフォルト（resemble-enhance）が環境変数に残っていても demucs に差し替える', async () => {
+    // デプロイ済みスタックは SAM パラメータの Default 変更では旧値を保持し続けるため、
+    // コード側で m4a 非対応の旧デフォルトを demucs に置き換える
+    process.env.REPLICATE_API_TOKEN = 'test-token';
+    process.env.REPLICATE_DENOISE_MODEL = 'lucataco/resemble-enhance';
+    const calls: { url: string; init?: RequestInit }[] = [];
+    global.fetch = jest.fn(async (url: unknown, init?: RequestInit) => {
+      calls.push({ url: String(url), init });
+      if (String(url).includes('/models/')) {
+        return {
+          ok: true,
+          json: async () => ({ latest_version: { id: 'ver-demucs' } }),
+        };
+      }
+      return {
+        ok: true,
+        json: async () => ({ id: 'pred-3', status: 'starting' }),
+      };
+    }) as unknown as typeof fetch;
+
+    await createPrediction('denoise', 'https://example.com/rec.m4a');
+
+    // resemble-enhance には一切問い合わせず demucs 用の入力を送る
+    expect(
+      calls.some((c) => c.url.includes('lucataco/resemble-enhance')),
+    ).toBe(false);
+    const predictionCalls = calls.filter((c) => c.url.endsWith('/predictions'));
+    expect(predictionCalls).toHaveLength(1);
+    const body = JSON.parse(String(predictionCalls[0].init?.body));
+    expect(body.input.audio).toBe('https://example.com/rec.m4a');
+    expect(body.input.stem).toBe('vocals');
   });
 });

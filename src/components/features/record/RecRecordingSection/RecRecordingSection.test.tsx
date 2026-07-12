@@ -16,6 +16,10 @@ const mockUnloadAsync = jest.fn();
 jest.mock('expo-av', () => {
   return {
     Audio: {
+      // recordingOptions.ts が参照する録音定数（enum）は実物を使う
+      IOSOutputFormat: jest.requireActual(
+        'expo-av/build/Audio/RecordingConstants'
+      ).IOSOutputFormat,
       requestPermissionsAsync: (...args: unknown[]) =>
         mockRequestPermissionsAsync(...args),
       setAudioModeAsync: (...args: unknown[]) => mockSetAudioModeAsync(...args),

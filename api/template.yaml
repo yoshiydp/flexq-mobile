@@ -23,8 +23,11 @@ Parameters:
     Description: Replicate model (owner/name) used for vocal separation
   ReplicateDenoiseModel:
     Type: String
-    Default: "lucataco/resemble-enhance"
-    Description: Replicate model (owner/name) used for speech denoise
+    Default: "ryan5453/demucs"
+    Description: >-
+      Replicate model (owner/name) used for the denoise path. demucs vocal
+      isolation substitutes for denoise because resemble-enhance cannot read
+      m4a containers (librosa-based loader supports wav/mp3/flac only)
 
 Globals:
   Function:

@@ -4,6 +4,11 @@
  * - separate: ボーカル分離（イヤホンなし録音でトラック音が混入したケース）
  * - denoise: ノイズ除去（イヤホンあり録音の環境ノイズ低減）
  *
+ * denoise パスは当面 demucs（ボーカル抽出）で代用する。resemble-enhance は
+ * librosa 系ローダー（wav/mp3/flac のみ対応）のため m4a コンテナを読めない。
+ * 入力スキーマはモデル名から決定するので、将来 SAM パラメータ
+ * （ReplicateDenoiseModel）で m4a 対応の専用モデルに差し替え可能。
+ *
  * モデルは環境変数で差し替え可能。`POST /v1/models/{owner}/{name}/predictions`
  * （最新バージョン実行）は公式モデル専用で、コミュニティモデル（demucs /
  * resemble-enhance）では 404 になるため、モデルの最新バージョン ID を解決して
@@ -13,7 +18,16 @@
 const REPLICATE_API_BASE = 'https://api.replicate.com/v1';
 
 const DEFAULT_SEPARATE_MODEL = 'ryan5453/demucs';
-const DEFAULT_DENOISE_MODEL = 'lucataco/resemble-enhance';
+// resemble-enhance は m4a を読めないため、denoise も demucs で代用する
+const DEFAULT_DENOISE_MODEL = 'ryan5453/demucs';
+
+/**
+ * m4a を読めないことが判明した旧デフォルトモデル。
+ * デプロイ済みスタックは SAM パラメータの Default 変更では旧値を保持し続ける
+ * （明示的な parameter override がない限り UsePreviousValue になる）ため、
+ * 環境変数に旧デフォルトが残っていてもコード側で demucs に差し替える
+ */
+const LEGACY_DENOISE_MODELS = new Set(['lucataco/resemble-enhance']);
 
 export type SeparationType = 'separate' | 'denoise';
 
@@ -69,23 +83,34 @@ export function resolveSeparationType(
 }
 
 function modelFor(type: SeparationType): string {
-  return type === 'separate'
-    ? process.env.REPLICATE_SEPARATE_MODEL || DEFAULT_SEPARATE_MODEL
-    : process.env.REPLICATE_DENOISE_MODEL || DEFAULT_DENOISE_MODEL;
+  if (type === 'separate') {
+    return process.env.REPLICATE_SEPARATE_MODEL || DEFAULT_SEPARATE_MODEL;
+  }
+  const configured =
+    process.env.REPLICATE_DENOISE_MODEL || DEFAULT_DENOISE_MODEL;
+  return LEGACY_DENOISE_MODELS.has(configured)
+    ? DEFAULT_DENOISE_MODEL
+    : configured;
 }
 
 export function inputFor(
-  type: SeparationType,
+  model: string,
   audioUrl: string,
 ): Record<string, unknown> {
-  // モデルごとに入力スキーマが異なる
-  if (type === 'separate') {
+  // 入力スキーマは separationType ではなくモデルごとに異なるため、
+  // モデル名（SAM パラメータで差し替え可能）から決定する
+  if (model.includes('demucs')) {
     // demucs: stem 指定でボーカルのみ処理する（未指定だと 4 ステム全処理で時間・コスト増）。
     // output_format を固定して出力拡張子を決定的にする
     return { audio: audioUrl, stem: 'vocals', output_format: 'mp3' };
   }
-  // resemble-enhance: denoise_flag: true で環境ノイズ除去を有効化する
-  return { input_audio: audioUrl, denoise_flag: true };
+  if (model.includes('resemble')) {
+    // resemble-enhance: denoise_flag: true で環境ノイズ除去を有効化する
+    return { input_audio: audioUrl, denoise_flag: true };
+  }
+  // 未知のモデル: Replicate の音声系モデルで最も一般的な `audio` キーに
+  // フォールバックする（専用モデル導入時はここに分岐を追加する）
+  return { audio: audioUrl };
 }
 
 async function replicateFetch(path: string, init?: RequestInit): Promise<any> {
@@ -131,10 +156,11 @@ export async function createPrediction(
   type: SeparationType,
   audioUrl: string,
 ): Promise<ReplicatePrediction> {
-  const version = await resolveLatestVersion(modelFor(type));
+  const model = modelFor(type);
+  const version = await resolveLatestVersion(model);
   return replicateFetch('/predictions', {
     method: 'POST',
-    body: JSON.stringify({ version, input: inputFor(type, audioUrl) }),
+    body: JSON.stringify({ version, input: inputFor(model, audioUrl) }),
   });
 }
 
