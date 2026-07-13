@@ -6,8 +6,20 @@ import { RECORDING_OPTIONS_HIGH_QUALITY } from '@/utils/recordingOptions';
 import { REC_PERMISSION_MESSAGES } from '@/constants/messages';
 import styles from './RecRecordingSection.styles';
 
+/** 実測 startPositionMs のサンプリング間隔（ms）と最大試行回数（合計 2 秒待つ） */
+const MEASURE_START_POSITION_INTERVAL_MS = 100;
+const MEASURE_START_POSITION_MAX_ATTEMPTS = 20;
+
 interface RecRecordingSectionProps {
-  onStop: (durationMs: number, recordingFile: string) => void;
+  /**
+   * 録音停止時に呼ばれる。measuredStartPositionMs は録音中に実測した
+   * トラック同期用の録音開始位置（実測できなかった場合は undefined）
+   */
+  onStop: (
+    durationMs: number,
+    recordingFile: string,
+    measuredStartPositionMs?: number,
+  ) => void;
   /** マイク許可の拒否や録音開始の失敗で録音を継続できないときに呼ばれる（モーダルを閉じる用途） */
   onAbort?: () => void;
   trackSource?: string | null;
@@ -33,7 +45,15 @@ export default function RecRecordingSection({
   const [permissionGranted, setPermissionGranted] = useState(false);
 
   const recordingRef = useRef<Audio.Recording | null>(null);
+  // prepare 済みでまだ開始していない録音への参照。起動シーケンス中に停止・
+  // アンマウントされた場合に、トラックロードの完了を待たず即時解放するために持つ
+  const preparedRecordingRef = useRef<Audio.Recording | null>(null);
   const trackSoundRef = useRef<Audio.Sound | null>(null);
+  // 録音中に実測したトラック同期用の録音開始位置（実測できなかった場合は null）
+  const measuredStartPositionMsRef = useRef<number | null>(null);
+  // 起動シーケンス（トラックロード〜録音開始）の途中で停止ボタンが押された
+  // 場合に、遅れて録音が開始されてしまうのを防ぐための中断フラグ
+  const startCancelledRef = useRef(false);
   const isMountedRef = useRef(true);
   const appStateSubscriptionRef = useRef<{ remove: () => void } | null>(null);
 
@@ -49,6 +69,9 @@ export default function RecRecordingSection({
       trackSoundRef.current?.stopAsync().catch(() => {});
       trackSoundRef.current?.unloadAsync().catch(() => {});
       trackSoundRef.current = null;
+      // 起動シーケンス途中の prepare 済み録音もマイクを掴んだままにしない
+      preparedRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
+      preparedRecordingRef.current = null;
     };
   }, []);
 
@@ -116,10 +139,22 @@ export default function RecRecordingSection({
             resolve();
           }
         });
-        appStateSubscriptionRef.current = subscription;
+        appStateSubscriptionRef.current = {
+          remove: () => {
+            subscription.remove();
+            // アンマウント時も promise を解決させ、後段のガード
+            // （shouldContinueStartup）で準備済み録音の破棄まで進める。
+            // 未解決のまま放置するとマイクを掴んだままになる
+            resolve();
+          },
+        };
       });
 
-    // 録音セッションを初期化して録音を開始する
+    // 起動シーケンスを継続してよいか（アンマウント・停止操作で中断する）
+    const shouldContinueStartup = () =>
+      isMountedRef.current && !startCancelledRef.current;
+
+    // 録音セッションを初期化する（録音の開始はトラック起動後に行う）
     const initRecordingSession = async () => {
       // playAndRecord モード: スピーカー出力 + マイク録音を同時に行う
       // イヤホン接続時は iOS/Android が自動でイヤホンへルーティング
@@ -132,13 +167,59 @@ export default function RecRecordingSection({
       const recording = new Audio.Recording();
       try {
         await recording.prepareToRecordAsync(RECORDING_OPTIONS_HIGH_QUALITY);
-        await recording.startAsync();
       } catch (err) {
         // 準備途中の Recording が残ると次の prepare が失敗するため破棄する
         await recording.stopAndUnloadAsync().catch(() => {});
         throw err;
       }
       return recording;
+    };
+
+    /**
+     * トラック同期用の録音開始位置を実測する（TASK-44）。
+     * トラックの起動（ネットワークロード込み）と録音の開始は正確には同時に
+     * ならないため、選択位置（startPositionMs prop）をそのまま保存すると
+     * 起動遅延ぶんのズレがテイクに焼き込まれる。両者が実際に動き出した後に
+     * 「トラック再生位置 − 録音経過時間」を同時刻にサンプリングして
+     * 実測値とする（実測できなければ null のまま = 選択位置にフォールバック）
+     */
+    const measureStartPosition = async (
+      recording: Audio.Recording,
+      track: Audio.Sound,
+    ) => {
+      for (
+        let attempt = 0;
+        attempt < MEASURE_START_POSITION_MAX_ATTEMPTS;
+        attempt++
+      ) {
+        if (!isMountedRef.current || startCancelledRef.current) return;
+        try {
+          const [recStatus, trackStatus] = await Promise.all([
+            recording.getStatusAsync(),
+            track.getStatusAsync(),
+          ]);
+          if (
+            trackStatus.isLoaded &&
+            trackStatus.isPlaying &&
+            recStatus.isRecording
+          ) {
+            measuredStartPositionMsRef.current = Math.max(
+              0,
+              Math.round(
+                (trackStatus.positionMillis ?? 0) -
+                  (recStatus.durationMillis ?? 0),
+              ),
+            );
+            return;
+          }
+        } catch (err) {
+          console.error('Failed to measure recording start position', err);
+          return;
+        }
+        await new Promise((resolve) =>
+          setTimeout(resolve, MEASURE_START_POSITION_INTERVAL_MS),
+        );
+      }
     };
 
     let recording: Audio.Recording;
@@ -151,45 +232,114 @@ export default function RecRecordingSection({
       try {
         await waitForAppActive();
         // 復帰待ちの間にモーダルが閉じられていたらリトライしない
-        if (!isMountedRef.current) return;
+        if (!shouldContinueStartup()) return;
         recording = await initRecordingSession();
       } catch (retryErr) {
         console.error('Recording start failed', retryErr);
-        if (!isMountedRef.current) return;
+        if (!shouldContinueStartup()) return;
         Alert.alert('エラー', REC_PERMISSION_MESSAGES.recordingStartFailed);
         onAbortRef.current?.();
         return;
       }
     }
 
-    // 初期化中にアンマウントされていたら録音を破棄する（マイクを掴んだままにしない）
-    if (!isMountedRef.current) {
+    // 起動シーケンス中に停止・アンマウントされた場合に即時解放できるよう参照を持つ
+    preparedRecordingRef.current = recording;
+
+    // 初期化中にアンマウント・停止操作されていたら録音を破棄する
+    // （マイクを掴んだままにしない）
+    if (!shouldContinueStartup()) {
+      preparedRecordingRef.current = null;
       recording.stopAndUnloadAsync().catch(() => {});
       return;
     }
-    recordingRef.current = recording;
 
-    // 音源がある場合は指定位置から再生
-    // イヤホン接続時は音源がイヤホンへルーティングされ、マイクは声のみを収録する
+    // 音源がある場合は録音より先に指定位置から再生を開始する（TASK-44）。
+    // 逆順（録音 → トラック）だとトラックのロード時間ぶん録音の頭が先行し、
+    // トラック先頭からの録音では実測 startPositionMs が負になり補正できない。
+    // イヤホン接続時は音源がイヤホンへルーティングされ、マイクは声のみを収録する。
     // スピーカー再生時はマイクがスピーカー音も物理的に収録する
+    let trackSound: Audio.Sound | null = null;
     if (trackSource) {
       try {
         const { sound } = await Audio.Sound.createAsync(
           { uri: trackSource },
           { shouldPlay: true, positionMillis: startPositionMs, volume: 1.0 },
         );
+        trackSound = sound;
         trackSoundRef.current = sound;
       } catch (err) {
-        // 音源再生に失敗しても録音自体は継続する（タイマーは必ず起動させる）
+        // 無音のまま録音を続けると選択位置と実態がズレたテイクが保存される
+        // ため、通知して中止する（再試行はユーザー操作に委ねる）
         console.error('Track playback failed', err);
+        preparedRecordingRef.current = null;
+        recording.stopAndUnloadAsync().catch(() => {});
+        if (!shouldContinueStartup()) return;
+        Alert.alert('エラー', REC_PERMISSION_MESSAGES.trackPlaybackFailed);
+        onAbortRef.current?.();
+        return;
       }
     }
+
+    // トラック起動待ちの間にアンマウント・停止操作されていたら両方破棄する
+    if (!shouldContinueStartup()) {
+      preparedRecordingRef.current = null;
+      recording.stopAndUnloadAsync().catch(() => {});
+      trackSound?.stopAsync().catch(() => {});
+      trackSound?.unloadAsync().catch(() => {});
+      trackSoundRef.current = null;
+      return;
+    }
+
+    try {
+      await recording.startAsync();
+    } catch (err) {
+      // AVAudioSession が非アクティブな遷移中は start も失敗し得るため、
+      // prepare と同様に active 復帰を待って 1 回だけリトライする
+      console.error('Recording start failed, retrying', err);
+      try {
+        await waitForAppActive();
+        // 復帰待ちの間にモーダルが閉じられていたらリトライしない
+        if (!shouldContinueStartup()) throw err;
+        await recording.startAsync();
+      } catch (retryErr) {
+        console.error('Recording start failed', retryErr);
+        preparedRecordingRef.current = null;
+        recording.stopAndUnloadAsync().catch(() => {});
+        trackSound?.stopAsync().catch(() => {});
+        trackSound?.unloadAsync().catch(() => {});
+        trackSoundRef.current = null;
+        if (!shouldContinueStartup()) return;
+        Alert.alert('エラー', REC_PERMISSION_MESSAGES.recordingStartFailed);
+        onAbortRef.current?.();
+        return;
+      }
+    }
+
+    // startAsync 待ちの間にアンマウント・停止操作されていたら録音を破棄する
+    // （マイクを掴んだまま参照を失わないように）
+    if (!shouldContinueStartup()) {
+      preparedRecordingRef.current = null;
+      recording.stopAndUnloadAsync().catch(() => {});
+      trackSound?.stopAsync().catch(() => {});
+      trackSound?.unloadAsync().catch(() => {});
+      trackSoundRef.current = null;
+      return;
+    }
+    preparedRecordingRef.current = null;
+    recordingRef.current = recording;
+
+    // 実測は投げ放しで開始する（録音・タイマーの起動は待たせない）
+    if (trackSound) void measureStartPosition(recording, trackSound);
 
     setIsRunning(true);
   }, [trackSource, startPositionMs]);
 
   const stopRecording = async () => {
     try {
+      // 起動シーケンス（トラックロード〜録音開始）がまだ進行中の場合は
+      // 中断させ、遅れて録音が開始されるのを防ぐ
+      startCancelledRef.current = true;
       setIsRunning(false);
 
       // 音源再生を停止・解放
@@ -200,11 +350,19 @@ export default function RecRecordingSection({
       }
 
       const recording = recordingRef.current;
-      if (!recording) return;
+      if (!recording) {
+        // 起動完了前（トラックロード〜録音開始の途中）に停止された場合は
+        // 保存できる録音がないため、prepare 済みの録音を即時解放して
+        // モーダルを閉じる（トラックロードの完了を待たない）
+        preparedRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
+        preparedRecordingRef.current = null;
+        onAbortRef.current?.();
+        return;
+      }
 
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI() || '';
-      onStop(timer, uri);
+      onStop(timer, uri, measuredStartPositionMsRef.current ?? undefined);
 
       Animated.parallel([
         runBounce(outerScale),

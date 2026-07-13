@@ -107,10 +107,13 @@ export default function RecStartModal({
     setCustomPositionMs(null);
   }, []);
 
-  const handleSelect = async (positionMs: number) => {
-    try {
-      if (isModalPlaying) await localSound?.pauseAsync().catch(() => {});
-    } catch {}
+  const handleSelect = (positionMs: number) => {
+    // isModalPlaying の state 反映遅れで試聴音源の停止が漏れると、録音中に
+    // 別位置のトラックが鳴り続けてテイクに混入するため常に停止する。
+    // 完了は待たない（録音モーダル表示までの遷移中に停止が完了する）
+    localSound?.pauseAsync().catch((err) => {
+      console.error('RecStartModal: failed to pause preview sound', err);
+    });
     onStartRecording(positionMs);
   };
 
