@@ -1,6 +1,7 @@
 import { ReplicateApiError } from './replicate';
 import {
   isPermanentDownloadStatus,
+  isStaleSeparation,
   MAX_TRANSIENT_POLL_FAILURES,
   PermanentSeparationError,
   resolveSeparationErrorAction,
@@ -21,6 +22,33 @@ describe('isPermanentDownloadStatus', () => {
   it('408 / 429 は一時エラー', () => {
     expect(isPermanentDownloadStatus(408)).toBe(false);
     expect(isPermanentDownloadStatus(429)).toBe(false);
+  });
+});
+
+describe('isStaleSeparation', () => {
+  it('位置合わせフラグのない分離音源は stale（mp3 時代・flac 移行期の再生成対象）', () => {
+    expect(
+      isStaleSeparation({ separatedS3Key: 'records/separated/u/r.mp3' })
+    ).toBe(true);
+    expect(
+      isStaleSeparation({
+        separatedS3Key: 'records/separated/u/r.wav',
+        separationAligned: undefined,
+      })
+    ).toBe(true);
+  });
+
+  it('位置合わせ適用済み（separationAligned: true）は stale ではない', () => {
+    expect(
+      isStaleSeparation({
+        separatedS3Key: 'records/separated/u/r.wav',
+        separationAligned: true,
+      })
+    ).toBe(false);
+  });
+
+  it('分離音源がないレコードは stale ではない', () => {
+    expect(isStaleSeparation({})).toBe(false);
   });
 });
 

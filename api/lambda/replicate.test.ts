@@ -15,7 +15,8 @@ describe('inputFor', () => {
     expect(input.audio).toBe(audioUrl);
     // stem 未指定だと 4 ステム全処理になり時間・コストが増えるため必須
     expect(input.stem).toBe('vocals');
-    expect(input.output_format).toBe('mp3');
+    // Lambda 側で先頭 priming をトリムできるよう wav 固定（TASK-44）
+    expect(input.output_format).toBe('wav');
   });
 
   it('resemble 系モデルは input_audio + denoise_flag: true を渡す', () => {
@@ -219,7 +220,7 @@ describe('createPrediction', () => {
     expect(body.version).toBe('ver-demucs');
     expect(body.input.audio).toBe('https://example.com/rec.m4a');
     expect(body.input.stem).toBe('vocals');
-    expect(body.input.output_format).toBe('mp3');
+    expect(body.input.output_format).toBe('wav');
   });
 
   it('旧デフォルト（resemble-enhance）が環境変数に残っていても demucs に差し替える', async () => {
