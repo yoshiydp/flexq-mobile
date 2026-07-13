@@ -1,6 +1,6 @@
 import React from 'react';
 import { Alert, AppState } from 'react-native';
-import { render, act } from '@testing-library/react-native';
+import { render, act, fireEvent } from '@testing-library/react-native';
 import RecRecordingSection from './index';
 import { REC_PERMISSION_MESSAGES } from '@/constants/messages';
 
@@ -9,9 +9,11 @@ const mockSetAudioModeAsync = jest.fn();
 const mockPrepareToRecordAsync = jest.fn();
 const mockStartAsync = jest.fn();
 const mockStopAndUnloadAsync = jest.fn();
+const mockRecordingGetStatusAsync = jest.fn();
 const mockCreateAsync = jest.fn();
 const mockStopAsync = jest.fn();
 const mockUnloadAsync = jest.fn();
+const mockSoundGetStatusAsync = jest.fn();
 
 jest.mock('expo-av', () => {
   return {
@@ -27,6 +29,7 @@ jest.mock('expo-av', () => {
         prepareToRecordAsync: mockPrepareToRecordAsync,
         startAsync: mockStartAsync,
         stopAndUnloadAsync: mockStopAndUnloadAsync,
+        getStatusAsync: mockRecordingGetStatusAsync,
         getURI: jest.fn(() => 'mock-recording-uri'),
       })),
       Sound: {
@@ -59,7 +62,19 @@ describe('RecRecordingSection コンポーネント', () => {
       sound: {
         stopAsync: mockStopAsync,
         unloadAsync: mockUnloadAsync,
+        getStatusAsync: mockSoundGetStatusAsync,
       },
+    });
+    // 実測 startPositionMs 用のステータス（デフォルト: 両者とも動作中）
+    mockRecordingGetStatusAsync.mockResolvedValue({
+      canRecord: true,
+      isRecording: true,
+      durationMillis: 83,
+    });
+    mockSoundGetStatusAsync.mockResolvedValue({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 2683,
     });
   });
 
@@ -161,11 +176,72 @@ describe('RecRecordingSection コンポーネント', () => {
       { shouldPlay: true, positionMillis: 2000, volume: 1.0 },
     );
 
+    // トラックは録音より先に起動する（起動遅延が実測 startPositionMs で
+    // 補正できるよう、実測値が負にならない順序にする / TASK-44）
+    expect(mockCreateAsync.mock.invocationCallOrder[0]).toBeLessThan(
+      mockStartAsync.mock.invocationCallOrder[0],
+    );
+
     // タイマーが起動している
     await advanceTimers(1000);
     getByText('00:01:00');
     expect(alertSpy).not.toHaveBeenCalled();
     expect(mockOnAbort).not.toHaveBeenCalled();
+  });
+
+  it('実測した録音開始位置（トラック位置 − 録音経過時間）を onStop で引き渡す', async () => {
+    const { getByTestId } = render(
+      <RecRecordingSection
+        {...mockProps}
+        trackSource="https://example.com/track.mp3"
+        startPositionMs={2000}
+      />,
+    );
+
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+
+    // トラック位置 2683ms − 録音経過 83ms = 2600ms が実測値になる
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+
+    expect(mockOnStop).toHaveBeenCalledWith(
+      expect.any(Number),
+      'mock-recording-uri',
+      2600,
+    );
+  });
+
+  it('実測できなかった場合（トラックが再生状態にならない）は onStop の実測値が undefined になる', async () => {
+    mockSoundGetStatusAsync.mockResolvedValue({
+      isLoaded: true,
+      isPlaying: false,
+      positionMillis: 2000,
+    });
+
+    const { getByTestId } = render(
+      <RecRecordingSection
+        {...mockProps}
+        trackSource="https://example.com/track.mp3"
+        startPositionMs={2000}
+      />,
+    );
+
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+    // 実測リトライ（100ms × 20 回）を消化する
+    await advanceTimers(2500);
+
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+
+    expect(mockOnStop).toHaveBeenCalledWith(
+      expect.any(Number),
+      'mock-recording-uri',
+      undefined,
+    );
   });
 
   it('許可拒否時に Alert が表示され、録音が開始されない', async () => {
@@ -306,7 +382,108 @@ describe('RecRecordingSection コンポーネント', () => {
     getByText('00:00:00');
   });
 
-  it('トラック音源の再生に失敗しても録音とタイマーは継続する', async () => {
+  it('録音開始（startAsync）の一時失敗は active 復帰後のリトライで回復する', async () => {
+    mockStartAsync.mockRejectedValueOnce(new Error('session inactive'));
+
+    const { getByText } = render(
+      <RecRecordingSection
+        {...mockProps}
+        trackSource="https://example.com/track.mp3"
+      />,
+    );
+
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+
+    // active のためリトライは即時実行され、録音が開始される
+    expect(mockStartAsync).toHaveBeenCalledTimes(2);
+    expect(alertSpy).not.toHaveBeenCalled();
+    expect(mockOnAbort).not.toHaveBeenCalled();
+
+    await advanceTimers(1000);
+    getByText('00:01:00');
+  });
+
+  it('startAsync 待ちの間にアンマウントされた場合は録音を破棄する', async () => {
+    let resolveStart: () => void = () => {};
+    mockStartAsync.mockReturnValue(
+      new Promise<void>((resolve) => {
+        resolveStart = resolve;
+      }),
+    );
+
+    const { unmount } = render(
+      <RecRecordingSection
+        {...mockProps}
+        trackSource="https://example.com/track.mp3"
+      />,
+    );
+
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+    expect(mockStartAsync).toHaveBeenCalledTimes(1);
+
+    // startAsync が解決する前にモーダルが閉じられる
+    unmount();
+    await act(async () => {
+      resolveStart();
+    });
+
+    // 録音・トラックとも破棄される（マイクを掴んだままにしない）
+    expect(mockStopAndUnloadAsync).toHaveBeenCalled();
+    expect(mockStopAsync).toHaveBeenCalled();
+    expect(mockUnloadAsync).toHaveBeenCalled();
+  });
+
+  it('トラックのロード中に停止ボタンが押されたら録音を開始しない', async () => {
+    let resolveCreate: (value: unknown) => void = () => {};
+    mockCreateAsync.mockReturnValue(
+      new Promise((resolve) => {
+        resolveCreate = resolve;
+      }),
+    );
+
+    const { getByTestId } = render(
+      <RecRecordingSection
+        {...mockProps}
+        trackSource="https://example.com/track.mp3"
+      />,
+    );
+
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+    expect(mockCreateAsync).toHaveBeenCalledTimes(1);
+
+    // トラックのロードが終わる前に停止ボタンを押す
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+
+    // ロード完了後も録音は開始されず、音源は破棄される
+    await act(async () => {
+      resolveCreate({
+        sound: {
+          stopAsync: mockStopAsync,
+          unloadAsync: mockUnloadAsync,
+          getStatusAsync: mockSoundGetStatusAsync,
+        },
+      });
+    });
+
+    expect(mockStartAsync).not.toHaveBeenCalled();
+    expect(mockStopAndUnloadAsync).toHaveBeenCalled();
+    expect(mockStopAsync).toHaveBeenCalled();
+    expect(mockUnloadAsync).toHaveBeenCalled();
+    // 保存できる録音がないためモーダルを閉じる
+    expect(mockOnAbort).toHaveBeenCalledTimes(1);
+    expect(mockOnStop).not.toHaveBeenCalled();
+  });
+
+  it('トラック音源の再生に失敗した場合は Alert を表示して録音を中止する', async () => {
+    // 無音のまま録音を続けると選択位置と実態がズレたテイクが保存されるため、
+    // 継続せず中止する（TASK-44）
     mockCreateAsync.mockRejectedValue(new Error('track load failed'));
 
     const { getByText } = render(
@@ -320,11 +497,41 @@ describe('RecRecordingSection コンポーネント', () => {
     await advanceTimers(5000);
     await flushAsync();
 
+    // 録音は開始されず、準備済みの Recording は破棄される
+    expect(mockStartAsync).not.toHaveBeenCalled();
+    expect(mockStopAndUnloadAsync).toHaveBeenCalled();
+    expect(alertSpy).toHaveBeenCalledWith(
+      'エラー',
+      REC_PERMISSION_MESSAGES.trackPlaybackFailed,
+    );
+    expect(mockOnAbort).toHaveBeenCalledTimes(1);
+
+    // タイマーは起動しない
+    await advanceTimers(1000);
+    getByText('00:00:00');
+  });
+
+  it('trackSource なし（QuickRecord）の場合は実測なしで録音が開始される', async () => {
+    const { getByText, getByTestId } = render(
+      <RecRecordingSection {...mockProps} trackSource={null} />,
+    );
+
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+
+    expect(mockCreateAsync).not.toHaveBeenCalled();
     expect(mockStartAsync).toHaveBeenCalledTimes(1);
 
-    // タイマーが起動している
     await advanceTimers(1000);
     getByText('00:01:00');
-    expect(mockOnAbort).not.toHaveBeenCalled();
+
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+    expect(mockOnStop).toHaveBeenCalledWith(
+      expect.any(Number),
+      'mock-recording-uri',
+      undefined,
+    );
   });
 });

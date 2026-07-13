@@ -29,7 +29,12 @@ const RecLyricsThemeBridge = new BridgeExtension({
 interface RecRecordingModalProps {
   visible: boolean;
   onClose: () => void;
-  onStop: (durationMs: number, recordingFile: string) => void;
+  /** measuredStartPositionMs は録音中に実測したトラック同期用の録音開始位置 */
+  onStop: (
+    durationMs: number,
+    recordingFile: string,
+    measuredStartPositionMs?: number,
+  ) => void;
   trackSource?: string | null;
   startPositionMs?: number;
   lyrics?: string;
