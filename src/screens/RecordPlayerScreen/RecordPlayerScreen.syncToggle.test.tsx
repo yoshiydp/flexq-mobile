@@ -74,6 +74,9 @@ jest.mock('@/hooks/useFetchRecord', () => ({
 jest.mock('@/hooks/useHeadphonesConnected', () => ({
   useHeadphonesConnected: jest.fn(() => 'bluetooth'),
 }));
+jest.mock('@/hooks/useShareRecord', () => ({
+  useShareRecord: () => ({ shareRecord: jest.fn(), downloading: false }),
+}));
 
 // AI クリーンアップ（声のみ音源）の状態。テストごとに status / separatedSource を上書きする
 const mockSeparation = {
