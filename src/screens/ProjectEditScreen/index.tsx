@@ -73,7 +73,12 @@ export default function ProjectEditScreen() {
     waveformJson?: any;
   }) ?? { id: '' };
 
-  const { project, loading, error } = useFetchProjectDetail(id);
+  // project は編集ステート（projectName / body / cueButtons など）のシードに
+  // 使われるため、フォアグラウンド復帰時の自動再フェッチは無効化して
+  // 編集中の内容が上書きされないようにする（TASK-47）
+  const { project, loading, error } = useFetchProjectDetail(id, {
+    refreshOnForeground: false,
+  });
 
   const {
     records: projectRecords,

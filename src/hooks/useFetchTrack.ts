@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 
 export interface LinkedProject {
   id: string;
@@ -47,6 +48,9 @@ export function useFetchTrack() {
   useEffect(() => {
     fetchTrack();
   }, [fetchTrack]);
+
+  // フォアグラウンド復帰時に一覧（音源・アートワークの Presigned URL 含む）を再フェッチ（TASK-47）
+  useForegroundRefresh(fetchTrack);
 
   return { tracks, loading, error, refreshTrack: fetchTrack };
 }

@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import type { FC } from 'react';
 import type { SvgProps } from 'react-native-svg';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 
 export interface SocialAccount {
@@ -20,7 +21,12 @@ export interface ProfileType {
 
 const SOCIAL_PROVIDERS = Object.keys(SOCIAL_ICON_MAP) as (keyof typeof SOCIAL_ICON_MAP)[];
 
-export function useFetchProfile() {
+export function useFetchProfile(
+  options: {
+    /** フォアグラウンド復帰時の自動再フェッチ（既定: true）。編集画面では false にして編集内容の上書きを防ぐ */
+    refreshOnForeground?: boolean;
+  } = {},
+) {
   const [profile, setProfile] = useState<ProfileType | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<Error | null>(null);
@@ -66,6 +72,11 @@ export function useFetchProfile() {
   useEffect(() => {
     fetchProfile();
   }, [fetchProfile]);
+
+  // フォアグラウンド復帰時にプロフィール（画像の Presigned URL 含む）を再フェッチ（TASK-47）
+  useForegroundRefresh(fetchProfile, {
+    enabled: options.refreshOnForeground ?? true,
+  });
 
   return { profile, loading, error, refreshProfile: fetchProfile };
 }
