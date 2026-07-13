@@ -101,8 +101,12 @@ export function inputFor(
   // モデル名（SAM パラメータで差し替え可能）から決定する
   if (model.includes('demucs')) {
     // demucs: stem 指定でボーカルのみ処理する（未指定だと 4 ステム全処理で時間・コスト増）。
-    // output_format を固定して出力拡張子を決定的にする
-    return { audio: audioUrl, stem: 'vocals', output_format: 'mp3' };
+    // output_format は wav 固定（TASK-44）: demucs は入力 m4a の AAC priming
+    // （先頭無音 ≈48ms）を含めてデコードするため、mp3/flac のどれを選んでも
+    // 出力の頭に無音が残りトラックとの同時再生がズレる。wav であれば保存時に
+    // Lambda 側でコーデック不要の先頭トリムと 16-bit 変換ができる
+    // （audio-align.ts / get-record-separate-status.ts）
+    return { audio: audioUrl, stem: 'vocals', output_format: 'wav' };
   }
   if (model.includes('resemble')) {
     // resemble-enhance: denoise_flag: true で環境ノイズ除去を有効化する

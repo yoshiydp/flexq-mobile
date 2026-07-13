@@ -16,9 +16,16 @@ import {
 } from './replicate';
 import {
   isPermanentDownloadStatus,
+  isStaleSeparation,
   PermanentSeparationError,
   resolveSeparationErrorAction,
 } from './separation-status';
+import {
+  alignSeparatedWav,
+  detectAudioFormat,
+  mp4DurationMs,
+  wavDurationMs,
+} from './audio-align';
 
 /**
  * AI クリーンアップの進捗を確認する（クライアントからのポーリング用）。
@@ -52,6 +59,16 @@ export const handler = async (event: any) => {
   }
 
   const status = record.separationStatus ?? 'none';
+
+  // 位置合わせ（先頭 priming トリム）適用前の分離音源（同期ズレあり）は
+  // 未処理として返し、アプリの「AI クリーンアップ」ボタンから再生成できるようにする
+  if (status === 'done' && isStaleSeparation(record)) {
+    return createResponse({
+      id: recordId,
+      separationStatus: 'none',
+      separationType: record.separationType,
+    });
+  }
 
   if (status === 'done' && record.separatedS3Key) {
     const separatedSource = await getSignedUrl(
@@ -118,16 +135,41 @@ export const handler = async (event: any) => {
       }
       const audioBuffer = Buffer.from(await audioRes.arrayBuffer());
 
-      const ext = extensionFromUrl(outputUrl);
+      // 位置合わせ: demucs は入力 m4a の AAC priming（先頭無音 ≈48ms）を含めて
+      // デコードするため、元録音との長さの差分を先頭からトリムして
+      // タイムラインを一致させる（あわせて 16-bit PCM 化でサイズを抑える）。
+      // 元録音の S3 取得失敗（一時エラー）は throw して次回ポーリングで再試行する。
+      // 出力が wav でない場合（wav 化デプロイ前に開始された flac/mp3 の prediction
+      // が完了したケース等）はそのまま保存するが aligned を付けず stale のままに
+      // する: 再実行すれば wav パイプラインで作り直されて解消する
+      let body: Buffer = audioBuffer;
+      let trimmedMs = 0;
+      const originalDurationMs = await getOriginalDurationMs(record.s3Key);
+      const aligned = alignSeparatedWav(audioBuffer, originalDurationMs);
+      if (aligned) {
+        body = aligned.buffer;
+        trimmedMs = aligned.trimmedMs;
+      } else {
+        console.warn(
+          'Separated audio is not a supported wav; saving without alignment'
+        );
+      }
+
+      // 拡張子・Content-Type は URL ではなく実データのマジックバイトで判定する
+      // （demucs の出力 URL の拡張子は実フォーマットと一致しないことがある）
+      const format = detectAudioFormat(body) ?? {
+        ext: extensionFromUrl(outputUrl),
+        contentType: contentTypeFromExtension(extensionFromUrl(outputUrl)),
+      };
       // recordId から決定的に生成されるキーのため、再実行時は同キーへ上書きされる
-      const separatedS3Key = `records/separated/${claims.userId}/${recordId}.${ext}`;
+      const separatedS3Key = `records/separated/${claims.userId}/${recordId}.${format.ext}`;
 
       await s3Client.send(
         new PutObjectCommand({
           Bucket: process.env.TRACK_AUDIO_BUCKET!,
           Key: separatedS3Key,
-          Body: audioBuffer,
-          ContentType: contentTypeFromExtension(ext),
+          Body: body,
+          ContentType: format.contentType,
         })
       );
 
@@ -137,10 +179,18 @@ export const handler = async (event: any) => {
             TableName: process.env.RECORDS_TABLE!,
             Key: { userId: claims.userId, recordId },
             UpdateExpression:
-              'SET separationStatus = :status, separatedS3Key = :key REMOVE separationRetryCount',
+              'SET separationStatus = :status, separatedS3Key = :key, separationAligned = :aligned, separationTrimmedMs = :trimmedMs REMOVE separationRetryCount',
             ExpressionAttributeValues: {
               ':status': 'done',
               ':key': separatedS3Key,
+              // 位置合わせパイプライン（wav トリム）を通せた場合のみ aligned に
+              // する。非 wav 出力は stale のままにして再実行で作り直せるようにする
+              // （再実行は wav 指定なので収束する）。なお wav 出力で元録音の長さ
+              // だけが解析できないケースは再実行しても改善しないため aligned 扱い
+              // （trimmedMs: 0）とし、再実行課金のループを防ぐ。
+              // trimmedMs はデバッグ用の記録
+              ':aligned': aligned !== null,
+              ':trimmedMs': Math.round(trimmedMs * 1000) / 1000,
             },
           })
         );
@@ -163,6 +213,36 @@ export const handler = async (event: any) => {
           });
         // DynamoDB 更新失敗は一時エラーとして次回ポーリングで再試行する
         throw updateErr;
+      }
+
+      // 再生成で拡張子が変わった場合（mp3 → wav 等）、旧キーのオブジェクトが
+      // 孤児として残るためベストエフォートで削除する（失敗はログのみ）
+      if (record.separatedS3Key && record.separatedS3Key !== separatedS3Key) {
+        await s3Client
+          .send(
+            new DeleteObjectCommand({
+              Bucket: process.env.TRACK_AUDIO_BUCKET!,
+              Key: record.separatedS3Key,
+            })
+          )
+          .catch((cleanupErr) => {
+            console.error(
+              'Failed to delete stale separated audio:',
+              cleanupErr
+            );
+          });
+      }
+
+      // 位置合わせを通せなかった出力（非 wav = 旧形式の prediction 等）は
+      // stale として保存したので、done + URL は返さず未処理として返す。
+      // クライアントはポーリングを止めてボタンを再表示し、再実行（wav
+      // パイプライン）で作り直せる
+      if (!aligned) {
+        return createResponse({
+          id: recordId,
+          separationStatus: 'none',
+          separationType: record.separationType,
+        });
       }
 
       const separatedSource = await getSignedUrl(
@@ -276,6 +356,32 @@ async function resetRetryCount(userId: string, recordId: string) {
     .catch((err) => {
       console.error('Failed to reset separationRetryCount:', err);
     });
+}
+
+/**
+ * 元録音を S3 から取得して再生時間（ms）を返す。
+ * - S3 取得失敗（一時エラー）は throw し、呼び出し側の catch で
+ *   次回ポーリングの再試行に乗せる（位置合わせ前の結果を恒久キャッシュしない）
+ * - フォーマット未対応などで長さを解析できない場合（構造的・リトライ不能）は
+ *   null を返し、位置合わせをスキップして保存する
+ */
+async function getOriginalDurationMs(
+  s3Key: string | undefined
+): Promise<number | null> {
+  if (!s3Key) return null;
+  const obj = await s3Client.send(
+    new GetObjectCommand({
+      Bucket: process.env.TRACK_AUDIO_BUCKET!,
+      Key: s3Key,
+    })
+  );
+  const bytes = await obj.Body?.transformToByteArray();
+  if (!bytes) return null;
+  const buffer = Buffer.from(bytes);
+  // 録音は基本 m4a だが、アップロード API は wav も受け付けるため両対応する
+  const format = detectAudioFormat(buffer);
+  if (format?.ext === 'wav') return wavDurationMs(buffer);
+  return mp4DurationMs(buffer);
 }
 
 function extensionFromUrl(url: string): string {

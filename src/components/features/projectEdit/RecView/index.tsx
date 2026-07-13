@@ -87,7 +87,11 @@ export default function RecView({
     setTimeout(() => setRecordingModalVisible(true), 300);
   };
 
-  const handleStopRecording = (duration: number, file: string) => {
+  const handleStopRecording = (
+    duration: number,
+    file: string,
+    measuredStartPositionMs?: number,
+  ) => {
     if (!file || duration <= 0) return;
     setRecordingModalVisible(false);
     navigator.navigate('RecordPlayer', {
@@ -95,7 +99,9 @@ export default function RecView({
       recordedDuration: duration,
       source: 'ProjectEdit',
       projectId,
-      startPositionMs,
+      // 実測値（トラックが実際に鳴り始めた位置との対応）を優先する。
+      // 選択位置はトラックの起動遅延ぶんズレるため（TASK-44）
+      startPositionMs: measuredStartPositionMs ?? startPositionMs,
       // ProjectSettings で差し替えた未保存のトラックも含め、録音時に実際に
       // 使用していた音源をトラック同期再生でそのまま使えるように引き渡す
       trackSource: trackSource ?? undefined,

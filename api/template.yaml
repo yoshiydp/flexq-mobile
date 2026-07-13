@@ -689,7 +689,9 @@ Resources:
       Handler: lambda/get-record-separate-status.handler
       CodeUri: ./
       Timeout: 25
-      MemorySize: 512
+      # wav（無圧縮）の分離音源をメモリ上でトリム・16-bit 変換するため増量
+      # （24-bit stereo 44.1kHz ≈ 15.5MB/分。長尺録音でも収まるサイズ）
+      MemorySize: 1024
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable

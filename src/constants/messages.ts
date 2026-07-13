@@ -23,6 +23,8 @@ export const REC_PERMISSION_MESSAGES = {
     'マイクの使用が許可されていないため録音できません。設定アプリからこのアプリのマイクへのアクセスを許可してください。',
   recordingStartFailed:
     '録音を開始できませんでした。もう一度お試しください。',
+  trackPlaybackFailed:
+    'トラックの再生を開始できませんでした。もう一度お試しください。',
 };
 
 export const HEADPHONE_LABELS = {

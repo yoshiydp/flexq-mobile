@@ -166,7 +166,7 @@ export default function RecordPlayerScreen() {
 
         if (status.didJustFinish) {
           // 録音（声）の再生終了に合わせてトラック側も停止/巻き戻しする（録音尺をマスター）
-          syncPlaybackRef.current.handleRecordFinish(status.isLooping);
+          syncPlaybackRef.current.handleRecordFinish(status.isLooping, newSound);
           if (!status.isLooping) {
             setIsPlaying(false);
             newSound.setPositionAsync(0);
@@ -318,6 +318,9 @@ export default function RecordPlayerScreen() {
           sound.playAsync(),
           syncPlayback.syncPlay(status.positionMillis || 0),
         ]);
+        // 2 つのプレイヤーの発音開始タイミング差（フォーマット差・バッファリング等）
+        // を実測して補正する（TASK-44）
+        void syncPlayback.correctSyncOffset(sound);
         setIsPlaying(true);
       }
     }
@@ -329,6 +332,8 @@ export default function RecordPlayerScreen() {
         sound.setPositionAsync(value),
         syncPlayback.syncSeek(value),
       ]);
+      // 再生中のシークは両プレイヤーのシーク遅延差でズレが出るため補正する
+      if (isPlaying) void syncPlayback.correctSyncOffset(sound);
       if (!isPlaying) setIsPlaying(false);
     }
   };
@@ -398,8 +403,10 @@ export default function RecordPlayerScreen() {
     // 録音を再生中に有効化した場合はトラックも追従して再生を開始する。
     // ロード待ちの間に再生位置が進む（または一時停止される）ため、最新の状態を取り直す
     const latestStatus = sound ? await sound.getStatusAsync() : null;
-    if (latestStatus?.isLoaded && latestStatus.isPlaying) {
+    if (latestStatus?.isLoaded && latestStatus.isPlaying && sound) {
       await syncPlayback.syncPlay(latestStatus.positionMillis || 0);
+      // 再生途中からのトラック合流も発音開始タイミング差が出るため補正する
+      void syncPlayback.correctSyncOffset(sound);
     }
   };
 

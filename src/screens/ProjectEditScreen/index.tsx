@@ -927,7 +927,12 @@ export default function ProjectEditScreen() {
                 isAllCueResetDisabled={handleAllCueResetDisabled()}
                 onBeforeRecord={() => {
                   if (soundRef.current) {
-                    soundRef.current.pauseAsync().catch(() => {});
+                    // 停止漏れは録音テイクへのトラック混入（同期ズレの原因）に
+                    // なるため、失敗時はログを残して 1 回リトライする
+                    soundRef.current.pauseAsync().catch((err) => {
+                      console.error('Failed to pause track before recording:', err);
+                      soundRef.current?.pauseAsync().catch(() => {});
+                    });
                     setIsPlaying(false);
                   }
                 }}

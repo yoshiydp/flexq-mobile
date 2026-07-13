@@ -410,6 +410,118 @@ describe('useSyncedTrackPlayback', () => {
     });
   });
 
+  describe('correctSyncOffset（発音開始タイミングの実測補正 / TASK-44）', () => {
+    beforeEach(() => {
+      jest.useFakeTimers();
+    });
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    const makeRecordSound = (positionMillis: number) => ({
+      getStatusAsync: jest
+        .fn()
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis }),
+    });
+
+    const setup = async (startPositionMs = 0) => {
+      const trackSound = {
+        ...makeTrackSound(),
+        getStatusAsync: jest.fn(),
+      };
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      const rendered = renderSyncHook({ projectId: 'project-1', startPositionMs });
+      await act(async () => {
+        await rendered.result.current.enableSync(0);
+      });
+      trackSound.setPositionAsync.mockClear();
+      return { ...rendered, trackSound };
+    };
+
+    const runCorrection = async (
+      promise: Promise<void>,
+      ms = 150 * 4 + 100,
+    ) => {
+      await act(async () => {
+        await jest.advanceTimersByTimeAsync(ms);
+        await promise;
+      });
+    };
+
+    it('実測ズレが許容値を超えていたらトラックをシークして対応位置に合わせる', async () => {
+      const { result, trackSound } = await setup(500);
+      // トラックが対応位置（500 + 1000）より 80ms 進んでいる → 1500 へ補正
+      trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1580 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1505 });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1500);
+    });
+
+    it('許容値以内のズレは補正しない', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync.mockResolvedValue({
+        isLoaded: true,
+        isPlaying: true,
+        positionMillis: 1008, // 録音 1000 に対し +8ms（許容値 15ms 以内）
+      });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it('同時再生が無効のときは何もしない', async () => {
+      const { result, trackSound } = await setup(0);
+      await act(async () => {
+        await result.current.disableSync();
+      });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      expect(recordSound.getStatusAsync).not.toHaveBeenCalled();
+      expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it('どちらかが発音を開始するまでは補正しない（誤補正防止）', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync.mockResolvedValue({
+        isLoaded: true,
+        isPlaying: false, // トラックがまだ発音していない
+        positionMillis: 1080,
+      });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it('ループ頭出し時（handleRecordFinish）にも補正がかかる', async () => {
+      const { result, trackSound } = await setup(500);
+      trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 580 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 510 });
+      const recordSound = makeRecordSound(0);
+
+      let finishPromise: Promise<void>;
+      await act(async () => {
+        finishPromise = result.current.handleRecordFinish(true, recordSound as any);
+      });
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(500);
+      await runCorrection(finishPromise!);
+
+      // トラック 580 に対し対応位置は 500 + 0 → 80ms 進んでいる → 500 へ補正
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(500);
+    });
+  });
+
   describe('イヤホン切断・アンマウント時の後始末', () => {
     it('同時再生中にイヤホンが切断されたら自動で無効化しトラックを停止する', async () => {
       const trackSound = makeTrackSound();
