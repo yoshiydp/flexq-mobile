@@ -52,6 +52,7 @@ import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
 import { useUpdateProject } from '@/hooks/useUpdateProject';
+import { useProjectBackgroundSave } from '@/hooks/useProjectBackgroundSave';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { getPendingWaveformData } from '@/utils/pendingWaveformData';
 import {
@@ -124,6 +125,29 @@ export default function ProjectEditScreen() {
     bodyRef.current = body;
   }, [body]);
 
+  // アプリ離脱（active → inactive / background）時に未保存の変更を
+  // サイレント保存する (TASK-48)。dirty 判定・保存実行はフック側に閉じる。
+  // 手動保存も同じロックを通す saveNow を使い、バックグラウンド PUT との
+  // 並走（古い内容の上書き・サーバー側副作用の重複）を防ぐ
+  const { saveNow } = useProjectBackgroundSave({
+    project,
+    // body は bodyRef ではなく state を直接使う。getSnapshot はレンダーごとに
+    // 再生成されるクロージャのため、この時点で常に最新の body を参照できる。
+    // bodyRef.current への同期は passive effect（下記）で行われるため、
+    // 同一コミット内で AppState イベントが先に発火すると更新前の値を
+    // 読んでしまう可能性がある
+    getSnapshot: () => ({
+      projectName,
+      body,
+      cueButtons,
+      artworkKey,
+      trackId,
+      trackName,
+    }),
+    save: async (snapshot) => {
+      await updateProject({ id, ...snapshot });
+    },
+  });
 
   const hasShownTrackDeletedWarning = useRef(false);
 
@@ -642,15 +666,9 @@ export default function ProjectEditScreen() {
     closeModal();
     showLoading();
     try {
-      await updateProject({
-        id,
-        projectName,
-        body: bodyRef.current,
-        cueButtons,
-        ...(artworkKey !== undefined ? { artworkKey } : {}),
-        ...(trackId !== undefined ? { trackId } : {}),
-        ...(trackName !== undefined ? { trackName } : {}),
-      });
+      // バックグラウンド保存 (TASK-48) と同じロックを通して保存する。
+      // 進行中のバックグラウンド PUT があれば完了を待ってから実行される
+      await saveNow();
     } catch (error) {
       // 保存に失敗したら画面に留まり、破棄して戻るかはユーザーに明示的に選ばせる
       // （オフライン時などを考慮）
