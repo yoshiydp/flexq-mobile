@@ -51,7 +51,10 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
-import { useUpdateProject } from '@/hooks/useUpdateProject';
+import {
+  useProjectAutoSave,
+  ProjectSaveSnapshot,
+} from '@/hooks/useProjectAutoSave';
 import { useProjectBackgroundSave } from '@/hooks/useProjectBackgroundSave';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { getPendingWaveformData } from '@/utils/pendingWaveformData';
@@ -82,8 +85,6 @@ export default function ProjectEditScreen() {
     error: recordError,
     refreshProjectRecords,
   } = useFetchProjectRecords(id);
-
-  const { updateProject } = useUpdateProject();
 
   const recordLoadingRef = useRef(recordLoading);
   const recordErrorRef = useRef(recordError);
@@ -125,30 +126,6 @@ export default function ProjectEditScreen() {
     bodyRef.current = body;
   }, [body]);
 
-  // アプリ離脱（active → inactive / background）時に未保存の変更を
-  // サイレント保存する (TASK-48)。dirty 判定・保存実行はフック側に閉じる。
-  // 手動保存も同じロックを通す saveNow を使い、バックグラウンド PUT との
-  // 並走（古い内容の上書き・サーバー側副作用の重複）を防ぐ
-  const { saveNow } = useProjectBackgroundSave({
-    project,
-    // body は bodyRef ではなく state を直接使う。getSnapshot はレンダーごとに
-    // 再生成されるクロージャのため、この時点で常に最新の body を参照できる。
-    // bodyRef.current への同期は passive effect（下記）で行われるため、
-    // 同一コミット内で AppState イベントが先に発火すると更新前の値を
-    // 読んでしまう可能性がある
-    getSnapshot: () => ({
-      projectName,
-      body,
-      cueButtons,
-      artworkKey,
-      trackId,
-      trackName,
-    }),
-    save: async (snapshot) => {
-      await updateProject({ id, ...snapshot });
-    },
-  });
-
   const hasShownTrackDeletedWarning = useRef(false);
 
   useEffect(() => {
@@ -160,14 +137,23 @@ export default function ProjectEditScreen() {
     setArtworkUri(project.artwork ?? undefined);
     const projectBody = (project as any).body ?? '';
     setBody(projectBody);
-    setCueButtons(() => {
-      const source = project.cueButtons;
-      if (Array.isArray(source) && source.length > 0) return source;
-      return CUE_LABELS.map((label) => ({
-        time: 0,
-        label,
-        isActive: false,
-      }));
+    const initialCueButtons: CuePointType[] =
+      Array.isArray(project.cueButtons) && project.cueButtons.length > 0
+        ? project.cueButtons
+        : CUE_LABELS.map((label) => ({
+            time: 0,
+            label,
+            isActive: false,
+          }));
+    setCueButtons(initialCueButtons);
+
+    // 自動保存の dirty 判定基準（最後に保存した状態）を読み込み内容で初期化する
+    markProjectSaved({
+      projectName: project.projectName ?? '',
+      body: projectBody,
+      cueButtons: initialCueButtons,
+      trackId: project.trackId,
+      trackName: project.trackName,
     });
 
     // 紐づいていたトラックが削除済みの場合にモーダルを表示
@@ -282,6 +268,65 @@ export default function ProjectEditScreen() {
     showLoading,
     hideLoading,
   } = useModal();
+
+  // ── 無操作 5 分経過での自動保存（TASK-46） ──────────────────────────
+  // 現在の編集状態のスナップショットを毎レンダーで更新し、
+  // 自動保存フックからは ref 経由で常に最新の状態を参照させる
+  const autoSaveSnapshotRef = useRef<ProjectSaveSnapshot>({
+    projectName: '',
+    body: '',
+    cueButtons: [],
+  });
+  autoSaveSnapshotRef.current = {
+    projectName,
+    body,
+    cueButtons,
+    artworkKey,
+    trackId,
+    trackName,
+  };
+  const getAutoSaveSnapshot = useCallback(
+    () => autoSaveSnapshotRef.current,
+    [],
+  );
+
+  const {
+    saveIfDirty,
+    saveNow,
+    waitForPendingAutoSave,
+    markSaved: markProjectSaved,
+    markInteraction: markAutoSaveInteraction,
+  } = useProjectAutoSave({
+    projectId: id,
+    getSnapshot: getAutoSaveSnapshot,
+    // REC モード中（録音中を含む）は無操作タイマーを停止して録音フローとの
+    // 競合を避ける。EDIT モードでの再生はサイレント保存と干渉しないため対象外
+    enabled: currentView === 'edit',
+  });
+
+  // アプリ離脱（active → inactive / background）時に未保存の変更を
+  // サイレント保存する (TASK-48)。dirty 判定・保存の実行・排他制御は
+  // useProjectAutoSave の saveIfDirty に一元化されており、このフックは
+  // AppState イベントの検知と離脱中の再試行スケジューリングのみを担う
+  useProjectBackgroundSave({
+    getSnapshot: getAutoSaveSnapshot,
+    saveIfDirty,
+    waitForPendingAutoSave,
+  });
+
+  // テキスト入力・キュー操作など編集データの変化も「操作」とみなして
+  // 無操作タイマーをリセットする（キーボード入力はタッチ Responder に乗らないため）
+  useEffect(() => {
+    markAutoSaveInteraction();
+  }, [
+    projectName,
+    body,
+    cueButtons,
+    artworkKey,
+    trackId,
+    trackName,
+    markAutoSaveInteraction,
+  ]);
 
   const editor = useEditorBridge({
     bridgeExtensions: [
@@ -666,8 +711,11 @@ export default function ProjectEditScreen() {
     closeModal();
     showLoading();
     try {
-      // バックグラウンド保存 (TASK-48) と同じロックを通して保存する。
-      // 進行中のバックグラウンド PUT があれば完了を待ってから実行される
+      // 無操作自動保存 (TASK-46) / バックグラウンド保存 (TASK-48) と同じ
+      // ロック（useProjectAutoSave の savingRef）を通して保存する。
+      // 進行中のサイレント保存があれば完了を待ってから実行されるため、
+      // PUT の並走（古い内容の上書き・サーバー側副作用の重複）を防ぐ。
+      // 成功時は saveNow 内で dirty 判定基準（baseline）も更新される
       await saveNow();
     } catch (error) {
       // 保存に失敗したら画面に留まり、破棄して戻るかはユーザーに明示的に選ばせる
@@ -845,6 +893,12 @@ export default function ProjectEditScreen() {
   return (
     <View
       style={styles.container}
+      // タッチ・スクロールなど画面内のあらゆるタッチ操作を capture フェーズで
+      // 検知して無操作タイマーをリセットする（レスポンダは奪わない）
+      onStartShouldSetResponderCapture={() => {
+        markAutoSaveInteraction();
+        return false;
+      }}
       onStartShouldSetResponder={() => {
         blurEditor();
         return false;
