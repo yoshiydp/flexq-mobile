@@ -52,6 +52,10 @@ import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
 import { useUpdateProject } from '@/hooks/useUpdateProject';
+import {
+  useProjectAutoSave,
+  ProjectSaveSnapshot,
+} from '@/hooks/useProjectAutoSave';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { getPendingWaveformData } from '@/utils/pendingWaveformData';
 import {
@@ -136,14 +140,23 @@ export default function ProjectEditScreen() {
     setArtworkUri(project.artwork ?? undefined);
     const projectBody = (project as any).body ?? '';
     setBody(projectBody);
-    setCueButtons(() => {
-      const source = project.cueButtons;
-      if (Array.isArray(source) && source.length > 0) return source;
-      return CUE_LABELS.map((label) => ({
-        time: 0,
-        label,
-        isActive: false,
-      }));
+    const initialCueButtons: CuePointType[] =
+      Array.isArray(project.cueButtons) && project.cueButtons.length > 0
+        ? project.cueButtons
+        : CUE_LABELS.map((label) => ({
+            time: 0,
+            label,
+            isActive: false,
+          }));
+    setCueButtons(initialCueButtons);
+
+    // 自動保存の dirty 判定基準（最後に保存した状態）を読み込み内容で初期化する
+    markProjectSaved({
+      projectName: project.projectName ?? '',
+      body: projectBody,
+      cueButtons: initialCueButtons,
+      trackId: project.trackId,
+      trackName: project.trackName,
     });
 
     // 紐づいていたトラックが削除済みの場合にモーダルを表示
@@ -258,6 +271,53 @@ export default function ProjectEditScreen() {
     showLoading,
     hideLoading,
   } = useModal();
+
+  // ── 無操作 5 分経過での自動保存（TASK-46） ──────────────────────────
+  // 現在の編集状態のスナップショットを毎レンダーで更新し、
+  // 自動保存フックからは ref 経由で常に最新の状態を参照させる
+  const autoSaveSnapshotRef = useRef<ProjectSaveSnapshot>({
+    projectName: '',
+    body: '',
+    cueButtons: [],
+  });
+  autoSaveSnapshotRef.current = {
+    projectName,
+    body,
+    cueButtons,
+    artworkKey,
+    trackId,
+    trackName,
+  };
+  const getAutoSaveSnapshot = useCallback(
+    () => autoSaveSnapshotRef.current,
+    [],
+  );
+
+  const {
+    waitForPendingAutoSave,
+    markSaved: markProjectSaved,
+    markInteraction: markAutoSaveInteraction,
+  } = useProjectAutoSave({
+    projectId: id,
+    getSnapshot: getAutoSaveSnapshot,
+    // REC モード中（録音中を含む）は無操作タイマーを停止して録音フローとの
+    // 競合を避ける。EDIT モードでの再生はサイレント保存と干渉しないため対象外
+    enabled: currentView === 'edit',
+  });
+
+  // テキスト入力・キュー操作など編集データの変化も「操作」とみなして
+  // 無操作タイマーをリセットする（キーボード入力はタッチ Responder に乗らないため）
+  useEffect(() => {
+    markAutoSaveInteraction();
+  }, [
+    projectName,
+    body,
+    cueButtons,
+    artworkKey,
+    trackId,
+    trackName,
+    markAutoSaveInteraction,
+  ]);
 
   const editor = useEditorBridge({
     bridgeExtensions: [
@@ -642,6 +702,9 @@ export default function ProjectEditScreen() {
     closeModal();
     showLoading();
     try {
+      // 進行中の自動保存があれば完了を待ち、古いスナップショットの PUT が
+      // この手動保存の後に完了して上書きするのを防ぐ (TASK-46)
+      await waitForPendingAutoSave();
       await updateProject({
         id,
         projectName,
@@ -650,6 +713,15 @@ export default function ProjectEditScreen() {
         ...(artworkKey !== undefined ? { artworkKey } : {}),
         ...(trackId !== undefined ? { trackId } : {}),
         ...(trackName !== undefined ? { trackName } : {}),
+      });
+      // 手動保存が成功したら自動保存の dirty 判定基準も更新する
+      markProjectSaved({
+        projectName,
+        body: bodyRef.current,
+        cueButtons,
+        artworkKey,
+        trackId,
+        trackName,
       });
     } catch (error) {
       // 保存に失敗したら画面に留まり、破棄して戻るかはユーザーに明示的に選ばせる
@@ -827,6 +899,12 @@ export default function ProjectEditScreen() {
   return (
     <View
       style={styles.container}
+      // タッチ・スクロールなど画面内のあらゆるタッチ操作を capture フェーズで
+      // 検知して無操作タイマーをリセットする（レスポンダは奪わない）
+      onStartShouldSetResponderCapture={() => {
+        markAutoSaveInteraction();
+        return false;
+      }}
       onStartShouldSetResponder={() => {
         blurEditor();
         return false;
