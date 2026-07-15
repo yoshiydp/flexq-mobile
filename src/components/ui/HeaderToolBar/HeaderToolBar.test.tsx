@@ -1,5 +1,5 @@
 import React from 'react';
-import { render } from '@testing-library/react-native';
+import { render, fireEvent } from '@testing-library/react-native';
 import HeaderToolBar from './index';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 
@@ -164,6 +164,37 @@ describe('HeaderToolBar コンポーネント', () => {
       />,
     );
     expect(getByTestId('headphone-indicator')).toBeTruthy();
+  });
+
+  it('share ボタン（単体）がレンダリングされ、タップで onPress が呼ばれる (TASK-45)', () => {
+    const onPress = jest.fn();
+    const { getByTestId } = render(
+      <HeaderToolBar
+        items={[{ id: 'toolbar-share', type: 'share' as const, onPress }]}
+      />,
+    );
+    fireEvent.press(getByTestId('toolbar-share'));
+    expect(onPress).toHaveBeenCalled();
+  });
+
+  it('buttonGroup 内の share ボタンがレンダリングされ、タップで onPress が呼ばれる (TASK-45)', () => {
+    const onPress = jest.fn();
+    const { getByTestId } = render(
+      <HeaderToolBar
+        items={[
+          {
+            id: 'toolbar-rightGroup',
+            type: 'buttonGroup' as const,
+            buttons: [
+              { id: 'toolbar-share', type: 'share' as const, onPress },
+              { id: 'toolbar-bookmark', type: 'bookmark' as const },
+            ],
+          },
+        ]}
+      />,
+    );
+    fireEvent.press(getByTestId('toolbar-share'));
+    expect(onPress).toHaveBeenCalled();
   });
 
   it('headphoneIndicator アイテムがあってもイヤホン未接続時は何も表示されない', () => {

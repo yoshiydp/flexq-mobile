@@ -36,6 +36,7 @@ export default function HeaderToolBar({
   const rightItems = items.filter(
     (item) =>
       item.type === 'bookmark' ||
+      item.type === 'share' ||
       item.type === 'navigationListScreen' ||
       item.type === 'action' ||
       item.type === 'hamburger' ||
@@ -98,6 +99,23 @@ export default function HeaderToolBar({
                               styles.defaultColor,
                               isBookmarked && styles.primaryColor,
                             ]}
+                          />
+                        </Pressable>
+                      );
+
+                    case 'share':
+                      return (
+                        <Pressable
+                          key={btn.id}
+                          testID={btn.id}
+                          style={styles.button}
+                          onPress={btn.onPress}
+                        >
+                          <Icon
+                            component={FontAwesome}
+                            name="share-square-o"
+                            size={26}
+                            style={styles.defaultColor}
                           />
                         </Pressable>
                       );
@@ -176,6 +194,23 @@ export default function HeaderToolBar({
                       styles.defaultColor,
                       isBookmarked && styles.primaryColor,
                     ]}
+                  />
+                </Pressable>
+              );
+
+            case 'share':
+              return (
+                <Pressable
+                  key={item.id}
+                  testID={item.id}
+                  style={styles.button}
+                  onPress={item.onPress}
+                >
+                  <Icon
+                    component={FontAwesome}
+                    name="share-square-o"
+                    size={26}
+                    style={styles.defaultColor}
                   />
                 </Pressable>
               );
