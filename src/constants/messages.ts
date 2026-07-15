@@ -18,6 +18,10 @@ export const SEPARATION_LABELS = {
   failed: 'AI クリーンアップに失敗しました。時間をおいて再度お試しください。',
 };
 
+export const SHARE_LABELS = {
+  failed: '共有の準備に失敗しました。時間をおいて再度お試しください。',
+};
+
 export const REC_PERMISSION_MESSAGES = {
   micPermissionDenied:
     'マイクの使用が許可されていないため録音できません。設定アプリからこのアプリのマイクへのアクセスを許可してください。',
