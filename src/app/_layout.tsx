@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
+import { ForegroundRefreshProvider } from '@/contexts/ForegroundRefreshContext';
 import RootNavigator from '@/navigation/RootNavigator';
 import AnimatedSplashScreen from '@/components/ui/AnimatedSplashScreen';
 import { COLORS } from '@/globalStyles';
@@ -35,7 +36,9 @@ export default function Layout() {
   return (
     <SafeAreaProvider>
       <AuthProvider>
-        <AppContent />
+        <ForegroundRefreshProvider>
+          <AppContent />
+        </ForegroundRefreshProvider>
       </AuthProvider>
     </SafeAreaProvider>
   );

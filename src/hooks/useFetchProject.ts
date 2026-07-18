@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 
 export interface ProjectType {
   id: string;
@@ -43,6 +44,9 @@ export function useFetchProject() {
   useEffect(() => {
     fetchProject();
   }, [fetchProject]);
+
+  // フォアグラウンド復帰時に一覧を再フェッチ（TASK-47）
+  useForegroundRefresh(fetchProject);
 
   return { projects, loading, error, refreshProject: fetchProject };
 }

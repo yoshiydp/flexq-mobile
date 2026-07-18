@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 import type {
   RecordedWithHeadphones,
   SeparationStatus,
@@ -64,6 +65,9 @@ export function useFetchProjectRecords(projectId: string) {
   useEffect(() => {
     fetchProjectRecords();
   }, [fetchProjectRecords]);
+
+  // フォアグラウンド復帰時にレコード一覧を再フェッチ（TASK-47）
+  useForegroundRefresh(fetchProjectRecords);
 
   return {
     records,

@@ -12,6 +12,7 @@ import {
   clearAuthTokens,
 } from '@/utils/authStorage';
 import { setOnSessionExpired } from '@/utils/authTokenInterceptor';
+import { ensureValidSession } from '@/utils/ensureValidSession';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import type { AuthUser } from '@/types/auth';
 
@@ -107,7 +108,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       try {
         const token = await getAccessToken();
         if (token) {
-          await refreshProfile();
+          // コールドスタート時のトークン失効チェック（TASK-47）。
+          // 失効していればリフレッシュを試み、セッション不能な場合は
+          // user を null のままにしてログイン画面（SignIn）へ誘導する
+          const sessionValid = await ensureValidSession();
+          if (sessionValid) {
+            await refreshProfile();
+          }
         }
       } catch (err) {
         console.error('Auto login failed:', err);

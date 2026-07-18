@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 
 const CACHE_KEY = 'memo_has_items';
 
@@ -49,6 +50,9 @@ export function useFetchMemo() {
   useEffect(() => {
     fetchMemo();
   }, [fetchMemo]);
+
+  // フォアグラウンド復帰時に一覧を再フェッチ（TASK-47）
+  useForegroundRefresh(fetchMemo);
 
   // 初回フェッチ前はキャッシュ値、以降は前回フェッチ結果を使うことで
   // 再フォーカス時に古いキャッシュでボタンが一瞬表示されるフラッシュを防ぐ
