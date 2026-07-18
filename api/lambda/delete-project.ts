@@ -73,6 +73,13 @@ export const handler = async (event: any) => {
         Key: record.s3Key,
       }));
     }
+    // ミックス済み音源（TASK-49 で生成）もレコードと一緒に削除する
+    if (record.mixedS3Key) {
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: process.env.TRACK_AUDIO_BUCKET!,
+        Key: record.mixedS3Key,
+      }));
+    }
     await docClient.send(new DeleteCommand({
       TableName: process.env.RECORDS_TABLE!,
       Key: { userId: record.userId, recordId: record.recordId },

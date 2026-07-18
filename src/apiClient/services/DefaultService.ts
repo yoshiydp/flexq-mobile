@@ -570,6 +570,63 @@ export class DefaultService {
         });
     }
     /**
+     * Start mixing the separated vocals with the project track audio
+     * Starts a server-side mix (ffmpeg) of the AI-cleaned vocals and the project track audio, aligned with the recording start position. If the record has already been mixed with the same sources, the cached result is returned without starting a new job.
+     *
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static mixRecord(
+        id: string,
+    ): CancelablePromise<{
+        id?: string;
+        mixStatus?: 'none' | 'processing' | 'done' | 'failed';
+        mixedSource?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/record/{id}/mix',
+            path: {
+                'id': id,
+            },
+            errors: {
+                400: `Bad Request (no separated audio, record not linked to a project, or the project has no track audio)`,
+                401: `Unauthorized`,
+                404: `Not Found`,
+                502: `Bad Gateway (failed to start the mix job)`,
+            },
+        });
+    }
+    /**
+     * Get mix status for a record
+     * Polls the mix job status. When the job has finished, the mixed audio is stored in S3 and a presigned URL is returned.
+     *
+     * @param id
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static getRecordMixStatus(
+        id: string,
+    ): CancelablePromise<{
+        id?: string;
+        mixStatus?: 'none' | 'processing' | 'done' | 'failed';
+        mixedSource?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'GET',
+            url: '/data/record/{id}/mix-status',
+            path: {
+                'id': id,
+            },
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
      * Update a record
      * @param id
      * @param requestBody

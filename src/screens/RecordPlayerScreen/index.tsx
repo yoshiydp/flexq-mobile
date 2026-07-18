@@ -24,6 +24,7 @@ import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
 import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
 import {
+  MIX_LABELS,
   MODAL_MESSAGES,
   SEPARATION_LABELS,
   SHARE_LABELS,
@@ -36,6 +37,7 @@ import { useUploadRecord } from '@/hooks/useUploadRecord';
 import { useFetchRecord } from '@/hooks/useFetchRecord';
 import { useSeparateRecord } from '@/hooks/useSeparateRecord';
 import { useShareRecord } from '@/hooks/useShareRecord';
+import { useMixRecord, MixCancelledError } from '@/hooks/useMixRecord';
 import type { SeparationStatus } from '@/types/separationType';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
@@ -60,6 +62,7 @@ export default function RecordPlayerScreen() {
   const { uploadRecord } = useUploadRecord();
   const { refreshRecord } = useFetchRecord();
   const { shareRecord, downloading: shareDownloading } = useShareRecord();
+  const { mixRecord, mixing } = useMixRecord();
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -261,17 +264,26 @@ export default function RecordPlayerScreen() {
     prevSeparationStatusRef.current = separationStatus;
   }, [separationStatus]);
 
-  // 共有用のダウンロード中はフルスクリーンローディングを表示する
-  // （共有シートの表示前に必ず閉じるため、downloading の変化に追従させる）
+  // 共有用のダウンロード・ミックス処理中はフルスクリーンローディングを表示する
+  // （共有シートの表示前に必ず閉じるため、downloading / mixing の変化に追従させる）
   useEffect(() => {
-    if (!shareDownloading) return;
+    if (!shareDownloading && !mixing) return;
     showLoading();
     return () => hideLoading();
-  }, [shareDownloading]);
+  }, [shareDownloading, mixing]);
+
+  // ミックス版（声のみ + トラック音源）を共有できるか (TASK-49)。
+  // 保存済みのプロジェクト録音で、位置合わせ済みの分離音源（声のみ）がある場合のみ
+  const mixShareAvailable = Boolean(
+    params?.id &&
+      params?.projectId &&
+      separationStatus === 'done' &&
+      separatedSource,
+  );
 
   // 現在の再生対象（元の録音 / 声のみ）を iOS 共有シートで共有する。
   // ファイルに保存（デバイス / iCloud Drive）や Google Drive 等への共有に対応 (TASK-45)
-  const handleShare = async () => {
+  const shareActiveSource = async () => {
     const uri =
       activeSource === 'separated' && separatedSource
         ? separatedSource
@@ -304,6 +316,40 @@ export default function RecordPlayerScreen() {
 
       Alert.alert('エラー', SHARE_LABELS.failed);
     }
+  };
+
+  // ミックス版（声のみ + トラック音源をサーバー側で 1 ファイルに合成）を共有する (TASK-49)。
+  // ミックスは完了までポーリングで待ち、生成された音源を共有シートに渡す
+  const handleShareMix = async () => {
+    if (!params?.id) return;
+    try {
+      const mixedSource = await mixRecord(params.id);
+      await shareRecord(mixedSource, `${title}_mix`);
+    } catch (error) {
+      // 画面離脱による中断はエラーとして扱わない（処理はサーバー側で続行され、
+      // 完了後の再実行ではキャッシュが返る）
+      if (error instanceof MixCancelledError) return;
+      console.error('Failed to share mixed record:', error);
+      if (!isMountedRef.current) return;
+      Alert.alert('エラー', MIX_LABELS.failed);
+    }
+  };
+
+  // 共有ボタン・メニューのエントリポイント。ミックス版を共有できる場合は
+  // 「再生中の音源 / ミックス版」の選択肢を表示する (TASK-49)
+  const handleShare = () => {
+    if (!mixShareAvailable) {
+      void shareActiveSource();
+      return;
+    }
+    Alert.alert(MIX_LABELS.chooseTitle, undefined, [
+      {
+        text: MIX_LABELS.shareCurrent,
+        onPress: () => void shareActiveSource(),
+      },
+      { text: MIX_LABELS.shareMix, onPress: () => void handleShareMix() },
+      { text: MIX_LABELS.cancel, style: 'cancel' },
+    ]);
   };
 
   const handleGoBack = () => {
