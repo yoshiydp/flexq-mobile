@@ -36,7 +36,9 @@ const DEFAULT_SOCIAL_ACCOUNTS: SocialAccount[] = (
 
 export default function ProfileEditScreen() {
   const navigation = useNavigation();
-  const { profile, loading } = useFetchProfile();
+  // profile は編集フォームのシードに使われるため、フォアグラウンド復帰時の
+  // 自動再フェッチは無効化して編集中の内容が上書きされないようにする（TASK-47）
+  const { profile, loading } = useFetchProfile({ refreshOnForeground: false });
   const { pickThumbnail, uploadThumbnail, updateProfile } = useUpdateProfile();
   const { showConfirmModal, showInputModal, showLoading, hideLoading, closeModal } = useModal();
   const { signIn: googleSignIn } = useGoogleAuth();

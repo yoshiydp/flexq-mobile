@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 import type {
   RecordedWithHeadphones,
   SeparationStatus,
@@ -71,6 +72,9 @@ export function useFetchRecord() {
   useEffect(() => {
     fetchRecord();
   }, [fetchRecord]);
+
+  // フォアグラウンド復帰時に一覧（録音の Presigned URL 含む）を再フェッチ（TASK-47）
+  useForegroundRefresh(fetchRecord);
 
   // 初回フェッチ前はキャッシュ値、以降は前回フェッチ結果を使うことで
   // 再フォーカス時に古いキャッシュでボタンが一瞬表示されるフラッシュを防ぐ

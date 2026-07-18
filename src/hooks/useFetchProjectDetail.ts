@@ -1,5 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
+import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 
 export interface ProjectDetailType {
   id: string;
@@ -14,7 +15,13 @@ export interface ProjectDetailType {
   updatedAt: Date;
 }
 
-export function useFetchProjectDetail(id: string) {
+export function useFetchProjectDetail(
+  id: string,
+  options: {
+    /** フォアグラウンド復帰時の自動再フェッチ（既定: true）。編集画面では false にして編集内容の上書きを防ぐ */
+    refreshOnForeground?: boolean;
+  } = {},
+) {
   const [project, setProject] = useState<ProjectDetailType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
@@ -39,6 +46,11 @@ export function useFetchProjectDetail(id: string) {
   useEffect(() => {
     fetchProject();
   }, [fetchProject]);
+
+  // フォアグラウンド復帰時に詳細を再フェッチ（TASK-47）
+  useForegroundRefresh(fetchProject, {
+    enabled: options.refreshOnForeground ?? true,
+  });
 
   return { project, loading, error, refreshProject: fetchProject };
 }

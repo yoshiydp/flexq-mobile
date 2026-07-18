@@ -8,6 +8,7 @@ export type HeaderToolBarButtonType =
   | 'action'
   | 'hamburger'
   | 'bookmark'
+  | 'share'
   | 'delete'
   | 'navigationListScreen'
   | 'buttonGroup';
@@ -42,6 +43,7 @@ export const HEADER_TOOLBAR_TEMPLATES = {
     type: 'hamburger',
   } as HeaderToolBarButton,
   bookmark: { id: 'toolbar-bookmark', type: 'bookmark' } as HeaderToolBarButton,
+  share: { id: 'toolbar-share', type: 'share' } as HeaderToolBarButton,
   delete: { id: 'toolbar-delete', type: 'delete' } as HeaderToolBarButton,
   navigationListScreen: {
     id: 'toolbar-navigationListScreen',

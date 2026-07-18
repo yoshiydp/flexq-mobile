@@ -8,6 +8,7 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   Alert,
+  Platform,
 } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -25,6 +26,7 @@ import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
 import {
   MODAL_MESSAGES,
   SEPARATION_LABELS,
+  SHARE_LABELS,
   SYNC_PLAYBACK_LABELS,
 } from '@/constants/messages';
 import { COLORS } from '@/globalStyles';
@@ -33,6 +35,7 @@ import { useDeleteRecord } from '@/hooks/useDeleteRecord';
 import { useUploadRecord } from '@/hooks/useUploadRecord';
 import { useFetchRecord } from '@/hooks/useFetchRecord';
 import { useSeparateRecord } from '@/hooks/useSeparateRecord';
+import { useShareRecord } from '@/hooks/useShareRecord';
 import type { SeparationStatus } from '@/types/separationType';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
@@ -56,6 +59,7 @@ export default function RecordPlayerScreen() {
   const { deleteRecord } = useDeleteRecord();
   const { uploadRecord } = useUploadRecord();
   const { refreshRecord } = useFetchRecord();
+  const { shareRecord, downloading: shareDownloading } = useShareRecord();
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -257,6 +261,51 @@ export default function RecordPlayerScreen() {
     prevSeparationStatusRef.current = separationStatus;
   }, [separationStatus]);
 
+  // 共有用のダウンロード中はフルスクリーンローディングを表示する
+  // （共有シートの表示前に必ず閉じるため、downloading の変化に追従させる）
+  useEffect(() => {
+    if (!shareDownloading) return;
+    showLoading();
+    return () => hideLoading();
+  }, [shareDownloading]);
+
+  // 現在の再生対象（元の録音 / 声のみ）を iOS 共有シートで共有する。
+  // ファイルに保存（デバイス / iCloud Drive）や Google Drive 等への共有に対応 (TASK-45)
+  const handleShare = async () => {
+    const uri =
+      activeSource === 'separated' && separatedSource
+        ? separatedSource
+        : recordedFile;
+    if (!uri) return;
+    try {
+      await shareRecord(uri, title);
+    } catch (error) {
+      console.error('Failed to share record:', error);
+
+      // S3 Presigned URL の期限切れ等でダウンロードに失敗した可能性があるため、
+      // 保存済みレコード（id あり）に限り最新情報を再取得して 1 回だけリトライする
+      // （loadTrack の音源再取得リトライと同じ方針）
+      if (params?.id) {
+        try {
+          const latestRecords = await refreshRecord();
+          const updated = latestRecords?.find((r) => r.id === params.id);
+          const retryUri =
+            activeSource === 'separated'
+              ? updated?.separatedSource
+              : updated?.source;
+          if (retryUri) {
+            await shareRecord(retryUri, title);
+            return;
+          }
+        } catch (retryError) {
+          console.error('Failed to share record after refetch:', retryError);
+        }
+      }
+
+      Alert.alert('エラー', SHARE_LABELS.failed);
+    }
+  };
+
   const handleGoBack = () => {
     const modalMessage = MODAL_MESSAGES.confirmRecordPlayerGoBack(
       params?.source,
@@ -451,6 +500,13 @@ export default function RecordPlayerScreen() {
     }
   };
 
+  // 共有ボタンは iOS のみ表示する。Android の Share.share は url（ファイル添付）に
+  // 対応していないため、Android 対応は別途検討する (TASK-45)
+  const shareButtons =
+    Platform.OS === 'ios'
+      ? [{ ...HEADER_TOOLBAR_TEMPLATES.share, onPress: handleShare }]
+      : [];
+
   const items =
     params?.source === 'Drafts'
       ? [
@@ -459,12 +515,24 @@ export default function RecordPlayerScreen() {
             ...HEADER_TOOLBAR_TEMPLATES.headerTitle,
             headerTitle: 'QUICK RECORD',
           },
-          { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+          {
+            ...HEADER_TOOLBAR_TEMPLATES.rightButtonGroup,
+            buttons: [
+              ...shareButtons,
+              { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+            ],
+          },
         ]
       : params?.source === 'ProjectEdit'
       ? [
           { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
-          { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+          {
+            ...HEADER_TOOLBAR_TEMPLATES.rightButtonGroup,
+            buttons: [
+              ...shareButtons,
+              { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+            ],
+          },
         ]
       : params?.id
       ? [
@@ -475,9 +543,22 @@ export default function RecordPlayerScreen() {
           },
           {
             ...HEADER_TOOLBAR_TEMPLATES.rightButtonGroup,
+            // 保存済みレコードは元々ブックマーク + 削除の 2 アイコン構成だった。
+            // 共有をアイコンで追加すると 3 アイコンになり、中央絶対配置の
+            // headerTitle と横幅の狭い iPhone で重なるため、共有・削除は
+            // ケバブメニュー（action）にまとめてアイコン数を 2 のまま維持する
+            // (TASK-45, Codex レビュー指摘対応)
             buttons: [
               { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
-              { ...HEADER_TOOLBAR_TEMPLATES.delete, onPress: handleDelete },
+              {
+                ...HEADER_TOOLBAR_TEMPLATES.action,
+                menuItems: [
+                  ...(Platform.OS === 'ios'
+                    ? [{ label: '共有', onPress: handleShare }]
+                    : []),
+                  { label: '削除', onPress: handleDelete },
+                ],
+              },
             ],
           },
         ]
@@ -487,7 +568,13 @@ export default function RecordPlayerScreen() {
             ...HEADER_TOOLBAR_TEMPLATES.headerTitle,
             headerTitle: 'QUICK RECORD',
           },
-          { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+          {
+            ...HEADER_TOOLBAR_TEMPLATES.rightButtonGroup,
+            buttons: [
+              ...shareButtons,
+              { ...HEADER_TOOLBAR_TEMPLATES.bookmark, onPress: handleBookmark },
+            ],
+          },
         ];
 
   return (
