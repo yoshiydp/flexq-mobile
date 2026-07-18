@@ -339,4 +339,115 @@ describe('useProjectAutoSave', () => {
     });
     expect(mockedService.putDataProject).not.toHaveBeenCalled();
   });
+
+  describe('saveNow（手動保存。TASK-48 のバックグラウンド保存とロックを共有する）', () => {
+    it('dirty 判定なしで現在のスナップショットを保存し、baseline を更新する', async () => {
+      const { result } = setup();
+      act(() => {
+        result.current.markSaved();
+      });
+      // 変更なし（未 dirty）でも saveNow は必ず保存する
+      await act(async () => {
+        await result.current.saveNow();
+      });
+
+      expect(mockedService.putDataProject).toHaveBeenCalledTimes(1);
+      // 保存後は baseline が現在の内容に更新されるため isDirty は false のまま
+      expect(result.current.isDirty()).toBe(false);
+    });
+
+    it('失敗時は throw し、baseline を更新しない', async () => {
+      mockedService.putDataProject.mockRejectedValueOnce(
+        new Error('Network error'),
+      );
+      const { result } = setup();
+      act(() => {
+        result.current.markSaved();
+      });
+      snapshot = { ...snapshot, body: '<p>edited</p>' };
+
+      await expect(
+        act(async () => {
+          await result.current.saveNow();
+        }),
+      ).rejects.toThrow('Network error');
+      expect(result.current.isDirty()).toBe(true);
+    });
+
+    it('進行中の saveIfDirty（自動保存）があれば完了を待ってから実行される', async () => {
+      let resolveAutoSave: (v: unknown) => void = () => {};
+      mockedService.putDataProject.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveAutoSave = resolve;
+          }) as any,
+      );
+
+      const { result } = setup();
+      act(() => {
+        result.current.markSaved();
+      });
+      snapshot = { ...snapshot, body: '<p>edited by auto-save</p>' };
+
+      // 自動保存（idle timer 経由の saveIfDirty）を進行中の状態にする
+      await act(async () => {
+        jest.advanceTimersByTime(AUTO_SAVE_IDLE_TIMEOUT_MS);
+      });
+      expect(mockedService.putDataProject).toHaveBeenCalledTimes(1);
+
+      // 自動保存が in flight の間に手動保存（saveNow）が呼ばれても
+      // すぐには 2 回目の PUT を送らない
+      snapshot = { ...snapshot, body: '<p>edited by manual save</p>' };
+      let saveNowResolved = false;
+      const saveNowPromise = result.current.saveNow().then(() => {
+        saveNowResolved = true;
+      });
+
+      await act(async () => {});
+      expect(saveNowResolved).toBe(false);
+      expect(mockedService.putDataProject).toHaveBeenCalledTimes(1);
+
+      // 自動保存が完了すると saveNow が現在のスナップショットで実行される
+      await act(async () => {
+        resolveAutoSave({});
+        await saveNowPromise;
+      });
+      expect(saveNowResolved).toBe(true);
+      expect(mockedService.putDataProject).toHaveBeenCalledTimes(2);
+      expect(mockedService.putDataProject).toHaveBeenLastCalledWith(
+        'proj-1',
+        expect.objectContaining({ body: '<p>edited by manual save</p>' }),
+      );
+    });
+
+    it('saveNow の実行中は saveIfDirty が多重実行されない（savingRef を共有する）', async () => {
+      let resolveManualSave: (v: unknown) => void = () => {};
+      mockedService.putDataProject.mockImplementationOnce(
+        () =>
+          new Promise((resolve) => {
+            resolveManualSave = resolve;
+          }) as any,
+      );
+
+      const { result } = setup();
+      act(() => {
+        result.current.markSaved();
+      });
+      snapshot = { ...snapshot, body: '<p>edited</p>' };
+
+      const saveNowPromise = result.current.saveNow();
+      // saveNow が in flight の間、saveIfDirty は即座に false（no-op）を返す
+      let saveIfDirtyResult: boolean | null = null;
+      await act(async () => {
+        saveIfDirtyResult = await result.current.saveIfDirty();
+      });
+      expect(saveIfDirtyResult).toBe(false);
+      expect(mockedService.putDataProject).toHaveBeenCalledTimes(1);
+
+      await act(async () => {
+        resolveManualSave({});
+        await saveNowPromise;
+      });
+    });
+  });
 });

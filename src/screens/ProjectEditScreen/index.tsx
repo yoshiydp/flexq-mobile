@@ -51,11 +51,11 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
-import { useUpdateProject } from '@/hooks/useUpdateProject';
 import {
   useProjectAutoSave,
   ProjectSaveSnapshot,
 } from '@/hooks/useProjectAutoSave';
+import { useProjectBackgroundSave } from '@/hooks/useProjectBackgroundSave';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { getPendingWaveformData } from '@/utils/pendingWaveformData';
 import {
@@ -85,8 +85,6 @@ export default function ProjectEditScreen() {
     error: recordError,
     refreshProjectRecords,
   } = useFetchProjectRecords(id);
-
-  const { updateProject } = useUpdateProject();
 
   const recordLoadingRef = useRef(recordLoading);
   const recordErrorRef = useRef(recordError);
@@ -127,7 +125,6 @@ export default function ProjectEditScreen() {
   useEffect(() => {
     bodyRef.current = body;
   }, [body]);
-
 
   const hasShownTrackDeletedWarning = useRef(false);
 
@@ -294,6 +291,8 @@ export default function ProjectEditScreen() {
   );
 
   const {
+    saveIfDirty,
+    saveNow,
     waitForPendingAutoSave,
     markSaved: markProjectSaved,
     markInteraction: markAutoSaveInteraction,
@@ -303,6 +302,16 @@ export default function ProjectEditScreen() {
     // REC モード中（録音中を含む）は無操作タイマーを停止して録音フローとの
     // 競合を避ける。EDIT モードでの再生はサイレント保存と干渉しないため対象外
     enabled: currentView === 'edit',
+  });
+
+  // アプリ離脱（active → inactive / background）時に未保存の変更を
+  // サイレント保存する (TASK-48)。dirty 判定・保存の実行・排他制御は
+  // useProjectAutoSave の saveIfDirty に一元化されており、このフックは
+  // AppState イベントの検知と離脱中の再試行スケジューリングのみを担う
+  useProjectBackgroundSave({
+    getSnapshot: getAutoSaveSnapshot,
+    saveIfDirty,
+    waitForPendingAutoSave,
   });
 
   // テキスト入力・キュー操作など編集データの変化も「操作」とみなして
@@ -702,27 +711,12 @@ export default function ProjectEditScreen() {
     closeModal();
     showLoading();
     try {
-      // 進行中の自動保存があれば完了を待ち、古いスナップショットの PUT が
-      // この手動保存の後に完了して上書きするのを防ぐ (TASK-46)
-      await waitForPendingAutoSave();
-      await updateProject({
-        id,
-        projectName,
-        body: bodyRef.current,
-        cueButtons,
-        ...(artworkKey !== undefined ? { artworkKey } : {}),
-        ...(trackId !== undefined ? { trackId } : {}),
-        ...(trackName !== undefined ? { trackName } : {}),
-      });
-      // 手動保存が成功したら自動保存の dirty 判定基準も更新する
-      markProjectSaved({
-        projectName,
-        body: bodyRef.current,
-        cueButtons,
-        artworkKey,
-        trackId,
-        trackName,
-      });
+      // 無操作自動保存 (TASK-46) / バックグラウンド保存 (TASK-48) と同じ
+      // ロック（useProjectAutoSave の savingRef）を通して保存する。
+      // 進行中のサイレント保存があれば完了を待ってから実行されるため、
+      // PUT の並走（古い内容の上書き・サーバー側副作用の重複）を防ぐ。
+      // 成功時は saveNow 内で dirty 判定基準（baseline）も更新される
+      await saveNow();
     } catch (error) {
       // 保存に失敗したら画面に留まり、破棄して戻るかはユーザーに明示的に選ばせる
       // （オフライン時などを考慮）

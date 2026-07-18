@@ -32,9 +32,11 @@ interface UseProjectAutoSaveParams {
 
 /**
  * dirty 判定を比較可能な形へ正規化する。
- * undefined と null を同一視し、キー順を固定して JSON 化する
+ * undefined と null を同一視し、キー順を固定して JSON 化する。
+ * TASK-48（バックグラウンド遷移時保存）が「保存試行時と完了時でスナップショットが
+ * 変化したか」を比較するためにも再利用する
  */
-const serializeSnapshot = (snapshot: ProjectSaveSnapshot): string =>
+export const serializeSnapshot = (snapshot: ProjectSaveSnapshot): string =>
   JSON.stringify({
     projectName: snapshot.projectName,
     body: snapshot.body,
@@ -57,11 +59,14 @@ const serializeSnapshot = (snapshot: ProjectSaveSnapshot): string =>
  * - 保存はモーダルやローディングを表示せず、失敗してもアラートを出さない
  *   （baseline を更新しないため、次回の発火で自動的にリトライされる）
  * - `saveIfDirty()` は dirty チェック込みの保存関数として単独で呼び出せる。
- *   TASK-48（バックグラウンド遷移時保存）はこれを AppState トリガーから呼ぶ想定。
- *   すでに保存が進行中の場合は false を返すため、完了を待ちたい場合は
- *   `waitForPendingAutoSave()` を併用する
+ *   TASK-48（バックグラウンド遷移時保存）はこれを AppState トリガーから呼ぶ
+ * - `saveNow()` は dirty 判定なしで現在のスナップショットを必ず保存する
+ *   手動保存用の関数。`saveIfDirty` と同じ排他ロック（savingRef）を共有するため、
+ *   自動保存・バックグラウンド保存の PUT と並走しない（進行中なら完了を待ってから
+ *   実行する）。失敗時は throw する（呼び出し元でエラー UI・リトライを出すため）
  * - 手動保存など別経路の PUT を行う前には `waitForPendingAutoSave()` を await し、
  *   古いスナップショットの自動保存が後から完了して新しい保存を上書きするのを防ぐ
+ *   （`saveNow` は内部でこれを行うため、`saveNow` 経由の場合は不要）
  */
 export function useProjectAutoSave({
   projectId,
@@ -175,6 +180,55 @@ export function useProjectAutoSave({
     }
   }, []);
 
+  /**
+   * dirty 判定なしで現在のスナップショットを必ず保存する（手動保存用）。
+   * savingRef を共有しているため、進行中の saveIfDirty（idle timer /
+   * バックグラウンド保存トリガー）があれば完了を待ってから実行され、
+   * PUT の並走（古い内容の上書き・サーバー側副作用の重複）を防ぐ。
+   * 失敗時は baseline を更新せず throw する
+   */
+  const saveNow = useCallback(async (): Promise<void> => {
+    // 進行中の saveIfDirty がなくなるまで待つ（連鎖的に次の保存が
+    // 始まる可能性があるためループで完全に排出する）
+    while (savingRef.current) {
+      await pendingSaveRef.current;
+    }
+    const snapshot = getSnapshotRef.current();
+    const serialized = serializeSnapshot(snapshot);
+    savingRef.current = true;
+    let saveError: unknown = null;
+    const save = (async () => {
+      try {
+        await updateProjectRef.current({
+          id: projectId,
+          projectName: snapshot.projectName,
+          body: snapshot.body,
+          cueButtons: snapshot.cueButtons,
+          ...(snapshot.artworkKey !== undefined
+            ? { artworkKey: snapshot.artworkKey }
+            : {}),
+          ...(snapshot.trackId !== undefined
+            ? { trackId: snapshot.trackId }
+            : {}),
+          ...(snapshot.trackName !== undefined
+            ? { trackName: snapshot.trackName }
+            : {}),
+        });
+        baselineRef.current = serialized;
+        return true;
+      } catch (e) {
+        saveError = e;
+        return false;
+      } finally {
+        savingRef.current = false;
+        pendingSaveRef.current = null;
+      }
+    })();
+    pendingSaveRef.current = save;
+    await save;
+    if (saveError) throw saveError;
+  }, [projectId]);
+
   const saveIfDirtyRef = useRef(saveIfDirty);
   saveIfDirtyRef.current = saveIfDirty;
 
@@ -223,6 +277,7 @@ export function useProjectAutoSave({
 
   return {
     saveIfDirty,
+    saveNow,
     waitForPendingAutoSave,
     markSaved,
     markInteraction,
