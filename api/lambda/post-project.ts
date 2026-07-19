@@ -22,6 +22,7 @@ export const handler = async (event: any) => {
       userId: claims.userId,
       projectId,
       projectName,
+      createdAt: now,
       updatedAt: now,
       ...(trackName ? { trackName } : {}),
       ...(trackId ? { trackId } : {}),
@@ -43,5 +44,5 @@ export const handler = async (event: any) => {
     }));
   }
 
-  return createResponse({ id: projectId, projectName, updatedAt: now }, 201);
+  return createResponse({ id: projectId, projectName, createdAt: now, updatedAt: now }, 201);
 };

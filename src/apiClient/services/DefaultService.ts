@@ -46,6 +46,7 @@ export class DefaultService {
     ): CancelablePromise<{
         id?: string;
         projectName?: string;
+        createdAt?: string;
         updatedAt?: string;
     }> {
         return __request(OpenAPI, {
@@ -224,6 +225,7 @@ export class DefaultService {
         id?: string;
         title?: string;
         body?: string;
+        createdAt?: string;
         updatedAt?: string;
         isBookmarked?: boolean;
     }> {
@@ -353,6 +355,7 @@ export class DefaultService {
         s3Key?: string;
         extention?: string;
         linkedProjects?: Array<string>;
+        createdAt?: string;
         updatedAt?: string;
     }> {
         return __request(OpenAPI, {
@@ -459,6 +462,7 @@ export class DefaultService {
         source?: string;
         projectId?: string;
         startPositionMs?: number;
+        createdAt?: string;
         updatedAt?: string;
         isBookmarked?: boolean;
         recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
@@ -492,6 +496,7 @@ export class DefaultService {
         source?: string;
         projectId?: string;
         startPositionMs?: number;
+        createdAt?: string;
         updatedAt?: string;
         isBookmarked?: boolean;
         recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
