@@ -15,8 +15,9 @@ export default StyleSheet.create({
     opacity: 0.2,
   },
   label: {
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     color: COLORS.font.pageTitle,
     fontSize: 36,
+    lineHeight: 43,
   },
 });

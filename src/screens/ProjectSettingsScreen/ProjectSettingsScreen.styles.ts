@@ -50,9 +50,10 @@ export default StyleSheet.create({
     borderBottomColor: COLORS.base.borderDefault,
   },
   modalTitle: {
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     color: COLORS.font.default,
     fontSize: 22,
+    lineHeight: 26,
   },
   modalCloseText: {
     color: COLORS.font.default,

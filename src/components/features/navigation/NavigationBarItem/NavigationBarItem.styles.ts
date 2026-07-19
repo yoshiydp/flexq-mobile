@@ -14,7 +14,7 @@ export default StyleSheet.create({
     color: COLORS.accent.goldPrimary,
   },
   label: {
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     fontSize: 14,
     lineHeight: 14,
     color: COLORS.icon.navigation,

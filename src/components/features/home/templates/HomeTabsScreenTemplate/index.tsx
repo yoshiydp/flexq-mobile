@@ -25,6 +25,8 @@ export default function HomeTabsScreenTemplate({
   return (
     <View style={styles.container}>
       <View style={styles.titleContainer}>
+        {/* Noto Sans JP はコンデンスフォントでないため fontSize 100 では
+            横幅が画面を超える。折り返さず 1 行に収まるよう自動縮小する */}
         <Animated.Text
           style={[
             styles.title,
@@ -33,6 +35,8 @@ export default function HomeTabsScreenTemplate({
               opacity: titleAnim1.opacity,
             },
           ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
         >
           {firstWord}
         </Animated.Text>
@@ -44,6 +48,8 @@ export default function HomeTabsScreenTemplate({
               opacity: titleAnim2.opacity,
             },
           ]}
+          numberOfLines={1}
+          adjustsFontSizeToFit
         >
           {secondWord}
         </Animated.Text>

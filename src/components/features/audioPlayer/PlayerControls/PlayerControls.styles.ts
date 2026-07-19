@@ -45,9 +45,10 @@ export default StyleSheet.create({
   },
   controlAllCueResetText: {
     textAlign: 'center',
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     color: COLORS.font.default,
     fontSize: 20,
+    lineHeight: 24,
   },
   disabledText: {
     color: COLORS.icon.default,

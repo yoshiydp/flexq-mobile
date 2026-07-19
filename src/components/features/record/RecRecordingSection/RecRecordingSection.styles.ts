@@ -10,9 +10,10 @@ export default StyleSheet.create({
   },
   timer: {
     textAlign: 'center',
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     color: COLORS.font.default,
     fontSize: 55,
+    lineHeight: 66,
   },
   stopButton: {
     position: 'relative',

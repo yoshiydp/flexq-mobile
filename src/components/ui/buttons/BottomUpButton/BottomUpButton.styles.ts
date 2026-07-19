@@ -14,9 +14,10 @@ export default StyleSheet.create({
     backgroundColor: COLORS.navigation.bg,
   },
   label: {
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     color: COLORS.font.navigation,
     fontSize: 30,
+    lineHeight: 36,
   },
   icon: {
     color: COLORS.font.navigation,

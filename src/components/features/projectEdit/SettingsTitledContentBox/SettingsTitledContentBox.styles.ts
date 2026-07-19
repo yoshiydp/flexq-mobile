@@ -8,9 +8,10 @@ export default StyleSheet.create({
     gap: 8,
   },
   heading: {
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     color: COLORS.font.default,
     fontSize: 24,
+    lineHeight: 29,
   },
   badge: {
     backgroundColor: COLORS.font.label,

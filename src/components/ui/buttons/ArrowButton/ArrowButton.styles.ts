@@ -12,7 +12,7 @@ export default StyleSheet.create({
     backgroundColor: COLORS.accent.goldPrimary,
   },
   label: {
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     color: COLORS.font.pageTitle,
   },
   iconContainer: {

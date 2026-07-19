@@ -17,7 +17,7 @@ export default StyleSheet.create({
     marginBottom: 24,
   },
   title: {
-    fontFamily: 'BebasNeue',
+    fontFamily: 'NotoSansJP_700Bold',
     fontSize: 100,
     lineHeight: 100,
     color: COLORS.font.pageTitle,
