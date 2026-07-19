@@ -34,8 +34,8 @@ export function useFetchProject() {
             createdAt: new Date(project.createdAt ?? project.updatedAt),
             updatedAt: new Date(project.updatedAt),
           }))
-          // 作成日時の降順（編集しても並び順が変わらないように。TASK-51）
-          .sort((a: any, b: any) => b.createdAt.getTime() - a.createdAt.getTime()),
+          // プロジェクト一覧のみ更新日時の降順（TASK-51 の仕様変更。他一覧は createdAt 降順）
+          .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime()),
       );
     } catch (err) {
       console.error('Failed to fetch projects:', err);
