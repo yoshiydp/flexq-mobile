@@ -73,6 +73,7 @@ const mockProps = {
       id: '101',
       title: 'Intro Take 1',
       source: 'http://localhost:3000/record/sample-1.m4a',
+      createdAt: new Date('2023-10-05T12:00:00Z'),
       updatedAt: new Date('2023-10-05T12:00:00Z'),
       isBookmarked: true,
     },

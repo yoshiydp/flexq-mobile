@@ -42,7 +42,8 @@ export default function MemoListScreen() {
     if (a.isBookmarked !== b.isBookmarked) {
       return a.isBookmarked ? -1 : 1;
     }
-    return b.updatedAt.getTime() - a.updatedAt.getTime();
+    // 作成日時の降順（編集しても並び順が変わらないように。TASK-51）
+    return b.createdAt.getTime() - a.createdAt.getTime();
   });
 
   const handleGoBack = () => {
@@ -91,6 +92,7 @@ export default function MemoListScreen() {
       <ScrollView
         style={styles.listContainer}
         testID="memo-list-scroll"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

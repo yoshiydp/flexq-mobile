@@ -94,6 +94,8 @@ export default function TrackListScreen() {
       trackIndex: index,
       tracks: tracks.map((track) => ({
         ...track,
+        // Date はナビゲーションパラメータとして非シリアライズ化のため文字列に変換する
+        createdAt: track.createdAt.toISOString(),
         updatedAt: track.updatedAt.toISOString(),
       })),
     });
@@ -148,6 +150,7 @@ export default function TrackListScreen() {
       <ScrollView
         style={styles.container}
         testID="track-list-scroll"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

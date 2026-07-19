@@ -73,6 +73,8 @@ paths:
                     type: string
                   projectName:
                     type: string
+                  createdAt:
+                    type: string
                   updatedAt:
                     type: string
         '400':
@@ -282,6 +284,8 @@ paths:
                     type: string
                   body:
                     type: string
+                  createdAt:
+                    type: string
                   updatedAt:
                     type: string
                   isBookmarked:
@@ -442,6 +446,8 @@ paths:
                     type: array
                     items:
                       type: string
+                  createdAt:
+                    type: string
                   updatedAt:
                     type: string
         '400':
@@ -566,6 +572,8 @@ paths:
                       type: string
                     startPositionMs:
                       type: number
+                    createdAt:
+                      type: string
                     updatedAt:
                       type: string
                     isBookmarked:
@@ -627,6 +635,8 @@ paths:
                     type: string
                   startPositionMs:
                     type: number
+                  createdAt:
+                    type: string
                   updatedAt:
                     type: string
                   isBookmarked:

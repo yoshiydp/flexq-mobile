@@ -1526,6 +1526,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@expo-google-fonts/noto-sans-jp@npm:^0.4.3":
+  version: 0.4.3
+  resolution: "@expo-google-fonts/noto-sans-jp@npm:0.4.3"
+  checksum: 10c0/4ee5874f99fbff1023fa001795b5ce03d50f8facfefcc1adca8ab99bfdd8fb88c8d59d809890b756f73a505dc107e0852afd1a55b99d9b82735864a365b57fd1
+  languageName: node
+  linkType: hard
+
 "@expo-google-fonts/noto-sans@npm:^0.4.0":
   version: 0.4.2
   resolution: "@expo-google-fonts/noto-sans@npm:0.4.2"
@@ -10206,6 +10213,7 @@ __metadata:
     "@expo-google-fonts/allison": "npm:^0.4.2"
     "@expo-google-fonts/bebas-neue": "npm:^0.4.0"
     "@expo-google-fonts/noto-sans": "npm:^0.4.0"
+    "@expo-google-fonts/noto-sans-jp": "npm:^0.4.3"
     "@expo/vector-icons": "npm:^15.0.3"
     "@react-native-async-storage/async-storage": "npm:^2.2.0"
     "@react-native-community/slider": "npm:5.0.1"

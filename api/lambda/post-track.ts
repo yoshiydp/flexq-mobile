@@ -25,10 +25,11 @@ export const handler = async (event: any) => {
       s3Key,
       extention: extention.toUpperCase(),
       linkedProjects: [],
+      createdAt: now,
       updatedAt: now,
       ...(artworkKey ? { artworkKey } : {}),
     },
   }));
 
-  return createResponse({ id: trackId, title, s3Key, extention: extention.toUpperCase(), linkedProjects: [], updatedAt: now, artworkKey }, 201);
+  return createResponse({ id: trackId, title, s3Key, extention: extention.toUpperCase(), linkedProjects: [], createdAt: now, updatedAt: now, artworkKey }, 201);
 };

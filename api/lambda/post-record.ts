@@ -27,6 +27,7 @@ export const handler = async (event: any) => {
     recordId,
     title: resolvedTitle,
     s3Key,
+    createdAt: now,
     updatedAt: now,
     isBookmarked: isBookmarked ?? false,
   };
@@ -68,6 +69,7 @@ export const handler = async (event: any) => {
       source,
       ...(item.projectId ? { projectId: item.projectId } : {}),
       ...(item.startPositionMs !== undefined ? { startPositionMs: item.startPositionMs } : {}),
+      createdAt: now,
       updatedAt: now,
       isBookmarked: isBookmarked ?? false,
       ...(item.recordedWithHeadphones

@@ -88,6 +88,7 @@ export default function RecordListScreen() {
       <ScrollView
         style={styles.listContainer}
         testID="record-list-scroll"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

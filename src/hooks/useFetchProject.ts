@@ -11,6 +11,8 @@ export interface ProjectType {
   waveformJson: string;
   cueButtons: { time: number; label: string; isActive: boolean }[];
   tags?: string[];
+  /** 作成日時。createdAt 導入前の既存データは updatedAt でフォールバック（TASK-51） */
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -29,8 +31,10 @@ export function useFetchProject() {
         res
           .map((project: any) => ({
             ...project,
+            createdAt: new Date(project.createdAt ?? project.updatedAt),
             updatedAt: new Date(project.updatedAt),
           }))
+          // プロジェクト一覧のみ更新日時の降順（TASK-51 の仕様変更。他一覧は createdAt 降順）
           .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime()),
       );
     } catch (err) {

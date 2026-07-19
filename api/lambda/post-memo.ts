@@ -27,6 +27,7 @@ export const handler = async (event: any) => {
         memoId,
         title,
         body: memoBody || '',
+        createdAt: now,
         updatedAt: now,
         isBookmarked: bookmarked,
       },
@@ -34,7 +35,7 @@ export const handler = async (event: any) => {
   );
 
   return createResponse(
-    { id: memoId, title, body: memoBody || '', updatedAt: now, isBookmarked: bookmarked },
+    { id: memoId, title, body: memoBody || '', createdAt: now, updatedAt: now, isBookmarked: bookmarked },
     201
   );
 };

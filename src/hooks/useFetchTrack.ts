@@ -14,6 +14,8 @@ export interface TrackType {
   artwork: string;
   linkedProjects: LinkedProject[];
   extention: string;
+  /** 作成日時。createdAt 導入前の既存データは updatedAt でフォールバック（TASK-51） */
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -31,9 +33,11 @@ export function useFetchTrack() {
       const sorted = res
         .map((track: any) => ({
           ...track,
+          createdAt: new Date(track.createdAt ?? track.updatedAt),
           updatedAt: new Date(track.updatedAt),
         }))
-        .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime());
+        // 作成日時の降順（編集しても並び順が変わらないように。TASK-51）
+        .sort((a: any, b: any) => b.createdAt.getTime() - a.createdAt.getTime());
       setTracks(sorted);
       return sorted;
     } catch (err) {

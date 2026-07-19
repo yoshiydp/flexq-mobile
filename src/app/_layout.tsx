@@ -1,6 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 import { StyleSheet } from 'react-native';
+import { useFonts } from 'expo-font';
+// パッケージルートを import すると全ウェイトの ttf がバンドルされるため、
+// 使用するウェイトのみサブパスから import する（noto-sans-jp は全体で約 48MB）
+import { NotoSansJP_700Bold } from '@expo-google-fonts/noto-sans-jp/700Bold';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { ForegroundRefreshProvider } from '@/contexts/ForegroundRefreshContext';
 import RootNavigator from '@/navigation/RootNavigator';
@@ -33,6 +37,20 @@ function AppContent() {
 }
 
 export default function Layout() {
+  // 実行時のルートはこの _layout.tsx（expo-router/entry）のため、ここでフォントを読み込む
+  // (src/App.tsx はエントリーポイントとして使われておらず、そこでの useFonts は実行されない)
+  //
+  // 注意: ここに登録するのは新規追加フォントのみにすること。既存の
+  // 'NotoSans_400Regular' 等をランタイム登録すると、これまで未解決で
+  // システムフォントにフォールバックしていた（fontWeight が効いていた）
+  // 全画面のテキストが本物の Noto Sans Regular に切り替わり、iOS では
+  // fontWeight が無視されて太字表示が失われる
+  const [fontsLoaded] = useFonts({
+    NotoSansJP_700Bold,
+  });
+
+  if (!fontsLoaded) return null;
+
   return (
     <SafeAreaProvider>
       <AuthProvider>
