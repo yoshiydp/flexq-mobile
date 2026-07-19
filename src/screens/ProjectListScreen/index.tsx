@@ -89,6 +89,7 @@ export default function ProjectListScreen() {
       <ScrollView
         style={styles.container}
         testID="project-list-scroll"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

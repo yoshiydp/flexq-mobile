@@ -91,6 +91,7 @@ export default function MemoListScreen() {
       <ScrollView
         style={styles.listContainer}
         testID="memo-list-scroll"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}

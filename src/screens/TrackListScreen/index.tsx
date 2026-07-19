@@ -148,6 +148,7 @@ export default function TrackListScreen() {
       <ScrollView
         style={styles.container}
         testID="track-list-scroll"
+        showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
             refreshing={refreshing}
