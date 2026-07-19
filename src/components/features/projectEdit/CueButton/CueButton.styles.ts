@@ -21,9 +21,10 @@ export default StyleSheet.create({
     color: COLORS.font.navigation,
   },
   label: {
-    // ユーザー入力文字列を表示するため、小文字・日本語グリフを持つ Noto Sans JP を使用する
-    // (Bebas Neue は大文字専用かつ日本語非対応)。時間表示は数字のみのため BebasNeue を維持
-    fontFamily: 'NotoSansJP_400Regular',
+    // ユーザー入力文字列を表示するため、小文字・日本語グリフを持つ Noto Sans JP の
+    // ボールドを使用する (Bebas Neue は大文字専用かつ日本語非対応)。
+    // 時間表示は数字のみのため BebasNeue を維持
+    fontFamily: 'NotoSansJP_700Bold',
     fontSize: 16,
     lineHeight: 18,
   },
