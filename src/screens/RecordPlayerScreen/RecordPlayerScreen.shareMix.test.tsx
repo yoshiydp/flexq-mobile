@@ -239,7 +239,7 @@ describe('RecordPlayerScreen ミックス版共有', () => {
     expect(mockShareRecord).not.toHaveBeenCalled();
   });
 
-  it('ミックス版を選ぶとミックスを実行して生成された音源を共有する', async () => {
+  it('ミックス版を選ぶとミックスを実行して生成された音源をタイトルのファイル名で共有する', async () => {
     mockParams = { ...mixableParams };
     const utils = await renderScreen();
 
@@ -247,7 +247,17 @@ describe('RecordPlayerScreen ミックス版共有', () => {
     await pressAlertOption(alertSpy, MIX_LABELS.shareMix);
 
     expect(mockMixRecord).toHaveBeenCalledWith('record-1');
-    expect(mockShareRecord).toHaveBeenCalledWith(MIXED_URL, 'My Take_mix');
+    expect(mockShareRecord).toHaveBeenCalledWith(MIXED_URL, 'My Take');
+  });
+
+  it('タイトル未入力のミックス版は No Title のファイル名で共有する', async () => {
+    mockParams = { ...mixableParams, title: '' };
+    const utils = await renderScreen();
+
+    await pressShareFromMenu(utils);
+    await pressAlertOption(alertSpy, MIX_LABELS.shareMix);
+
+    expect(mockShareRecord).toHaveBeenCalledWith(MIXED_URL, 'No Title');
   });
 
   it('「再生中の音源」を選ぶと従来どおり再生対象を共有する', async () => {

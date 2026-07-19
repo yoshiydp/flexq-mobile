@@ -777,6 +777,10 @@ Resources:
       CodeUri: ./
       Timeout: 300
       MemorySize: 2048
+      # /tmp に分離音源（無圧縮 wav）・トラック音源・ミックス出力を同時に置くため、
+      # デフォルト（512MB）では大きな wav トラックで不足し得る
+      EphemeralStorage:
+        Size: 2048
       # 非同期 Invoke の自動リトライを無効化する。リトライを許すと、固着判定
       # （MIX_STUCK_TIMEOUT_MS）で failed 化した後にリトライが走って二重処理に
       # なるため、失敗時はアプリからの再実行に任せる

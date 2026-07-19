@@ -324,7 +324,9 @@ export default function RecordPlayerScreen() {
     if (!params?.id) return;
     try {
       const mixedSource = await mixRecord(params.id);
-      await shareRecord(mixedSource, `${title}_mix`);
+      // ファイル名にはレコードのタイトルを使う（未入力時は保存時の既定名と同じ
+      // No Title にフォールバックする）
+      await shareRecord(mixedSource, title.trim() || 'No Title');
     } catch (error) {
       // 画面離脱による中断はエラーとして扱わない（処理はサーバー側で続行され、
       // 完了後の再実行ではキャッシュが返る）

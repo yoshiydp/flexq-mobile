@@ -11,7 +11,11 @@ import {
 } from '@aws-sdk/client-s3';
 import { docClient } from './db';
 import { s3Client } from './s3';
-import { buildMixFfmpegArgs, mixedS3KeyFor } from './record-mix';
+import {
+  MIX_PIPELINE_VERSION,
+  buildMixFfmpegArgs,
+  mixedS3KeyFor,
+} from './record-mix';
 
 const execFileAsync = promisify(execFile);
 
@@ -99,13 +103,16 @@ export const handler = async (event: MixWorkerEvent) => {
           //   done を上書きしてしまう
           ConditionExpression:
             'attribute_exists(recordId) AND mixStartedAt = :token',
+          // mixVersion は生成ロジックのバージョン。キャッシュ判定
+          // （isMixCacheValid）が旧ロジックの出力を stale として作り直せるようにする
           UpdateExpression:
-            'SET mixStatus = :status, mixedS3Key = :key, mixTrackRef = :trackRef, mixStartPositionMs = :startPositionMs REMOVE mixStartedAt',
+            'SET mixStatus = :status, mixedS3Key = :key, mixTrackRef = :trackRef, mixStartPositionMs = :startPositionMs, mixVersion = :version REMOVE mixStartedAt',
           ExpressionAttributeValues: {
             ':status': 'done',
             ':key': mixedS3Key,
             ':trackRef': event.trackRef,
             ':startPositionMs': event.startPositionMs,
+            ':version': MIX_PIPELINE_VERSION,
             ':token': event.mixStartedAt,
           },
           // 前回のミックス済みファイル（別トークンのキー）を掃除するため取得する

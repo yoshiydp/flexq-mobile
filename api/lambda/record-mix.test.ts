@@ -2,6 +2,7 @@
  * record-mix.ts（ミックス処理の純粋ロジック）のユニットテスト (TASK-49)
  */
 import {
+  MIX_PIPELINE_VERSION,
   MIX_STUCK_TIMEOUT_MS,
   buildMixFfmpegArgs,
   isMixCacheValid,
@@ -47,6 +48,7 @@ describe('isMixCacheValid', () => {
     mixTrackRef: 'tracks/user-1/track-1.mp3',
     mixStartPositionMs: 1200,
     startPositionMs: 1200,
+    mixVersion: MIX_PIPELINE_VERSION,
   };
 
   it('素材が一致する処理済みキャッシュは有効', () => {
@@ -69,6 +71,21 @@ describe('isMixCacheValid', () => {
     expect(
       isMixCacheValid(
         { ...doneRecord, mixedS3Key: undefined },
+        'tracks/user-1/track-1.mp3'
+      )
+    ).toBe(false);
+  });
+
+  it('旧ロジックで生成したキャッシュ（mixVersion 不一致・未設定）は無効（作り直す）', () => {
+    expect(
+      isMixCacheValid(
+        { ...doneRecord, mixVersion: MIX_PIPELINE_VERSION - 1 },
+        'tracks/user-1/track-1.mp3'
+      )
+    ).toBe(false);
+    expect(
+      isMixCacheValid(
+        { ...doneRecord, mixVersion: undefined },
         'tracks/user-1/track-1.mp3'
       )
     ).toBe(false);
@@ -103,7 +120,7 @@ describe('mixedS3KeyFor', () => {
 });
 
 describe('buildMixFfmpegArgs', () => {
-  it('録音開始位置をトラック側の頭出し（-ss）に反映する', () => {
+  it('録音開始位置をトラック側の頭出し（atrim）に反映する', () => {
     const args = buildMixFfmpegArgs({
       vocalsPath: '/tmp/vocals.wav',
       trackPath: '/tmp/track-input',
@@ -111,15 +128,18 @@ describe('buildMixFfmpegArgs', () => {
       startPositionMs: 12345,
     });
 
-    // トラック入力（2 番目の -i）の直前に -ss（秒）が入る
-    const ssIndex = args.indexOf('-ss');
-    expect(ssIndex).toBeGreaterThan(-1);
-    expect(args[ssIndex + 1]).toBe('12.345');
-    expect(args[ssIndex + 2]).toBe('-i');
-    expect(args[ssIndex + 3]).toBe('/tmp/track-input');
-    // 声のみ音源（1 番目の入力）には -ss を掛けない
-    expect(args.indexOf('-i')).toBeLessThan(ssIndex);
-    expect(args[args.indexOf('-i') + 1]).toBe('/tmp/vocals.wav');
+    // mp3 のシーク誤差を避けるため入力側の -ss は使わない
+    expect(args).not.toContain('-ss');
+    // トラック入力（[1:a]）のみサンプル精度の atrim で頭出しする
+    const filter = args[args.indexOf('-filter_complex') + 1];
+    expect(filter).toContain('[1:a]atrim=start=12.345,asetpts=PTS-STARTPTS[trk]');
+    expect(filter).toContain('[0:a][trk]amix');
+    // 入力順は 声のみ音源 → トラック
+    const firstInput = args.indexOf('-i');
+    expect(args[firstInput + 1]).toBe('/tmp/vocals.wav');
+    expect(args[args.indexOf('-i', firstInput + 1) + 1]).toBe(
+      '/tmp/track-input'
+    );
   });
 
   it('録音尺をマスターにするミックスフィルタと AAC 出力を指定する', () => {
@@ -144,7 +164,9 @@ describe('buildMixFfmpegArgs', () => {
       trackPath: '/tmp/track-input',
       outPath: '/tmp/mixed.m4a',
     });
-    expect(defaultArgs[defaultArgs.indexOf('-ss') + 1]).toBe('0.000');
+    expect(defaultArgs[defaultArgs.indexOf('-filter_complex') + 1]).toContain(
+      'atrim=start=0.000'
+    );
 
     const negativeArgs = buildMixFfmpegArgs({
       vocalsPath: '/tmp/vocals.wav',
@@ -152,6 +174,8 @@ describe('buildMixFfmpegArgs', () => {
       outPath: '/tmp/mixed.m4a',
       startPositionMs: -500,
     });
-    expect(negativeArgs[negativeArgs.indexOf('-ss') + 1]).toBe('0.000');
+    expect(negativeArgs[negativeArgs.indexOf('-filter_complex') + 1]).toContain(
+      'atrim=start=0.000'
+    );
   });
 });

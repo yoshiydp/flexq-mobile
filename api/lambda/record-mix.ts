@@ -46,8 +46,17 @@ export function mixedS3KeyFor(
 }
 
 /**
+ * ミックス生成ロジックのバージョン。ffmpeg の合成方法を変更した場合に上げると、
+ * 旧ロジックで生成済みのキャッシュが stale になり再生成される。
+ * v2: トラックの頭出しを入力 `-ss` から atrim に変更（mp3 のシーク誤差による
+ *     同期ズレの修正）
+ */
+export const MIX_PIPELINE_VERSION = 2;
+
+/**
  * キャッシュ済みのミックスが現在の素材と一致しているか。
- * トラックの差し替え（trackRef の変化）があった場合は stale として作り直す。
+ * トラックの差し替え（trackRef の変化）・生成ロジックの更新（mixVersion の不一致）
+ * があった場合は stale として作り直す。
  * 分離音源（separatedS3Key）は再実行しても同一キーへの上書きのためここでは
  * 検出できないが、AI クリーンアップの再実行は稀なケースのため許容する
  */
@@ -58,6 +67,7 @@ export function isMixCacheValid(
     mixTrackRef?: string;
     mixStartPositionMs?: number;
     startPositionMs?: number;
+    mixVersion?: number;
   },
   trackRef: string
 ): boolean {
@@ -65,7 +75,8 @@ export function isMixCacheValid(
     record.mixStatus === 'done' &&
     !!record.mixedS3Key &&
     record.mixTrackRef === trackRef &&
-    (record.mixStartPositionMs ?? 0) === (record.startPositionMs ?? 0)
+    (record.mixStartPositionMs ?? 0) === (record.startPositionMs ?? 0) &&
+    record.mixVersion === MIX_PIPELINE_VERSION
   );
 }
 
@@ -74,8 +85,13 @@ export function isMixCacheValid(
  *
  * - 声のみ音源（分離済み wav）はレコードのタイムラインに位置合わせ済み (TASK-44) の
  *   ため先頭からそのまま使い、トラック側を録音開始位置（startPositionMs）から
- *   `-ss` で頭出しして両者の先頭を揃える（同時再生と同じ対応:
+ *   頭出しして両者の先頭を揃える（同時再生と同じ対応:
  *   録音位置 t ⇔ トラック位置 startPositionMs + t）
+ * - 頭出しは入力側の `-ss`（デマルチプレクサシーク）ではなく atrim フィルタで行う。
+ *   mp3 のシークはバイト位置の推定（Xing TOC の補間）のため VBR では
+ *   100〜200ms 程度の誤差が出て、声とトラックの同期ズレとして知覚される。
+ *   atrim は先頭からデコードした上でトリムするためフォーマットに依らず
+ *   サンプル精度（デコードのコストは数分の楽曲でも数秒程度）
  * - `duration=first` で出力の長さを声のみ音源（= 録音尺）に合わせる（録音尺をマスター）
  * - `normalize=0` で入力音量を維持し（デフォルトは入力数で除算され音が半減する）、
  *   加算によるクリッピングは alimiter（ピークリミッター）で防ぐ
@@ -96,12 +112,11 @@ export function buildMixFfmpegArgs(options: {
     'error',
     '-i',
     vocalsPath,
-    '-ss',
-    offsetSec,
     '-i',
     trackPath,
     '-filter_complex',
-    '[0:a][1:a]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.89:level=false',
+    `[1:a]atrim=start=${offsetSec},asetpts=PTS-STARTPTS[trk];` +
+      '[0:a][trk]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.89:level=false',
     '-c:a',
     'aac',
     '-b:a',
