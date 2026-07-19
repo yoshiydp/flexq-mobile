@@ -51,9 +51,8 @@ export default StyleSheet.create({
     color: COLORS.font.default,
     fontSize: 14,
     // ユーザー入力の Cue ラベルを表示するため、日本語グリフを持つ Noto Sans JP を使用する
-    // (NotoSans_400Regular は Latin 系グリフのみで日本語はフォールバック表示になる)。
-    // CueButton のラベルとウェイトを揃えてボールドにする
-    fontFamily: 'NotoSansJP_700Bold',
+    // (NotoSans_400Regular は Latin 系グリフのみで日本語はフォールバック表示になる)
+    fontFamily: 'NotoSansJP_400Regular',
   },
   optionTime: {
     color: COLORS.font.label,

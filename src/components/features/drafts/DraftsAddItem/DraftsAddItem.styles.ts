@@ -12,6 +12,5 @@ export default StyleSheet.create({
   },
   arrowButtonLabel: {
     fontSize: 24,
-    lineHeight: 29,
   },
 });

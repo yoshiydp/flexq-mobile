@@ -3,10 +3,9 @@ import { COLORS } from '@/globalStyles';
 
 export default StyleSheet.create({
   heading: {
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.font.default,
     fontSize: 30,
-    lineHeight: 36,
     borderBottomColor: COLORS.base.borderWhite,
     borderBottomWidth: 1,
   },

@@ -15,10 +15,10 @@ export default StyleSheet.create({
     borderRadius: 8,
   },
   label: {
-    // フォント自体がボールド (700Bold) のため fontWeight 指定は不要
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.accent.purple,
     fontSize: 30,
+    fontWeight: 'bold',
     lineHeight: 30,
   },
   icon: {

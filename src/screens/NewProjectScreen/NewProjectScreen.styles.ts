@@ -11,10 +11,9 @@ export default StyleSheet.create({
     paddingBottom: 40,
   },
   sectionLabel: {
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.font.label,
     fontSize: 18,
-    lineHeight: 22,
     marginBottom: 8,
     marginTop: 28,
   },
@@ -52,10 +51,9 @@ export default StyleSheet.create({
     alignItems: 'center',
   },
   audioSourceButtonText: {
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.font.default,
     fontSize: 15,
-    lineHeight: 18,
     letterSpacing: 1,
   },
   artworkContainer: {
@@ -98,10 +96,9 @@ export default StyleSheet.create({
     borderRadius: 6,
   },
   changeArtworkText: {
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.font.default,
     fontSize: 15,
-    lineHeight: 18,
     letterSpacing: 1,
   },
   submitButton: {
@@ -129,10 +126,9 @@ export default StyleSheet.create({
     borderBottomColor: COLORS.base.borderDefault,
   },
   modalTitle: {
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.font.default,
     fontSize: 22,
-    lineHeight: 26,
   },
   modalCloseText: {
     color: COLORS.font.default,

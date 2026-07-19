@@ -11,9 +11,8 @@ export default StyleSheet.create({
     backgroundColor: COLORS.button.bgCancel,
   },
   label: {
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.form.default.text,
     fontSize: 32,
-    lineHeight: 38,
   },
 });

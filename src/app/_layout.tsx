@@ -6,7 +6,7 @@ import { useFonts } from 'expo-font';
 // 使用する Regular のみサブパスから import する（noto-sans-jp は全体で約 48MB）
 import { BebasNeue_400Regular } from '@expo-google-fonts/bebas-neue/400Regular';
 import { NotoSans_400Regular } from '@expo-google-fonts/noto-sans/400Regular';
-import { NotoSansJP_700Bold } from '@expo-google-fonts/noto-sans-jp/700Bold';
+import { NotoSansJP_400Regular } from '@expo-google-fonts/noto-sans-jp/400Regular';
 import { Allison_400Regular } from '@expo-google-fonts/allison/400Regular';
 import { AuthProvider, useAuthContext } from '@/contexts/AuthContext';
 import { ForegroundRefreshProvider } from '@/contexts/ForegroundRefreshContext';
@@ -45,7 +45,7 @@ export default function Layout() {
   const [fontsLoaded] = useFonts({
     BebasNeue_400Regular,
     NotoSans_400Regular,
-    NotoSansJP_700Bold,
+    NotoSansJP_400Regular,
     Allison_400Regular,
   });
 

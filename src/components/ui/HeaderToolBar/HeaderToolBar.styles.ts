@@ -45,10 +45,9 @@ export default StyleSheet.create({
     color: COLORS.accent.goldPrimary,
   },
   headerTitle: {
-    fontFamily: 'NotoSansJP_700Bold',
+    fontFamily: 'BebasNeue',
     color: COLORS.icon.default,
     fontSize: 28,
-    lineHeight: 34,
   },
   iconAngleLeft: {
     marginRight: 3,
