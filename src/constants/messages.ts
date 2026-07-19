@@ -22,6 +22,14 @@ export const SHARE_LABELS = {
   failed: '共有の準備に失敗しました。時間をおいて再度お試しください。',
 };
 
+export const MIX_LABELS = {
+  chooseTitle: '共有する音源',
+  shareCurrent: '再生中の音源',
+  shareMix: 'ミックス版（声＋トラック）',
+  cancel: 'キャンセル',
+  failed: 'ミックス版の作成に失敗しました。時間をおいて再度お試しください。',
+};
+
 export const REC_PERMISSION_MESSAGES = {
   micPermissionDenied:
     'マイクの使用が許可されていないため録音できません。設定アプリからこのアプリのマイクへのアクセスを許可してください。',

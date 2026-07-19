@@ -640,6 +640,9 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
+        # ミックス済み音源（records/mixed/）の削除用 (TASK-49)
+        - S3CrudPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         DeleteRecord:
           Type: Api
@@ -712,6 +715,119 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/get-record-separate-status.ts
+
+  # ─── ミックス（声のみ + トラック音源の合成 / TASK-49） ─────────
+  # ffmpeg の静的バイナリ（arm64）。layers/ffmpeg/Makefile がビルド時に
+  # ダウンロードして /opt/bin/ffmpeg に配置する
+  FfmpegLayer:
+    Type: AWS::Serverless::LayerVersion
+    Properties:
+      LayerName: !Sub "${AWS::StackName}-ffmpeg"
+      Description: Static ffmpeg binary (Linux arm64) for record mixing
+      ContentUri: layers/ffmpeg/
+      CompatibleRuntimes:
+        - nodejs20.x
+      RetentionPolicy: Delete
+    Metadata:
+      BuildMethod: makefile
+
+  PostRecordMixFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-record-mix.handler
+      CodeUri: ./
+      Timeout: 25
+      Environment:
+        Variables:
+          RECORD_MIX_WORKER_FUNCTION: !Ref RecordMixWorkerFunction
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProjectsTable
+        - DynamoDBReadPolicy:
+            TableName: !Ref TracksTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
+        - LambdaInvokePolicy:
+            FunctionName: !Ref RecordMixWorkerFunction
+      Events:
+        PostRecordMix:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record/{id}/mix
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-record-mix.ts
+
+  # ffmpeg でのミックス処理本体。API Gateway のタイムアウト（29 秒）に
+  # 縛られないよう post-record-mix から非同期 Invoke されるワーカー。
+  # 分離音源（無圧縮 wav）をディスク・メモリに展開するため増量
+  RecordMixWorkerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/record-mix-worker.handler
+      CodeUri: ./
+      Timeout: 300
+      MemorySize: 2048
+      # /tmp に分離音源（無圧縮 wav）・トラック音源・ミックス出力を同時に置くため、
+      # デフォルト（512MB）では大きな wav トラックで不足し得る
+      EphemeralStorage:
+        Size: 2048
+      # 非同期 Invoke の自動リトライを無効化する。リトライを許すと、固着判定
+      # （MIX_STUCK_TIMEOUT_MS）で failed 化した後にリトライが走って二重処理に
+      # なるため、失敗時はアプリからの再実行に任せる
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+      Layers:
+        - !Ref FfmpegLayer
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+        - S3CrudPolicy:
+            BucketName: !Ref TrackAudioBucket
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/record-mix-worker.ts
+
+  GetRecordMixStatusFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/get-record-mix-status.handler
+      CodeUri: ./
+      Timeout: 25
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+        - S3ReadPolicy:
+            BucketName: !Ref TrackAudioBucket
+      Events:
+        GetRecordMixStatus:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/record/{id}/mix-status
+            Method: get
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/get-record-mix-status.ts
 
   PostMemoFunction:
     Type: AWS::Serverless::Function

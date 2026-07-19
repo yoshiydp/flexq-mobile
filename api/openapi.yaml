@@ -724,6 +724,80 @@ paths:
           description: Not Found
         '503':
           description: Service Unavailable (AI cleanup is not configured)
+  /data/record/{id}/mix:
+    post:
+      summary: Start mixing the separated vocals with the project track audio
+      description: >
+        Starts a server-side mix (ffmpeg) of the AI-cleaned vocals and the
+        project track audio, aligned with the recording start position.
+        If the record has already been mixed with the same sources, the cached
+        result is returned without starting a new job.
+      operationId: mixRecord
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  mixStatus:
+                    type: string
+                    enum: [none, processing, done, failed]
+                  mixedSource:
+                    type: string
+        '400':
+          description: >-
+            Bad Request (no separated audio, record not linked to a project,
+            or the project has no track audio)
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
+        '502':
+          description: Bad Gateway (failed to start the mix job)
+  /data/record/{id}/mix-status:
+    get:
+      summary: Get mix status for a record
+      description: >
+        Polls the mix job status. When the job has finished, the mixed audio
+        is stored in S3 and a presigned URL is returned.
+      operationId: getRecordMixStatus
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  id:
+                    type: string
+                  mixStatus:
+                    type: string
+                    enum: [none, processing, done, failed]
+                  mixedSource:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
   /data/record/{id}:
     put:
       summary: Update a record
