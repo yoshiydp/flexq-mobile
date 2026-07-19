@@ -9,6 +9,8 @@ export interface MemoType {
   id: string;
   title: string;
   body: string;
+  /** 作成日時。createdAt 導入前の既存データは updatedAt でフォールバック（TASK-51） */
+  createdAt: Date;
   updatedAt: Date;
   isBookmarked: boolean;
 }
@@ -34,6 +36,7 @@ export function useFetchMemo() {
       const res = await DefaultService.getMemo();
       const mapped = res.map((memo: any) => ({
         ...memo,
+        createdAt: new Date(memo.createdAt ?? memo.updatedAt),
         updatedAt: new Date(memo.updatedAt),
       }));
       setMemos(mapped);

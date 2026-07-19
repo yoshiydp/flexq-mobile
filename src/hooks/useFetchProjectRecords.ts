@@ -14,6 +14,8 @@ export interface ProjectRecordType {
   projectId?: string;
   /** 録音開始時のトラック再生位置（ms）。未保存の既存レコードは undefined（トラック先頭扱い） */
   startPositionMs?: number;
+  /** 作成日時。createdAt 導入前の既存データは updatedAt でフォールバック（TASK-51） */
+  createdAt: Date;
   updatedAt: Date;
   isBookmarked: boolean;
   recordedWithHeadphones?: RecordedWithHeadphones;
@@ -45,12 +47,14 @@ export function useFetchProjectRecords(projectId: string) {
       const sortedRecords = recordList
         .map((record: any) => ({
           ...record,
+          createdAt: new Date(record.createdAt ?? record.updatedAt),
           updatedAt: new Date(record.updatedAt),
         }))
         .sort((a, b) => {
           if (a.isBookmarked && !b.isBookmarked) return -1;
           if (!a.isBookmarked && b.isBookmarked) return 1;
-          return b.updatedAt.getTime() - a.updatedAt.getTime();
+          // 作成日時の降順（編集しても並び順が変わらないように。TASK-51）
+          return b.createdAt.getTime() - a.createdAt.getTime();
         });
 
       setRecords(sortedRecords);

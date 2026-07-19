@@ -11,6 +11,8 @@ export interface ProjectType {
   waveformJson: string;
   cueButtons: { time: number; label: string; isActive: boolean }[];
   tags?: string[];
+  /** 作成日時。createdAt 導入前の既存データは updatedAt でフォールバック（TASK-51） */
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -29,9 +31,11 @@ export function useFetchProject() {
         res
           .map((project: any) => ({
             ...project,
+            createdAt: new Date(project.createdAt ?? project.updatedAt),
             updatedAt: new Date(project.updatedAt),
           }))
-          .sort((a: any, b: any) => b.updatedAt.getTime() - a.updatedAt.getTime()),
+          // 作成日時の降順（編集しても並び順が変わらないように。TASK-51）
+          .sort((a: any, b: any) => b.createdAt.getTime() - a.createdAt.getTime()),
       );
     } catch (err) {
       console.error('Failed to fetch projects:', err);
