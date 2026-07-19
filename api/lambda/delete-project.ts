@@ -67,23 +67,25 @@ export const handler = async (event: any) => {
 
   const records = recordsResult.Items ?? [];
   for (const record of records) {
-    if (record.s3Key) {
-      await s3Client.send(new DeleteObjectCommand({
-        Bucket: process.env.TRACK_AUDIO_BUCKET!,
-        Key: record.s3Key,
-      }));
-    }
-    // ミックス済み音源（TASK-49 で生成）もレコードと一緒に削除する
-    if (record.mixedS3Key) {
-      await s3Client.send(new DeleteObjectCommand({
-        Bucket: process.env.TRACK_AUDIO_BUCKET!,
-        Key: record.mixedS3Key,
-      }));
-    }
-    await docClient.send(new DeleteCommand({
+    // 先にレコードを削除し、その時点の属性（ALL_OLD）で S3 を掃除する。
+    // クエリのスナップショットを使うと、進行中のミックスがこの間に完了した
+    // 場合に新しい mixedS3Key を見落として孤児ファイルが残る（delete-record.ts
+    // と同じパターン）。S3 側の削除失敗はログのみ（レコードは削除済みのため）
+    const deleteResult = await docClient.send(new DeleteCommand({
       TableName: process.env.RECORDS_TABLE!,
       Key: { userId: record.userId, recordId: record.recordId },
+      ReturnValues: 'ALL_OLD',
     }));
+    const attrs = deleteResult.Attributes ?? {};
+    for (const key of [attrs.s3Key, attrs.mixedS3Key]) {
+      if (!key) continue;
+      await s3Client.send(new DeleteObjectCommand({
+        Bucket: process.env.TRACK_AUDIO_BUCKET!,
+        Key: key,
+      })).catch((err) => {
+        console.error('Failed to delete record audio:', key, err);
+      });
+    }
   }
 
   await docClient.send(new DeleteCommand({

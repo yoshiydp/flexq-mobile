@@ -8,6 +8,7 @@ import {
   isMixCacheValid,
   isMixStuck,
   mixedS3KeyFor,
+  mp3GaplessHeadTrimSec,
 } from './record-mix';
 
 describe('isMixStuck', () => {
@@ -132,7 +133,9 @@ describe('buildMixFfmpegArgs', () => {
     expect(args).not.toContain('-ss');
     // トラック入力（[1:a]）のみサンプル精度の atrim で頭出しする
     const filter = args[args.indexOf('-filter_complex') + 1];
-    expect(filter).toContain('[1:a]atrim=start=12.345,asetpts=PTS-STARTPTS[trk]');
+    expect(filter).toContain(
+      '[1:a]atrim=start=12.345000,asetpts=PTS-STARTPTS[trk]'
+    );
     expect(filter).toContain('[0:a][trk]amix');
     // 入力順は 声のみ音源 → トラック
     const firstInput = args.indexOf('-i');
@@ -154,6 +157,9 @@ describe('buildMixFfmpegArgs', () => {
     expect(filter).toContain('amix=inputs=2:duration=first');
     expect(filter).toContain('normalize=0');
     expect(filter).toContain('alimiter');
+    // トラック mp3 の埋め込みアートワークを拾わないようミックス結果のみ map する
+    expect(filter).toMatch(/\[out\]$/);
+    expect(args[args.indexOf('-map') + 1]).toBe('[out]');
     expect(args[args.indexOf('-c:a') + 1]).toBe('aac');
     expect(args[args.length - 1]).toBe('/tmp/mixed.m4a');
   });
@@ -165,7 +171,7 @@ describe('buildMixFfmpegArgs', () => {
       outPath: '/tmp/mixed.m4a',
     });
     expect(defaultArgs[defaultArgs.indexOf('-filter_complex') + 1]).toContain(
-      'atrim=start=0.000'
+      'atrim=start=0.000000'
     );
 
     const negativeArgs = buildMixFfmpegArgs({
@@ -175,7 +181,100 @@ describe('buildMixFfmpegArgs', () => {
       startPositionMs: -500,
     });
     expect(negativeArgs[negativeArgs.indexOf('-filter_complex') + 1]).toContain(
-      'atrim=start=0.000'
+      'atrim=start=0.000000'
     );
+  });
+
+  it('mp3 gapless 補正（trackHeadTrimSec）を頭出しに上乗せする', () => {
+    const args = buildMixFfmpegArgs({
+      vocalsPath: '/tmp/vocals.wav',
+      trackPath: '/tmp/track-input',
+      outPath: '/tmp/mixed.m4a',
+      startPositionMs: 1000,
+      trackHeadTrimSec: (528 + 529) / 48000,
+    });
+    expect(args[args.indexOf('-filter_complex') + 1]).toContain(
+      'atrim=start=1.022021'
+    );
+  });
+});
+
+describe('mp3GaplessHeadTrimSec', () => {
+  /** MPEG1 Layer III のフレームヘッダー（128kbps・ステレオ） */
+  const frameHeader = (sampleRateBits: number) =>
+    Buffer.from([0xff, 0xfb, 0x90 | (sampleRateBits << 2), 0x00]);
+
+  /** body を ID3v2.2 タグ（synchsafe サイズ）で包む */
+  const id3v2 = (body: Buffer) => {
+    const header = Buffer.from([
+      0x49, 0x44, 0x33, 0x02, 0x00, 0x00, // 'ID3' v2.2 flags=0
+      (body.length >> 21) & 0x7f,
+      (body.length >> 14) & 0x7f,
+      (body.length >> 7) & 0x7f,
+      body.length & 0x7f,
+    ]);
+    return Buffer.concat([header, body]);
+  };
+
+  const iTunSMPB = Buffer.from(
+    'COM\x00\x00\x40\x00\x00\x00iTunSMPB\x00 00000000 00000210 0000077E 00000000009777F2',
+    'latin1'
+  );
+
+  it('iTunSMPB あり・Xing なしは priming + デコーダディレイを返す（44.1kHz）', () => {
+    const mp3 = Buffer.concat([
+      id3v2(iTunSMPB),
+      frameHeader(0), // 44100
+      Buffer.alloc(400),
+    ]);
+    expect(mp3GaplessHeadTrimSec(mp3)).toBeCloseTo((528 + 529) / 44100, 8);
+  });
+
+  it('サンプルレートはフレームヘッダーから解決する（48kHz）', () => {
+    const mp3 = Buffer.concat([
+      id3v2(iTunSMPB),
+      frameHeader(1), // 48000
+      Buffer.alloc(400),
+    ]);
+    expect(mp3GaplessHeadTrimSec(mp3)).toBeCloseTo((528 + 529) / 48000, 8);
+  });
+
+  it('タグなしの mp3 はデコーダディレイのみ返す', () => {
+    const mp3 = Buffer.concat([frameHeader(0), Buffer.alloc(400)]);
+    expect(mp3GaplessHeadTrimSec(mp3)).toBeCloseTo(529 / 44100, 8);
+  });
+
+  it('Xing/Info ヘッダーがあれば ffmpeg が処理するため 0 を返す', () => {
+    // MPEG1 ステレオ: Xing はヘッダー 4 + サイド情報 32 バイトの直後
+    const makeFrame = (tag: string) => {
+      const frame = Buffer.concat([frameHeader(0), Buffer.alloc(400)]);
+      frame.write(tag, 4 + 32, 'ascii');
+      return frame;
+    };
+    expect(mp3GaplessHeadTrimSec(makeFrame('Xing'))).toBe(0);
+    expect(mp3GaplessHeadTrimSec(makeFrame('Info'))).toBe(0);
+    // Xing 付きなら iTunSMPB があっても LAME 側を優先する
+    expect(
+      mp3GaplessHeadTrimSec(Buffer.concat([id3v2(iTunSMPB), makeFrame('Xing')]))
+    ).toBe(0);
+  });
+
+  it('mp3 以外・フレームが見つからない場合は 0 を返す', () => {
+    const wav = Buffer.concat([
+      Buffer.from('RIFF\x00\x00\x00\x00WAVE', 'latin1'),
+      Buffer.alloc(64),
+    ]);
+    expect(mp3GaplessHeadTrimSec(wav)).toBe(0);
+    // ID3 タグのみでフレームがない
+    expect(mp3GaplessHeadTrimSec(id3v2(iTunSMPB))).toBe(0);
+  });
+
+  it('iTunSMPB の priming が異常値ならデコーダディレイのみ返す', () => {
+    const broken = Buffer.from(
+      'iTunSMPB\x00 00000000 7FFFFFFF 0000077E',
+      'latin1'
+    );
+    const mp3 = Buffer.concat([id3v2(broken), frameHeader(0), Buffer.alloc(400)]);
+    expect(mp3GaplessHeadTrimSec(mp3)).toBeCloseTo(529 / 44100, 8);
   });
 });

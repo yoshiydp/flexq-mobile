@@ -15,6 +15,7 @@ import {
   MIX_PIPELINE_VERSION,
   buildMixFfmpegArgs,
   mixedS3KeyFor,
+  mp3GaplessHeadTrimSec,
 } from './record-mix';
 
 const execFileAsync = promisify(execFile);
@@ -60,10 +61,11 @@ export const handler = async (event: MixWorkerEvent) => {
     const outPath = path.join(workDir, 'mixed.m4a');
 
     await downloadS3ToFile(event.separatedS3Key, vocalsPath);
+    let trackBuffer: Buffer;
     if (event.trackS3Key) {
-      await downloadS3ToFile(event.trackS3Key, trackPath);
+      trackBuffer = await downloadS3ToFile(event.trackS3Key, trackPath);
     } else if (event.trackUrl) {
-      await downloadUrlToFile(event.trackUrl, trackPath);
+      trackBuffer = await downloadUrlToFile(event.trackUrl, trackPath);
     } else {
       throw new Error('Mix worker event has no track audio source');
     }
@@ -75,6 +77,7 @@ export const handler = async (event: MixWorkerEvent) => {
         trackPath,
         outPath,
         startPositionMs: event.startPositionMs,
+        trackHeadTrimSec: mp3GaplessHeadTrimSec(trackBuffer),
       }),
       { maxBuffer: 10 * 1024 * 1024 }
     );
@@ -203,7 +206,7 @@ async function deleteMixedObject(key: string) {
     });
 }
 
-async function downloadS3ToFile(key: string, filePath: string) {
+async function downloadS3ToFile(key: string, filePath: string): Promise<Buffer> {
   const obj = await s3Client.send(
     new GetObjectCommand({
       Bucket: process.env.TRACK_AUDIO_BUCKET!,
@@ -212,13 +215,17 @@ async function downloadS3ToFile(key: string, filePath: string) {
   );
   const bytes = await obj.Body?.transformToByteArray();
   if (!bytes) throw new Error(`Failed to download s3://${key}: empty body`);
-  await writeFile(filePath, Buffer.from(bytes));
+  const buffer = Buffer.from(bytes);
+  await writeFile(filePath, buffer);
+  return buffer;
 }
 
-async function downloadUrlToFile(url: string, filePath: string) {
+async function downloadUrlToFile(url: string, filePath: string): Promise<Buffer> {
   const res = await fetch(url);
   if (!res.ok) {
     throw new Error(`Failed to download track audio: HTTP ${res.status}`);
   }
-  await writeFile(filePath, Buffer.from(await res.arrayBuffer()));
+  const buffer = Buffer.from(await res.arrayBuffer());
+  await writeFile(filePath, buffer);
+  return buffer;
 }
