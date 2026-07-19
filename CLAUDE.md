@@ -60,6 +60,35 @@ sam deploy                # AWS にデプロイ (初回は --guided)
 
 > **同時起動は不要。** `yarn start:staging` と `yarn ios` を同時に実行する必要はありません。
 
+### Android エミュレーター・実機での開発とテスト
+
+iOS と同様、日常の開発は `yarn start:staging`（または `yarn start`）を起動し、ターミナルで `a` を押すと Android エミュレーターでアプリが開きます。
+
+**前提条件（初回のみ）:**
+
+1. Android Studio をインストール（`brew install --cask android-studio`）
+2. Android Studio → Device Manager で AVD（仮想デバイス）を作成（例: Pixel 8 / 最新 API）
+3. 環境変数を設定（`~/.zshrc` に追記）:
+   ```bash
+   export ANDROID_HOME=$HOME/Library/Android/sdk
+   export PATH=$PATH:$ANDROID_HOME/emulator:$ANDROID_HOME/platform-tools
+   ```
+4. `yarn android`（= `expo run:android`）で初回ネイティブビルド + エミュレーターへインストール
+
+`yarn android` が必要になるタイミングは iOS の `yarn ios` と同じです（初回セットアップ・ネイティブモジュール追加後・`app.json` 変更後・`expo-dev-client` 再ビルド時）。以降 JS レイヤーのみの変更であれば `yarn start:staging` → `a` だけで開発できます。
+
+**Android 実機でのローカル確認:**
+
+1. 実機の「開発者向けオプション」で **USB デバッグ** を有効化
+2. USB 接続して `adb devices` で認識されることを確認
+3. `yarn android` でビルド + インストール（以降は開発サーバー接続のみで OK）
+
+**Staging（OTA Update）の確認:**
+
+staging ブランチへのマージで GitHub Actions が実行する EAS Update はプラットフォーム共通のため、Android にも同じ staging チャンネルで配信されます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
+
+> **注意:** Android はネイティブ設定に未整備の項目が残っています（Google OAuth の androidClientId、BLUETOOTH_CONNECT 権限、フォント埋め込み、eas.json の Android ビルド設定など）。詳細は Notion の TASK-54〜63（デバイス: Android）を参照してください。
+
 ### ナビゲーション
 
 アプリのルーターには expo-router ではなく **React Navigation**（Stack + Bottom Tabs）を使用しています。`src/app/` ディレクトリは最小限で、ルートレイアウトのラップのみを担当します。
@@ -269,6 +298,35 @@ eas submit --profile staging --platform ios
 | App Store Connect App ID | `6762039606` |
 | Bundle ID | `com.yoshiydp.lyricsapp` |
 | TestFlight URL | https://appstoreconnect.apple.com/apps/6762039606/testflight/ios |
+
+#### Google Play 内部テスト配信（Android の TestFlight 相当）
+
+Android のテスター配布は Google Play Console の **内部テスト** トラックを使います（審査なし・最大 100 名・アップロード後数分で配信）。より広い範囲でのテストが必要になったら「クローズドテスト」（初回審査あり）へ昇格します。
+
+> **未整備（TASK-60）:** 現時点で eas.json に Android のビルド・submit 設定はありません。以下の初回セットアップが完了するまで Android 配信は実行できません。
+
+**初回セットアップ（TASK-60 で実施）:**
+1. [Google Play Console](https://play.google.com/console) のデベロッパーアカウントを登録（$25 買い切り）
+2. Play Console でアプリを作成（パッケージ名 `com.yoshiydp.lyricsapp`）
+3. EAS submit 用に Google Cloud のサービスアカウント JSON キーを発行し、`eas.json` の `submit.<profile>.android.serviceAccountKeyPath` と `track: "internal"` を設定
+4. `eas.json` の build プロファイルに Android 設定（AAB）を追加
+5. **最初の 1 本目の AAB は Play Console の画面から手動アップロードが必要**（以降は `eas submit` で自動化できる）
+
+**配布手順（セットアップ完了後）:**
+```bash
+# 1. ビルド（AAB）
+eas build --profile staging --platform android
+
+# 2. Play Console 内部テストトラックへアップロード
+eas submit --profile staging --platform android
+```
+
+**テスターへの配布:**
+1. Play Console → テスト → 内部テスト → 「テスター」タブでテスターの Google アカウント（メールアドレス）をリストに追加
+2. 「リンクをコピー」で参加 URL を取得し、LINE やメールで送る
+3. テスターはリンクを開いて「参加」→ Play ストアからインストール（TestFlight のような専用アプリは不要）
+
+> **代替手段:** Play Console を経由せず配布したい場合は **Firebase App Distribution**（APK 配布・審査なし）も利用できる。ただしテスター側にインストール用アプリ（App Tester）の導入が必要になるため、基本は Play 内部テストを使う。
 
 #### EAS ビルドの注意点
 
