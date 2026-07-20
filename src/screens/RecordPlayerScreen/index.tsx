@@ -36,7 +36,7 @@ import { useDeleteRecord } from '@/hooks/useDeleteRecord';
 import { useUploadRecord } from '@/hooks/useUploadRecord';
 import { useFetchRecord } from '@/hooks/useFetchRecord';
 import { useSeparateRecord } from '@/hooks/useSeparateRecord';
-import { useShareRecord } from '@/hooks/useShareRecord';
+import { isShareAvailable, useShareRecord } from '@/hooks/useShareRecord';
 import { useMixRecord, MixCancelledError } from '@/hooks/useMixRecord';
 import type { SeparationStatus } from '@/types/separationType';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
@@ -61,7 +61,11 @@ export default function RecordPlayerScreen() {
   const { deleteRecord } = useDeleteRecord();
   const { uploadRecord } = useUploadRecord();
   const { refreshRecord } = useFetchRecord();
-  const { shareRecord, downloading: shareDownloading } = useShareRecord();
+  const {
+    shareRecord,
+    saveRecordToDevice,
+    downloading: shareDownloading,
+  } = useShareRecord();
   const { mixRecord, mixing } = useMixRecord();
 
   const [sound, setSound] = useState<Audio.Sound | null>(null);
@@ -281,16 +285,34 @@ export default function RecordPlayerScreen() {
       separatedSource,
   );
 
-  // 現在の再生対象（元の録音 / 声のみ）を iOS 共有シートで共有する。
-  // ファイルに保存（デバイス / iCloud Drive）や Google Drive 等への共有に対応 (TASK-45)
-  const shareActiveSource = async () => {
+  // 共有（共有シート）またはデバイス保存（Android のみ / SAF）を実行する。
+  // 保存はフォルダ選択キャンセル時を除き、完了を Alert で通知する (TASK-55)
+  const deliverRecord = async (
+    action: 'share' | 'save',
+    uri: string,
+    fileName: string,
+  ) => {
+    if (action === 'save') {
+      const result = await saveRecordToDevice(uri, fileName);
+      if (result === 'saved') {
+        Alert.alert(SHARE_LABELS.saveDoneTitle, SHARE_LABELS.saveDone);
+      }
+      return;
+    }
+    await shareRecord(uri, fileName);
+  };
+
+  // 現在の再生対象（元の録音 / 声のみ）を共有シートで共有・デバイスに保存する。
+  // iOS はファイルに保存（デバイス / iCloud Drive）や Google Drive 等への共有に
+  // 共有シートのみで対応する (TASK-45)。Android は共有シート + SAF 保存 (TASK-55)
+  const runForActiveSource = async (action: 'share' | 'save') => {
     const uri =
       activeSource === 'separated' && separatedSource
         ? separatedSource
         : recordedFile;
     if (!uri) return;
     try {
-      await shareRecord(uri, title);
+      await deliverRecord(action, uri, title);
     } catch (error) {
       console.error('Failed to share record:', error);
 
@@ -306,7 +328,7 @@ export default function RecordPlayerScreen() {
               ? updated?.separatedSource
               : updated?.source;
           if (retryUri) {
-            await shareRecord(retryUri, title);
+            await deliverRecord(action, retryUri, title);
             return;
           }
         } catch (retryError) {
@@ -314,44 +336,84 @@ export default function RecordPlayerScreen() {
         }
       }
 
-      Alert.alert('エラー', SHARE_LABELS.failed);
+      Alert.alert(
+        'エラー',
+        action === 'save' ? SHARE_LABELS.saveFailed : SHARE_LABELS.failed,
+      );
     }
   };
 
-  // ミックス版（声のみ + トラック音源をサーバー側で 1 ファイルに合成）を共有する (TASK-49)。
-  // ミックスは完了までポーリングで待ち、生成された音源を共有シートに渡す
-  const handleShareMix = async () => {
+  // ミックス版（声のみ + トラック音源をサーバー側で 1 ファイルに合成）を
+  // 共有・デバイスに保存する (TASK-49, TASK-55)。
+  // ミックスは完了までポーリングで待ち、生成された音源を共有シート（または SAF 保存）に渡す
+  const runForMix = async (action: 'share' | 'save') => {
     if (!params?.id) return;
+    let mixedSource: string;
     try {
-      const mixedSource = await mixRecord(params.id);
-      // ファイル名にはレコードのタイトルを使う（未入力時は保存時の既定名と同じ
-      // No Title にフォールバックする）
-      await shareRecord(mixedSource, title.trim() || 'No Title');
+      mixedSource = await mixRecord(params.id);
     } catch (error) {
       // 画面離脱による中断はエラーとして扱わない（処理はサーバー側で続行され、
       // 完了後の再実行ではキャッシュが返る）
       if (error instanceof MixCancelledError) return;
-      console.error('Failed to share mixed record:', error);
+      console.error('Failed to mix record:', error);
       if (!isMountedRef.current) return;
       Alert.alert('エラー', MIX_LABELS.failed);
+      return;
+    }
+    try {
+      // ファイル名にはレコードのタイトルを使う（未入力時は保存時の既定名と同じ
+      // No Title にフォールバックする）
+      await deliverRecord(action, mixedSource, title.trim() || 'No Title');
+    } catch (error) {
+      console.error('Failed to share mixed record:', error);
+      if (!isMountedRef.current) return;
+      Alert.alert(
+        'エラー',
+        action === 'save' ? SHARE_LABELS.saveFailed : MIX_LABELS.failed,
+      );
     }
   };
 
-  // 共有ボタン・メニューのエントリポイント。ミックス版を共有できる場合は
+  // 対象の音源を選択して共有・保存を実行する。ミックス版を共有できる場合は
   // 「再生中の音源 / ミックス版」の選択肢を表示する (TASK-49)
-  const handleShare = () => {
+  const chooseSourceAndRun = (action: 'share' | 'save') => {
     if (!mixShareAvailable) {
-      void shareActiveSource();
+      void runForActiveSource(action);
       return;
     }
-    Alert.alert(MIX_LABELS.chooseTitle, undefined, [
-      {
-        text: MIX_LABELS.shareCurrent,
-        onPress: () => void shareActiveSource(),
-      },
-      { text: MIX_LABELS.shareMix, onPress: () => void handleShareMix() },
-      { text: MIX_LABELS.cancel, style: 'cancel' },
-    ]);
+    Alert.alert(
+      action === 'save' ? MIX_LABELS.chooseSaveTitle : MIX_LABELS.chooseTitle,
+      undefined,
+      [
+        {
+          text: MIX_LABELS.shareCurrent,
+          onPress: () => void runForActiveSource(action),
+        },
+        { text: MIX_LABELS.shareMix, onPress: () => void runForMix(action) },
+        { text: MIX_LABELS.cancel, style: 'cancel' },
+      ],
+    );
+  };
+
+  // 共有ボタン・メニューのエントリポイント。
+  // iOS は共有シート内の「ファイルに保存」でデバイス保存もカバーできるため直接共有する。
+  // Android の共有シートには保存の項目がないため「共有 / デバイスに保存」を先に選択させる (TASK-55)
+  const handleShare = () => {
+    if (Platform.OS === 'android') {
+      Alert.alert(SHARE_LABELS.chooseActionTitle, undefined, [
+        {
+          text: SHARE_LABELS.actionShare,
+          onPress: () => chooseSourceAndRun('share'),
+        },
+        {
+          text: SHARE_LABELS.actionSave,
+          onPress: () => chooseSourceAndRun('save'),
+        },
+        { text: SHARE_LABELS.actionCancel, style: 'cancel' },
+      ]);
+      return;
+    }
+    chooseSourceAndRun('share');
   };
 
   const handleGoBack = () => {
@@ -548,12 +610,14 @@ export default function RecordPlayerScreen() {
     }
   };
 
-  // 共有ボタンは iOS のみ表示する。Android の Share.share は url（ファイル添付）に
-  // 対応していないため、Android 対応は別途検討する (TASK-45)
-  const shareButtons =
-    Platform.OS === 'ios'
-      ? [{ ...HEADER_TOOLBAR_TEMPLATES.share, onPress: handleShare }]
-      : [];
+  // 共有ボタンは iOS / Android の両方で表示する。iOS は Share.share（共有シート）、
+  // Android は expo-sharing + SAF 保存で対応する (TASK-45, TASK-55)。
+  // web（ネイティブ API なし）と、expo-sharing 追加前の Android バイナリに
+  // OTA Update だけが届いた環境では非表示にする
+  const shareAvailable = isShareAvailable();
+  const shareButtons = shareAvailable
+    ? [{ ...HEADER_TOOLBAR_TEMPLATES.share, onPress: handleShare }]
+    : [];
 
   const items =
     params?.source === 'Drafts'
@@ -601,7 +665,7 @@ export default function RecordPlayerScreen() {
               {
                 ...HEADER_TOOLBAR_TEMPLATES.action,
                 menuItems: [
-                  ...(Platform.OS === 'ios'
+                  ...(shareAvailable
                     ? [{ label: '共有', onPress: handleShare }]
                     : []),
                   { label: '削除', onPress: handleDelete },

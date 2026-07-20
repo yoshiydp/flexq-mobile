@@ -20,10 +20,20 @@ export const SEPARATION_LABELS = {
 
 export const SHARE_LABELS = {
   failed: '共有の準備に失敗しました。時間をおいて再度お試しください。',
+  // Android は共有シートに「ファイルに保存」相当の項目がないため、
+  // 共有とデバイス保存を選択肢として提示する (TASK-55)
+  chooseActionTitle: '共有・保存',
+  actionShare: '共有',
+  actionSave: 'デバイスに保存',
+  actionCancel: 'キャンセル',
+  saveDoneTitle: '保存完了',
+  saveDone: '選択したフォルダに保存しました。',
+  saveFailed: 'デバイスへの保存に失敗しました。時間をおいて再度お試しください。',
 };
 
 export const MIX_LABELS = {
   chooseTitle: '共有する音源',
+  chooseSaveTitle: '保存する音源',
   shareCurrent: '再生中の音源',
   shareMix: 'ミックス版（声＋トラック）',
   cancel: 'キャンセル',
