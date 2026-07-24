@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import { StyleSheet } from 'react-native';
 import { useFonts } from 'expo-font';
 // パッケージルートを import すると全ウェイトの ttf がバンドルされるため、
@@ -66,6 +67,13 @@ export default function Layout() {
 
   return (
     <SafeAreaProvider>
+      {/* ダークテーマ固定のため、端末のテーマ設定によらずステータスバーの
+          アイコンを常にライト（白）にする。Android の edge-to-edge では
+          userInterfaceStyle: automatic のままだとライトテーマ端末で
+          暗い背景に黒アイコンが重なって見えなくなる（iOS も同様の明示）。
+          edge-to-edge 有効時は backgroundColor / translucent は指定不可のため
+          style のみ設定する */}
+      <StatusBar style="light" />
       <AuthProvider>
         <ForegroundRefreshProvider>
           <AppContent />
