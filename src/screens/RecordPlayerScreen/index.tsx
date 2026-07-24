@@ -174,13 +174,22 @@ export default function RecordPlayerScreen() {
         if (!status.isLoaded) return;
         setPosition(status.positionMillis || 0);
         setDuration(status.durationMillis || recordedDuration || 1);
+        // 再生ボタンの表示はステータスを正として同期する。操作時の楽観的更新
+        // だけだと、プレイヤー側の想定外の状態変化（Android の自動再開など）で
+        // 表示と実際の再生状態がズレたままになる (TASK-65)
+        setIsPlaying(status.isPlaying);
 
         if (status.didJustFinish) {
           // 録音（声）の再生終了に合わせてトラック側も停止/巻き戻しする（録音尺をマスター）
           syncPlaybackRef.current.handleRecordFinish(status.isLooping, newSound);
           if (!status.isLooping) {
             setIsPlaying(false);
-            newSound.setPositionAsync(0);
+            // 終了状態（ended）のプレイヤーに setPositionAsync だけを呼ぶと
+            // Android（ExoPlayer）では再生が再開されてしまうため、
+            // 停止と巻き戻しをまとめて適用する (TASK-65)
+            newSound
+              .setStatusAsync({ shouldPlay: false, positionMillis: 0 })
+              .catch(() => {});
           }
         }
       });

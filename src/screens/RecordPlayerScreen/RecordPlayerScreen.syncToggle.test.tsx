@@ -31,6 +31,7 @@ const mockRecordSound = {
   pauseAsync: jest.fn(),
   playAsync: jest.fn(),
   setPositionAsync: jest.fn(),
+  setStatusAsync: jest.fn().mockResolvedValue({}),
   setVolumeAsync: jest.fn(),
   setIsLoopingAsync: jest.fn(),
   getStatusAsync: jest.fn(),
@@ -365,6 +366,61 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
         fireEvent.press(getByTestId('source-segment-separated'));
       });
       expect(mockSyncPlayback.syncPause).toHaveBeenCalled();
+    });
+  });
+
+  describe('再生終了時の巻き戻し (TASK-65)', () => {
+    const getStatusCallback = () => {
+      const call =
+        mockRecordSound.setOnPlaybackStatusUpdate.mock.calls.at(-1);
+      expect(call).toBeDefined();
+      return call![0] as (status: Record<string, unknown>) => void;
+    };
+
+    it('リピート OFF の再生終了では停止と巻き戻しをまとめて適用する（Android の自動再開を防ぐ）', async () => {
+      await renderScreen();
+      const onStatus = getStatusCallback();
+
+      await act(async () => {
+        onStatus({
+          isLoaded: true,
+          isPlaying: false,
+          positionMillis: 5000,
+          durationMillis: 5000,
+          didJustFinish: true,
+          isLooping: false,
+        });
+      });
+
+      // 終了状態のプレイヤーへの setPositionAsync 単独呼び出しは
+      // Android で再生を再開させるため行わない
+      expect(mockRecordSound.setStatusAsync).toHaveBeenCalledWith({
+        shouldPlay: false,
+        positionMillis: 0,
+      });
+      expect(mockRecordSound.setPositionAsync).not.toHaveBeenCalledWith(0);
+    });
+
+    it('リピート ON の再生終了では巻き戻さずループを継続する', async () => {
+      await renderScreen();
+      const onStatus = getStatusCallback();
+
+      await act(async () => {
+        onStatus({
+          isLoaded: true,
+          isPlaying: true,
+          positionMillis: 0,
+          durationMillis: 5000,
+          didJustFinish: true,
+          isLooping: true,
+        });
+      });
+
+      expect(mockRecordSound.setStatusAsync).not.toHaveBeenCalled();
+      expect(mockSyncPlayback.handleRecordFinish).toHaveBeenCalledWith(
+        true,
+        mockRecordSound,
+      );
     });
   });
 });
