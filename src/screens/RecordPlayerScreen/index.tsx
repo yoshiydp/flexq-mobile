@@ -14,7 +14,7 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { Asset } from 'expo-asset';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeAndroid } from 'expo-av';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import TitleInput from '@/components/features/inputs/TitleInput';
 import SeekBar from '@/components/features/audioPlayer/SeekBar';
@@ -130,6 +130,8 @@ export default function RecordPlayerScreen() {
       allowsRecordingIOS: false,
       playsInSilentModeIOS: true,
       shouldDuckAndroid: true,
+      // Android の音声フォーカス挙動を明示する（他アプリの音を下げて再生する）
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
     });
 
     if (sound) {

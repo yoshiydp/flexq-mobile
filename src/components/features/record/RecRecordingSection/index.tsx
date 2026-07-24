@@ -1,6 +1,6 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Pressable, View, Text, Animated, Alert, AppState } from 'react-native';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeAndroid } from 'expo-av';
 import { runBounce } from '@/utils/animations';
 import { RECORDING_OPTIONS_HIGH_QUALITY } from '@/utils/recordingOptions';
 import { REC_PERMISSION_MESSAGES } from '@/constants/messages';
@@ -72,6 +72,15 @@ export default function RecRecordingSection({
       // 起動シーケンス途中の prepare 済み録音もマイクを掴んだままにしない
       preparedRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
       preparedRecordingRef.current = null;
+      // 録音用のグローバル音声モード（DoNotMix / allowsRecordingIOS）は
+      // 中断・失敗を含むどの終了経路でも残るため、再生向け設定に戻す。
+      // 戻さないと以降のトラック再生が他アプリの音声を完全に止めてしまう
+      Audio.setAudioModeAsync({
+        allowsRecordingIOS: false,
+        playsInSilentModeIOS: true,
+        shouldDuckAndroid: true,
+        interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
+      }).catch(() => {});
     };
   }, []);
 
@@ -162,6 +171,8 @@ export default function RecRecordingSection({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
         shouldDuckAndroid: false,
+        // 録音中は他アプリと音声をミックスせず、音声フォーカスを専有する
+        interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
       });
 
       const recording = new Audio.Recording();
