@@ -124,6 +124,7 @@ DynamoDB       S3
 - Node.js 20.11.0
 - Yarn 4.12.0（`corepack enable` で有効化）
 - Xcode（iOS シミュレーター用）
+- Android Studio（Android エミュレーター用。`brew install --cask android-studio` → Device Manager で AVD を作成）
 - AWS SAM CLI（`brew install aws-sam-cli`）
 
 ### セットアップ
@@ -134,6 +135,9 @@ yarn install
 
 # 2. (初回のみ) iOS シミュレーターへアプリをインストール
 yarn ios
+
+# 2'. (初回のみ・Android の場合) Android エミュレーターへアプリをインストール
+yarn android
 ```
 
 ### 開発サーバーの起動
@@ -148,9 +152,9 @@ yarn start:staging
 yarn start
 ```
 
-起動後、ターミナルで `i` を押すと iOS シミュレーターが開きます。
+起動後、ターミナルで `i` を押すと iOS シミュレーター、`a` を押すと Android エミュレーターが開きます。
 
-> **注意:** `yarn ios`（ネイティブビルド）が必要なのは、初回セットアップ・ネイティブモジュール追加・`app.json` 変更後のみです。通常の JS 変更では `yarn start:staging` のみで開発できます。
+> **注意:** `yarn ios` / `yarn android`（ネイティブビルド）が必要なのは、初回セットアップ・ネイティブモジュール追加・`app.json` 変更後のみです。通常の JS 変更では `yarn start:staging` のみで開発できます。
 
 ### DB への接続方法
 
@@ -312,15 +316,20 @@ lint または test が失敗した場合はデプロイが中止されます。
 yarn start:staging
 
 # 2. ターミナルで i を押して iOS シミュレーターを開く
+#    （Android の場合は a を押して Android エミュレーターを開く）
 # → 変更は自動でホットリロードされる
 ```
 
-### 実機（iPhone）で確認
+### 実機（iPhone / Android）で確認
 
 Staging デプロイ済みの OTA Update を実機で確認するには：
 
-1. iPhone で **Expo Go** を完全に終了して再起動
+1. 実機で **Expo Go**（または開発ビルド）を完全に終了して再起動
 2. 最新の update が自動適用される
+
+EAS Update はプラットフォーム共通のため、staging チャンネルの配信は iOS / Android 両方に届きます。
+
+Android 実機でローカルの変更を直接確認する場合は、実機の「開発者向けオプション」で USB デバッグを有効化し、USB 接続して `yarn android` でインストールします。
 
 ### TestFlight で確認（テスターへの配布）
 
@@ -356,6 +365,30 @@ eas submit --profile staging --platform ios
 1. App Store で **TestFlight** をインストール（無料・初回のみ）
 2. 届いたリンクをタップ → 「承認」
 3. TestFlight 上で「インストール」をタップ
+
+### Google Play 内部テストで確認（Android テスターへの配布）
+
+Android 版のテスター配布には Google Play Console の **内部テスト** トラック（TestFlight 相当・審査なし・最大 100 名）を使用します。
+
+> **未整備:** 現時点で `eas.json` に Android のビルド・submit 設定はありません（Notion TASK-60 で整備予定）。初回は Google Play Console のデベロッパーアカウント登録（$25 買い切り）・アプリ作成・サービスアカウントキーの設定が必要です。
+
+**配布手順（セットアップ完了後）:**
+
+```bash
+# 1. ビルド（AAB）
+eas build --profile staging --platform android
+
+# 2. Play Console 内部テストトラックへアップロード
+eas submit --profile staging --platform android
+```
+
+**テスターへの配布:**
+
+1. Play Console → テスト → 内部テスト → 「テスター」タブでテスターの Google アカウントを追加
+2. 「リンクをコピー」で参加 URL を取得して LINE やメールで送る
+3. テスターはリンクを開いて「参加」→ Play ストアからインストール（専用アプリ不要）
+
+詳細な初回セットアップ手順は CLAUDE.md の「Google Play 内部テスト配信」を参照してください。
 
 ### トラブルシューティング
 

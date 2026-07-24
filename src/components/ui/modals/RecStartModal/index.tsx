@@ -126,7 +126,16 @@ export default function RecStartModal({
     customPositionMs !== null && customPositionMs > 0;
 
   return (
-    <Modal transparent visible={visible} animationType="none" onRequestClose={onClose}>
+    <Modal
+      transparent
+      visible={visible}
+      animationType="none"
+      onRequestClose={onClose}
+      // Android の edge-to-edge でオーバーレイがステータスバー・
+      // ナビゲーションバーの背後まで覆うようにする（Android 専用 prop で iOS には影響しない）
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
       <Animated.View style={styles.overlay} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
         <Animated.View style={styles.container} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
           <Text style={styles.title}>{REC_LABELS.startModalTitle}</Text>

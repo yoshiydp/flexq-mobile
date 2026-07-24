@@ -15,10 +15,11 @@ export default StyleSheet.create({
     borderRadius: 8,
   },
   label: {
+    // BebasNeue は単一ウェイトのため fontWeight は指定しない
+    // （iOS は無視・Android は擬似ボールド合成となり見た目が食い違う）
     fontFamily: 'BebasNeue',
     color: COLORS.accent.purple,
     fontSize: 30,
-    fontWeight: 'bold',
     lineHeight: 30,
   },
   icon: {

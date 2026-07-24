@@ -58,6 +58,10 @@ export default function BaseModal({
       visible={showModal}
       animationType="none"
       onRequestClose={onClose}
+      // Android の edge-to-edge でオーバーレイがステータスバー・
+      // ナビゲーションバーの背後まで覆うようにする（Android 専用 prop で iOS には影響しない）
+      statusBarTranslucent
+      navigationBarTranslucent
     >
       <Animated.View
         style={styles.overlay}

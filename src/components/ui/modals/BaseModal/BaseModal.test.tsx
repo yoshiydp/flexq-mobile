@@ -56,6 +56,19 @@ describe('BaseModal コンポーネント', () => {
     expect(mockOnClose).toHaveBeenCalledTimes(0);
   });
 
+  it('Android の edge-to-edge 用にステータスバー・ナビゲーションバーを覆う設定になっている', () => {
+    const { Modal } = require('react-native');
+    const { UNSAFE_getByType } = render(
+      <BaseModal visible onClose={mockOnClose}>
+        <Text>モーダルコンテンツ</Text>
+      </BaseModal>,
+    );
+
+    const modal = UNSAFE_getByType(Modal);
+    expect(modal.props.statusBarTranslucent).toBe(true);
+    expect(modal.props.navigationBarTranslucent).toBe(true);
+  });
+
   it('モーダルコンテナタップ時に Keyboard.dismiss が呼ばれる', () => {
     const dismissSpy = jest.spyOn(Keyboard, 'dismiss').mockImplementation(() => {});
     const { UNSAFE_getAllByType } = render(
