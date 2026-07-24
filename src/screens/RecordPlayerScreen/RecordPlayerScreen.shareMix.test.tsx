@@ -102,8 +102,15 @@ jest.mock('@/hooks/useHeadphonesConnected', () => ({
 }));
 
 const mockShareRecord = jest.fn();
+const mockSaveRecordToDevice = jest.fn();
 jest.mock('@/hooks/useShareRecord', () => ({
-  useShareRecord: () => ({ shareRecord: mockShareRecord, downloading: false }),
+  // ネイティブモジュールの有無に依存しないよう常に利用可能としてテストする
+  isShareAvailable: () => true,
+  useShareRecord: () => ({
+    shareRecord: mockShareRecord,
+    saveRecordToDevice: mockSaveRecordToDevice,
+    downloading: false,
+  }),
 }));
 
 const mockMixRecord = jest.fn();

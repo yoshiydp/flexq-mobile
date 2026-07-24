@@ -75,6 +75,7 @@ jest.mock('@/hooks/useHeadphonesConnected', () => ({
   useHeadphonesConnected: jest.fn(() => 'bluetooth'),
 }));
 jest.mock('@/hooks/useShareRecord', () => ({
+  isShareAvailable: () => true,
   useShareRecord: () => ({ shareRecord: jest.fn(), downloading: false }),
 }));
 

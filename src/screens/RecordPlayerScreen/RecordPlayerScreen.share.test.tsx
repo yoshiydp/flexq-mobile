@@ -1,9 +1,10 @@
 /**
- * RecordPlayerScreen 共有（ダウンロード）ボタンのテスト (TASK-45)
+ * RecordPlayerScreen 共有（ダウンロード）ボタンのテスト (TASK-45, TASK-55)
  *
  * - ヘッダーツールバーに共有ボタンを表示し、タップで useShareRecord.shareRecord を呼ぶ
  * - 再生対象が「声のみ」（activeSource === 'separated'）の場合は分離済み音源を共有する
  * - 共有の準備（ダウンロード等）に失敗した場合は Alert でエラーを通知する
+ * - Android は「共有 / デバイスに保存」の選択肢を表示し、保存は saveRecordToDevice で行う
  */
 import React from 'react';
 import { Alert, Platform } from 'react-native';
@@ -104,8 +105,15 @@ jest.mock('@/hooks/useHeadphonesConnected', () => ({
 }));
 
 const mockShareRecord = jest.fn();
+const mockSaveRecordToDevice = jest.fn();
 jest.mock('@/hooks/useShareRecord', () => ({
-  useShareRecord: () => ({ shareRecord: mockShareRecord, downloading: false }),
+  // ネイティブモジュールの有無に依存しないよう常に利用可能としてテストする
+  isShareAvailable: () => true,
+  useShareRecord: () => ({
+    shareRecord: mockShareRecord,
+    saveRecordToDevice: mockSaveRecordToDevice,
+    downloading: false,
+  }),
 }));
 
 // AI クリーンアップ（声のみ音源）の状態。テストごとに status / separatedSource を上書きする
@@ -252,21 +260,148 @@ describe('RecordPlayerScreen 共有ボタン', () => {
     );
   });
 
-  it('Android ではケバブメニューに共有項目を表示しない（Share.share が url でのファイル共有に未対応のため）', async () => {
-    jest.replaceProperty(Platform, 'OS', 'android');
-    mockParams = {
-      id: 'record-1',
-      recordedFile: 'https://s3.example.com/records/abc.m4a?sig=xxx',
-      title: 'My Take',
+  describe('Android の共有・デバイス保存 (TASK-55)', () => {
+    // Alert に表示された選択肢からボタンを選んでタップする
+    const pressAlertOption = async (label: string) => {
+      const buttons = alertSpy.mock.calls.at(-1)?.[2] as
+        | { text: string; onPress?: () => void }[]
+        | undefined;
+      const button = buttons?.find((b) => b.text === label);
+      expect(button).toBeTruthy();
+      await act(async () => {
+        button!.onPress?.();
+      });
     };
-    const { getByTestId, queryByText, getByText } = await renderScreen();
 
-    await act(async () => {
-      fireEvent.press(getByTestId('action-button-with-menu'));
+    beforeEach(() => {
+      jest.replaceProperty(Platform, 'OS', 'android');
+      mockSaveRecordToDevice.mockResolvedValue('saved');
+      mockParams = {
+        id: 'record-1',
+        recordedFile: 'https://s3.example.com/records/abc.m4a?sig=xxx',
+        title: 'My Take',
+      };
     });
 
-    expect(queryByText('共有')).toBeNull();
-    expect(getByText('削除')).toBeTruthy();
+    it('ケバブメニューにも共有項目を表示し、タップで「共有 / デバイスに保存」の選択肢を出す', async () => {
+      const utils = await renderScreen();
+
+      await pressShareFromMenu(utils);
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        SHARE_LABELS.chooseActionTitle,
+        undefined,
+        expect.arrayContaining([
+          expect.objectContaining({ text: SHARE_LABELS.actionShare }),
+          expect.objectContaining({ text: SHARE_LABELS.actionSave }),
+        ]),
+      );
+      expect(mockShareRecord).not.toHaveBeenCalled();
+      expect(mockSaveRecordToDevice).not.toHaveBeenCalled();
+    });
+
+    it('「共有」を選ぶと音源 URL とタイトルで shareRecord を呼ぶ', async () => {
+      const utils = await renderScreen();
+
+      await pressShareFromMenu(utils);
+      await pressAlertOption(SHARE_LABELS.actionShare);
+
+      expect(mockShareRecord).toHaveBeenCalledWith(
+        'https://s3.example.com/records/abc.m4a?sig=xxx',
+        'My Take',
+      );
+      expect(mockSaveRecordToDevice).not.toHaveBeenCalled();
+    });
+
+    it('「デバイスに保存」を選ぶと saveRecordToDevice を呼び、完了を Alert で通知する', async () => {
+      const utils = await renderScreen();
+
+      await pressShareFromMenu(utils);
+      await pressAlertOption(SHARE_LABELS.actionSave);
+
+      expect(mockSaveRecordToDevice).toHaveBeenCalledWith(
+        'https://s3.example.com/records/abc.m4a?sig=xxx',
+        'My Take',
+      );
+      expect(mockShareRecord).not.toHaveBeenCalled();
+      expect(alertSpy).toHaveBeenCalledWith(
+        SHARE_LABELS.saveDoneTitle,
+        SHARE_LABELS.saveDone,
+      );
+    });
+
+    it('フォルダ選択をキャンセルした場合は完了・エラーのどちらも通知しない', async () => {
+      mockSaveRecordToDevice.mockResolvedValue('cancelled');
+      const utils = await renderScreen();
+
+      await pressShareFromMenu(utils);
+      await pressAlertOption(SHARE_LABELS.actionSave);
+
+      expect(alertSpy).not.toHaveBeenCalledWith(
+        SHARE_LABELS.saveDoneTitle,
+        SHARE_LABELS.saveDone,
+      );
+      expect(alertSpy).not.toHaveBeenCalledWith(
+        'エラー',
+        SHARE_LABELS.saveFailed,
+      );
+    });
+
+    it('保存に失敗し再取得もできない場合は Alert でエラーを通知する', async () => {
+      mockSaveRecordToDevice.mockRejectedValue(new Error('write failed'));
+      const utils = await renderScreen();
+
+      await pressShareFromMenu(utils);
+      await pressAlertOption(SHARE_LABELS.actionSave);
+
+      expect(alertSpy).toHaveBeenCalledWith('エラー', SHARE_LABELS.saveFailed);
+    });
+
+    it('保存失敗時は最新 URL を再取得して 1 回だけリトライする（共有と同じ方針）', async () => {
+      mockSaveRecordToDevice
+        .mockRejectedValueOnce(new Error('download failed'))
+        .mockResolvedValueOnce('saved');
+      mockRefreshRecord.mockResolvedValue([
+        {
+          id: 'record-1',
+          source: 'https://s3.example.com/records/abc.m4a?sig=new',
+        },
+      ]);
+      const utils = await renderScreen();
+
+      await pressShareFromMenu(utils);
+      await pressAlertOption(SHARE_LABELS.actionSave);
+
+      expect(mockSaveRecordToDevice).toHaveBeenCalledTimes(2);
+      expect(mockSaveRecordToDevice).toHaveBeenLastCalledWith(
+        'https://s3.example.com/records/abc.m4a?sig=new',
+        'My Take',
+      );
+      expect(alertSpy).not.toHaveBeenCalledWith(
+        'エラー',
+        SHARE_LABELS.saveFailed,
+      );
+    });
+
+    it('未保存テイクの共有ボタンでも「共有 / デバイスに保存」の選択肢を出す', async () => {
+      mockParams = {
+        recordedFile: 'file:///tmp/recording-uuid.m4a',
+        title: 'New Take',
+        source: 'ProjectEdit',
+        projectId: 'project-1',
+      };
+      const { getByTestId } = await renderScreen();
+
+      await act(async () => {
+        fireEvent.press(getByTestId('toolbar-share'));
+      });
+      await pressAlertOption(SHARE_LABELS.actionShare);
+
+      expect(mockShareRecord).toHaveBeenCalledWith(
+        'file:///tmp/recording-uuid.m4a',
+        'New Take',
+      );
+    });
   });
 
   it('保存済みレコードの共有失敗時は最新 URL を再取得して 1 回だけリトライする', async () => {
