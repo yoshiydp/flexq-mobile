@@ -33,6 +33,7 @@ const mockRecordSound = {
 };
 
 jest.mock('expo-av', () => ({
+  InterruptionModeAndroid: { DoNotMix: 1, DuckOthers: 2 },
   Audio: {
     setAudioModeAsync: jest.fn().mockResolvedValue({}),
     Sound: {
