@@ -31,6 +31,7 @@ const mockRecordSound = {
   pauseAsync: jest.fn(),
   playAsync: jest.fn(),
   setPositionAsync: jest.fn(),
+  setStatusAsync: jest.fn().mockResolvedValue({}),
   setVolumeAsync: jest.fn(),
   setIsLoopingAsync: jest.fn(),
   getStatusAsync: jest.fn(),
@@ -38,6 +39,7 @@ const mockRecordSound = {
 };
 
 jest.mock('expo-av', () => ({
+  InterruptionModeAndroid: { DoNotMix: 1, DuckOthers: 2 },
   Audio: {
     setAudioModeAsync: jest.fn().mockResolvedValue({}),
     Sound: {
@@ -101,9 +103,12 @@ const mockSyncPlayback = {
   enableSync: jest.fn().mockResolvedValue('enabled'),
   disableSync: jest.fn().mockResolvedValue(undefined),
   syncPlay: jest.fn().mockResolvedValue(undefined),
+  syncResume: jest.fn().mockResolvedValue(undefined),
+  syncReconcile: jest.fn().mockResolvedValue(undefined),
   syncPause: jest.fn().mockResolvedValue(undefined),
   syncSeek: jest.fn().mockResolvedValue(undefined),
   correctSyncOffset: jest.fn().mockResolvedValue(undefined),
+  syncJoinPlaying: jest.fn().mockResolvedValue(undefined),
   handleRecordFinish: jest.fn().mockResolvedValue(undefined),
   setTrackVolume: jest.fn().mockResolvedValue(undefined),
 };
@@ -261,11 +266,14 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
     expect(Alert.alert).toHaveBeenCalledWith('エラー', SYNC_PLAYBACK_LABELS.loadFailed);
   });
 
-  it('再生中にトグル ON した場合、ロード完了後の最新の再生位置でトラックを再生する', async () => {
-    // 1 回目: トグル ON 直後のスナップショット / 2 回目: enableSync（ロード）完了後の最新状態
-    mockRecordSound.getStatusAsync
-      .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1000 })
-      .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 4321 });
+  it('再生中にトグル ON した場合、合流処理（syncJoinPlaying）で追従再生を開始する', async () => {
+    // トグル ON 直後のスナップショット位置で enableSync し、
+    // 最新位置の取り直しは合流処理側（syncJoinPlaying）が行う (TASK-61)
+    mockRecordSound.getStatusAsync.mockResolvedValue({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 1000,
+    });
 
     const { getByTestId } = await renderScreen();
     await act(async () => {
@@ -273,7 +281,9 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
     });
 
     expect(mockSyncPlayback.enableSync).toHaveBeenCalledWith(1000);
-    expect(mockSyncPlayback.syncPlay).toHaveBeenCalledWith(4321);
+    expect(mockSyncPlayback.syncJoinPlaying).toHaveBeenCalledWith(
+      mockRecordSound,
+    );
   });
 
   it('ロード中にイヤホンが切断された（headphones-disconnected）場合、Alert なしで何もしない', async () => {
@@ -283,7 +293,7 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(mockSyncPlayback.syncPlay).not.toHaveBeenCalled();
+    expect(mockSyncPlayback.syncJoinPlaying).not.toHaveBeenCalled();
   });
 
   it('ロード中に画面を離れた（cancelled）場合、Alert なしで何もしない', async () => {
@@ -293,7 +303,7 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(mockSyncPlayback.syncPlay).not.toHaveBeenCalled();
+    expect(mockSyncPlayback.syncJoinPlaying).not.toHaveBeenCalled();
   });
 
   it('同時再生が有効なとき、トラック音量用の VolumeSlider が追加表示される', async () => {
@@ -365,6 +375,61 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
         fireEvent.press(getByTestId('source-segment-separated'));
       });
       expect(mockSyncPlayback.syncPause).toHaveBeenCalled();
+    });
+  });
+
+  describe('再生終了時の巻き戻し (TASK-65)', () => {
+    const getStatusCallback = () => {
+      const call =
+        mockRecordSound.setOnPlaybackStatusUpdate.mock.calls.at(-1);
+      expect(call).toBeDefined();
+      return call![0] as (status: Record<string, unknown>) => void;
+    };
+
+    it('リピート OFF の再生終了では停止と巻き戻しをまとめて適用する（Android の自動再開を防ぐ）', async () => {
+      await renderScreen();
+      const onStatus = getStatusCallback();
+
+      await act(async () => {
+        onStatus({
+          isLoaded: true,
+          isPlaying: false,
+          positionMillis: 5000,
+          durationMillis: 5000,
+          didJustFinish: true,
+          isLooping: false,
+        });
+      });
+
+      // 終了状態のプレイヤーへの setPositionAsync 単独呼び出しは
+      // Android で再生を再開させるため行わない
+      expect(mockRecordSound.setStatusAsync).toHaveBeenCalledWith({
+        shouldPlay: false,
+        positionMillis: 0,
+      });
+      expect(mockRecordSound.setPositionAsync).not.toHaveBeenCalledWith(0);
+    });
+
+    it('リピート ON の再生終了では巻き戻さずループを継続する', async () => {
+      await renderScreen();
+      const onStatus = getStatusCallback();
+
+      await act(async () => {
+        onStatus({
+          isLoaded: true,
+          isPlaying: true,
+          positionMillis: 0,
+          durationMillis: 5000,
+          didJustFinish: true,
+          isLooping: true,
+        });
+      });
+
+      expect(mockRecordSound.setStatusAsync).not.toHaveBeenCalled();
+      expect(mockSyncPlayback.handleRecordFinish).toHaveBeenCalledWith(
+        true,
+        mockRecordSound,
+      );
     });
   });
 });

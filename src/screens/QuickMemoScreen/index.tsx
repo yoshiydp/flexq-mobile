@@ -15,6 +15,10 @@ import type { RootStackParamList } from '@/navigation/types';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import TitleInput from '@/components/features/inputs/TitleInput';
 import BodyInput from '@/components/features/inputs/BodyInput';
+import {
+  shouldSkipKeyboardDismiss,
+  useKeyboardDismissProtection,
+} from '@/utils/keyboardDismissGuard';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useModal } from '@/contexts/ModalContext';
 import {
@@ -30,6 +34,8 @@ import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
 import styles from './QuickMemoScreen.styles';
 
 export default function QuickMemoScreen() {
+  // Android 用: タイトル入力を「キーボードを閉じない」保護領域として登録する
+  const titleProtection = useKeyboardDismissProtection();
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'QuickMemo'>>();
@@ -202,20 +208,29 @@ export default function QuickMemoScreen() {
       <KeyboardAvoidingView
         style={{ flex: 1 }}
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        onStartShouldSetResponder={() => {
-          editor.blur();
-          Keyboard.dismiss();
+        onStartShouldSetResponder={(e) => {
+          // Android はタイトル・エディター領域内のタップでは閉じない
+          // （iOS は BodyInput 側の claim で保護されるため常に false / TASK-58）
+          if (!shouldSkipKeyboardDismiss(e)) {
+            editor.blur();
+            Keyboard.dismiss();
+          }
           return false;
         }}
       >
         <HeaderToolBar items={items} isBookmarked={isBookmarked} />
         <View style={styles.inputContainer}>
-          <TitleInput
-            value={title}
-            onChangeText={setTitle}
-            onFocus={() => { editor.blur(); setIsTitleFocused(true); }}
-            onBlur={() => setIsTitleFocused(false)}
-          />
+          <View
+            ref={titleProtection.ref}
+            onLayout={titleProtection.onLayout}
+          >
+            <TitleInput
+              value={title}
+              onChangeText={setTitle}
+              onFocus={() => { editor.blur(); setIsTitleFocused(true); }}
+              onBlur={() => setIsTitleFocused(false)}
+            />
+          </View>
           <View style={styles.bodyInputWrapper} pointerEvents={isTitleFocused ? 'none' : 'auto'}>
             <BodyInput
               editor={editor}

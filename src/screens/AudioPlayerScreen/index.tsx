@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, ScrollView, Text, Alert } from 'react-native';
-import { Audio } from 'expo-av';
+import { Audio, InterruptionModeAndroid } from 'expo-av';
 import { useRoute, useNavigation } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import Artwork from '@/components/ui/Artwork';
@@ -88,6 +88,8 @@ export default function AudioPlayerScreen() {
       playsInSilentModeIOS: true,
       staysActiveInBackground: false,
       shouldDuckAndroid: true,
+      // Android の音声フォーカス挙動を明示する（他アプリの音を下げて再生する）
+      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
     });
 
     if (sound) {

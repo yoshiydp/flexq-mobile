@@ -1,5 +1,11 @@
 import { useEffect, useState } from 'react';
-import { AppState, NativeEventEmitter, NativeModules } from 'react-native';
+import {
+  AppState,
+  NativeEventEmitter,
+  NativeModules,
+  PermissionsAndroid,
+  Platform,
+} from 'react-native';
 
 /**
  * - `'wired'` / `'bluetooth'`: 接続中のイヤホン種別（同時接続時は無線を優先）
@@ -18,6 +24,36 @@ const HEADPHONE_CONNECTION_EVENTS = [
 // 接続変更イベントを取りこぼした場合（iOS でオーディオセッションが
 // 非アクティブな間はルート変更通知が届かないことがある）に備えたポーリング間隔
 const CONNECTION_POLL_INTERVAL_MS = 3000;
+
+/**
+ * Android 12（API 31）以降では Bluetooth 機器の接続状態取得に
+ * BLUETOOTH_CONNECT のランタイム権限が必要（未許可だと常に未接続扱いになる）。
+ * 拒否されても有線イヤホンの検知は動作するため、結果に関わらず検知は続行する。
+ *
+ * このフックは同一画面で複数マウントされる（RecView 直下と HeadphoneIndicator）
+ * ため、リクエストはモジュールレベルでキャッシュしてアプリ全体で 1 回に抑える
+ */
+let bluetoothPermissionRequest: Promise<void> | null = null;
+
+const ensureBluetoothPermission = (): Promise<void> => {
+  if (Platform.OS !== 'android' || Number(Platform.Version) < 31) {
+    return Promise.resolve();
+  }
+  if (!bluetoothPermissionRequest) {
+    bluetoothPermissionRequest = PermissionsAndroid.request(
+      PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+    )
+      .then(() => undefined)
+      // 権限リクエスト自体の失敗も検知継続を妨げない
+      .catch(() => undefined);
+  }
+  return bluetoothPermissionRequest;
+};
+
+/** テスト用: モジュールレベルの権限リクエストキャッシュをリセットする */
+export const resetBluetoothPermissionRequestForTesting = () => {
+  bluetoothPermissionRequest = null;
+};
 
 /**
  * イヤホン（有線・Bluetooth）の接続状態を種別付きで返すフック。
@@ -57,7 +93,9 @@ export function useHeadphonesConnected(): HeadphoneConnection {
       }
     };
 
-    refresh();
+    // 権限ダイアログ（Android 12+ の「付近のデバイス」）の応答後に初回取得する。
+    // リクエストはマウント時の 1 回のみで、以降のポーリングでは再要求しない
+    ensureBluetoothPermission().then(refresh);
 
     const subscriptions: { remove: () => void }[] = [];
     try {

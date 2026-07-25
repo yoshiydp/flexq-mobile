@@ -17,6 +17,7 @@ const mockSoundGetStatusAsync = jest.fn();
 
 jest.mock('expo-av', () => {
   return {
+    InterruptionModeAndroid: { DoNotMix: 1, DuckOthers: 2 },
     Audio: {
       // recordingOptions.ts が参照する録音定数（enum）は実物を使う
       IOSOutputFormat: jest.requireActual(
@@ -146,6 +147,22 @@ describe('RecRecordingSection コンポーネント', () => {
     getByText('4');
   });
 
+  it('アンマウント時に音声モードを再生向け設定（DuckOthers）に戻す (TASK-57)', async () => {
+    const { unmount } = render(<RecRecordingSection {...mockProps} />);
+    await flushAsync();
+
+    mockSetAudioModeAsync.mockClear();
+    unmount();
+
+    // 録音用の DoNotMix / allowsRecordingIOS がグローバルに残らないこと
+    expect(mockSetAudioModeAsync).toHaveBeenCalledWith({
+      allowsRecordingIOS: false,
+      playsInSilentModeIOS: true,
+      shouldDuckAndroid: true,
+      interruptionModeAndroid: 2,
+    });
+  });
+
   it('許可 granted 後にカウントダウン → 録音開始・タイマーが起動する', async () => {
     const { getByText } = render(
       <RecRecordingSection
@@ -166,6 +183,8 @@ describe('RecRecordingSection コンポーネント', () => {
       allowsRecordingIOS: true,
       playsInSilentModeIOS: true,
       shouldDuckAndroid: false,
+      // 録音中は他アプリと音声をミックスせず、音声フォーカスを専有する
+      interruptionModeAndroid: 1,
     });
     expect(mockPrepareToRecordAsync).toHaveBeenCalledTimes(1);
     expect(mockStartAsync).toHaveBeenCalledTimes(1);
