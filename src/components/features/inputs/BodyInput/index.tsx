@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Pressable, Text, View } from 'react-native';
+import { Platform, Pressable, Text, View } from 'react-native';
 import {
   RichText,
   useEditorContent,
@@ -8,6 +8,7 @@ import {
 } from '@10play/tentap-editor';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/globalStyles';
+import { useKeyboardDismissProtection } from '@/utils/keyboardDismissGuard';
 import { styles } from './BodyInput.styles';
 
 interface BodyInputProps {
@@ -38,6 +39,8 @@ export default function BodyInput({
 }: BodyInputProps) {
   const html = useEditorContent(editor, { type: 'html' });
   const editorState = useBridgeState(editor);
+  // Android 用: エディター領域を「キーボードを閉じない」保護領域として登録する
+  const protection = useKeyboardDismissProtection();
 
   useEffect(() => {
     if (html !== undefined) onChangeText(html);
@@ -86,8 +89,14 @@ export default function BodyInput({
 
   return (
     <View
+      ref={protection.ref}
+      onLayout={protection.onLayout}
       style={styles.container}
-      onStartShouldSetResponder={() => true}
+      // iOS: レスポンダを claim して親のブラー副作用からエディター内タップを守る。
+      // Android: claim すると WebView へのタッチ配送が遮断されフォーカス・
+      // スクロール・カーソル移動ができなくなるため claim しない（TASK-58）。
+      // 代わりに保護領域（keyboardDismissGuard）の座標判定で副作用をゲートする
+      onStartShouldSetResponder={() => Platform.OS === 'ios'}
       onResponderTerminationRequest={() => true}
     >
       {isEditing && (

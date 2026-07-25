@@ -25,6 +25,7 @@ import {
   darkEditorTheme,
 } from '@10play/tentap-editor';
 import { AppEditorThemeBridge } from '@/components/features/inputs/BodyInput/appEditorThemeBridge';
+import { shouldSkipKeyboardDismiss } from '@/utils/keyboardDismissGuard';
 import { COLORS } from '@/globalStyles';
 import { Audio } from 'expo-av';
 import {
@@ -904,8 +905,9 @@ export default function ProjectEditScreen() {
         markAutoSaveInteraction();
         return false;
       }}
-      onStartShouldSetResponder={() => {
-        blurEditor();
+      onStartShouldSetResponder={(e) => {
+        // Android はタイトル・エディター領域内のタップではブラーしない (TASK-58)
+        if (!shouldSkipKeyboardDismiss(e)) blurEditor();
         return false;
       }}
     >

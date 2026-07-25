@@ -3,6 +3,10 @@ import { View, Animated, Keyboard } from 'react-native';
 import { type EditorBridge } from '@10play/tentap-editor';
 import TitleInput from '@/components/features/inputs/TitleInput';
 import BodyInput from '@/components/features/inputs/BodyInput';
+import {
+  shouldSkipKeyboardDismiss,
+  useKeyboardDismissProtection,
+} from '@/utils/keyboardDismissGuard';
 import OverlayToggleButton from '@/components/features/projectEdit/OverlayToggleButton';
 import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
 import CueButtonList from '@/components/features/projectEdit/CueButtonList';
@@ -74,23 +78,31 @@ export default function EditView({
   editor,
 }: EditViewProps) {
   const [isTitleFocused, setIsTitleFocused] = useState(false);
+  // Android 用: タイトル入力を「キーボードを閉じない」保護領域として登録する
+  const titleProtection = useKeyboardDismissProtection();
 
   return (
     <View
       style={styles.container}
-      onStartShouldSetResponder={() => {
-        if (isEditingLyrics) onToggleEditLyrics();
-        onBlurEditor?.();
-        Keyboard.dismiss();
+      onStartShouldSetResponder={(e) => {
+        // Android はタイトル・エディター領域内のタップでは閉じない
+        // （iOS は BodyInput 側の claim で保護されるため常に false / TASK-58）
+        if (!shouldSkipKeyboardDismiss(e)) {
+          if (isEditingLyrics) onToggleEditLyrics();
+          onBlurEditor?.();
+          Keyboard.dismiss();
+        }
         return false;
       }}
     >
-      <TitleInput
-        value={projectName}
-        onChangeText={onChangeProjectName}
-        onFocus={() => { onBlurEditor?.(); setIsTitleFocused(true); }}
-        onBlur={() => setIsTitleFocused(false)}
-      />
+      <View ref={titleProtection.ref} onLayout={titleProtection.onLayout}>
+        <TitleInput
+          value={projectName}
+          onChangeText={onChangeProjectName}
+          onFocus={() => { onBlurEditor?.(); setIsTitleFocused(true); }}
+          onBlur={() => setIsTitleFocused(false)}
+        />
+      </View>
 
       <Animated.View
         style={[styles.bodyInputWrapper, { height: animatedHeight }]}
