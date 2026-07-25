@@ -8,6 +8,9 @@ node_modules
 # Local env (never send to build servers)
 .env.local
 
+# Google Play service account key (used locally by eas submit, never send to build servers)
+credentials/
+
 # Test & coverage
 coverage/
 __tests__/

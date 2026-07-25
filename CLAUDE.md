@@ -87,7 +87,7 @@ iOS と同様、日常の開発は `yarn start:staging`（または `yarn start`
 
 staging ブランチへのマージで GitHub Actions が実行する EAS Update はプラットフォーム共通のため、Android にも同じ staging チャンネルで配信されます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
 
-> **注意:** Android はネイティブ設定に未整備の項目が残っています（Google OAuth の androidClientId、BLUETOOTH_CONNECT 権限、フォント埋め込み、eas.json の Android ビルド設定など）。詳細は Notion の TASK-54〜63（デバイス: Android）を参照してください。
+> **注意:** Android はネイティブ設定に未整備の項目が残っています（Google OAuth の androidClientId、BLUETOOTH_CONNECT 権限、フォント埋め込みなど）。詳細は Notion の TASK-54〜63（デバイス: Android）を参照してください。eas.json の Android ビルド・submit 設定は整備済みですが、Google Play Console 側のセットアップは未実施です（「Google Play 内部テスト配信」参照）。
 
 ### ナビゲーション
 
@@ -303,14 +303,24 @@ eas submit --profile staging --platform ios
 
 Android のテスター配布は Google Play Console の **内部テスト** トラックを使います（審査なし・最大 100 名・アップロード後数分で配信）。より広い範囲でのテストが必要になったら「クローズドテスト」（初回審査あり）へ昇格します。
 
-> **未整備（TASK-60）:** 現時点で eas.json に Android のビルド・submit 設定はありません。以下の初回セットアップが完了するまで Android 配信は実行できません。
+`eas.json` の Android ビルド・submit 設定は整備済みです（TASK-60）：
 
-**初回セットアップ（TASK-60 で実施）:**
+| プロファイル | ビルド | submit 先 |
+|------------|-------|-----------|
+| `development` | APK（developmentClient） | — |
+| `staging` | AAB | 内部テストトラック（`track: "internal"`） |
+| `production` | AAB | 内部テストトラック（当面。リリース段階でクローズドテスト → 製品版トラックへ昇格する） |
+
+> **未実施（ユーザーの手作業）:** Google Play Console 側のセットアップ（下記 1〜4）と初回 AAB の手動アップロードが完了するまで、`eas submit --platform android` は実行できません。
+
+**初回セットアップ（Play Console 側・手動）:**
 1. [Google Play Console](https://play.google.com/console) のデベロッパーアカウントを登録（$25 買い切り）
 2. Play Console でアプリを作成（パッケージ名 `com.yoshiydp.lyricsapp`）
-3. EAS submit 用に Google Cloud のサービスアカウント JSON キーを発行し、`eas.json` の `submit.<profile>.android.serviceAccountKeyPath` と `track: "internal"` を設定
-4. `eas.json` の build プロファイルに Android 設定（AAB）を追加
-5. **最初の 1 本目の AAB は Play Console の画面から手動アップロードが必要**（以降は `eas submit` で自動化できる）
+3. EAS submit 用に Google Cloud のサービスアカウント JSON キーを発行し、Play Console の「API アクセス」でそのサービスアカウントに招待・権限（リリース管理）を付与する
+4. JSON キーをリポジトリ直下の `credentials/google-play-service-account.json` に配置する（`credentials/` は gitignore / easignore 済み。**絶対にコミットしないこと**）
+5. **最初の 1 本目の AAB は Play Console の画面から手動アップロードが必要**（`eas build --profile staging --platform android` で AAB を作成し、`eas build:download` などでダウンロードして内部テストトラックにアップロードする。以降は `eas submit` で自動化できる）
+
+> **補足:** アプリ情報（ストア掲載情報など）の設定が未完了の状態で `eas submit` が失敗する場合は、`releaseStatus: "draft"` を一時的に `submit.<profile>.android` へ追加してドラフトとして提出できる。セットアップ完了後は削除してよい（デフォルトは即時公開の `completed`）。
 
 **配布手順（セットアップ完了後）:**
 ```bash
@@ -696,6 +706,7 @@ cd api && sam build && sam deploy --stack-name lyrics-mock-api
 | `/pr-master` | `.claude/commands/pr-master.md` | develop から master への PR 作成（リリース用） |
 | `/deploy-api-staging` | `.claude/commands/deploy-api-staging.md` | staging 最新から Lambda を AWS Staging へ SAM デプロイ |
 | `/testflight` | `.claude/commands/testflight.md` | EAS Build → TestFlight 配信 |
+| `/playstore` | `.claude/commands/playstore.md` | EAS Build → Google Play 内部テスト配信（Android） |
 
 ---
 
@@ -801,7 +812,7 @@ https://github.com/yoshiydp/lyrics-mobile/pull/XX
 ④ 動作確認      iPhone（Expo Go）で Test plan の項目を確認
 ⑤ 完了処理      /task-done TASK-X          Notion を Done + リリース ON、develop への PR 作成
 ⑥ develop 反映  develop PR をマージ → worktree を掃除
-⑦ リリース      /testflight（TestFlight 配信）・/pr-master（production リリース）
+⑦ リリース      /testflight（TestFlight 配信）・/playstore（Google Play 内部テスト配信）・/pr-master（production リリース）
 ```
 
 #### ブランチ作成

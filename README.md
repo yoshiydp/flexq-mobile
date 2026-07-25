@@ -370,7 +370,9 @@ eas submit --profile staging --platform ios
 
 Android 版のテスター配布には Google Play Console の **内部テスト** トラック（TestFlight 相当・審査なし・最大 100 名）を使用します。
 
-> **未整備:** 現時点で `eas.json` に Android のビルド・submit 設定はありません（Notion TASK-60 で整備予定）。初回は Google Play Console のデベロッパーアカウント登録（$25 買い切り）・アプリ作成・サービスアカウントキーの設定が必要です。
+`eas.json` の Android ビルド（AAB）・submit（内部テストトラック）設定は整備済みです。
+
+> **初回のみ必要な手作業（未実施）:** Google Play Console のデベロッパーアカウント登録（$25 買い切り）→ アプリ作成（`com.yoshiydp.lyricsapp`）→ サービスアカウント JSON キーを発行して `credentials/google-play-service-account.json` に配置（gitignore 済み・コミット禁止）→ 最初の 1 本目の AAB を Play Console から手動アップロード。これが完了するまで `eas submit --platform android` は実行できません。
 
 **配布手順（セットアップ完了後）:**
 
