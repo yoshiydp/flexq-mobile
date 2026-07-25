@@ -18,6 +18,11 @@ import { ensureValidSession } from '@/utils/ensureValidSession';
  *   AuthContext がログイン画面へ遷移させるため、再フェッチは行わない
  * - セッションが有効な場合のみ、登録された各画面の refresh を呼び出す
  *   （useFetch 系フックが useForegroundRefresh で自動登録する）
+ * - Android の AppState には iOS の 'inactive' が存在しないが、復帰は
+ *   どちらの OS も background → active の遷移で通知されるため、この判定は
+ *   両 OS 共通で成立する（TASK-62）。なお Android では権限ダイアログや
+ *   共有シートの表示でも background ↔ active が発生し得るため、iOS より
+ *   発火頻度が高くなる（トークンチェック + 再フェッチが増えるだけで無害）
  */
 
 // refresh 関数の戻り値（フェッチ結果など）は利用しないため unknown で受ける
