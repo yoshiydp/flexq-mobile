@@ -43,6 +43,20 @@ import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
 import styles from './RecordPlayerScreen.styles';
 
+/**
+ * 再生ボタンの表示・操作判定に使う「再生意図」。
+ * Android は再バッファリング中に isPlaying=false になるため shouldPlay を正とする
+ * (TASK-61/65)。web は shouldPlay が autoplay 由来で実態と一致しないため
+ * isPlaying にフォールバックする
+ */
+const isPlayIntended = (status: {
+  shouldPlay?: boolean;
+  isPlaying: boolean;
+}): boolean =>
+  Platform.OS === 'web'
+    ? status.isPlaying
+    : (status.shouldPlay ?? status.isPlaying);
+
 export default function RecordPlayerScreen() {
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
@@ -176,10 +190,13 @@ export default function RecordPlayerScreen() {
         if (!status.isLoaded) return;
         setPosition(status.positionMillis || 0);
         setDuration(status.durationMillis || recordedDuration || 1);
-        // 再生ボタンの表示はステータスを正として同期する。操作時の楽観的更新
-        // だけだと、プレイヤー側の想定外の状態変化（Android の自動再開など）で
-        // 表示と実際の再生状態がズレたままになる (TASK-65)
-        setIsPlaying(status.isPlaying);
+        // 再生ボタンの表示と操作判定はステータスの「再生意図」を正として同期する。
+        // 操作時の楽観的更新だけだと、プレイヤー側の想定外の状態変化
+        // （Android の自動再開など）で表示が実態とズレたままになり (TASK-65)、
+        // isPlaying を使うと Android の再バッファリング中（shouldPlay=true のまま
+        // isPlaying=false）のシークが一時停止扱いになって同期回復（syncReconcile）が
+        // スキップされる (TASK-61)
+        setIsPlaying(isPlayIntended(status));
 
         if (status.didJustFinish) {
           // 録音（声）の再生終了に合わせてトラック側も停止/巻き戻しする（録音尺をマスター）
@@ -479,18 +496,20 @@ export default function RecordPlayerScreen() {
     if (!sound) return;
     const status = await sound.getStatusAsync();
     if (status.isLoaded) {
-      if (status.isPlaying) {
+      // ボタン表示と同じ「再生意図」基準で分岐する。
+      // Android の再バッファリング中（shouldPlay=true / isPlaying=false）に
+      // isPlaying で分岐すると、一時停止のつもりのタップが再生扱いになる (TASK-61)
+      if (isPlayIntended(status)) {
         await Promise.all([sound.pauseAsync(), syncPlayback.syncPause()]);
         setIsPlaying(false);
       } else {
-        // 録音位置 t ⇔ トラック位置 startPositionMs + t で両音源を同時に再生開始する
-        await Promise.all([
-          sound.playAsync(),
-          syncPlayback.syncPlay(status.positionMillis || 0),
-        ]);
-        // 2 つのプレイヤーの発音開始タイミング差（フォーマット差・バッファリング等）
-        // を実測して補正する（TASK-44）
-        void syncPlayback.correctSyncOffset(sound);
+        // 録音位置 t ⇔ トラック位置 startPositionMs + t で両音源を同時に再生開始する。
+        // iOS はトラックも録音と並行して開始し実測補正する（従来の Promise.all 相当）。
+        // Android のミュート合流（TASK-61）は数秒かかることがあるため await せず、
+        // ボタン表示は楽観的更新のみ行う（実際の状態はステータス更新が正 / TASK-65）
+        const playPromise = sound.playAsync();
+        void syncPlayback.syncResume(sound, status.positionMillis || 0);
+        await playPromise;
         setIsPlaying(true);
       }
     }
@@ -502,8 +521,8 @@ export default function RecordPlayerScreen() {
         sound.setPositionAsync(value),
         syncPlayback.syncSeek(value),
       ]);
-      // 再生中のシークは両プレイヤーのシーク遅延差でズレが出るため補正する
-      if (isPlaying) void syncPlayback.correctSyncOffset(sound);
+      // 再生中のシークは両プレイヤーのシーク遅延差でズレが出るため同期を回復する
+      if (isPlaying) void syncPlayback.syncReconcile(sound);
       if (!isPlaying) setIsPlaying(false);
     }
   };
@@ -571,13 +590,9 @@ export default function RecordPlayerScreen() {
     if (result === 'headphones-disconnected' || result === 'cancelled') return;
 
     // 録音を再生中に有効化した場合はトラックも追従して再生を開始する。
-    // ロード待ちの間に再生位置が進む（または一時停止される）ため、最新の状態を取り直す
-    const latestStatus = sound ? await sound.getStatusAsync() : null;
-    if (latestStatus?.isLoaded && latestStatus.isPlaying && sound) {
-      await syncPlayback.syncPlay(latestStatus.positionMillis || 0);
-      // 再生途中からのトラック合流も発音開始タイミング差が出るため補正する
-      void syncPlayback.correctSyncOffset(sound);
-    }
+    // ロード待ちの間に再生位置が進む（または一時停止される）ため、
+    // 合流処理側でバッファリング解消を待ち、最新の状態を取り直してから開始する (TASK-61)
+    if (sound) await syncPlayback.syncJoinPlaying(sound);
   };
 
   const handleSave = async () => {

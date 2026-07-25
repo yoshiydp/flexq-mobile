@@ -103,9 +103,12 @@ const mockSyncPlayback = {
   enableSync: jest.fn().mockResolvedValue('enabled'),
   disableSync: jest.fn().mockResolvedValue(undefined),
   syncPlay: jest.fn().mockResolvedValue(undefined),
+  syncResume: jest.fn().mockResolvedValue(undefined),
+  syncReconcile: jest.fn().mockResolvedValue(undefined),
   syncPause: jest.fn().mockResolvedValue(undefined),
   syncSeek: jest.fn().mockResolvedValue(undefined),
   correctSyncOffset: jest.fn().mockResolvedValue(undefined),
+  syncJoinPlaying: jest.fn().mockResolvedValue(undefined),
   handleRecordFinish: jest.fn().mockResolvedValue(undefined),
   setTrackVolume: jest.fn().mockResolvedValue(undefined),
 };
@@ -263,11 +266,14 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
     expect(Alert.alert).toHaveBeenCalledWith('エラー', SYNC_PLAYBACK_LABELS.loadFailed);
   });
 
-  it('再生中にトグル ON した場合、ロード完了後の最新の再生位置でトラックを再生する', async () => {
-    // 1 回目: トグル ON 直後のスナップショット / 2 回目: enableSync（ロード）完了後の最新状態
-    mockRecordSound.getStatusAsync
-      .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1000 })
-      .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 4321 });
+  it('再生中にトグル ON した場合、合流処理（syncJoinPlaying）で追従再生を開始する', async () => {
+    // トグル ON 直後のスナップショット位置で enableSync し、
+    // 最新位置の取り直しは合流処理側（syncJoinPlaying）が行う (TASK-61)
+    mockRecordSound.getStatusAsync.mockResolvedValue({
+      isLoaded: true,
+      isPlaying: true,
+      positionMillis: 1000,
+    });
 
     const { getByTestId } = await renderScreen();
     await act(async () => {
@@ -275,7 +281,9 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
     });
 
     expect(mockSyncPlayback.enableSync).toHaveBeenCalledWith(1000);
-    expect(mockSyncPlayback.syncPlay).toHaveBeenCalledWith(4321);
+    expect(mockSyncPlayback.syncJoinPlaying).toHaveBeenCalledWith(
+      mockRecordSound,
+    );
   });
 
   it('ロード中にイヤホンが切断された（headphones-disconnected）場合、Alert なしで何もしない', async () => {
@@ -285,7 +293,7 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(mockSyncPlayback.syncPlay).not.toHaveBeenCalled();
+    expect(mockSyncPlayback.syncJoinPlaying).not.toHaveBeenCalled();
   });
 
   it('ロード中に画面を離れた（cancelled）場合、Alert なしで何もしない', async () => {
@@ -295,7 +303,7 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(mockSyncPlayback.syncPlay).not.toHaveBeenCalled();
+    expect(mockSyncPlayback.syncJoinPlaying).not.toHaveBeenCalled();
   });
 
   it('同時再生が有効なとき、トラック音量用の VolumeSlider が追加表示される', async () => {

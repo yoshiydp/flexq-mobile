@@ -143,6 +143,8 @@ const mockSyncPlayback = {
   enableSync: jest.fn().mockResolvedValue('enabled'),
   disableSync: jest.fn().mockResolvedValue(undefined),
   syncPlay: jest.fn().mockResolvedValue(undefined),
+  syncResume: jest.fn().mockResolvedValue(undefined),
+  syncReconcile: jest.fn().mockResolvedValue(undefined),
   syncPause: jest.fn().mockResolvedValue(undefined),
   syncSeek: jest.fn().mockResolvedValue(undefined),
   correctSyncOffset: jest.fn().mockResolvedValue(undefined),
