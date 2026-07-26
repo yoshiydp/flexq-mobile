@@ -48,6 +48,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { CUE_LABELS } from '@/constants/cueLabels';
+import { KEYBOARD_CHECKMARK_BUTTON_KEYBOARD_OFFSET } from '@/constants/keyboardCheckmarkButton';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
@@ -1052,7 +1053,11 @@ export default function ProjectEditScreen() {
 
       {isEditingLyrics && keyboardHeight > 0 && (
         <Pressable
-          style={[styles.lyricsCloseButton, { bottom: keyboardHeight }]}
+          style={[
+            styles.lyricsCloseButton,
+            // 下部の波形表示と重ならないようキーボード上端からオフセットする (TASK-69)
+            { bottom: keyboardHeight + KEYBOARD_CHECKMARK_BUTTON_KEYBOARD_OFFSET },
+          ]}
           onPress={handleToggleEditLyrics}
         >
           <Ionicons name="checkmark" size={28} color={COLORS.base.bgDefault} />
