@@ -87,7 +87,7 @@ iOS と同様、日常の開発は `yarn start:staging`（または `yarn start`
 
 staging ブランチへのマージで GitHub Actions が実行する EAS Update はプラットフォーム共通のため、Android にも同じ staging チャンネルで配信されます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
 
-> **注意:** Android の Google ログインは、コード側（androidClientId の env 参照・app.json の scheme）は対応済みだが、Google Cloud での Android 用 OAuth クライアント作成と `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` の設定が未実施（Notion TASK-54 参照）。Google Play Console・EAS submit・内部テスト配信はセットアップ済みで運用可能（「Google Play 内部テスト配信」参照）。
+> **Android のセットアップ状況:** Google ログイン（TASK-54）・Google Play Console・EAS submit・内部テスト配信まですべてセットアップ済みで運用可能。Google OAuth の Android クライアントは lyrics-app-492415 にデバッグ署名 / EAS アップロード鍵 / Play アプリ署名鍵の 3 つを登録済み（`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` は `.env` に設定済み）。**新規 Android クライアント作成時は「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**（デフォルト無効のままだと OAuth が `400: invalid_request` になる）。
 
 ### ナビゲーション
 
