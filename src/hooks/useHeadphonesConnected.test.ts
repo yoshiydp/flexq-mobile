@@ -7,10 +7,24 @@ import {
 } from 'react-native';
 // __mocks__/react-native-device-info.js（手動モック）が自動適用される
 import MockDeviceInfo from 'react-native-device-info';
+import { Audio } from 'expo-av';
 import {
   resetBluetoothPermissionRequestForTesting,
+  resetIosAudioSessionActivationForTesting,
   useHeadphonesConnected,
 } from './useHeadphonesConnected';
+
+// iOS のオーディオセッションアクティブ化（TASK-66）で無音再生に使う expo-av のみモックする
+jest.mock('expo-av', () => ({
+  Audio: {
+    Sound: {
+      createAsync: jest.fn(),
+    },
+  },
+}));
+
+const createAsyncMock = Audio.Sound.createAsync as jest.Mock;
+const unloadAsyncMock = jest.fn();
 
 const DeviceInfo = MockDeviceInfo as unknown as {
   isWiredHeadphonesConnected: jest.Mock;
@@ -31,6 +45,10 @@ describe('useHeadphonesConnected', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockConnection(false, false);
+    // iOS のセッションアクティブ化（TASK-66）はテストごとに実行し直す
+    resetIosAudioSessionActivationForTesting();
+    unloadAsyncMock.mockResolvedValue(undefined);
+    createAsyncMock.mockResolvedValue({ sound: { unloadAsync: unloadAsyncMock } });
     // NativeEventEmitter が要求するネイティブモジュールのスタブ
     NativeModules.RNDeviceInfo = {
       addListener: jest.fn(),
@@ -230,6 +248,82 @@ describe('useHeadphonesConnected', () => {
       await waitFor(() => expect(result.current).toBe('none'));
       expect(requestSpy).not.toHaveBeenCalled();
       requestSpy.mockRestore();
+    });
+  });
+
+  describe('iOS オーディオセッションのアクティブ化（TASK-66）', () => {
+    // replaceProperty / spy は afterEach で手動 restore する（restoreAllMocks は使わない）
+    const restorers: { restore: () => void }[] = [];
+
+    afterEach(() => {
+      while (restorers.length > 0) restorers.pop()?.restore();
+    });
+
+    it('iOS ではマウント時に無音アセットをミュート再生してセッションをアクティブ化してから検知する', async () => {
+      mockConnection(false, true);
+      const { result } = renderHook(() => useHeadphonesConnected());
+
+      // 再生前（セッション非アクティブ）でも bluetooth を検知できる
+      await waitFor(() => expect(result.current).toBe('bluetooth'));
+
+      expect(createAsyncMock).toHaveBeenCalledTimes(1);
+      expect(createAsyncMock).toHaveBeenCalledWith(expect.anything(), {
+        shouldPlay: true,
+        volume: 0,
+      });
+      // アクティブ化に使った Sound は解放される
+      expect(unloadAsyncMock).toHaveBeenCalledTimes(1);
+      // アクティブ化の完了を待ってから初回検知が実行される
+      expect(createAsyncMock.mock.invocationCallOrder[0]).toBeLessThan(
+        DeviceInfo.isBluetoothHeadphonesConnected.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('複数の画面要素から同時にマウントされてもアクティブ化は 1 回だけ', async () => {
+      mockConnection(false, false);
+      const first = renderHook(() => useHeadphonesConnected());
+      const second = renderHook(() => useHeadphonesConnected());
+
+      await waitFor(() => expect(first.result.current).toBe('none'));
+      await waitFor(() => expect(second.result.current).toBe('none'));
+      expect(createAsyncMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('アクティブ化に失敗しても検知は従来どおり続行される', async () => {
+      createAsyncMock.mockRejectedValue(new Error('audio session error'));
+
+      mockConnection(true, false);
+      const { result } = renderHook(() => useHeadphonesConnected());
+
+      await waitFor(() => expect(result.current).toBe('wired'));
+    });
+
+    it('Sound の解放に失敗しても検知は続行される', async () => {
+      unloadAsyncMock.mockRejectedValue(new Error('unload error'));
+
+      mockConnection(false, true);
+      const { result } = renderHook(() => useHeadphonesConnected());
+
+      await waitFor(() => expect(result.current).toBe('bluetooth'));
+    });
+
+    it('Android ではセッションアクティブ化を行わない', async () => {
+      restorers.push(jest.replaceProperty(Platform, 'OS', 'android'));
+      const versionSpy = jest
+        .spyOn(Platform, 'Version', 'get')
+        .mockReturnValue(30);
+      restorers.push({ restore: () => versionSpy.mockRestore() });
+      // Platform.OS を android に差し替えると RN 内部の AppState 実装が
+      // テスト環境ではスタブ実体を持たず購読が undefined になるため差し替える
+      const appStateSpy = jest
+        .spyOn(AppState, 'addEventListener')
+        .mockReturnValue({ remove: jest.fn() } as never);
+      restorers.push({ restore: () => appStateSpy.mockRestore() });
+
+      const { result } = renderHook(() => useHeadphonesConnected());
+
+      await waitFor(() => expect(result.current).toBe('none'));
+      expect(createAsyncMock).not.toHaveBeenCalled();
     });
   });
 });
