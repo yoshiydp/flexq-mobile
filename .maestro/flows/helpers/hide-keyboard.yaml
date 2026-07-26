@@ -1,0 +1,17 @@
+# キーボードを閉じる共通ヘルパー（iOS / Android 対応）
+# iOS: return キー（pressKey: Enter）でキーボードを閉じる従来の挙動
+# Android: Enter は IME や returnKeyType に依存して閉じないことがあるため hideKeyboard を使う
+# 使い方: テキスト入力後、ボタンをタップする前に `- runFlow: ./helpers/hide-keyboard.yaml`
+
+appId: com.yoshiydp.lyricsapp
+---
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - pressKey: Enter
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - hideKeyboard

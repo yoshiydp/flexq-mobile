@@ -1,0 +1,52 @@
+# アプリ起動 + ログイン画面表示までの共通ヘルパー（iOS / Android 対応）
+# - clearState: アプリのローカルデータを初期化（Android は SecureStore のトークンもここで消える）
+# - clearKeychain: iOS Keychain に残ったトークンを削除（Android では no-op）
+#   → 事前の手動ログアウトなしで、常にログイン画面から開始できる
+# - Expo Dev Client のランチャー画面・初回ダイアログが表示された場合は閉じる
+# 使い方: 各フローから `- runFlow: ./helpers/launch-app.yaml` で呼び出す
+
+appId: com.yoshiydp.lyricsapp
+---
+- launchApp:
+    clearState: true
+    clearKeychain: true
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# Expo Dev Client のランチャー画面が出た場合は開発サーバー (localhost:8081) を選択
+- runFlow:
+    when:
+      visible: '(?i).*development servers.*'
+    file: ./select-dev-server.yaml
+
+# JS バンドルの読み込み完了を待つ
+# （clearState 後は Dev Client がバンドルを再取得するため 1〜2 分かかることがある。
+#   読み込み完了後はログイン画面、または開発メニューの初回ダイアログ（Continue）が表示される）
+- extendedWaitUntil:
+    visible: '(Your Email|Continue)'
+    timeout: 120000
+
+# Expo Dev Client の開発メニュー初回ダイアログを閉じる（clearState のため毎回表示される）
+- runFlow:
+    when:
+      visible: 'Continue'
+    commands:
+      - tapOn: 'Continue'
+
+# Android は Continue 後も開発メニュー（bottom sheet）が開いたままになるため back で閉じる
+# （iOS は Continue のタップでメニューごと閉じる）
+- runFlow:
+    when:
+      platform: Android
+      visible: 'Connected to:'
+    commands:
+      - back
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# ログイン画面が表示されることを確認
+- extendedWaitUntil:
+    visible: 'Your Email'
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 3000
