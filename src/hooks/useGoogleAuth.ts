@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef } from 'react';
+import { Platform } from 'react-native';
 import * as WebBrowser from 'expo-web-browser';
 import * as AuthSession from 'expo-auth-session';
 import * as Google from 'expo-auth-session/providers/google';
@@ -9,6 +10,21 @@ WebBrowser.maybeCompleteAuthSession();
 // iOS ネイティブビルド（Development / Staging / Production）用クライアント
 const IOS_CLIENT_ID =
   '134608896734-hb1nj0rmlgva07vf6ejlmb1lb6mhr1pi.apps.googleusercontent.com';
+
+// Android ネイティブビルド用クライアント（TASK-54）。
+// Google Cloud Console で Android 用 OAuth クライアント（パッケージ名 + SHA-1）を
+// 作成し、.env / EAS の環境変数 EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID に設定する。
+// 開発ビルド（デバッグ署名）と EAS ビルド（リリース署名）は SHA-1 が異なるため、
+// 必要に応じてクライアントを 2 つ作成しビルド種別ごとに環境変数で切り替える
+function getAndroidClientId(): string | undefined {
+  return process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID;
+}
+
+// Google.useAuthRequest は実行プラットフォームのクライアント ID が undefined だと
+// レンダー時に throw する（invariantClientId）。環境変数が未設定でも画面が
+// クラッシュしないようプレースホルダーを渡し、signIn 側で明示的なエラーにして
+// 呼び出し側の catch（エラーアラート）へつなげる
+const MISSING_ANDROID_CLIENT_ID = 'missing-android-client-id';
 
 // Expo Go では exp:// スキームが使われるため Google OAuth が動作しない。
 // Development Build（eas build --profile development）以降で実 OAuth が使用される。
@@ -41,8 +57,11 @@ export function useGoogleAuth() {
     scheme: 'com.yoshiydp.lyricsapp',
   });
 
+  const androidClientId = getAndroidClientId();
+
   const [request, response, promptAsync] = Google.useAuthRequest({
     iosClientId: IOS_CLIENT_ID,
+    androidClientId: androidClientId || MISSING_ANDROID_CLIENT_ID,
     redirectUri,
   });
 
@@ -147,6 +166,15 @@ export function useGoogleAuth() {
       return MOCK_USER_INFO;
     }
 
+    // Android クライアント ID 未設定のままネイティブビルドで実行された場合は
+    // Google の認証画面を開く前に明示的なエラーで失敗させる
+    // （呼び出し側の catch でエラーアラートが表示される）
+    if (Platform.OS === 'android' && !androidClientId) {
+      throw new Error(
+        'Google OAuth の Android クライアント ID（EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID）が設定されていません',
+      );
+    }
+
     const result = await promptAsync();
     // ユーザーによるキャンセル（dismiss / cancel）のみ null を返して無通知にする。
     // OAuth の実エラーは throw して呼び出し側の catch（エラーアラート）へつなげる
@@ -162,7 +190,7 @@ export function useGoogleAuth() {
       (await waitForExchangedToken(result.params?.code));
 
     return fetchUserInfo(token);
-  }, [promptAsync, fetchUserInfo, waitForExchangedToken]);
+  }, [androidClientId, promptAsync, fetchUserInfo, waitForExchangedToken]);
 
   return { signIn, ready: IS_EXPO_GO || !!request };
 }
