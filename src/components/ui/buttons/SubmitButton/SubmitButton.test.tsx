@@ -39,6 +39,32 @@ describe('SubmitButton コンポーネント', () => {
     expect(mockPress).not.toHaveBeenCalled();
   });
 
+  it('disabled=true の時、コンテナに opacity 0.2 が適用される', () => {
+    const { getByTestId } = render(
+      <SubmitButton onPress={jest.fn()} disabled={true} />,
+    );
+
+    expect(getByTestId('submit-button')).toHaveStyle({ opacity: 0.2 });
+  });
+
+  it('disabled=true の時、needsOffscreenAlphaCompositing が有効になる（Android でラベルが潰れないようにする）', () => {
+    const { getByTestId } = render(
+      <SubmitButton onPress={jest.fn()} disabled={true} />,
+    );
+
+    expect(
+      getByTestId('submit-button').props.needsOffscreenAlphaCompositing,
+    ).toBe(true);
+  });
+
+  it('disabled=false の時、opacity は適用されず needsOffscreenAlphaCompositing も無効', () => {
+    const { getByTestId } = render(<SubmitButton onPress={jest.fn()} />);
+
+    const button = getByTestId('submit-button');
+    expect(button).not.toHaveStyle({ opacity: 0.2 });
+    expect(button.props.needsOffscreenAlphaCompositing).toBe(false);
+  });
+
   it('testID が省略された場合、デフォルトの "submit-button" が使われる', () => {
     const { getByTestId } = render(<SubmitButton onPress={jest.fn()} />);
 
