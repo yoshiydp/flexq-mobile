@@ -1,5 +1,5 @@
 import React from 'react';
-import { AppState } from 'react-native';
+import { AppState, Platform } from 'react-native';
 import type { AppStateStatus } from 'react-native';
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import {
@@ -144,5 +144,65 @@ describe('ForegroundRefreshContext', () => {
   it('Provider 外で useForegroundRefresh を使ってもエラーにならないこと', () => {
     const refresh = jest.fn();
     expect(() => renderHook(() => useForegroundRefresh(refresh))).not.toThrow();
+  });
+
+  describe('Android の遷移パターン（inactive なし・active ↔ background のみ）(TASK-62)', () => {
+    // Android の AppState には iOS の 'inactive' が存在せず、
+    // 離脱は active → background、復帰は background → active の単純遷移のみ。
+    // 'inactive' を経由しなくても復帰判定（直前が background かつ次が active）が
+    // 成立することを検証する
+    let replacedPlatformOS: jest.ReplaceProperty<typeof Platform.OS>;
+
+    beforeEach(() => {
+      replacedPlatformOS = jest.replaceProperty(Platform, 'OS', 'android');
+    });
+
+    afterEach(() => {
+      // restoreAllMocks は AppState.addEventListener の spy と衝突するため
+      // 置き換えたプロパティは手動で復元する
+      replacedPlatformOS.restore();
+    });
+
+    it('background → active の復帰（inactive を経由しない）でトークンチェックと refresh が呼ばれること', async () => {
+      const refresh = jest.fn();
+      renderHook(() => useForegroundRefresh(refresh), { wrapper });
+
+      await act(async () => {
+        appStateHandler?.('background');
+        appStateHandler?.('active');
+      });
+
+      await waitFor(() => expect(refresh).toHaveBeenCalledTimes(1));
+      expect(mockEnsureValidSession).toHaveBeenCalledTimes(1);
+    });
+
+    it('active → background の離脱時点では何も実行しないこと', async () => {
+      const refresh = jest.fn();
+      renderHook(() => useForegroundRefresh(refresh), { wrapper });
+
+      await act(async () => {
+        appStateHandler?.('background');
+      });
+
+      expect(mockEnsureValidSession).not.toHaveBeenCalled();
+      expect(refresh).not.toHaveBeenCalled();
+    });
+
+    it('active ↔ background の往復ごとに復帰側で毎回 refresh が呼ばれること', async () => {
+      const refresh = jest.fn();
+      renderHook(() => useForegroundRefresh(refresh), { wrapper });
+
+      await act(async () => {
+        appStateHandler?.('background');
+        appStateHandler?.('active');
+      });
+      await act(async () => {
+        appStateHandler?.('background');
+        appStateHandler?.('active');
+      });
+
+      await waitFor(() => expect(refresh).toHaveBeenCalledTimes(2));
+      expect(mockEnsureValidSession).toHaveBeenCalledTimes(2);
+    });
   });
 });

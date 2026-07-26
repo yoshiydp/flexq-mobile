@@ -4,7 +4,7 @@
  * saveIfDirty が呼ばれることを検証する (TASK-48)。
  */
 import { renderHook, act } from '@testing-library/react-native';
-import { AppState, AppStateStatus } from 'react-native';
+import { AppState, AppStateStatus, Platform } from 'react-native';
 import { useProjectBackgroundSave } from './useProjectBackgroundSave';
 import type { ProjectSaveSnapshot } from './useProjectAutoSave';
 
@@ -244,5 +244,82 @@ describe('useProjectBackgroundSave', () => {
     unmount();
 
     expect(removeMock).toHaveBeenCalledTimes(1);
+  });
+
+  describe('Android の遷移パターン（inactive なし・active ↔ background のみ）(TASK-62)', () => {
+    // Android の AppState には iOS の 'inactive' が存在せず、
+    // アプリ離脱は 'background' への単発遷移として通知される。
+    // 保存トリガーが 'inactive' を経由せずに成立することを検証する
+    let replacedPlatformOS: jest.ReplaceProperty<typeof Platform.OS>;
+
+    beforeEach(() => {
+      replacedPlatformOS = jest.replaceProperty(Platform, 'OS', 'android');
+    });
+
+    afterEach(() => {
+      // restoreAllMocks は AppState.addEventListener の spy と衝突するため
+      // 置き換えたプロパティは手動で復元する
+      replacedPlatformOS.restore();
+    });
+
+    it('active → background の単発遷移（inactive を経由しない）で saveIfDirty を呼ぶ', async () => {
+      const saveIfDirty = jest.fn().mockResolvedValue(true);
+      const waitForPendingAutoSave = jest.fn().mockResolvedValue(undefined);
+      renderBackgroundSave(saveIfDirty, waitForPendingAutoSave);
+
+      await changeAppState('background');
+
+      expect(waitForPendingAutoSave).toHaveBeenCalledTimes(1);
+      expect(saveIfDirty).toHaveBeenCalledTimes(1);
+    });
+
+    it('background → active の復帰では saveIfDirty を呼ばない', async () => {
+      const saveIfDirty = jest.fn().mockResolvedValue(true);
+      renderBackgroundSave(saveIfDirty);
+
+      await changeAppState('background');
+      saveIfDirty.mockClear();
+
+      await changeAppState('active');
+
+      expect(saveIfDirty).not.toHaveBeenCalled();
+    });
+
+    it('active ↔ background を往復するたびに離脱側の遷移で毎回 saveIfDirty を呼ぶ', async () => {
+      const saveIfDirty = jest.fn().mockResolvedValue(true);
+      renderBackgroundSave(saveIfDirty);
+
+      await changeAppState('background');
+      await changeAppState('active');
+      await changeAppState('background');
+
+      expect(saveIfDirty).toHaveBeenCalledTimes(2);
+    });
+
+    it('background のまま保存完了時に新しい編集が届いていれば追い保存する（inactive を経由しない再チェック）', async () => {
+      let resolveSave: (v: boolean) => void = () => {};
+      const saveIfDirty = jest.fn(
+        () =>
+          new Promise<boolean>((resolve) => {
+            resolveSave = resolve;
+          }),
+      );
+      renderBackgroundSave(saveIfDirty);
+
+      await act(async () => {
+        appStateHandler?.('background');
+      });
+      expect(saveIfDirty).toHaveBeenCalledTimes(1);
+
+      // 保存が進行中の間に新しい編集が届く（Android は次の AppState
+      // イベントが来ないため、保存完了時の再チェックだけが頼り）
+      snapshot = { ...snapshot, body: '<p>edited during save</p>' };
+
+      await act(async () => {
+        resolveSave(true);
+      });
+
+      expect(saveIfDirty).toHaveBeenCalledTimes(2);
+    });
   });
 });
