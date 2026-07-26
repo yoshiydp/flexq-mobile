@@ -20,6 +20,7 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUpdateTrack } from '@/hooks/useUpdateTrack';
 import { useDeleteTrack } from '@/hooks/useDeleteTrack';
 import { formatDate } from '@/utils/formatDate';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './AudioPlayerScreen.styles';
 
 interface Track {
@@ -33,6 +34,9 @@ interface Track {
 }
 
 export default function AudioPlayerScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const route = useRoute<any>();
   const navigation = useNavigation();
   const { trackIndex, tracks } = route.params as {

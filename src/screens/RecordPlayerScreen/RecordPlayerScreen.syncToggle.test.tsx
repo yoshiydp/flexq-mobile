@@ -23,6 +23,8 @@ let mockParams: Record<string, unknown> = {};
 jest.mock('@react-navigation/native', () => ({
   useNavigation: () => ({ navigate: jest.fn(), goBack: jest.fn() }),
   useRoute: () => ({ params: mockParams }),
+  // useBlockAndroidBackGesture（TASK-67）が使用。テストでは何もしない
+  useFocusEffect: jest.fn(),
 }));
 
 const mockRecordSound = {

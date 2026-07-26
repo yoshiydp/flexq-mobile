@@ -35,6 +35,7 @@ import {
 } from '@/utils/pendingWaveformData';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { COLORS } from '@/globalStyles';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './NewProjectScreen.styles';
 
 type PendingAudio = {
@@ -72,6 +73,9 @@ async function uploadBase64ToS3(
 }
 
 export default function NewProjectScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { tracks } = useFetchTrack();

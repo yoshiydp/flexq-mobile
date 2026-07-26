@@ -10,9 +10,13 @@ import {
 import { useFetchRecord } from '@/hooks/useFetchRecord';
 import { useFetchProject } from '@/hooks/useFetchProject';
 import { COLORS } from '@/globalStyles';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './RecordListScreen.styles';
 
 export default function RecordListScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigation = useNavigation();
   const route = useRoute();
   const params = (route as any).params || {};
