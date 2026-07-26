@@ -15,6 +15,10 @@ credentials/
 coverage/
 __tests__/
 
+# Android native project (CNG: EAS prebuilds from app.json. A local android/ dir from
+# `yarn android` would switch EAS to bare mode and break the build — never upload it)
+android/
+
 # iOS native build artifacts (reinstalled by pod install on EAS servers)
 ios/Pods
 ios/build
