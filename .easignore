@@ -8,9 +8,16 @@ node_modules
 # Local env (never send to build servers)
 .env.local
 
+# Google Play service account key (used locally by eas submit, never send to build servers)
+credentials/
+
 # Test & coverage
 coverage/
 __tests__/
+
+# Android native project (CNG: EAS prebuilds from app.json. A local android/ dir from
+# `yarn android` would switch EAS to bare mode and break the build — never upload it)
+android/
 
 # iOS native build artifacts (reinstalled by pod install on EAS servers)
 ios/Pods
