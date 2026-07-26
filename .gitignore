@@ -39,6 +39,9 @@ env.local
 # AWS SAM build artifacts
 api/.aws-sam/
 
+# Google Play service account key (EAS submit) — never commit
+credentials/
+
 # typescript
 *.tsbuildinfo
 
