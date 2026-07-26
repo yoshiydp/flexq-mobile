@@ -1,16 +1,26 @@
-# 共通ログインフロー
-# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 共通ログインフロー（iOS / Android 対応）
+# 前提条件: なし（launch-app.yaml が起動時にアプリ状態を初期化し、ログイン画面から開始する）
 # 使い方: 各フローから `- runFlow: ./helpers/login.yaml` で呼び出す
 
 appId: com.yoshiydp.lyricsapp
 ---
-- launchApp
-- assertVisible: 'Your Email'
-- tapOn: 'メールアドレスを入力してください'
-- inputText: 'demo@example.com'
+- runFlow: ./launch-app.yaml
+# 起動直後の最初の入力はフォーカスとの競合で入力が失われることがあるため、
+# 入力結果を assert し、失われていた場合はリトライする
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn: 'メールアドレスを入力してください'
+      - inputText: 'demo@example.com'
+      - assertVisible: 'demo@example.com'
 - tapOn: 'パスワードを入力してください'
 - inputText: 'password123'
-- pressKey: Enter
+# キーボードを閉じてから SIGN IN をタップ（iOS / Android で閉じ方が異なる）
+- runFlow: ./hide-keyboard.yaml
 - tapOn: 'SIGN IN'
 - waitForAnimationToEnd:
     timeout: 10000
+# ログインに成功しプロジェクトリストへ遷移したことを確認
+- extendedWaitUntil:
+    visible: 'PROJECT'
+    timeout: 15000

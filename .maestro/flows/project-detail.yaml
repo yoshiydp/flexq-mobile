@@ -1,6 +1,6 @@
 # ID: PROJ-03
 # シナリオ名: プロジェクト詳細表示
-# 前提条件: ログアウト済み・ログイン画面が表示されている・Stagingにプロジェクトが存在する
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）・Stagingにプロジェクトが存在する
 # 操作手順: ログイン → プロジェクトをタップ → 詳細画面を確認 → 戻る → 保存 → プロジェクトリストを確認
 # 期待結果: プロジェクト編集画面が表示される
 
@@ -15,8 +15,9 @@ appId: com.yoshiydp.lyricsapp
 - waitForAnimationToEnd:
     timeout: 5000
 
-# プロジェクト詳細画面のアサーション（プロジェクト名が表示される）
-- assertVisible: 'Expo Go Sample test'
+# プロジェクト編集画面のアサーション（プロジェクト名は Staging のデータに依存するため固定 UI の id で確認する）
+- assertVisible:
+    id: 'toolbar-hamburger'
 
 # プロジェクトリストに戻る（保存確認モーダルが表示されるのでSAVE）
 - tapOn:

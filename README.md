@@ -213,15 +213,21 @@ maestro -v
 
 ### テストの実行方法
 
+iOS シミュレーター・Android エミュレーターのどちらでも実行できます。
+各フローは起動時に `clearState`（+ iOS は `clearKeychain`）でアプリ状態を初期化するため、**事前の手動ログアウトは不要**です。Expo Dev Client のランチャー画面（Development servers）や初回ダイアログが表示された場合も、共通ヘルパー（`.maestro/flows/helpers/launch-app.yaml`）が自動で処理します。
+
 **1. 開発サーバーを起動（Staging DB に接続）**
 
 ```bash
 yarn start:staging
 ```
 
-**2. iOS シミュレーターでアプリを開く**
+**2. シミュレーター / エミュレーターでアプリを開ける状態にする**
 
-ターミナルで `i` を押してシミュレーターを起動し、アプリが表示された状態にする。
+- iOS: ターミナルで `i` を押してシミュレーターを起動する
+- Android: ターミナルで `a` を押してエミュレーターを起動する（`adb reverse tcp:8081` が自動設定され、`localhost:8081` で Metro に接続できる）
+
+初回は `yarn ios` / `yarn android` で開発ビルド（expo-dev-client）のインストールが必要です。
 
 **3. Maestro でテストを実行**
 
@@ -231,6 +237,9 @@ maestro test .maestro/flows/login.yaml
 
 # すべてのフローを実行
 maestro test .maestro/flows/
+
+# デバイスが複数接続されている場合は明示的に指定（例: Android エミュレーター）
+maestro --device emulator-5554 test .maestro/flows/
 ```
 
 ### テストアカウント（Staging）
@@ -240,6 +249,8 @@ maestro test .maestro/flows/
 | メールアドレス | `demo@example.com` |
 | パスワード     | `password123`      |
 
+**前提データ:** 一部のフローは demo アカウントの Staging データを前提とする（`project-detail` / `project-edit-save` / `project-delete` は 1 件以上のプロジェクト、`track-play` は 1 件以上のトラック）。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
+
 ### フロー一覧
 
 | ファイル                    | 内容                                     |
@@ -248,8 +259,11 @@ maestro test .maestro/flows/
 
 ### フロー作成時の注意点
 
+- アプリの起動・ログインは共通ヘルパーを使う（起動のみ: `helpers/launch-app.yaml` / ログインまで: `helpers/login.yaml`）。アプリ状態の初期化と Expo Dev Client のランチャー処理を吸収している
 - テキスト入力フィールドは**ラベルではなくプレースホルダーテキスト**を `tapOn` のターゲットにする
-- パスワード入力後は `pressKey: Enter` でキーボードを閉じてからボタンをタップする
+- `inputText` の入力値は **ASCII 文字のみ**にする（Android の Maestro は日本語など非 ASCII の入力をサポートしていない。`tapOn` / `assertVisible` での日本語テキストのマッチは可能）
+- テキスト入力後は `helpers/hide-keyboard.yaml` を `runFlow` してキーボードを閉じてからボタンをタップする（iOS: `pressKey: Enter` / Android: `hideKeyboard` のプラットフォーム分岐）
+- プラットフォーム固有の操作は `runFlow` の `when: platform: iOS` / `when: platform: Android` で分岐する
 - `waitForAnimationToEnd` でログイン後の画面遷移アニメーションを待機する
 - 画面タイトルがアニメーション用に分割されている場合（例: `PROJECT LIST`）は部分テキスト（`PROJECT`）で assertVisible する
 

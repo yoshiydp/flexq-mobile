@@ -462,18 +462,34 @@ master へのマージを検知
 
 ### E2E テスト（Maestro）
 
-E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します。
+E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します。iOS シミュレーター・Android エミュレーターの両方で実行できます。
 
 **実行前提:**
 - `yarn start:staging` で開発サーバーを起動済み
-- iOS シミュレーターでアプリが表示された状態
-- **テスト実行前に必ず手動でログアウト済みであること**（各フローはログイン画面が表示されている状態を前提としているため。iOS の Keychain にトークンが残っていると自動ログインが発生しテストが失敗する）
+- iOS シミュレーターまたは Android エミュレーターに開発ビルド（expo-dev-client）をインストール済み（初回のみ `yarn ios` / `yarn android`）
+- **手動ログアウトは不要**（各フローが起動時に `clearState` + `clearKeychain` でアプリ状態を初期化し、ログイン画面から開始する。Expo Dev Client のランチャー画面・初回ダイアログも `helpers/launch-app.yaml` が自動処理する）
+
+**実行方法:**
+
+```bash
+maestro test .maestro/flows/login.yaml   # 単一フロー
+maestro test .maestro/flows/             # 全フロー
+# デバイスが複数接続されている場合は明示指定（例: Android エミュレーター）
+maestro --device emulator-5554 test .maestro/flows/
+```
+
+> Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
 **テストアカウント（Staging）:** `demo@example.com` / `password123`
 
+**前提データ:** `project-detail` / `project-edit-save` / `project-delete` は demo アカウントに 1 件以上のプロジェクト、`track-play` は 1 件以上のトラックが Staging に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
+
 **フロー作成時のルール:**
+- アプリの起動・ログインは共通ヘルパーを使う（起動のみ: `helpers/launch-app.yaml` / ログインまで: `helpers/login.yaml`）
 - `tapOn` のターゲットはラベル (`<Text>`) ではなくプレースホルダーテキスト（`<TextInput>` に紐づく）を使う
-- パスワード入力後は `pressKey: Enter` でキーボードを閉じてからボタンをタップする
+- `inputText` の入力値は ASCII のみにする（Android の Maestro は非 ASCII 入力をサポートしない。日本語テキストのマッチ（`tapOn` / `assertVisible`）は可能）
+- テキスト入力後は `helpers/hide-keyboard.yaml` を `runFlow` してキーボードを閉じてからボタンをタップする（iOS: `pressKey: Enter` / Android: `hideKeyboard` のプラットフォーム分岐。`pressKey: Enter` を直接使わない）
+- プラットフォーム固有の操作は `runFlow` の `when: platform: iOS` / `when: platform: Android` で分岐する
 - ログイン後などアニメーションを伴う画面遷移には `waitForAnimationToEnd` を挟む
 - 画面タイトルがアニメーション分割されている場合（例: `PROJECT LIST`）は部分テキストで `assertVisible` する
 

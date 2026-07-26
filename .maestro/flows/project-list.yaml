@@ -1,6 +1,6 @@
 # ID: PROJ-01
 # シナリオ名: プロジェクトリスト表示
-# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: ログイン
 # 期待結果: PROJECT LIST タイトルとプロジェクト一覧が表示される
 
@@ -10,6 +10,8 @@ appId: com.yoshiydp.lyricsapp
 - runFlow: ./helpers/login.yaml
 
 # プロジェクトリスト画面のアサーション
+# ※ New Project ボタンのラベルは「New\nProject」の 1 ノードで描画されるため、テキストではなく id でアサートする
 - assertVisible: 'PROJECT'
 - assertVisible: 'LIST'
-- assertVisible: 'New'
+- assertVisible:
+    id: 'header-action-button'
