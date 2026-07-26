@@ -29,6 +29,7 @@ import { DefaultService } from '@/apiClient/services/DefaultService';
 import { setPendingProjectSettings } from '@/utils/pendingProjectSettings';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { COLORS } from '@/globalStyles';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './ProjectSettingsScreen.styles';
 
 async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
@@ -38,6 +39,9 @@ async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
 }
 
 export default function ProjectSettingsScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const route = useRoute<RouteProp<RootStackParamList, 'ProjectSettings'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { tracks } = useFetchTrack();

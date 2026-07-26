@@ -31,9 +31,13 @@ import { useCreateMemo } from '@/hooks/useCreateMemo';
 import { useUpdateMemo } from '@/hooks/useUpdateMemo';
 import { useDeleteMemo } from '@/hooks/useDeleteMemo';
 import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './QuickMemoScreen.styles';
 
 export default function QuickMemoScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   // Android 用: タイトル入力を「キーボードを閉じない」保護領域として登録する
   const titleProtection = useKeyboardDismissProtection();
   const navigation =

@@ -63,9 +63,13 @@ import {
   getPendingProjectSettings,
   clearPendingProjectSettings,
 } from '@/utils/pendingProjectSettings';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './ProjectEditScreen.styles';
 
 export default function ProjectEditScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const MIN_BODY_HEIGHT = 140;
   const EXPANDED_BODY_HEIGHT = 220;
   const BOTTOM_OFFSET = 70;

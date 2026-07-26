@@ -11,9 +11,13 @@ import {
 } from '@/constants/headerToolBarButtons';
 import { useFetchMemo } from '@/hooks/useFetchMemo';
 import { COLORS } from '@/globalStyles';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './MemoListScreen.styles';
 
 export default function MemoListScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();

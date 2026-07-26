@@ -17,9 +17,13 @@ import {
 } from '@/constants/headerToolBarButtons';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import type { RootStackParamList } from '@/navigation/types';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './RegisterScreen.styles';
 
 export default function RegisterScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigation =
     useNavigation<StackNavigationProp<RootStackParamList>>();
   const { login } = useAuthContext();

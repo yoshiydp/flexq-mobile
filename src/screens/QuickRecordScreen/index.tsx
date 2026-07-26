@@ -13,9 +13,13 @@ import {
   type HeadphoneConnection,
 } from '@/hooks/useHeadphonesConnected';
 import { useAiCleanupSetting } from '@/hooks/useAiCleanupSetting';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './QuickRecordScreen.styles';
 
 export default function QuickRecordScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigator =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'QuickRecord'>>();

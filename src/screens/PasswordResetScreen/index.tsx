@@ -13,9 +13,13 @@ import {
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import type { RootStackParamList } from '@/navigation/types';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './PasswordResetScreen.styles';
 
 export default function PasswordResetScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigation =
     useNavigation<StackNavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState('');
