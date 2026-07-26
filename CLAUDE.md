@@ -87,7 +87,7 @@ iOS と同様、日常の開発は `yarn start:staging`（または `yarn start`
 
 staging ブランチへのマージで GitHub Actions が実行する EAS Update はプラットフォーム共通のため、Android にも同じ staging チャンネルで配信されます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
 
-> **注意:** Android はネイティブ設定に未整備の項目が残っています（Google OAuth の androidClientId、BLUETOOTH_CONNECT 権限、フォント埋め込みなど）。詳細は Notion の TASK-54〜63（デバイス: Android）を参照してください。eas.json の Android ビルド・submit 設定は整備済みですが、Google Play Console 側のセットアップは未実施です（「Google Play 内部テスト配信」参照）。
+> **注意:** Android の Google ログインは、コード側（androidClientId の env 参照・app.json の scheme）は対応済みだが、Google Cloud での Android 用 OAuth クライアント作成と `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` の設定が未実施（Notion TASK-54 参照）。Google Play Console・EAS submit・内部テスト配信はセットアップ済みで運用可能（「Google Play 内部テスト配信」参照）。
 
 ### ナビゲーション
 
@@ -311,14 +311,14 @@ Android のテスター配布は Google Play Console の **内部テスト** ト
 | `staging` | AAB | 内部テストトラック（`track: "internal"`） |
 | `production` | AAB | 内部テストトラック（当面。リリース段階でクローズドテスト → 製品版トラックへ昇格する） |
 
-> **未実施（ユーザーの手作業）:** Google Play Console 側のセットアップ（下記 1〜4）と初回 AAB の手動アップロードが完了するまで、`eas submit --platform android` は実行できません。
+> **初回セットアップは完了済み（2026-07-26）。** Play Console のアプリ登録・サービスアカウント・初回 AAB 手動アップロード（versionCode 4）まで実施済みのため、以降は「配布手順」の `eas build` → `eas submit`（= `/playstore`）だけで配信できる。
 
-**初回セットアップ（Play Console 側・手動）:**
-1. [Google Play Console](https://play.google.com/console) のデベロッパーアカウントを登録（$25 買い切り）
-2. Play Console でアプリを作成（パッケージ名 `com.yoshiydp.lyricsapp`）
-3. EAS submit 用に Google Cloud のサービスアカウント JSON キーを発行し、Play Console の「API アクセス」でそのサービスアカウントに招待・権限（リリース管理）を付与する
+**初回セットアップの記録（別アカウントで再構築する場合の手順）:**
+1. [Google Play Console](https://play.google.com/console) のデベロッパーアカウントを登録（$25 買い切り。電話番号は `+81` + 先頭 0 なしの国際形式）
+2. Play Console でアプリを作成（パッケージ名 `com.yoshiydp.lyricsapp`。**パッケージ名は最初にアップロードした AAB で確定し変更不可**）
+3. Google Cloud（`lyrics-app-492415`・iOS OAuth と同じプロジェクト）でサービスアカウント `play-publisher@lyrics-app-492415.iam.gserviceaccount.com` を作成して JSON キーを発行し、**Play Console の「ユーザーと権限」から通常ユーザーと同様に招待**して「Lyrics App」への リリース権限を付与する（旧「API アクセス」ページは廃止済み）。あわせて Google Cloud 側で **Google Play Android Developer API を有効化**する（未有効だと `eas submit` が PERMISSION_DENIED になる）
 4. JSON キーをリポジトリ直下の `credentials/google-play-service-account.json` に配置する（`credentials/` は gitignore / easignore 済み。**絶対にコミットしないこと**）
-5. **最初の 1 本目の AAB は Play Console の画面から手動アップロードが必要**（`eas build --profile staging --platform android` で AAB を作成し、`eas build:download` などでダウンロードして内部テストトラックにアップロードする。以降は `eas submit` で自動化できる）
+5. **最初の 1 本目の AAB のみ Play Console の画面から手動アップロードが必要**（以降は `eas submit` で自動化できる）。新規アプリの初回公開はストア反映まで 30 分〜数時間かかる
 
 > **補足:** アプリ情報（ストア掲載情報など）の設定が未完了の状態で `eas submit` が失敗する場合は、`releaseStatus: "draft"` を一時的に `submit.<profile>.android` へ追加してドラフトとして提出できる。セットアップ完了後は削除してよい（デフォルトは即時公開の `completed`）。
 

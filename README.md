@@ -372,7 +372,7 @@ Android 版のテスター配布には Google Play Console の **内部テスト
 
 `eas.json` の Android ビルド（AAB）・submit（内部テストトラック）設定は整備済みです。
 
-> **初回のみ必要な手作業（未実施）:** Google Play Console のデベロッパーアカウント登録（$25 買い切り）→ アプリ作成（`com.yoshiydp.lyricsapp`）→ サービスアカウント JSON キーを発行して `credentials/google-play-service-account.json` に配置（gitignore 済み・コミット禁止）→ 最初の 1 本目の AAB を Play Console から手動アップロード。これが完了するまで `eas submit --platform android` は実行できません。
+> **初回セットアップは完了済み（2026-07-26）。** Play Console のアプリ登録・サービスアカウント（`credentials/google-play-service-account.json`・gitignore 済み）・初回 AAB の手動アップロードまで実施済みのため、以降は下記の配布手順（= `/playstore`）だけで配信できます。
 
 **配布手順（セットアップ完了後）:**
 
