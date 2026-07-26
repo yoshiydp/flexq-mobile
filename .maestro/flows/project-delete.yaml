@@ -1,6 +1,6 @@
 # ID: PROJ-04
 # シナリオ名: プロジェクト削除（キャンセル確認）→ 設定画面を閉じる
-# 前提条件: ログアウト済み・ログイン画面が表示されている・Stagingにプロジェクトが存在する
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）・Stagingにプロジェクトが存在する
 # 操作手順: ログイン → プロジェクトをタップ → 設定(ハンバーガー)をタップ → DELETE PROJECT をタップ → キャンセル → 設定画面を閉じる
 # 期待結果: 削除確認モーダルが表示され、キャンセル後に設定画面に戻り、閉じるとプロジェクト編集画面に戻る
 # ※ 実際の削除処理は行わない（テストデータ保護のため）
@@ -33,6 +33,8 @@ appId: com.yoshiydp.lyricsapp
 - assertVisible: 'DELETE PROJECT'
 
 # 設定画面（ProjectSettingsScreen）を閉じてプロジェクト編集画面に戻る
+# （プロジェクト名は Staging のデータに依存するため固定 UI の id で確認する）
 - tapOn:
     id: 'close-button'
-- assertVisible: 'Expo Go Sample test'
+- assertVisible:
+    id: 'toolbar-hamburger'

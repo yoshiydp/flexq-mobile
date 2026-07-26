@@ -1,0 +1,15 @@
+# Expo Dev Client のランチャー画面で開発サーバー (Metro) を選択するヘルパー
+# iOS シミュレーター: localhost:8081 がそのまま表示される
+# Android エミュレーター: adb reverse tcp:8081 により localhost:8081 で接続できる
+#   （`expo start` からの起動で自動設定。10.0.2.2:8081 表記のフォールバックも許容）
+
+appId: com.yoshiydp.lyricsapp
+---
+- tapOn: '.*(localhost|10\.0\.2\.2):8081.*'
+# サーバー一覧が未表示（discovery 前）の場合は URL 入力欄（localhost:8081 がプリセット）+
+# Connect ボタンの画面になっており、上のタップは入力欄のフォーカスになるため Connect をタップする
+- runFlow:
+    when:
+      visible: 'Connect'
+    commands:
+      - tapOn: 'Connect'

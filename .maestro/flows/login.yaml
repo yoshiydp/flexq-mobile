@@ -1,19 +1,11 @@
 # ID: AUTH-01
 # シナリオ名: ログイン
-# 前提条件: ログアウト済み・ログイン画面が表示されている
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: メールアドレス・パスワード入力 → SIGN IN をタップ
 # 期待結果: PROJECT LIST が表示される
 
 appId: com.yoshiydp.lyricsapp
 ---
-- launchApp
-- assertVisible: 'Your Email'
-- tapOn: 'メールアドレスを入力してください'
-- inputText: 'demo@example.com'
-- tapOn: 'パスワードを入力してください'
-- inputText: 'password123'
-- pressKey: Enter
-- tapOn: 'SIGN IN'
-- waitForAnimationToEnd:
-    timeout: 10000
+# ログイン（共通ヘルパー。iOS / Android 対応）
+- runFlow: ./helpers/login.yaml
 - assertVisible: 'PROJECT'

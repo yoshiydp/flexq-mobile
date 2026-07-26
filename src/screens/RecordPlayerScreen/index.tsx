@@ -41,6 +41,7 @@ import { useMixRecord, MixCancelledError } from '@/hooks/useMixRecord';
 import type { SeparationStatus } from '@/types/separationType';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './RecordPlayerScreen.styles';
 
 /**
@@ -58,6 +59,9 @@ const isPlayIntended = (status: {
     : (status.shouldPlay ?? status.isPlaying);
 
 export default function RecordPlayerScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'RecordPlayer'>>();

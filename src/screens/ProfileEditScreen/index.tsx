@@ -13,6 +13,7 @@ import type { SocialAccount } from '@/hooks/useFetchProfile';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
+import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './ProfileEditScreen.styles';
 
 const SOCIAL_DISPLAY_NAMES: Record<string, string> = {
@@ -35,6 +36,9 @@ const DEFAULT_SOCIAL_ACCOUNTS: SocialAccount[] = (
 }));
 
 export default function ProfileEditScreen() {
+  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
+  useBlockAndroidBackGesture();
+
   const navigation = useNavigation();
   // profile は編集フォームのシードに使われるため、フォアグラウンド復帰時の
   // 自動再フェッチは無効化して編集中の内容が上書きされないようにする（TASK-47）
