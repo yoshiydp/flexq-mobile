@@ -25,6 +25,7 @@ import {
   HEADER_TOOLBAR_TEMPLATES,
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
+import { KEYBOARD_CHECKMARK_BUTTON_KEYBOARD_OFFSET } from '@/constants/keyboardCheckmarkButton';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useCreateMemo } from '@/hooks/useCreateMemo';
@@ -254,7 +255,11 @@ export default function QuickMemoScreen() {
       </KeyboardAvoidingView>
       {keyboardHeight > 0 && !isTitleFocused && (
         <Pressable
-          style={[styles.checkmarkButton, { bottom: keyboardHeight }]}
+          style={[
+            styles.checkmarkButton,
+            // 下部の SAVE ボタン・波形と重ならないようキーボード上端からオフセットする (TASK-69)
+            { bottom: keyboardHeight + KEYBOARD_CHECKMARK_BUTTON_KEYBOARD_OFFSET },
+          ]}
           onPress={() => editor.blur()}
         >
           <Ionicons name="checkmark" size={28} color={COLORS.base.bgDefault} />
