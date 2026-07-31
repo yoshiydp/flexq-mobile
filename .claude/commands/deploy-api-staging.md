@@ -9,19 +9,19 @@ staging ブランチの最新状態から Lambda（SAM スタック `lyrics-mock
 ```bash
 # 1. staging の最新を一時 worktree に取得（ローカルの作業ブランチを汚さないため）
 git fetch origin staging
-git worktree add ../lyrics-mobile-worktrees/staging-deploy origin/staging --detach
+git worktree add ../flexq-mobile-worktrees/staging-deploy origin/staging --detach
 
 # 2. デプロイ対象の変更が含まれていることを確認（対象の Lambda ファイルを grep 等で確認）
 
 # 3. ビルドとデプロイ
-cd ../lyrics-mobile-worktrees/staging-deploy/api
+cd ../flexq-mobile-worktrees/staging-deploy/api
 sam build
 sam deploy --stack-name lyrics-mock-api --no-confirm-changeset
 
 # 4. 成功確認: 出力に "Successfully created/updated stack - lyrics-mock-api" が出ること
 
 # 5. 一時 worktree を削除
-git worktree remove --force ../lyrics-mobile-worktrees/staging-deploy
+git worktree remove --force ../flexq-mobile-worktrees/staging-deploy
 ```
 
 ## 注意事項

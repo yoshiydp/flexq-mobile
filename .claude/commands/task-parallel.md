@@ -20,11 +20,11 @@
 
 ```bash
 git fetch origin develop
-git worktree add ../lyrics-mobile-worktrees/TASK-X -b feature/TASK-X-brief-description origin/develop
+git worktree add ../flexq-mobile-worktrees/TASK-X -b feature/TASK-X-brief-description origin/develop
 ```
 
 - ブランチは必ず**最新の origin/develop** から作成する
-- worktree の配置先は `../lyrics-mobile-worktrees/TASK-X` に統一する
+- worktree の配置先は `../flexq-mobile-worktrees/TASK-X` に統一する
 
 ### 3. Notion ステータス更新
 
