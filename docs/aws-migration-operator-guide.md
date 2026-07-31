@@ -69,7 +69,6 @@
 | GitHub リポジトリへの招待 | 1-4 |
 | 移行用の読み取りアクセスキー(旧 AWS 環境用・2 つの文字列) | 4 章 |
 | JWT シークレット 2 つ(staging 用 / production 用の長いランダム文字列) | 5 章 |
-| Replicate API トークン(AI 機能用。後日でも可) | 5 章 |
 | メール送信元アドレス | 5〜6 章 |
 
 ## 1-3. Mac に入れるツール(この手順書で使うもの)
@@ -259,6 +258,9 @@ aws sts get-caller-identity --profile lyrics-old
 
 > ⚠️ AWS の画面から手作業でデータベース等を作らないでください。設計図からの自動構築だけを使います。
 
+> ℹ️ アプリの AI 機能(録音のクリーンアップ)に関する設定は、移行完了後に**開発者が**行います。
+> この章の作業には含まれていないので、気にせず進めてください。
+
 ## 5-1. プログラムの組み立て(ビルド)
 
 ```bash
@@ -270,8 +272,7 @@ sam build
 
 ## 5-2. staging(検証用)環境の構築
 
-`<...>` の 3 箇所を、開発者から受け取った値に置き換えてから実行します
-(Replicate トークンが未定の場合は `ReplicateApiToken=...` の行ごと削除して実行して構いません):
+`<...>` の 2 箇所を、開発者から受け取った値に置き換えてから実行します:
 
 ```bash
 AWS_PROFILE=flexq sam deploy \
@@ -282,8 +283,7 @@ AWS_PROFILE=flexq sam deploy \
   --no-confirm-changeset \
   --parameter-overrides \
     JwtSecret="<staging 用 JWT シークレット>" \
-    SenderEmail="<メール送信元アドレス>" \
-    ReplicateApiToken="<Replicate トークン>"
+    SenderEmail="<メール送信元アドレス>"
 ```
 
 - 5〜10 分かかります。`Successfully created/updated stack - flexq-stg-api` と出れば成功
@@ -302,8 +302,7 @@ AWS_PROFILE=flexq sam deploy \
   --no-confirm-changeset \
   --parameter-overrides \
     JwtSecret="<production 用 JWT シークレット>" \
-    SenderEmail="<メール送信元アドレス>" \
-    ReplicateApiToken="<Replicate トークン>"
+    SenderEmail="<メール送信元アドレス>"
 ```
 
 こちらも Outputs 欄の `ApiUrl` を控えます。
