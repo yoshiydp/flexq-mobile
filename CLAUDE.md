@@ -805,7 +805,7 @@ develop への PR 作成まで含めてまとめて行う場合は `/task-done T
 
 ```
 /notion TASK-X に PR URL を登録して
-https://github.com/yoshiydp/lyrics-mobile/pull/XX
+https://github.com/yoshiydp/flexq-mobile/pull/XX
 ```
 
 #### ページ内容の追記・更新
@@ -843,9 +843,9 @@ git checkout -b feature/TASK-X-brief-description
 複数タスクを並行する場合は git worktree を使う（`/task-parallel` が自動化）：
 
 ```bash
-git worktree add ../lyrics-mobile-worktrees/TASK-X -b feature/TASK-X-brief-description origin/develop
+git worktree add ../flexq-mobile-worktrees/TASK-X -b feature/TASK-X-brief-description origin/develop
 # develop へのマージ完了後に掃除
-git worktree remove ../lyrics-mobile-worktrees/TASK-X
+git worktree remove ../flexq-mobile-worktrees/TASK-X
 ```
 
 #### コミットメッセージ規約

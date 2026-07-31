@@ -36,7 +36,7 @@ staging で動作確認が完了したタスクの完了処理（Notion 更新 +
 
 ### 4. 報告
 
-develop PR の URL とマージ順の注意点を報告する。develop マージ後に worktree の掃除（`git worktree remove ../lyrics-mobile-worktrees/TASK-X`）を行う旨も伝える。
+develop PR の URL とマージ順の注意点を報告する。develop マージ後に worktree の掃除（`git worktree remove ../flexq-mobile-worktrees/TASK-X`）を行う旨も伝える。
 
 ## 注意事項
 
