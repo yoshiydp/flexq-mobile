@@ -20,7 +20,7 @@
 | Google Play Console | 変更なし(開発者名義のまま。`/playstore` の運用も現行どおり) |
 | Bundle ID / パッケージ名(`com.yoshiydp.lyricsapp`) | 変更なし(刷新は将来の別マイルストーン) |
 | Google OAuth(Google Cloud `lyrics-app-492415`) | 変更なし |
-| Replicate(AI クリーンアップ) | 変更なし(開発者名義のトークンを新環境に設定する) |
+| Replicate(AI クリーンアップ) | 変更なし(トークン・費用とも当面開発側負担。**移行後に開発者が新環境へ設定する**。第 III 部 7) |
 
 ---
 
@@ -100,11 +100,11 @@ feature/TASK-X ──PR──▶ dev ────────────▶ EAS
 | GitHub リポジトリへの招待 | 運営者のユーザー名を聞いて `yoshiydp/flexq-mobile` に Read 権限で招待 |
 | 旧環境の移行用読み取りアクセスキー | 現行アカウントに読み取り専用 IAM ユーザー(例: `migration-reader`、`ReadOnlyAccess` ポリシー)を新規作成してキーを発行(移行完了後に削除するため専用ユーザーにする) |
 | JWT シークレット × 2 | stg 用は `openssl rand -base64 32` で新規生成。prod 用は引き継ぎ or 新規(第 I 部 2 の決定に従う) |
-| Replicate API トークン | 現行トークンを共有(後日でも可。未設定時は AI クリーンアップのみ 503) |
 | メール送信元アドレス | 現行 SES と同じアドレスを指定(検証メールのリンクは開発者がクリック) |
 
 共有はパスワードマネージャーの共有機能等を使う(メール・LINE で平文送信しない)。
-**Replicate トークン以外は、運営者が別冊 第 1 章を始める前に渡しておく**(1-2 で受け取る前提になっている)。
+**いずれも運営者が別冊 第 1 章を始める前に渡しておく**(1-2 で受け取る前提になっている)。
+Replicate トークンは運営者へ渡さない(開発側負担のため。移行後に開発者自身が設定する — 第 III 部 7)。
 
 ## 3. 運営者 → 開発者へ受け取るもの(受け渡し①〜⑤)
 
@@ -208,6 +208,28 @@ staging / production ビルドプロファイルに URL を明示して防ぐ:
 - GitHub Actions の workflow 定義・Secrets — リポジトリに紐づいたまま維持される
 - 将来リポジトリを運営者の GitHub アカウントへ移す場合は「Transfer ownership」機能を使う(フォーク不要・リダイレクト付き)
 
+## 7. Replicate トークンの設定(移行完了後)
+
+Replicate(AI クリーンアップ)は**トークン・費用とも当面開発側負担**のため、運営者の作業には含めていない。
+運営者の stg / prod デプロイ(別冊 第 5 章)は `ReplicateApiToken` 未設定で行われるので、
+**未設定の間は AI クリーンアップのみ 503 を返す**(他機能への影響はない)。
+
+移行完了後、開発者が `flexq-deploy` のキー(受け渡し②)をプロファイル登録し、両スタックへ設定する:
+
+```bash
+# flexq-deploy のキーを aws configure --profile flexq-ops で登録しておく
+cd api && sam build
+AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-stg-api --region ap-northeast-1 \
+  --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset \
+  --parameter-overrides ReplicateApiToken="<開発者の Replicate トークン>"
+AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api --region ap-northeast-1 \
+  --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset \
+  --parameter-overrides ReplicateApiToken="<開発者の Replicate トークン>"
+```
+
+- `JwtSecret` / `SenderEmail` は指定しなくても CloudFormation が前回値を保持する
+- 将来 Replicate の負担を運営者側へ移す場合は、運営者名義のトークンに差し替えて同じコマンドで再デプロイすればよい
+
 ---
 
 # 第 IV 部 切り替え確認と後片付け
@@ -220,7 +242,7 @@ staging / production ビルドプロファイルに URL を明示して防ぐ:
 - [ ] stg: 移行済みデータ(トラック・プロジェクト・録音)が表示・再生できる(= S3 Presigned URL が機能している)
 - [ ] stg: 新規録音のアップロード・再生ができる
 - [ ] stg: パスワードリセットメールが届く(SES サンドボックス解除後)
-- [ ] stg: AI クリーンアップが動作する(Replicate トークン設定後)
+- [ ] stg: AI クリーンアップが動作する(第 III 部 7 のトークン設定後)
 - [ ] prod: `master` マージで production チャンネルに配信され、本番データが表示される
 
 ## 2. 旧環境の扱い
