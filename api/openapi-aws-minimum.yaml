@@ -1,6 +1,6 @@
 openapi: 3.0.1
 info:
-  title: LYRICS API (AWS Minimal Test)
+  title: FlexQ API (AWS Minimal Test)
   version: 1.0.0
 
 paths:

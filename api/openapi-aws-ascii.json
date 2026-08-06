@@ -1,9 +1,9 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "LYRICS API (AWS)",
+    "title": "FlexQ API (AWS)",
     "version": "1.0.0",
-    "description": "This API serves mock data for LYRICS application.\nIt is designed to be used with AWS API Gateway + Lambda.\n",
+    "description": "This API serves mock data for FlexQ application.\nIt is designed to be used with AWS API Gateway + Lambda.\n",
     "license": {
       "name": "MIT",
       "url": "https://opensource.org/licenses/MIT"

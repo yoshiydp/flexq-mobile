@@ -63,18 +63,18 @@ export const handler = async (event: any) => {
   try {
     await sendEmail({
       to: email,
-      subject: '【Lyrics】新規登録が完了しました',
+      subject: '【FlexQ】新規登録が完了しました',
       body: [
         `${username} 様`,
         '',
-        'Lyrics へのご登録ありがとうございます。',
+        'FlexQ へのご登録ありがとうございます。',
         '以下の情報でログインしてご利用ください。',
         '',
         `メールアドレス: ${email}`,
         '',
         '今後ともどうぞよろしくお願いいたします。',
         '',
-        'Lyrics チーム',
+        'FlexQ チーム',
       ].join('\n'),
     });
   } catch (err) {
