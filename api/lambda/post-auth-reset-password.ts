@@ -43,7 +43,7 @@ export const handler = async (event: any) => {
   try {
     await sendEmail({
       to: email,
-      subject: '【Lyrics】パスワードのリセットが完了しました',
+      subject: '【FlexQ】パスワードのリセットが完了しました',
       body: [
         `${user.username ?? ''} 様`,
         '',
@@ -54,7 +54,7 @@ export const handler = async (event: any) => {
         '',
         'このリセットに覚えがない場合は、お手数ですが再度パスワードを変更してください。',
         '',
-        'Lyrics チーム',
+        'FlexQ チーム',
       ].join('\n'),
     });
   } catch (err) {

@@ -1,4 +1,4 @@
-name: Lyrics Mobile CI
+name: FlexQ Mobile CI
 
 on:
   pull_request:
