@@ -1,8 +1,8 @@
-name: Deploy to Staging (EAS Update)
+name: Deploy to Dev (EAS Update)
 
 on:
   push:
-    branches: [develop]
+    branches: [dev]
 
 jobs:
   lint:
@@ -52,7 +52,7 @@ jobs:
         run: yarn test:ci
 
   deploy:
-    name: EAS Update (staging)
+    name: EAS Update (dev)
     runs-on: ubuntu-latest
     needs: [lint, test]
     steps:
@@ -75,8 +75,8 @@ jobs:
       - name: Install EAS CLI
         run: npm install -g eas-cli@latest
 
-      - name: Deploy to Expo (staging)
-        run: eas update --branch staging --message "${{ github.event.head_commit.message }}" --non-interactive
+      - name: Deploy to Expo (dev)
+        run: eas update --branch dev --message "${{ github.event.head_commit.message }}" --non-interactive
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN_2 }}
-          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+          EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL_DEV }}
