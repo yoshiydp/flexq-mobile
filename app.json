@@ -27,7 +27,7 @@
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./src/assets/images/adaptive-icon.png",
-        "backgroundColor": "#ffffff"
+        "backgroundColor": "#6C3483"
       },
       "edgeToEdgeEnabled": true,
       "package": "com.yoshiydp.lyricsapp",
@@ -51,7 +51,7 @@
           "image": "./src/assets/images/splash-icon.png",
           "imageWidth": 200,
           "resizeMode": "contain",
-          "backgroundColor": "#ffffff"
+          "backgroundColor": "#6C3483"
         }
       ],
       "expo-font",

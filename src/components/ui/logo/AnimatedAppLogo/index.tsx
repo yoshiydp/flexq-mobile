@@ -27,13 +27,14 @@ export default function AnimatedAppLogo() {
 
   return (
     <View>
-      <Svg width={164} height={101} viewBox="0 0 164 101">
+      <Svg width={218} height={93} viewBox="0 0 218 93">
         {APP_LOGO_PATH_DATA.map((d, i) => (
           <AnimatedStrokeFillPath
             key={i}
             d={d}
             strokeProgress={strokeProgress}
             fillProgress={fillProgress}
+            dash={800}
           />
         ))}
       </Svg>

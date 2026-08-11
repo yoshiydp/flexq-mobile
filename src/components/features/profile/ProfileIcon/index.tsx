@@ -1,5 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { View, Animated, Pressable, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Animated,
+  Pressable,
+  ActivityIndicator,
+  type ImageSourcePropType,
+} from 'react-native';
 import { FontAwesome6 } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import type { FontAwesome6IconName } from '@/types/iconTypes';
@@ -12,12 +18,14 @@ interface ProfileIconProps {
   thumbnail?: { uri: string };
   editable?: boolean;
   onPressUpload?: () => void;
+  fallbackSource?: ImageSourcePropType;
 }
 
 export default function ProfileIcon({
   thumbnail,
   editable = false,
   onPressUpload,
+  fallbackSource = DEFAULT_PROFILE,
 }: ProfileIconProps) {
   const isRemote = !!thumbnail?.uri;
   const [loading, setLoading] = useState(isRemote);
@@ -39,7 +47,7 @@ export default function ProfileIcon({
     ]).start(() => setLoading(false));
   };
 
-  const source = isRemote ? thumbnail : DEFAULT_PROFILE;
+  const source = isRemote ? thumbnail : fallbackSource;
 
   return (
     <View style={styles.container}>

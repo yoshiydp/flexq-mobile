@@ -2,7 +2,7 @@ import React from 'react';
 import { render } from '@testing-library/react-native';
 import AppLogo from './index';
 
-jest.mock('@/assets/images/lyrics-logo.svg', () => {
+jest.mock('@/assets/images/flexq-logo.svg', () => {
   return jest.fn(() => null);
 });
 
