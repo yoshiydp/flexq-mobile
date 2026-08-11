@@ -38,4 +38,15 @@ describe('ProfileIcon コンポーネント', () => {
   it('thumbnail が未指定のときもレンダリングされる', () => {
     render(<ProfileIcon editable={false} />);
   });
+
+  it('thumbnail が未指定のとき fallbackSource がデフォルト画像として使われる', () => {
+    const DEFAULT_ARTWORK = require('@/assets/images/default-artwork.png');
+    const { UNSAFE_getByType } = render(
+      <ProfileIcon editable={false} fallbackSource={DEFAULT_ARTWORK} />,
+    );
+
+    const { Animated } = require('react-native');
+    const image = UNSAFE_getByType(Animated.Image);
+    expect(image.props.source).toBe(DEFAULT_ARTWORK);
+  });
 });

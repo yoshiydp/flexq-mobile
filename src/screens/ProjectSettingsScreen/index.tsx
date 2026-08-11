@@ -32,6 +32,8 @@ import { COLORS } from '@/globalStyles';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './ProjectSettingsScreen.styles';
 
+const DEFAULT_ARTWORK = require('@/assets/images/default-artwork.png');
+
 async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
   const fileResponse = await fetch(uri);
   const blob = await fileResponse.blob();
@@ -213,6 +215,7 @@ export default function ProjectSettingsScreen() {
                 thumbnail={thumbnail ?? { uri: '' }}
                 editable
                 onPressUpload={handlePickArtwork}
+                fallbackSource={DEFAULT_ARTWORK}
               />
               {uploading && (
                 <ActivityIndicator
