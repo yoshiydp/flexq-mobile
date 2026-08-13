@@ -24,6 +24,9 @@
       "distribution": "store",
       "channel": "staging",
       "node": "20.11.0",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://5pzt12icve.execute-api.ap-northeast-1.amazonaws.com/v1"
+      },
       "ios": {
         "simulator": false
       },
@@ -34,6 +37,9 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "env": {
+        "EXPO_PUBLIC_API_BASE_URL": "https://7ez5duggcc.execute-api.ap-northeast-1.amazonaws.com/v1"
+      },
       "android": {
         "buildType": "app-bundle"
       }
