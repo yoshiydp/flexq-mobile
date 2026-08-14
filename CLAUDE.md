@@ -8,7 +8,6 @@
 # 開発
 yarn start                # Expo 開発サーバー起動 (.env の dev 環境 AWS に接続)
                           # ローカルモック API に繋ぐ場合は .env.local で localhost に上書き
-                          # ※ yarn start:staging は移行前の旧 Staging を向くレガシー。使用しない
 yarn ios                  # ネイティブビルド + iOS シミュレーター起動（初回・ネイティブ変更時のみ）
 yarn android              # Android エミュレーター
 
@@ -178,7 +177,7 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
   --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset
 ```
 
-> **誤デプロイ防止の注意:** `api/samconfig.toml` のデフォルトスタック名は旧 Staging の `lyrics-mock-api` のまま。**`--stack-name` を付けずに `sam deploy` しないこと**（旧環境にデプロイされてしまう）。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
+> **注意:** `api/samconfig.toml` のデフォルトスタック名は dev の `lyrics-dev-api`（`--stack-name` なしの `sam deploy` は dev に向く）。**staging / production へのデプロイでは `--stack-name` と `AWS_PROFILE=flexq-ops` を必ず明示する**。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
 
 - `JwtSecret` / `SenderEmail` などの設定済みパラメータは、未指定でも CloudFormation が前回値を保持する
 
@@ -410,14 +409,14 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 1. feature ブランチから `dev` への PR を作成・マージ
 2. ワークフロー `Deploy to Dev (EAS Update)` が dev チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL_DEV`）
 3. 実機でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用される
-4. Lambda（`api/` 配下）に変更がある場合は、あわせて `lyrics-dev-api` へ手動 SAM デプロイ
+4. Lambda（`api/` 配下）に変更がある場合は、あわせて `lyrics-dev-api` へ手動 SAM デプロイ（`/deploy-api-dev`）
 
 #### staging への配信（リリース前検証）
 
 1. dev で実機確認が済んだ feature ブランチから `develop` への PR を作成・マージ（`/task-done` が Notion 更新とあわせて自動化）
 2. ワークフロー `Deploy to Staging (EAS Update)` が staging チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL` = 運営側 stg）
 3. TestFlight / Google Play 内部テストのビルド（`--profile staging`）もこの環境に接続する
-4. Lambda 変更がある場合は `flexq-stg-api` へ手動 SAM デプロイ（`AWS_PROFILE=flexq-ops`）
+4. Lambda 変更がある場合は `flexq-stg-api` へ手動 SAM デプロイ（`/deploy-api-stg`・`AWS_PROFILE=flexq-ops`）
 
 #### production への配信（リリース）
 
@@ -429,7 +428,7 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 テーブル追加・GSI 追加などのスキーマ変更は、**dev → staging → production の順に手動 SAM デプロイで昇格**させる（コマンドは「AWS API Gateway」の「SAM デプロイ（手動）」参照）。各段階で動作確認を済ませてから次の環境へ進める。
 
-> ⚠️ **GitHub Actions の `Sync Schema to Production` ワークフローは使用しないこと。** 移行前の旧アカウント（`lyrics-prod-api` + 旧 `AWS_ACCESS_KEY_ID`）を向いたまま未改修のため、実行すると旧環境にデプロイされる（改修または削除予定）。
+> 旧 `Sync Schema to Production` ワークフローは旧アカウント（`lyrics-prod-api`）向けだったため廃止済み（TASK-77）。スキーマ反映は上記の手動 SAM デプロイのみで行う。
 
 **GitHub Secrets（現行）:**
 
@@ -440,7 +439,7 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 | `EXPO_PUBLIC_API_BASE_URL` | staging API Gateway URL（運営側 `flexq-stg-api`） |
 | `EXPO_PUBLIC_API_BASE_URL_PROD` | production API Gateway URL（運営側 `flexq-prod-api`） |
 | `JWT_SECRET_PROD` | production 用 JWT シークレット（運営側 prod の値と一致させる） |
-| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | 旧アカウントのスキーマ同期用キー（レガシー・`Sync Schema to Production` 改修時に `flexq-deploy` のキーへ差し替える） |
+| `AWS_ACCESS_KEY_ID_OPS` / `AWS_SECRET_ACCESS_KEY_OPS` | 運営者アカウントの `flexq-deploy` キー（現在どのワークフローからも未使用。CI から SAM デプロイする場合に使う） |
 
 ### パスエイリアス
 
@@ -713,14 +712,13 @@ cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-chang
 | `/task-done` | `.claude/commands/task-done.md` | 検証済みタスクの完了処理（Notion Done + リリース ON + develop PR） |
 | `/commit` | `.claude/commands/commit.md` | コミットメッセージ規約（英語タイトル + 日本語本文）でコミット作成 |
 | `/codex-review` | `.claude/commands/codex-review.md` | Codex CLI でコードレビュー実行 + 指摘対応 |
-| `/pr-staging` | `.claude/commands/pr-staging.md` | ⚠ レガシー: 旧 staging ブランチへの PR 作成（3 環境移行後は未改修・使用しない） |
+| `/pr-dev` | `.claude/commands/pr-dev.md` | 現在のブランチから dev への PR 作成（実機確認用） |
 | `/pr-develop` | `.claude/commands/pr-develop.md` | 現在のブランチから develop への PR 作成 |
 | `/pr-master` | `.claude/commands/pr-master.md` | develop から master への PR 作成（リリース用） |
-| `/deploy-api-staging` | `.claude/commands/deploy-api-staging.md` | ⚠ レガシー: 旧スタック `lyrics-mock-api` への SAM デプロイ（3 環境移行後は未改修・使用しない） |
+| `/deploy-api-dev` | `.claude/commands/deploy-api-dev.md` | dev ブランチから `lyrics-dev-api`（開発者アカウント）への SAM デプロイ |
+| `/deploy-api-stg` | `.claude/commands/deploy-api-stg.md` | develop ブランチから `flexq-stg-api`（運営者アカウント）への SAM デプロイ |
 | `/testflight` | `.claude/commands/testflight.md` | EAS Build → TestFlight 配信 |
 | `/playstore` | `.claude/commands/playstore.md` | EAS Build → Google Play 内部テスト配信（Android） |
-
-> ⚠️ **3 環境移行にともなうレガシーコマンドについて:** `/pr-staging` と `/deploy-api-staging` は旧 `staging` ブランチ・旧スタックを前提としたままで、dev フロー向けの改修が未了。改修されるまでは、dev への PR 作成・`lyrics-dev-api` / `flexq-stg-api` への SAM デプロイを手動（「デプロイフロー」参照）で行う。
 
 ---
 

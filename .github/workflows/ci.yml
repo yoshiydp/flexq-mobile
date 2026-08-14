@@ -2,9 +2,9 @@ name: FlexQ Mobile CI
 
 on:
   pull_request:
-    branches: [master, develop, staging]
+    branches: [master, develop, dev]
   push:
-    branches: [master, develop, staging]
+    branches: [master, develop, dev]
 
 jobs:
   lint:
