@@ -90,10 +90,13 @@ DynamoDB       S3
 
 ### 環境
 
-| 環境       | SAM スタック名    | Expo チャンネル | エンドポイント                                                   |
-| ---------- | ----------------- | --------------- | ---------------------------------------------------------------- |
-| Staging    | `lyrics-mock-api` | `staging`       | `https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1` |
-| Production | `lyrics-prod-api` | `production`    | SAM デプロイ後の Outputs に表示される URL                        |
+**dev / staging / production の 3 環境構成**です。staging / production は運営者名義の AWS アカウント、dev は開発者アカウントで稼働します（2026-08-09 に旧 2 環境構成から移行。経緯は `docs/aws-account-migration-guide.md` を参照）。
+
+| 環境       | AWS アカウント | SAM スタック名   | ブランチ  | Expo チャンネル | 用途                                                  |
+| ---------- | -------------- | ---------------- | --------- | --------------- | ----------------------------------------------------- |
+| dev        | 開発者         | `lyrics-dev-api` | `dev`     | `dev`           | 日常開発・実機確認・E2E                               |
+| staging    | 運営者         | `flexq-stg-api`  | `develop` | `staging`       | リリース前検証（TestFlight / Play 内部テストの接続先） |
+| production | 運営者         | `flexq-prod-api` | `master`  | `production`    | 本番                                                  |
 
 リージョン: `ap-northeast-1`（東京）
 
@@ -142,31 +145,31 @@ yarn android
 
 ### 開発サーバーの起動
 
-日常の開発では `yarn start:staging` を起動するだけで十分です。
+日常の開発では `yarn start` を起動するだけで十分です（`.env` により開発側 dev 環境の AWS に接続されます）。
 
 ```bash
-# Staging DB に接続して起動（通常の開発）
-yarn start:staging
-
-# ローカルモック API に接続して起動
+# dev 環境（AWS）に接続して起動（通常の開発）
 yarn start
 ```
 
 起動後、ターミナルで `i` を押すと iOS シミュレーター、`a` を押すと Android エミュレーターが開きます。
 
-> **注意:** `yarn ios` / `yarn android`（ネイティブビルド）が必要なのは、初回セットアップ・ネイティブモジュール追加・`app.json` 変更後のみです。通常の JS 変更では `yarn start:staging` のみで開発できます。
+> **注意:** `yarn ios` / `yarn android`（ネイティブビルド）が必要なのは、初回セットアップ・ネイティブモジュール追加・`app.json` 変更後のみです。通常の JS 変更では `yarn start` のみで開発できます。
+>
+> **注意:** `yarn start:staging` は移行前の旧 Staging 環境を向いたレガシースクリプトのため使用しないでください。
 
 ### DB への接続方法
 
-| コマンド             | 接続先                              | 用途                 |
-| -------------------- | ----------------------------------- | -------------------- |
-| `yarn start:staging` | Staging AWS DynamoDB                | 通常の開発・動作確認 |
-| `yarn start`         | ローカルモック API (localhost:3000) | オフライン開発       |
+| コマンド                                 | 接続先                              | 用途                 |
+| ---------------------------------------- | ----------------------------------- | -------------------- |
+| `yarn start`                             | dev 環境の AWS（`lyrics-dev-api`）  | 通常の開発・動作確認 |
+| `yarn start`（`.env.local` で上書き時）  | ローカルモック API (localhost:3000) | オフライン開発       |
 
 **環境変数ファイル:**
 
-- `.env` — Staging の AWS URL を定義（git 管理対象）
-- `.env.local` — ローカル開発時に localhost へ上書き（gitignore 済み）
+- `.env` — dev 環境の AWS URL を定義（git 管理対象）
+- `.env.local` — ローカルモック API（localhost）で開発する場合に上書き（gitignore 済み）
+- staging / production の URL は `.env` には置かず、`eas.json` の各ビルドプロファイルと GitHub Secrets で管理
 
 ### モック API の起動と確認
 
@@ -181,8 +184,7 @@ open http://localhost:3000
 ### 主要コマンド一覧
 
 ```bash
-yarn start              # 開発サーバー起動（ローカルモック API）
-yarn start:staging      # 開発サーバー起動（Staging DB）
+yarn start              # 開発サーバー起動（dev 環境の AWS に接続）
 yarn ios                # ネイティブビルド + iOS シミュレーター起動
 yarn android            # Android エミュレーター
 yarn lint               # ESLint 実行
@@ -216,10 +218,10 @@ maestro -v
 iOS シミュレーター・Android エミュレーターのどちらでも実行できます。
 各フローは起動時に `clearState`（+ iOS は `clearKeychain`）でアプリ状態を初期化するため、**事前の手動ログアウトは不要**です。Expo Dev Client のランチャー画面（Development servers）や初回ダイアログが表示された場合も、共通ヘルパー（`.maestro/flows/helpers/launch-app.yaml`）が自動で処理します。
 
-**1. 開発サーバーを起動（Staging DB に接続）**
+**1. 開発サーバーを起動（dev 環境に接続）**
 
 ```bash
-yarn start:staging
+yarn start
 ```
 
 **2. シミュレーター / エミュレーターでアプリを開ける状態にする**
@@ -242,14 +244,14 @@ maestro test .maestro/flows/
 maestro --device emulator-5554 test .maestro/flows/
 ```
 
-### テストアカウント（Staging）
+### テストアカウント（dev）
 
 | 項目           | 値                 |
 | -------------- | ------------------ |
 | メールアドレス | `demo@example.com` |
 | パスワード     | `password123`      |
 
-**前提データ:** 一部のフローは demo アカウントの Staging データを前提とする（`project-detail` / `project-edit-save` / `project-delete` は 1 件以上のプロジェクト、`track-play` は 1 件以上のトラック）。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
+**前提データ:** 一部のフローは demo アカウントの dev 環境データを前提とする（`project-detail` / `project-edit-save` / `project-delete` は 1 件以上のプロジェクト、`track-play` は 1 件以上のトラック）。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
 
 ### フロー一覧
 
@@ -273,19 +275,20 @@ maestro --device emulator-5554 test .maestro/flows/
 
 ### ブランチ構成
 
-| ブランチ    | 役割                                              |
-| ----------- | ------------------------------------------------- |
-| `master`    | Production リリース用。マージで本番デプロイが走る |
-| `staging`   | Staging 検証用。マージで Staging デプロイが走る   |
-| `develop`   | 開発の起点となるメインブランチ                    |
-| `feature/*` | 機能開発用の作業ブランチ                          |
+| ブランチ    | 役割                                                                        |
+| ----------- | --------------------------------------------------------------------------- |
+| `master`    | Production リリース用。マージで production チャンネルへ配信（運営側 AWS）   |
+| `develop`   | 開発の起点となるメインブランチ。マージで staging チャンネルへ配信（運営側 AWS） |
+| `dev`       | 実機確認用のマージ専用ブランチ。マージで dev チャンネルへ配信（開発側 AWS） |
+| `feature/*` | 機能開発用の作業ブランチ                                                    |
+| `staging`   | レガシー（旧検証用ブランチ・廃止予定。新規 PR の base にしない）            |
 
 ### 開発フロー
 
 ```
-feature/* → staging（挙動確認）
-           ↓ 問題なければ
-feature/* → develop → master
+feature/* ──PR──▶ dev（実機確認）
+     │  確認 OK 後
+     └────PR──▶ develop（staging 検証・テスター配布）──PR──▶ master（本番リリース）
 ```
 
 **1. feature ブランチで開発**
@@ -300,24 +303,32 @@ git commit -m "feat: your changes"
 git push origin feature/your-feature-name
 ```
 
-**2. staging で挙動確認**
+**2. dev で実機確認**
 
-- `feature/*` → `staging` へ PR を作成してマージ → Staging デプロイ
-- Staging 環境で動作に問題がないことを確認する
+- `feature/*` → `dev` へ PR を作成してマージ → dev チャンネルへ OTA 配信（開発側 AWS）
+- 実機（Expo Go / 開発ビルド）で動作に問題がないことを確認する
 
-**3. 問題なければ develop・master へマージ**
+**3. develop へ反映（staging 検証）**
 
-- `feature/*` → `develop` へ PR を作成してマージ
-- `develop` → `master` へ PR を作成してマージ → Production デプロイ
+- 同じ `feature/*` ブランチから `develop` へ PR を作成してマージ → staging チャンネルへ OTA 配信（運営側 AWS）
+- TestFlight / Google Play 内部テストのビルドはこの環境に接続するため、テスター配布前の検証もここで行う
+
+**4. リリース**
+
+- `develop` → `master` へ PR を作成してマージ → production チャンネルへ OTA 配信（運営側 AWS）
+
+> `dev` ブランチはリリース区切りごとに `develop` で強制リセットし、未マージ機能が溜まらないようにします。
 
 ### GitHub Actions による自動デプロイ
 
-| トリガー                     | 実行内容                                            |
-| ---------------------------- | --------------------------------------------------- |
-| `staging` ブランチへのマージ | ESLint → Jest → EAS Update（staging チャンネル）    |
-| `master` ブランチへのマージ  | ESLint → Jest → EAS Update（production チャンネル） |
+| トリガー                     | ワークフロー                      | 実行内容                                                      |
+| ---------------------------- | --------------------------------- | ------------------------------------------------------------- |
+| `dev` ブランチへのマージ     | Deploy to Dev (EAS Update)        | ESLint → Jest → EAS Update（dev チャンネル / 開発側 AWS）     |
+| `develop` ブランチへのマージ | Deploy to Staging (EAS Update)    | ESLint → Jest → EAS Update（staging チャンネル / 運営側 AWS） |
+| `master` ブランチへのマージ  | Deploy to Production (EAS Update) | ESLint → Jest → EAS Update（production チャンネル / 運営側 AWS） |
 
 lint または test が失敗した場合はデプロイが中止されます。
+Lambda（`api/` 配下）の変更は自動配信されないため、各環境へ手動で SAM デプロイします（CLAUDE.md「AWS API Gateway」参照）。
 
 ---
 
@@ -326,8 +337,8 @@ lint または test が失敗した場合はデプロイが中止されます。
 ### シミュレーターで確認（通常の開発）
 
 ```bash
-# 1. 開発サーバーを起動（Staging DB に接続）
-yarn start:staging
+# 1. 開発サーバーを起動（dev 環境に接続）
+yarn start
 
 # 2. ターミナルで i を押して iOS シミュレーターを開く
 #    （Android の場合は a を押して Android エミュレーターを開く）
@@ -336,16 +347,18 @@ yarn start:staging
 
 ### 実機（iPhone / Android）で確認
 
-Staging デプロイ済みの OTA Update を実機で確認するには：
+`dev` ブランチへのマージ（dev チャンネル）や `develop` へのマージ（staging チャンネル）で配信された OTA Update を実機で確認するには：
 
 1. 実機で **Expo Go**（または開発ビルド）を完全に終了して再起動
 2. 最新の update が自動適用される
 
-EAS Update はプラットフォーム共通のため、staging チャンネルの配信は iOS / Android 両方に届きます。
+EAS Update はプラットフォーム共通のため、各チャンネルの配信は iOS / Android 両方に届きます。
 
 Android 実機でローカルの変更を直接確認する場合は、実機の「開発者向けオプション」で USB デバッグを有効化し、USB 接続して `yarn android` でインストールします。
 
 ### TestFlight で確認（テスターへの配布）
+
+`staging` プロファイルのビルドは**運営側 staging 環境**（`flexq-stg-api`）に接続します（`eas.json` の `env` で API URL を固定済み）。
 
 **ステップ 1: ビルドを作成**
 

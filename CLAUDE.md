@@ -6,8 +6,9 @@
 
 ```bash
 # 開発
-yarn start                # Expo 開発サーバー起動 (localhost モック API)
-yarn start:staging        # Expo 開発サーバー起動 (Staging DB に接続)
+yarn start                # Expo 開発サーバー起動 (.env の dev 環境 AWS に接続)
+                          # ローカルモック API に繋ぐ場合は .env.local で localhost に上書き
+                          # ※ yarn start:staging は移行前の旧 Staging を向くレガシー。使用しない
 yarn ios                  # ネイティブビルド + iOS シミュレーター起動（初回・ネイティブ変更時のみ）
 yarn android              # Android エミュレーター
 
@@ -21,7 +22,7 @@ yarn test:ci              # Jest カバレッジ付き実行 (CI)
 # 単一テストファイルの実行
 yarn test src/components/ui/buttons/ArrowButton/ArrowButton.test.tsx
 
-# E2E テスト (Maestro) ※ yarn start:staging + iOS シミュレーター起動が前提
+# E2E テスト (Maestro) ※ yarn start (dev 環境) + iOS シミュレーター起動が前提
 maestro test .maestro/flows/login.yaml   # ログインフロー
 maestro test .maestro/flows/             # 全フロー実行
 
@@ -34,17 +35,18 @@ yarn openapi --input api/openapi.yaml --output src/apiClient
 # API Gateway 用 OpenAPI 定義の生成 (src/data/ から api/openapi-aws.yaml を生成)
 yarn generate:openapi
 
-# AWS SAM (api/ ディレクトリで実行)
+# AWS SAM (api/ ディレクトリで実行。--stack-name は必ず明示する)
 cd api
-sam build                 # Lambda 関数をビルド
-sam deploy                # AWS にデプロイ (初回は --guided)
+sam build                                                      # Lambda 関数をビルド
+sam deploy --stack-name lyrics-dev-api --no-confirm-changeset  # dev 環境へデプロイ（開発者アカウント）
+# staging / production（運営者アカウント）へのデプロイは「AWS API Gateway」の項を参照
 ```
 
 ## アーキテクチャ
 
 ### 開発サーバーと iOS シミュレーター
 
-日常の開発では `yarn start:staging`（または `yarn start`）のみ起動すれば十分です。
+日常の開発では `yarn start` のみ起動すれば十分です（`.env` により開発側 dev 環境の AWS に接続されます）。
 ターミナルで `i` を押すと iOS シミュレーターが開きます。
 
 `yarn ios`（= `expo run:ios`）はネイティブコードをビルドするコマンドで、以下のタイミングでのみ必要です：
@@ -56,13 +58,13 @@ sam deploy                # AWS にデプロイ (初回は --guided)
 | **`app.json` の変更後** | アプリ名・アイコン・権限など native config を変えたとき |
 | **`expo-dev-client` の再ビルドが必要なとき** | ネイティブ層に変更が入ったとき |
 
-一度 `yarn ios` でビルドしてシミュレーターにインストールしておけば、以降は JS レイヤーのみの変更であれば `yarn start:staging` → `i` だけで開発できます。
+一度 `yarn ios` でビルドしてシミュレーターにインストールしておけば、以降は JS レイヤーのみの変更であれば `yarn start` → `i` だけで開発できます。
 
-> **同時起動は不要。** `yarn start:staging` と `yarn ios` を同時に実行する必要はありません。
+> **同時起動は不要。** `yarn start` と `yarn ios` を同時に実行する必要はありません。
 
 ### Android エミュレーター・実機での開発とテスト
 
-iOS と同様、日常の開発は `yarn start:staging`（または `yarn start`）を起動し、ターミナルで `a` を押すと Android エミュレーターでアプリが開きます。
+iOS と同様、日常の開発は `yarn start` を起動し、ターミナルで `a` を押すと Android エミュレーターでアプリが開きます。
 
 **前提条件（初回のみ）:**
 
@@ -75,7 +77,7 @@ iOS と同様、日常の開発は `yarn start:staging`（または `yarn start`
    ```
 4. `yarn android`（= `expo run:android`）で初回ネイティブビルド + エミュレーターへインストール
 
-`yarn android` が必要になるタイミングは iOS の `yarn ios` と同じです（初回セットアップ・ネイティブモジュール追加後・`app.json` 変更後・`expo-dev-client` 再ビルド時）。以降 JS レイヤーのみの変更であれば `yarn start:staging` → `a` だけで開発できます。
+`yarn android` が必要になるタイミングは iOS の `yarn ios` と同じです（初回セットアップ・ネイティブモジュール追加後・`app.json` 変更後・`expo-dev-client` 再ビルド時）。以降 JS レイヤーのみの変更であれば `yarn start` → `a` だけで開発できます。
 
 **Android 実機でのローカル確認:**
 
@@ -83,9 +85,9 @@ iOS と同様、日常の開発は `yarn start:staging`（または `yarn start`
 2. USB 接続して `adb devices` で認識されることを確認
 3. `yarn android` でビルド + インストール（以降は開発サーバー接続のみで OK）
 
-**Staging（OTA Update）の確認:**
+**OTA Update の確認:**
 
-staging ブランチへのマージで GitHub Actions が実行する EAS Update はプラットフォーム共通のため、Android にも同じ staging チャンネルで配信されます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
+`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
 
 > **Android のセットアップ状況:** Google ログイン（TASK-54）・Google Play Console・EAS submit・内部テスト配信まですべてセットアップ済みで運用可能。Google OAuth の Android クライアントは lyrics-app-492415 にデバッグ署名 / EAS アップロード鍵 / Play アプリ署名鍵の 3 つを登録済み（`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` は `.env` に設定済み）。**新規 Android クライアント作成時は「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**（デフォルト無効のままだと OAuth が `400: invalid_request` になる）。
 
@@ -130,17 +132,22 @@ API クライアント (`src/apiClient/`) は `openapi-typescript-codegen` で**
 
 ### AWS API Gateway
 
-AWS Lambda + API Gateway の環境は **Staging** と **Production** の 2 つに分離されています。
+AWS Lambda + API Gateway は **dev / staging / production の 3 環境**に分離されています。
+staging / production は**運営者名義の AWS アカウント**、dev は開発者アカウントで稼働します
+（2026-08-09 に旧 2 環境構成〈`lyrics-mock-api` / `lyrics-prod-api`〉から移行。経緯・手順は `docs/aws-account-migration-guide.md` 参照）。
 
-| 環境 | スタック名 | Expo チャンネル | 用途 |
-|------|-----------|----------------|------|
-| Staging | `lyrics-mock-api` | `staging` | 開発・検証用。開発時は常にこちら |
-| Production | `lyrics-prod-api` | `production` | リリース済みアプリ専用 |
+| 環境 | AWS アカウント | スタック名 | ブランチ | Expo チャンネル | 用途 |
+|------|--------------|-----------|---------|----------------|------|
+| dev | 開発者 | `lyrics-dev-api` | `dev` | `dev` | 日常開発・実機確認・E2E。開発時は常にこちら |
+| staging | 運営者 | `flexq-stg-api` | `develop` | `staging` | リリース前検証。TestFlight / Play 内部テストのビルドもここを向く |
+| production | 運営者 | `flexq-prod-api` | `master` | `production` | 本番（リリース済みアプリ専用） |
 
-- **Staging エンドポイント**: `https://wn0u6fu695.execute-api.ap-northeast-1.amazonaws.com/v1`
-- **Production エンドポイント**: SAM デプロイ後に `sam deploy` の Outputs に表示される URL
+- **dev エンドポイント**: `https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1`（`.env` に設定済み）
+- **staging エンドポイント**: `https://5pzt12icve.execute-api.ap-northeast-1.amazonaws.com/v1`（`eas.json` の staging プロファイルに設定済み）
+- **production エンドポイント**: `https://7ez5duggcc.execute-api.ap-northeast-1.amazonaws.com/v1`（`eas.json` の production プロファイルに設定済み）
 - **リージョン**: `ap-northeast-1`（東京）
-- **SAM テンプレート**: `api/template.yaml`（staging / production 共通）
+- **SAM テンプレート**: `api/template.yaml`（3 環境共通）
+- 旧スタック（`lyrics-mock-api` / `lyrics-prod-api`）は切り戻し用に一時温存中。安定稼働の確認後に削除する（`docs/aws-account-migration-guide.md` 第 IV 部）
 
 `src/App.tsx` の起動時に `OpenAPI.BASE` を環境変数で設定しています：
 
@@ -149,26 +156,31 @@ OpenAPI.BASE = process.env.EXPO_PUBLIC_API_BASE_URL ?? 'http://localhost:3000';
 ```
 
 **環境変数ファイル:**
-- `.env` — Staging の AWS URL を定義（git 管理対象）
-- `.env.local` — ローカル開発時に localhost へ上書き（gitignore 済み）
+- `.env` — dev 環境の AWS URL を定義（git 管理対象）
+- `.env.local` — ローカルモック API（localhost）で開発する場合に上書き（gitignore 済み）
+- staging / production の URL は `.env` には置かず、`eas.json` の各ビルドプロファイルの `env` と GitHub Secrets で管理する（TestFlight / Play ビルドの初回起動が dev API を向かないようにするため）
 
 **SAM デプロイ（手動）:**
-```bash
-# Staging
-cd api && sam build && sam deploy --stack-name lyrics-mock-api
 
-# Production（初回のみ --guided で対話設定、以降は明示的に指定）
-cd api && sam build && sam deploy \
-  --stack-name lyrics-prod-api \
-  --resolve-s3 \
-  --capabilities CAPABILITY_IAM \
-  --parameter-overrides JwtSecret="<本番用の強いシークレット>"
+運営者アカウントへのデプロイは、運営者から受け取った CI 用 IAM ユーザー `flexq-deploy` のキーを
+`aws configure --profile flexq-ops` で登録して使う。
+
+```bash
+# dev（開発者アカウント・デフォルトプロファイル）
+cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-changeset
+
+# staging（運営者アカウント）
+cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-stg-api \
+  --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset
+
+# production（運営者アカウント）
+cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api \
+  --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset
 ```
 
-> **非対話実行の注意:** `api/samconfig.toml` は `confirm_changeset = true` のため、Claude Code などから自動実行する場合は `--no-confirm-changeset` を付ける（Staging へのデプロイは `/deploy-api-staging` で自動化されている）。
+> **誤デプロイ防止の注意:** `api/samconfig.toml` のデフォルトスタック名は旧 Staging の `lyrics-mock-api` のまま。**`--stack-name` を付けずに `sam deploy` しないこと**（旧環境にデプロイされてしまう）。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
 
-**Production デプロイ後に行うこと:**
-1. `sam deploy` の Outputs に表示される `ApiUrl` を GitHub Secrets の `EXPO_PUBLIC_API_BASE_URL_PROD` に設定する
+- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、未指定でも CloudFormation が前回値を保持する
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
@@ -214,20 +226,25 @@ RecordPlayer「AI クリーンアップ」
 #### SAM パラメータの設定（デプロイ）
 
 ```bash
-# Staging
-cd api && sam build && sam deploy --stack-name lyrics-mock-api --no-confirm-changeset \
+# staging（運営者アカウント）
+cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-stg-api \
+  --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset \
   --parameter-overrides ReplicateApiToken="<トークン>"
 
-# Production（Replicate 系パラメータのみ手動デプロイで設定する）
-cd api && sam build && sam deploy --stack-name lyrics-prod-api --resolve-s3 \
-  --capabilities CAPABILITY_IAM --no-confirm-changeset \
+# production（運営者アカウント）
+cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api \
+  --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset \
+  --parameter-overrides ReplicateApiToken="<トークン>"
+
+# dev（開発者アカウント。dev で AI クリーンアップを使う場合のみ）
+cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-changeset \
   --parameter-overrides ReplicateApiToken="<トークン>"
 ```
 
+- Replicate のトークン・費用は**当面開発側負担**（運営者アカウントの stg / prod への設定も開発者が行う。`docs/aws-account-migration-guide.md` 第 III 部 7）
 - `ReplicateApiToken` は NoEcho（CloudFormation コンソールに表示されない）。**未設定の間は分離エンドポイントが 503 を返す**が、他機能には影響しない
 - 一度設定した値は以後の未指定デプロイでも保持される（CloudFormation の UsePreviousValue）。ただし確実を期すなら毎回明示指定する
-- **`Sync Schema to Production` ワークフローは JwtSecret しか渡さない**ため、Replicate 系パラメータは上記の手動デプロイで設定する
-- トークンをローテーションした場合は staging / production 両方に再デプロイで反映する
+- トークンをローテーションした場合は staging / production（利用していれば dev も）へ再デプロイで反映する
 
 #### コスト
 
@@ -260,6 +277,7 @@ TestFlight 経由でテスター・面談相手にアプリを配布する場合
 ```bash
 eas build --profile staging --platform ios
 ```
+- `staging` プロファイルのビルドは**運営側 staging 環境**（`flexq-stg-api`）に接続する（`eas.json` の `env` で API URL を固定済み。`.env` の dev URL は使われない）
 
 **ステップ 2: App Store Connect にアップロード**
 ```bash
@@ -374,78 +392,55 @@ corepack prepare yarn@4.12.0 --activate
 
 ### デプロイフロー
 
-#### Staging へのデプロイ
-
-feature ブランチの変更を staging へデプロイする手順：
-
-```bash
-# 1. feature ブランチを作成
-git checkout develop
-git checkout -b feature/your-feature-name
-
-# 2. 変更・コミット・プッシュ
-git add <files>
-git commit -m "feat: your changes"
-git push origin feature/your-feature-name
-```
-
-**3. GitHub で staging への PR を作成・マージ**
-- PR の base ブランチを `staging` に設定して作成
-- マージすると GitHub Actions が自動実行
-
-**4. GitHub Actions の自動実行フロー**
-```
-staging へのマージを検知
-  ↓ ESLint チェック
-  ↓ Jest テスト
-  ↓ 両方通過 → EAS Update で Expo staging チャンネルへデプロイ（Staging DB）
-```
-
-**5. iPhone で確認**
-- Expo Go を完全に終了して再起動
-- 最新の update が自動適用される
-
-**GitHub Actions の実行状況確認:**
-- リポジトリの Actions タブ → `Deploy to Staging (EAS Update)`
-
-**注意:** lint または test が失敗した場合はデプロイが中止されます。
-
-**6. 動作確認後、develop へ反映**
-- 同じ feature ブランチから develop への PR を作成してマージする（`/task-done` で Notion 更新とあわせて自動化。詳細は「運用フロー」参照）
-
-#### Production へのデプロイ
-
-staging ブランチへのマージ → 動作確認後、`master` にマージすると自動実行：
+ブランチへのマージをトリガーに、GitHub Actions（ESLint → Jest → EAS Update）が各チャンネルへ OTA 配信します。lint または test が失敗した場合は配信が中止されます。
 
 ```
-master へのマージを検知
-  ↓ ESLint チェック
-  ↓ Jest テスト
-  ↓ 両方通過 → EAS Update で Expo production チャンネルへデプロイ（Production DB）
+feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チャンネル（開発側 AWS: lyrics-dev-api）
+      │  実機確認 OK 後
+      └────────PR──▶ develop ────▶ EAS Update: staging チャンネル（運営側 AWS: flexq-stg-api）
+                        │  検証 OK 後
+                        └──PR──▶ master ▶ EAS Update: production チャンネル（運営側 AWS: flexq-prod-api）
 ```
 
-**GitHub Actions の実行状況確認:**
-- リポジトリの Actions タブ → `Deploy to Production (EAS Update)`
+- `dev` ブランチはマージ専用の実機確認場所（旧 `staging` ブランチの役割を引き継いだもの）。リリース区切りごとに `develop` で強制リセットして未マージ機能の滓を溜めない
+- 旧 `staging` ブランチはレガシー。新規 PR の base にしないこと（移行の安定稼働確認後に削除する）
 
-#### スキーマ変更を Production へ反映（手動）
+#### dev への配信（日常の実機確認）
 
-`api/template.yaml` に変更（テーブル追加・GSI 追加など）があった場合：
+1. feature ブランチから `dev` への PR を作成・マージ
+2. ワークフロー `Deploy to Dev (EAS Update)` が dev チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL_DEV`）
+3. 実機でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用される
+4. Lambda（`api/` 配下）に変更がある場合は、あわせて `lyrics-dev-api` へ手動 SAM デプロイ
 
-1. Staging で動作確認を完了させる
-2. GitHub Actions タブ → `Sync Schema to Production` → `Run workflow`
-3. 確認フォームに `yes` と入力して実行
-4. Jest テスト通過後、Production の SAM スタック (`lyrics-prod-api`) へ自動デプロイ
+#### staging への配信（リリース前検証）
 
-**必要な GitHub Secrets（初回セットアップ時に設定）:**
+1. dev で実機確認が済んだ feature ブランチから `develop` への PR を作成・マージ（`/task-done` が Notion 更新とあわせて自動化）
+2. ワークフロー `Deploy to Staging (EAS Update)` が staging チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL` = 運営側 stg）
+3. TestFlight / Google Play 内部テストのビルド（`--profile staging`）もこの環境に接続する
+4. Lambda 変更がある場合は `flexq-stg-api` へ手動 SAM デプロイ（`AWS_PROFILE=flexq-ops`）
+
+#### production への配信（リリース）
+
+1. `develop` から `master` への PR を作成・マージ（`/pr-master`）
+2. ワークフロー `Deploy to Production (EAS Update)` が production チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL_PROD` = 運営側 prod）
+3. Lambda 変更がある場合は `flexq-prod-api` へ手動 SAM デプロイ（`AWS_PROFILE=flexq-ops`）
+
+#### スキーマ変更（api/template.yaml）の反映
+
+テーブル追加・GSI 追加などのスキーマ変更は、**dev → staging → production の順に手動 SAM デプロイで昇格**させる（コマンドは「AWS API Gateway」の「SAM デプロイ（手動）」参照）。各段階で動作確認を済ませてから次の環境へ進める。
+
+> ⚠️ **GitHub Actions の `Sync Schema to Production` ワークフローは使用しないこと。** 移行前の旧アカウント（`lyrics-prod-api` + 旧 `AWS_ACCESS_KEY_ID`）を向いたまま未改修のため、実行すると旧環境にデプロイされる（改修または削除予定）。
+
+**GitHub Secrets（現行）:**
 
 | Secret 名 | 説明 |
 |-----------|------|
 | `EXPO_TOKEN_2` | EAS デプロイ用トークン |
-| `EXPO_PUBLIC_API_BASE_URL` | Staging API Gateway URL |
-| `EXPO_PUBLIC_API_BASE_URL_PROD` | Production API Gateway URL（初回 SAM デプロイ後に設定） |
-| `AWS_ACCESS_KEY_ID` | スキーマ同期用 IAM アクセスキー |
-| `AWS_SECRET_ACCESS_KEY` | スキーマ同期用 IAM シークレットキー |
-| `JWT_SECRET_PROD` | Production 用 JWT シークレット |
+| `EXPO_PUBLIC_API_BASE_URL_DEV` | dev API Gateway URL（開発側 `lyrics-dev-api`） |
+| `EXPO_PUBLIC_API_BASE_URL` | staging API Gateway URL（運営側 `flexq-stg-api`） |
+| `EXPO_PUBLIC_API_BASE_URL_PROD` | production API Gateway URL（運営側 `flexq-prod-api`） |
+| `JWT_SECRET_PROD` | production 用 JWT シークレット（運営側 prod の値と一致させる） |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | 旧アカウントのスキーマ同期用キー（レガシー・`Sync Schema to Production` 改修時に `flexq-deploy` のキーへ差し替える） |
 
 ### パスエイリアス
 
@@ -465,7 +460,7 @@ master へのマージを検知
 E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します。iOS シミュレーター・Android エミュレーターの両方で実行できます。
 
 **実行前提:**
-- `yarn start:staging` で開発サーバーを起動済み
+- `yarn start` で開発サーバーを起動済み（dev 環境に接続）
 - iOS シミュレーターまたは Android エミュレーターに開発ビルド（expo-dev-client）をインストール済み（初回のみ `yarn ios` / `yarn android`）
 - **手動ログアウトは不要**（各フローが起動時に `clearState` + `clearKeychain` でアプリ状態を初期化し、ログイン画面から開始する。Expo Dev Client のランチャー画面・初回ダイアログも `helpers/launch-app.yaml` が自動処理する）
 
@@ -480,9 +475,9 @@ maestro --device emulator-5554 test .maestro/flows/
 
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
-**テストアカウント（Staging）:** `demo@example.com` / `password123`
+**テストアカウント（dev）:** `demo@example.com` / `password123`
 
-**前提データ:** `project-detail` / `project-edit-save` / `project-delete` は demo アカウントに 1 件以上のプロジェクト、`track-play` は 1 件以上のトラックが Staging に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
+**前提データ:** `project-detail` / `project-edit-save` / `project-delete` は demo アカウントに 1 件以上のプロジェクト、`track-play` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
 
 **フロー作成時のルール:**
 - アプリの起動・ログインは共通ヘルパーを使う（起動のみ: `helpers/launch-app.yaml` / ログインまで: `helpers/login.yaml`）
@@ -673,10 +668,11 @@ await DefaultService.postDataTrack({ requestBody: { title, s3Key: key, extention
    ```
    - API Gateway 用定義が必要な場合は `src/data/*.ts` を更新し `yarn generate:openapi` で `api/openapi-aws.yaml` を再生成
 
-4. **AWS Staging にデプロイ**
+4. **AWS dev にデプロイ**
    ```bash
-   cd api && sam build && sam deploy --stack-name lyrics-mock-api
+   cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-changeset
    ```
+   （検証後、staging / production へは「デプロイフロー」のスキーマ反映手順で昇格させる）
 
 5. **フロントエンドの hook を作成** (`src/hooks/`)
    - `useFetch<Resource>.ts` — `DefaultService.get<Resource>()` を呼ぶ
@@ -696,8 +692,8 @@ src/data/users.ts      # ユーザー
 # 2. API Gateway 用 OpenAPI 定義 (api/openapi-aws.yaml) を再生成
 yarn generate:openapi
 
-# 3. Lambda をビルドして AWS Staging にデプロイ
-cd api && sam build && sam deploy --stack-name lyrics-mock-api
+# 3. Lambda をビルドして AWS dev にデプロイ
+cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-changeset
 ```
 
 ### 注意事項
@@ -714,15 +710,17 @@ cd api && sam build && sam deploy --stack-name lyrics-mock-api
 |----------|-------------|------|
 | `/notion` | `.claude/commands/notion.md` | Notion タスクの追加・更新・PR URL 登録・リリースフラグ・ページ追記 |
 | `/task-parallel` | `.claude/commands/task-parallel.md` | 複数タスクを worktree + サブエージェントで並行実装 |
-| `/task-done` | `.claude/commands/task-done.md` | staging 検証済みタスクの完了処理（Notion Done + リリース ON + develop PR） |
+| `/task-done` | `.claude/commands/task-done.md` | 検証済みタスクの完了処理（Notion Done + リリース ON + develop PR） |
 | `/commit` | `.claude/commands/commit.md` | コミットメッセージ規約（英語タイトル + 日本語本文）でコミット作成 |
 | `/codex-review` | `.claude/commands/codex-review.md` | Codex CLI でコードレビュー実行 + 指摘対応 |
-| `/pr-staging` | `.claude/commands/pr-staging.md` | 現在のブランチから staging への PR 作成 |
+| `/pr-staging` | `.claude/commands/pr-staging.md` | ⚠ レガシー: 旧 staging ブランチへの PR 作成（3 環境移行後は未改修・使用しない） |
 | `/pr-develop` | `.claude/commands/pr-develop.md` | 現在のブランチから develop への PR 作成 |
 | `/pr-master` | `.claude/commands/pr-master.md` | develop から master への PR 作成（リリース用） |
-| `/deploy-api-staging` | `.claude/commands/deploy-api-staging.md` | staging 最新から Lambda を AWS Staging へ SAM デプロイ |
+| `/deploy-api-staging` | `.claude/commands/deploy-api-staging.md` | ⚠ レガシー: 旧スタック `lyrics-mock-api` への SAM デプロイ（3 環境移行後は未改修・使用しない） |
 | `/testflight` | `.claude/commands/testflight.md` | EAS Build → TestFlight 配信 |
 | `/playstore` | `.claude/commands/playstore.md` | EAS Build → Google Play 内部テスト配信（Android） |
+
+> ⚠️ **3 環境移行にともなうレガシーコマンドについて:** `/pr-staging` と `/deploy-api-staging` は旧 `staging` ブランチ・旧スタックを前提としたままで、dev フロー向けの改修が未了。改修されるまでは、dev への PR 作成・`lyrics-dev-api` / `flexq-stg-api` への SAM デプロイを手動（「デプロイフロー」参照）で行う。
 
 ---
 
@@ -744,7 +742,7 @@ Claude Code から Notion MCP を経由してタスク管理を行う。GitHub �
 
 | プロパティ | 型 | 内容 |
 |-----------|-----|------|
-| リリース | チェックボックス | staging マージ + 動作確認完了で ON（TestFlight 配信対象の目印） |
+| リリース | チェックボックス | dev での動作確認 + develop マージ完了で ON（TestFlight / Play 配信対象の目印） |
 | タイトル | テキスト | タスク名 |
 | 簡単な詳細 | テキスト | 概要（1行） |
 | デバイス | セレクト | Android / iPhone |
@@ -796,7 +794,7 @@ Notion タスク管理操作は `/notion` スラッシュコマンドで実行�
 #### リリースフラグ更新
 
 ```
-/notion TASK-X をリリース済みにして    # staging マージ + 動作確認完了時（Done + リリース ON）
+/notion TASK-X をリリース済みにして    # dev での動作確認完了時（Done + リリース ON）
 ```
 
 develop への PR 作成まで含めてまとめて行う場合は `/task-done TASK-X` を使う。
@@ -823,11 +821,12 @@ https://github.com/yoshiydp/flexq-mobile/pull/XX
 ① 着手          /task-parallel TASK-X ...  最新 develop から worktree + ブランチ作成、
                                            Notion を In progress に更新、並行実装
 ② 実装・検証    yarn test:ci + yarn lint → /codex-review → /commit
-③ staging PR    /pr-staging → マージ（GitHub Actions が EAS Update を staging へ配信）
-                └ Lambda（api/ 配下）に変更がある場合はマージ後に /deploy-api-staging
-④ 動作確認      iPhone（Expo Go）で Test plan の項目を確認
+③ dev PR        feature → dev の PR を作成・マージ（GitHub Actions が dev チャンネルへ配信）
+                └ Lambda（api/ 配下）に変更がある場合はマージ後に lyrics-dev-api へ手動 SAM デプロイ
+④ 実機確認      iPhone / Android（dev チャンネル）で Test plan の項目を確認
 ⑤ 完了処理      /task-done TASK-X          Notion を Done + リリース ON、develop への PR 作成
-⑥ develop 反映  develop PR をマージ → worktree を掃除
+⑥ develop 反映  develop PR をマージ（staging チャンネル = 運営側 stg へ配信）→ worktree を掃除
+                └ Lambda 変更がある場合は flexq-stg-api へ手動 SAM デプロイ
 ⑦ リリース      /testflight（TestFlight 配信）・/playstore（Google Play 内部テスト配信）・/pr-master（production リリース）
 ```
 
@@ -860,13 +859,13 @@ git worktree remove ../flexq-mobile-worktrees/TASK-X
 
 コミット前に `/codex-review` を実行し、妥当な指摘に対応してからコミットする。実体は `codex review --base develop`（要 Codex CLI: `npm install -g @openai/codex` + `codex login`）。今回の diff と無関係な既存問題・誤検知は対応せず、その旨を報告する。
 
-#### staging 検証後の develop 反映
+#### dev 検証後の develop 反映
 
-feature ブランチは staging へのマージだけでは develop に取り込まれない。**staging で動作確認が完了したら、同じ feature ブランチから develop への PR を作成してマージする**（`/task-done` が Notion 更新とあわせて自動化）。同一ファイルを変更したブランチが複数ある場合は、マージ順を決めて 1 本ずつマージする。
+feature ブランチは dev へのマージだけでは develop に取り込まれない。**dev（実機）で動作確認が完了したら、同じ feature ブランチから develop への PR を作成してマージする**（`/task-done` が Notion 更新とあわせて自動化）。develop へのマージで staging チャンネル（運営側 stg）へ配信され、リリース前検証・テスター配布の対象になる。同一ファイルを変更したブランチが複数ある場合は、マージ順を決めて 1 本ずつマージする。
 
 #### リリースフラグ
 
-Notion の「リリース」チェックボックスは **staging へマージして正常に動作確認がとれた時点で ON** にする（`/task-done` が自動化）。TestFlight 配信時に、どのタスクが配信対象かをこのフラグで判別する。マージのみで動作確認が未了の場合は OFF のまま。
+Notion の「リリース」チェックボックスは **dev で正常に動作確認がとれ、develop へ反映した時点で ON** にする（`/task-done` が自動化）。TestFlight / Play 内部テスト配信時に、どのタスクが配信対象かをこのフラグで判別する。マージのみで動作確認が未了の場合は OFF のまま。
 
 #### ファイルアップロードの mime タイプ
 
