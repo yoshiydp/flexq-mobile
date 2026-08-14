@@ -1,5 +1,9 @@
 # Staging / Production 環境構成
 
+> ⚠️ **このドキュメントは旧 2 環境構成（`lyrics-mock-api` / `lyrics-prod-api`）の記録であり、現行の運用には使用しないこと。**
+> 2026-08-09 に dev / staging / production の 3 環境構成へ移行済み（現行構成は `CLAUDE.md` と `docs/aws-account-migration-guide.md` を参照）。
+> 本文中の `Sync Schema to Production` ワークフロー・旧スタックへのデプロイ手順は廃止済み（TASK-77）。
+
 ## 環境一覧
 
 | 環境 | AWS スタック名 | Expo チャンネル | トリガー |
