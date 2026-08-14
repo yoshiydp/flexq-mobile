@@ -38,7 +38,7 @@ develop → master へのリリース PR です。
 
 ※ 該当する場合のみ記載する
 
-- Lambda / `api/template.yaml` に変更がある場合: マージ後に `Sync Schema to Production` の手動実行が必要な旨
+- Lambda / `api/template.yaml` に変更がある場合: マージ後に `flexq-prod-api` への手動 SAM デプロイが必要な旨
 - ネイティブ変更がある場合: EAS Update では反映されず `/testflight` での EAS Build が必要な旨
 - ユーザーデータへの影響（既存データが対象外・再生成が必要など）があればその旨
 
@@ -48,5 +48,5 @@ develop → master へのリリース PR です。
 ## 注意事項
 
 - master へのマージ後、GitHub Actions が自動で EAS Update を production チャンネルへデプロイする
-- Lambda（`api/` 配下）や `api/template.yaml` に変更を含む場合、EAS Update では反映されない。マージ後に GitHub Actions の `Sync Schema to Production` ワークフローを手動実行すること（Replicate 系パラメータは渡されないが CloudFormation が前回値を保持する）
+- Lambda（`api/` 配下）や `api/template.yaml` に変更を含む場合、EAS Update では反映されない。マージ後に `flexq-prod-api` への手動 SAM デプロイ（`AWS_PROFILE=flexq-ops`。CLAUDE.md「SAM デプロイ（手動）」参照）を実行すること（`JwtSecret` などの設定済みパラメータは未指定でも CloudFormation が前回値を保持する）
 - ネイティブコード変更を含む場合は EAS Update では反映されないため、`/testflight` コマンドで EAS Build を別途実行すること
