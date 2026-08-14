@@ -47,9 +47,9 @@ git worktree add ../flexq-mobile-worktrees/TASK-X -b feature/TASK-X-brief-descri
 
 - タスクごとの変更概要・テスト結果・Codex レビュー結果・コミットハッシュ
 - 同一ファイルを変更したタスクがある場合の推奨マージ順
-- Lambda（`api/` 配下）に変更があるタスクは、マージ後に `/deploy-api-staging` が必要である旨
+- Lambda（`api/` 配下）に変更があるタスクは、マージ後に `/deploy-api-dev` が必要である旨
 
 ## 注意事項
 
-- push と PR 作成はユーザーの指示を受けてから行う（PR 作成は `/pr-staging` の形式）
-- staging マージ・動作確認後の処理は `/task-done` を使う
+- push と PR 作成はユーザーの指示を受けてから行う（PR 作成は `/pr-dev` の形式）
+- dev マージ・動作確認後の処理は `/task-done` を使う
