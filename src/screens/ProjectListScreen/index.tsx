@@ -9,6 +9,7 @@ import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchProject } from '@/hooks/useFetchProject';
+import { useReviewPrompt } from '@/hooks/useReviewPrompt';
 import { COLORS } from '@/globalStyles';
 import styles from './ProjectListScreen.styles';
 
@@ -18,6 +19,10 @@ export default function ProjectListScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
   const { projects, loading, error, refreshProject } = useFetchProject();
   const [refreshing, setRefreshing] = useState(false);
+
+  // ログイン後のホーム表示を「起動」としてカウントし、条件を満たしたら
+  // レビュー依頼モーダルを表示する (TASK-79)
+  useReviewPrompt();
 
   useFocusEffect(
     useCallback(() => {
