@@ -155,7 +155,7 @@ export default function RegisterScreen() {
         />
         <View style={styles.dividerContainer}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
+          <Text style={styles.dividerText}>または</Text>
           <View style={styles.dividerLine} />
         </View>
         <Pressable
@@ -165,7 +165,7 @@ export default function RegisterScreen() {
           testID="google-register-button"
         >
           <GoogleIcon width={20} height={20} />
-          <Text style={styles.googleButtonLabel}>Sign up with Google</Text>
+          <Text style={styles.googleButtonLabel}>Google で登録</Text>
         </Pressable>
       </ScrollView>
     </View>

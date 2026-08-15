@@ -94,7 +94,7 @@ export default function SignInScreen() {
         </View>
         <View style={styles.dividerContainer}>
           <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
+          <Text style={styles.dividerText}>または</Text>
           <View style={styles.dividerLine} />
         </View>
         <Pressable
@@ -104,7 +104,7 @@ export default function SignInScreen() {
           testID="google-signin-button"
         >
           <GoogleIcon width={20} height={20} />
-          <Text style={styles.googleButtonLabel}>Login with Google</Text>
+          <Text style={styles.googleButtonLabel}>Google でログイン</Text>
         </Pressable>
         <View style={styles.registerLinkContainer}>
           <Text style={styles.registerLinkLabel}>アカウントはお持ちですか？</Text>
