@@ -16,7 +16,9 @@ import { MODAL_MESSAGES } from '@/constants/messages';
 import { useFetchProfile } from '@/hooks/useFetchProfile';
 import type { SocialAccount } from '@/hooks/useFetchProfile';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
+import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { DefaultService } from '@/apiClient/services/DefaultService';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 import styles from './ProfileScreen.styles';
 
@@ -29,6 +31,7 @@ export default function ProfileScreen() {
   const { signIn: googleSignIn } = useGoogleAuth();
   const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
   const { logout } = useAuthContext();
+  const { deleteAccount } = useDeleteAccount();
 
   useFocusEffect(
     useCallback(() => {
@@ -80,6 +83,47 @@ export default function ProfileScreen() {
     });
   };
 
+  // アカウント削除（退会・TASK-80）: 誤操作防止のため確認モーダルを 2 段階表示する。
+  // 削除成功後は logout() でトークン破棄 + SignIn 画面へ遷移する
+  // （削除済みユーザーの logout API 失敗は logout() 内で握りつぶされる）
+  const onSubmitDeleteAccount = useCallback(async () => {
+    closeModal();
+    showLoading();
+    try {
+      await deleteAccount();
+      await logout();
+    } catch (err) {
+      console.error('Failed to delete account:', err);
+      Alert.alert(
+        MODAL_MESSAGES.deleteAccountFailed.title,
+        MODAL_MESSAGES.deleteAccountFailed.message,
+      );
+    } finally {
+      hideLoading();
+    }
+  }, [closeModal, showLoading, hideLoading, deleteAccount, logout]);
+
+  const onPressDeleteAccount = useCallback(() => {
+    showConfirmModal({
+      message: MODAL_MESSAGES.confirmDeleteAccount.message,
+      description: MODAL_MESSAGES.confirmDeleteAccount.description,
+      submitButton: {
+        label: MODAL_MESSAGES.confirmDeleteAccount.submitButtonLabel,
+        onPress: () => {
+          // 2 段階目: 復元不可の最終確認
+          showConfirmModal({
+            message: MODAL_MESSAGES.confirmDeleteAccountFinal.message,
+            description: MODAL_MESSAGES.confirmDeleteAccountFinal.description,
+            submitButton: {
+              label: MODAL_MESSAGES.confirmDeleteAccountFinal.submitButtonLabel,
+              onPress: onSubmitDeleteAccount,
+            },
+          });
+        },
+      },
+    });
+  }, [showConfirmModal, onSubmitDeleteAccount]);
+
   const saveSocialAccounts = useCallback(async (updated: SocialAccount[]) => {
     await updateProfile({
       socialAccounts: updated.map(({ provider, username, isLinked }) => ({
@@ -101,6 +145,12 @@ export default function ProfileScreen() {
         const userInfo = await googleSignIn();
         if (!userInfo) return;
 
+        // googleSub をサーバーへ保存し、連携済み Google アカウントでの
+        // 再ログイン（post-auth-google の sub 照合）を可能にする (TASK-78)
+        await DefaultService.postDataProfileLinkGoogle({
+          accessToken: userInfo.accessToken,
+        });
+
         const updated = (profile?.socialAccounts ?? []).map((acc, i) =>
           i === index ? { ...acc, username: userInfo.name, isLinked: true } : acc,
         );
@@ -110,9 +160,16 @@ export default function ProfileScreen() {
             icon: SOCIAL_ICON_MAP[acc.provider as keyof typeof SOCIAL_ICON_MAP] ?? acc.icon,
           })),
         );
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to link Google account:', err);
-        Alert.alert('エラー', 'Google アカウントの連携に失敗しました。');
+        if (err?.status === 409) {
+          Alert.alert(
+            'エラー',
+            'この Google アカウントはすでに別のアカウントに連携されています。',
+          );
+        } else {
+          Alert.alert('エラー', 'Google アカウントの連携に失敗しました。');
+        }
       } finally {
         hideLoading();
       }
@@ -146,7 +203,10 @@ export default function ProfileScreen() {
         onPress={handleProfileEditPress}
         startAnimation={startListAnimation}
       />
-      <Animated.ScrollView style={[styles.container, getAnimStyle(scrollAnim)]}>
+      <Animated.ScrollView
+        style={[styles.container, getAnimStyle(scrollAnim)]}
+        contentContainerStyle={styles.scrollContent}
+      >
         <ProfileIcon thumbnail={profile.thumbnail} />
         <View style={styles.formControlContainer}>
           <ReadOnlyFormControl label="User Name" formValue={profile.username} />
@@ -163,6 +223,13 @@ export default function ProfileScreen() {
           containerClassName={styles.logoutButton}
           label="LOGOUT"
           onPress={onPressLogout}
+        />
+        <CancelButton
+          containerClassName={styles.deleteAccountButton}
+          labelClassName={styles.deleteAccountLabel}
+          label="DELETE ACCOUNT"
+          onPress={onPressDeleteAccount}
+          testID="delete-account-button"
         />
       </Animated.ScrollView>
     </HomeTabsScreenTemplate>

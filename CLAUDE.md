@@ -401,8 +401,8 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
                         └──PR──▶ master ▶ EAS Update: production チャンネル（運営側 AWS: flexq-prod-api）
 ```
 
-- `dev` ブランチはマージ専用の実機確認場所（旧 `staging` ブランチの役割を引き継いだもの）。リリース区切りごとに `develop` で強制リセットして未マージ機能の滓を溜めない
-- 旧 `staging` ブランチはレガシー。新規 PR の base にしないこと（移行の安定稼働確認後に削除する）
+- `dev` ブランチはマージ専用の実機確認場所。リリース区切りごとに `develop` で強制リセットして未マージ機能の滓を溜めない
+- 旧 `staging` ブランチは削除済み（2026-08-14）。ブランチは `dev` / `develop` / `master` の 3 本のみ
 
 #### dev への配信（日常の実機確認）
 
@@ -577,6 +577,7 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 *プロフィール*
 - `api/lambda/get-profile.ts` — プロフィール取得（S3 Presigned GET URL を生成）
 - `api/lambda/put-profile.ts` — プロフィール更新（username・thumbnailKey）
+- `api/lambda/delete-profile.ts` — アカウント削除（退会。DynamoDB 全テーブル + S3 の該当ユーザーデータを物理削除）
 
 **フロントエンド（hooks）**
 
@@ -611,6 +612,7 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 *プロフィール*
 - `src/hooks/useFetchProfile.ts` — プロフィール取得
 - `src/hooks/useUpdateProfile.ts` — プロフィール画像選択 → S3アップロード → プロフィール更新
+- `src/hooks/useDeleteAccount.ts` — アカウント削除（退会）API 呼び出し
 
 *UI / アニメーション*
 - `src/hooks/useAnimatedSequence.ts` — 要素のフェードイン・スライドアニメーションを管理

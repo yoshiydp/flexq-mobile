@@ -3,6 +3,7 @@ import { Modal, View, BackHandler, Keyboard } from 'react-native';
 import Animated, { FadeIn, FadeOut, runOnJS } from 'react-native-reanimated';
 import CancelButton from '@/components/ui/buttons/CancelButton';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
+import { containsJapaneseText } from '@/utils/containsJapaneseText';
 import styles from './BaseModal.styles';
 
 interface SubmitButtonProps {
@@ -50,6 +51,13 @@ export default function BaseModal({
     if (!visible) setShowModal(false);
   };
 
+  // 日本語ラベルは BebasNeue（Latin 専用）だとフォールバック表示で
+  // 位置ずれするため、NotoSansJP ボールド + 上下中央配置に切り替える
+  const closeIsJapanese = containsJapaneseText(closeLabel);
+  const submitIsJapanese = submitButton
+    ? containsJapaneseText(submitButton.label)
+    : false;
+
   if (!showModal) return null;
 
   return (
@@ -84,8 +92,16 @@ export default function BaseModal({
             <CancelButton
               onPress={onClose}
               label={closeLabel}
-              containerClassName={[styles.buttonContainer, styles.cancelButton]}
-              labelClassName={[styles.buttonText, styles.cancelButtonText]}
+              containerClassName={[
+                styles.buttonContainer,
+                styles.cancelButton,
+                closeIsJapanese && styles.buttonContainerJa,
+              ]}
+              labelClassName={[
+                styles.buttonText,
+                styles.cancelButtonText,
+                closeIsJapanese && styles.buttonTextJa,
+              ]}
             />
             {submitButton && (
               <SubmitButton
@@ -94,8 +110,13 @@ export default function BaseModal({
                 containerClassName={[
                   styles.buttonContainer,
                   styles.submitButton,
+                  submitIsJapanese && styles.buttonContainerJa,
                 ]}
-                labelClassName={[styles.buttonText, styles.submitButtonText]}
+                labelClassName={[
+                  styles.buttonText,
+                  styles.submitButtonText,
+                  submitIsJapanese && styles.buttonTextJa,
+                ]}
                 disabled={submitButton.disabled}
               />
             )}
