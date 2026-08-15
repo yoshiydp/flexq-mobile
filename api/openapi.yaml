@@ -1072,6 +1072,16 @@ paths:
                   type: string
                   description: Google OAuth access token obtained on the device
                   example: ya29.a0AfH6SMB...
+                mode:
+                  type: string
+                  enum:
+                    - login
+                    - register
+                  default: login
+                  description: >-
+                    login (SignIn screen) returns 404 when no account matches;
+                    register (Register screen) creates a new account
+                    automatically
       responses:
         '200':
           description: OK (existing user signed in)
@@ -1108,6 +1118,8 @@ paths:
           description: Bad Request
         '401':
           description: Invalid Google access token
+        '404':
+          description: Account not found (mode=login and no matching user)
   /data/auth/reset-password:
     post:
       summary: Reset user password

@@ -21,7 +21,10 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  loginWithGoogle: (googleAccessToken: string) => Promise<boolean>;
+  loginWithGoogle: (
+    googleAccessToken: string,
+    mode?: 'login' | 'register'
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -55,13 +58,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, []);
 
-  // Google アクセストークンでログイン（未登録ユーザーはサーバー側で自動作成）。
+  // Google アクセストークンでログイン。
+  // mode: 'login'（SignIn 画面・デフォルト）は既存アカウントのみ（未登録は 404 →
+  // 新規登録へ誘導）、'register'（Register 画面）は未登録ユーザーを自動作成する。
   // 呼び出し側で成功時のみ画面遷移できるよう boolean を返す
   const loginWithGoogle = useCallback(
-    async (googleAccessToken: string): Promise<boolean> => {
+    async (
+      googleAccessToken: string,
+      mode: 'login' | 'register' = 'login'
+    ): Promise<boolean> => {
       try {
         const res = await DefaultService.postDataAuthGoogle({
           accessToken: googleAccessToken,
+          mode,
         });
         const { accessToken, refreshToken } = res?.token ?? {};
         if (!accessToken || !refreshToken) {
@@ -71,12 +80,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         await saveAuthTokens({ accessToken, refreshToken });
         setUser(res as AuthUser);
         return true;
-      } catch (err) {
+      } catch (err: any) {
         console.error('Google login failed:', err);
-        Alert.alert(
-          'ログインに失敗しました',
-          'Google アカウントでのログインに失敗しました。時間をおいて再度お試しください。'
-        );
+        if (mode === 'login' && err?.status === 404) {
+          Alert.alert(
+            'アカウントが見つかりません',
+            'この Google アカウントで登録されたアカウントがありません。新規登録画面の「Google で登録」からアカウントを作成してください。'
+          );
+        } else {
+          Alert.alert(
+            'ログインに失敗しました',
+            'Google アカウントでのログインに失敗しました。時間をおいて再度お試しください。'
+          );
+        }
         return false;
       }
     },

@@ -830,6 +830,10 @@ export class DefaultService {
              * Google OAuth access token obtained on the device
              */
             accessToken: string;
+            /**
+             * login (SignIn screen) returns 404 when no account matches; register (Register screen) creates a new account automatically
+             */
+            mode?: 'login' | 'register';
         },
     ): CancelablePromise<{
         userId?: string;
@@ -851,6 +855,7 @@ export class DefaultService {
             errors: {
                 400: `Bad Request`,
                 401: `Invalid Google access token`,
+                404: `Account not found (mode=login and no matching user)`,
             },
         });
     }

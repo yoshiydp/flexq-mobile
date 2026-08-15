@@ -238,6 +238,11 @@ paths:
               properties:
                 accessToken:
                   type: string
+                mode:
+                  type: string
+                  enum:
+                    - login
+                    - register
       responses:
         '200':
           description: OK (existing user signed in)
@@ -247,6 +252,8 @@ paths:
           description: Bad Request
         '401':
           description: Invalid Google access token
+        '404':
+          description: Account not found (mode=login)
       x-amazon-apigateway-integration:
         type: aws_proxy
         httpMethod: POST

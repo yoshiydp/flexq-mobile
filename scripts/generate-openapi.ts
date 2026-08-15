@@ -251,6 +251,7 @@ async function generateOpenAPI() {
                 required: ['accessToken'],
                 properties: {
                   accessToken: { type: 'string' },
+                  mode: { type: 'string', enum: ['login', 'register'] },
                 },
               },
             },
@@ -261,6 +262,7 @@ async function generateOpenAPI() {
           '201': { description: 'Created (new user registered and signed in)' },
           '400': { description: 'Bad Request' },
           '401': { description: 'Invalid Google access token' },
+          '404': { description: 'Account not found (mode=login)' },
         },
         ...createIntegration('post-auth-google'),
       },
