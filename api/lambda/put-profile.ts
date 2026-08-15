@@ -33,15 +33,26 @@ export const handler = async (event: any) => {
     expressions.push('thumbnailKey = :thumbnailKey');
     values[':thumbnailKey'] = thumbnailKey;
   }
+  // Google 連携の解除（google エントリの isLinked が false）時は、
+  // Google ログインの照合キー googleSub もあわせて削除する
+  // （連携は post-profile-link-google がトークン検証のうえで設定する）
+  let removeGoogleSub = false;
   if (socialAccounts) {
     expressions.push('socialAccounts = :socialAccounts');
     values[':socialAccounts'] = socialAccounts;
+
+    const googleAccount = Array.isArray(socialAccounts)
+      ? socialAccounts.find((acc: any) => acc?.provider === 'google')
+      : undefined;
+    removeGoogleSub = !!googleAccount && googleAccount.isLinked === false;
   }
 
   const result = await docClient.send(new UpdateCommand({
     TableName: process.env.USERS_TABLE!,
     Key: { userId: claims.userId },
-    UpdateExpression: `SET ${expressions.join(', ')}`,
+    UpdateExpression:
+      `SET ${expressions.join(', ')}` +
+      (removeGoogleSub ? ' REMOVE googleSub' : ''),
     ExpressionAttributeValues: values,
     ...(Object.keys(names).length ? { ExpressionAttributeNames: names } : {}),
     ReturnValues: 'ALL_NEW',

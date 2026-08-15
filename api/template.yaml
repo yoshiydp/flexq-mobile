@@ -17,6 +17,12 @@ Parameters:
     NoEcho: true
     Default: ""
     Description: Replicate API token for AI record cleanup (empty disables the feature)
+  GoogleClientIds:
+    Type: String
+    Default: "134608896734-hb1nj0rmlgva07vf6ejlmb1lb6mhr1pi.apps.googleusercontent.com,134608896734-8uuqb674f7pmlt25ku3n05v930mr42a4.apps.googleusercontent.com"
+    Description: >-
+      Comma-separated Google OAuth client IDs (iOS / Android) allowed for
+      Google sign-in token verification (empty skips the aud check)
   ReplicateSeparateModel:
     Type: String
     Default: "ryan5453/demucs"
@@ -45,6 +51,7 @@ Globals:
         JWT_SECRET: !Ref JwtSecret
         TRACK_AUDIO_BUCKET: !Ref TrackAudioBucket
         SENDER_EMAIL: !Ref SenderEmail
+        GOOGLE_CLIENT_IDS: !Ref GoogleClientIds
         REPLICATE_API_TOKEN: !Ref ReplicateApiToken
         REPLICATE_SEPARATE_MODEL: !Ref ReplicateSeparateModel
         REPLICATE_DENOISE_MODEL: !Ref ReplicateDenoiseModel
@@ -65,6 +72,8 @@ Resources:
           AttributeType: S
         - AttributeName: email
           AttributeType: S
+        - AttributeName: googleSub
+          AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
@@ -72,6 +81,13 @@ Resources:
         - IndexName: email-index
           KeySchema:
             - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        # 連携済み Google アカウント（sub）でのログイン照合用 (TASK-78)
+        - IndexName: googleSub-index
+          KeySchema:
+            - AttributeName: googleSub
               KeyType: HASH
           Projection:
             ProjectionType: ALL
@@ -1027,6 +1043,58 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/post-auth-register.ts
+
+  PostAuthGoogleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-google.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+      Events:
+        PostAuthGoogle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/google
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-google.ts
+
+  PostProfileLinkGoogleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-profile-link-google.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        PostProfileLinkGoogle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/profile/link-google
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-profile-link-google.ts
 
   PostAuthResetPasswordFunction:
     Type: AWS::Serverless::Function

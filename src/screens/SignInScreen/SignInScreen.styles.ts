@@ -32,11 +32,46 @@ export default StyleSheet.create({
   signInButtonWrapper: {
     marginTop: 32,
   },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 24,
+    gap: 12,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.font.label,
+    opacity: 0.4,
+  },
+  dividerText: {
+    fontFamily: 'BebasNeue',
+    color: COLORS.font.label,
+    fontSize: 16,
+    letterSpacing: 1,
+  },
+  googleButton: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 24,
+    // SubmitButton（SIGN IN）と同じ高さに揃える
+    height: 52,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: COLORS.font.label,
+  },
+  googleButtonLabel: {
+    color: COLORS.font.default,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   registerLinkContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
     alignItems: 'center',
-    marginTop: 24,
+    marginTop: 40,
     gap: 8,
   },
   registerLinkLabel: {

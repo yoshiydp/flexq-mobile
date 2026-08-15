@@ -222,6 +222,42 @@ paths:
         type: aws_proxy
         httpMethod: POST
         uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:post-auth-register/invocations
+  /data/auth/google:
+    post:
+      summary: Invoke post-auth-google
+      operationId: post_auth_google
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - accessToken
+              properties:
+                accessToken:
+                  type: string
+                mode:
+                  type: string
+                  enum:
+                    - login
+                    - register
+      responses:
+        '200':
+          description: OK (existing user signed in)
+        '201':
+          description: Created (new user registered and signed in)
+        '400':
+          description: Bad Request
+        '401':
+          description: Invalid Google access token
+        '404':
+          description: Account not found (mode=login)
+      x-amazon-apigateway-integration:
+        type: aws_proxy
+        httpMethod: POST
+        uri: arn:aws:apigateway:ap-northeast-1:lambda:path/2015-03-31/functions/arn:aws:lambda:ap-northeast-1:YOUR_AWS_ACCOUNT_ID:function:post-auth-google/invocations
   /data/auth/reset-password:
     post:
       summary: Invoke post-auth-reset-password

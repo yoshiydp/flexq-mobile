@@ -22,7 +22,8 @@ export const handler = async (event: any) => {
   );
 
   const user = result.Items?.[0];
-  if (!user) {
+  // passwordHash を持たないユーザー（Google ログインで自動作成）はパスワード認証不可
+  if (!user || !user.passwordHash) {
     return createResponse({ message: 'Invalid credentials' }, 401);
   }
 
