@@ -91,7 +91,7 @@ export const MODAL_MESSAGES = {
     message: '本当にアカウントを削除しますか？',
     description:
       'この操作は取り消せません。削除が完了するとログイン画面に戻り、同じアカウントでログインできなくなります。',
-    submitButtonLabel: '削除する',
+    submitButtonLabel: 'OK',
   },
   deleteAccountFailed: {
     title: 'エラー',

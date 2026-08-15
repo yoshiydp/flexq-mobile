@@ -203,7 +203,10 @@ export default function ProfileScreen() {
         onPress={handleProfileEditPress}
         startAnimation={startListAnimation}
       />
-      <Animated.ScrollView style={[styles.container, getAnimStyle(scrollAnim)]}>
+      <Animated.ScrollView
+        style={[styles.container, getAnimStyle(scrollAnim)]}
+        contentContainerStyle={styles.scrollContent}
+      >
         <ProfileIcon thumbnail={profile.thumbnail} />
         <View style={styles.formControlContainer}>
           <ReadOnlyFormControl label="User Name" formValue={profile.username} />

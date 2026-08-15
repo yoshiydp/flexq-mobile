@@ -142,16 +142,18 @@ export const handler = async (event: any) => {
 
   const bucket = process.env.TRACK_AUDIO_BUCKET!;
 
-  // 1. S3 の関連オブジェクトを削除（失敗時は Users が残るため同トークンで再実行可能）
-  for (const prefix of userS3Prefixes(userId)) {
-    await deleteS3ObjectsByPrefix(bucket, prefix);
-  }
-
-  // 2. 各テーブルのユーザーデータを削除
+  // 1. 各テーブルのユーザーデータを削除（失敗時は Users が残るため同トークンで再実行可能）
   await deleteAllItemsForUser(process.env.PROJECTS_TABLE!, userId, 'projectId');
   await deleteAllItemsForUser(process.env.TRACKS_TABLE!, userId, 'trackId');
   await deleteAllItemsForUser(process.env.RECORDS_TABLE!, userId, 'recordId');
   await deleteAllItemsForUser(process.env.MEMOS_TABLE!, userId, 'memoId');
+
+  // 2. S3 の関連オブジェクトを削除。テーブル削除より後に実行することで、
+  //    実行中の AI クリーンアップ / ミックス処理がスイープ後に書き込んだ
+  //    出力ファイルの取り残しを防ぐ（プレフィックスベースのためレコード行に依存しない）
+  for (const prefix of userS3Prefixes(userId)) {
+    await deleteS3ObjectsByPrefix(bucket, prefix);
+  }
 
   // 3. 最後に Users レコードを削除（email / googleSub の GSI エントリも消える）
   await docClient.send(
