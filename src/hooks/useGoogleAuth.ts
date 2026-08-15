@@ -51,6 +51,12 @@ export interface GoogleUserInfo {
   picture: string;
 }
 
+// signIn の戻り値。userinfo に加えて、バックエンド（POST /data/auth/google）へ
+// 渡すための Google アクセストークンを含む
+export interface GoogleSignInResult extends GoogleUserInfo {
+  accessToken: string;
+}
+
 export function useGoogleAuth() {
   // Development Build / Staging Build / Production は全てカスタムスキームを使用
   const redirectUri = AuthSession.makeRedirectUri({
@@ -159,11 +165,11 @@ export function useGoogleAuth() {
     [],
   );
 
-  const signIn = useCallback(async (): Promise<GoogleUserInfo | null> => {
+  const signIn = useCallback(async (): Promise<GoogleSignInResult | null> => {
     // Expo Go: 実 OAuth は動作しないためモックを返す
     // 実際の Google 認証は Development Build 以降で動作する
     if (IS_EXPO_GO) {
-      return MOCK_USER_INFO;
+      return { ...MOCK_USER_INFO, accessToken: 'mock-access-token' };
     }
 
     // Android クライアント ID 未設定のままネイティブビルドで実行された場合は
@@ -189,7 +195,8 @@ export function useGoogleAuth() {
       result.authentication?.accessToken ??
       (await waitForExchangedToken(result.params?.code));
 
-    return fetchUserInfo(token);
+    const userInfo = await fetchUserInfo(token);
+    return { ...userInfo, accessToken: token };
   }, [androidClientId, promptAsync, fetchUserInfo, waitForExchangedToken]);
 
   return { signIn, ready: IS_EXPO_GO || !!request };

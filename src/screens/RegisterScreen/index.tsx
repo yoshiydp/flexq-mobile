@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { View, ScrollView, Alert, Keyboard } from 'react-native';
+import { View, Text, ScrollView, Alert, Keyboard, Pressable } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import GoogleIcon from '@/assets/icons/google-icon.svg';
 import { useNavigation } from '@react-navigation/native';
 import type { StackNavigationProp } from '@react-navigation/stack';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
@@ -11,6 +12,7 @@ import { DefaultService } from '@/apiClient/services/DefaultService';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
 import { useModal } from '@/contexts/ModalContext';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 import {
   HEADER_TOOLBAR_TEMPLATES,
   HeaderToolBarButton,
@@ -26,7 +28,8 @@ export default function RegisterScreen() {
 
   const navigation =
     useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { login } = useAuthContext();
+  const { login, loginWithGoogle } = useAuthContext();
+  const { signIn: googleSignIn, ready: googleReady } = useGoogleAuth();
   const { uploadThumbnail, updateProfile } = useUpdateProfile();
   const { showLoading, hideLoading } = useModal();
 
@@ -81,6 +84,26 @@ export default function RegisterScreen() {
     }
   };
 
+  // Google アカウントで登録（未登録ならサーバー側で自動作成してそのままログイン）
+  const handleGoogleRegister = async () => {
+    try {
+      // キャンセル（null）は無通知で画面に留まる
+      const result = await googleSignIn();
+      if (!result) return;
+
+      showLoading();
+      const succeeded = await loginWithGoogle(result.accessToken);
+      if (succeeded) {
+        navigation.navigate('HomeTabs');
+      }
+    } catch (err) {
+      console.error('Google register failed:', err);
+      Alert.alert('エラー', 'Google アカウントでの登録に失敗しました。');
+    } finally {
+      hideLoading();
+    }
+  };
+
   const headerItems: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     {
@@ -130,6 +153,20 @@ export default function RegisterScreen() {
           onPress={handleCreate}
           disabled={!username || !email || !password}
         />
+        <View style={styles.dividerContainer}>
+          <View style={styles.dividerLine} />
+          <Text style={styles.dividerText}>または</Text>
+          <View style={styles.dividerLine} />
+        </View>
+        <Pressable
+          style={styles.googleButton}
+          onPress={handleGoogleRegister}
+          disabled={!googleReady}
+          testID="google-register-button"
+        >
+          <GoogleIcon width={20} height={20} />
+          <Text style={styles.googleButtonLabel}>Google で登録</Text>
+        </Pressable>
       </ScrollView>
     </View>
   );

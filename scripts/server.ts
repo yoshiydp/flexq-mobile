@@ -39,6 +39,18 @@ app.post('/data/auth/register', (req, res) => {
 });
 console.log('Mock endpoint ready: POST /data/auth/register');
 
+// POST /data/auth/google（Google ログインのモック。トークン検証は行わない）
+app.post('/data/auth/google', (req, res) => {
+  const { accessToken } = req.body;
+  if (!accessToken) {
+    return res.status(400).json({ message: 'Google access token is required' });
+  }
+  const baseUser = AUTH_DATA[0];
+  const { password: _, ...safeBase } = baseUser as any;
+  return res.json(safeBase);
+});
+console.log('Mock endpoint ready: POST /data/auth/google');
+
 // POST /data/auth/reset-password
 app.post('/data/auth/reset-password', (req, res) => {
   const { email, newPassword } = req.body;

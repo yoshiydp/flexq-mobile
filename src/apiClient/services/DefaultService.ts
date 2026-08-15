@@ -788,6 +788,43 @@ export class DefaultService {
         });
     }
     /**
+     * Sign in with a Google account
+     * Verifies a Google OAuth access token, creates the user automatically if the email is not registered yet, and returns the same auth payload as login.
+     * @param requestBody
+     * @returns any OK (existing user signed in)
+     * @throws ApiError
+     */
+    public static postDataAuthGoogle(
+        requestBody: {
+            /**
+             * Google OAuth access token obtained on the device
+             */
+            accessToken: string;
+        },
+    ): CancelablePromise<{
+        userId?: string;
+        username?: string;
+        email?: string;
+        thumbnail?: string | null;
+        socialAccounts?: Array<Record<string, any>>;
+        token?: {
+            accessToken?: string;
+            refreshToken?: string;
+            expiresIn?: number;
+        };
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/google',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Invalid Google access token`,
+            },
+        });
+    }
+    /**
      * Reset user password
      * @param requestBody
      * @returns any OK

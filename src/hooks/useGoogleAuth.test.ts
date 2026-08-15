@@ -89,7 +89,10 @@ describe('useGoogleAuth.signIn（実ビルド）', () => {
     fetchMock.mockResolvedValue({ ok: true, json: async () => userInfo });
     const { result } = renderHook(() => useGoogleAuth());
 
-    await expect(result.current.signIn()).resolves.toEqual(userInfo);
+    await expect(result.current.signIn()).resolves.toEqual({
+      ...userInfo,
+      accessToken: 'token-123',
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://www.googleapis.com/userinfo/v2/me',
       { headers: { Authorization: 'Bearer token-123' } },
@@ -118,7 +121,10 @@ describe('useGoogleAuth.signIn（実ビルド）', () => {
     };
     rerender({});
 
-    await expect(signInPromise).resolves.toEqual(userInfo);
+    await expect(signInPromise).resolves.toEqual({
+      ...userInfo,
+      accessToken: 'exchanged-token',
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://www.googleapis.com/userinfo/v2/me',
       { headers: { Authorization: 'Bearer exchanged-token' } },
@@ -153,7 +159,10 @@ describe('useGoogleAuth.signIn（実ビルド）', () => {
     };
     rerender({});
 
-    await expect(signInPromise).resolves.toEqual(userInfo);
+    await expect(signInPromise).resolves.toEqual({
+      ...userInfo,
+      accessToken: 'new-token',
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://www.googleapis.com/userinfo/v2/me',
       { headers: { Authorization: 'Bearer new-token' } },
@@ -211,7 +220,10 @@ describe('useGoogleAuth.signIn（実ビルド）', () => {
     };
     rerender({});
 
-    await expect(secondSignIn).resolves.toEqual(userInfo);
+    await expect(secondSignIn).resolves.toEqual({
+      ...userInfo,
+      accessToken: 'token-2',
+    });
     expect(fetchMock).toHaveBeenCalledWith(
       'https://www.googleapis.com/userinfo/v2/me',
       { headers: { Authorization: 'Bearer token-2' } },
