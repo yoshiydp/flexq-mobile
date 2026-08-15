@@ -198,6 +198,24 @@ export class DefaultService {
         });
     }
     /**
+     * Delete account and all user data
+     * Permanently deletes the authenticated user's account and all associated data (projects, tracks, records, memos, and S3 files).
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static deleteProfile(): CancelablePromise<{
+        success?: boolean;
+    }> {
+        return __request(OpenAPI, {
+            method: 'DELETE',
+            url: '/data/profile',
+            errors: {
+                401: `Unauthorized`,
+                404: `Not Found`,
+            },
+        });
+    }
+    /**
      * Get memo data
      * Returns mock data for MEMO_DATA.
      * @returns any OK

@@ -947,6 +947,42 @@ Resources:
         EntryPoints:
           - lambda/put-profile.ts
 
+  # アカウント削除（退会）: ユーザーの全データを物理削除する (TASK-80)
+  DeleteProfileFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/delete-profile.handler
+      CodeUri: ./
+      Timeout: 120
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref ProjectsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref TracksTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref RecordsTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref MemosTable
+        - S3CrudPolicy:
+            BucketName: !Ref TrackAudioBucket
+      Events:
+        DeleteProfile:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/profile
+            Method: delete
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/delete-profile.ts
+
   PostAuthLoginFunction:
     Type: AWS::Serverless::Function
     Properties:

@@ -239,6 +239,26 @@ paths:
           description: Bad Request
         '401':
           description: Unauthorized
+    delete:
+      summary: Delete account and all user data
+      description: >-
+        Permanently deletes the authenticated user's account and all
+        associated data (projects, tracks, records, memos, and S3 files).
+      operationId: deleteProfile
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+        '401':
+          description: Unauthorized
+        '404':
+          description: Not Found
   /data/memo:
     get:
       summary: Get memo data

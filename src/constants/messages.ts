@@ -81,6 +81,23 @@ export const MODAL_MESSAGES = {
       '現現在のアカウントで作成されたプロジェクト、トラック、プロフィールデータは自動保存されますので、再度サインインしてもデータは保持されます。',
     submitButtonLabel: 'OK',
   },
+  confirmDeleteAccount: {
+    message: 'アカウントを削除しますか？',
+    description:
+      'プロジェクト、トラック、録音データ、メモ、プロフィールなどすべてのデータが完全に削除されます。削除したデータは復元できません。',
+    submitButtonLabel: 'OK',
+  },
+  confirmDeleteAccountFinal: {
+    message: '本当にアカウントを削除しますか？',
+    description:
+      'この操作は取り消せません。削除が完了するとログイン画面に戻り、同じアカウントでログインできなくなります。',
+    submitButtonLabel: 'OK',
+  },
+  deleteAccountFailed: {
+    title: 'エラー',
+    message:
+      'アカウントの削除に失敗しました。時間をおいて再度お試しください。',
+  },
   confirmRemoveLink: {
     message: (service: string) => `${service}のアカウント連携を解除しますか？`,
     description: '再度プロフィール画面でアカウント連携が可能です。',
