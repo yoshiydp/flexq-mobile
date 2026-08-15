@@ -577,6 +577,7 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 *プロフィール*
 - `api/lambda/get-profile.ts` — プロフィール取得（S3 Presigned GET URL を生成）
 - `api/lambda/put-profile.ts` — プロフィール更新（username・thumbnailKey）
+- `api/lambda/delete-profile.ts` — アカウント削除（退会。DynamoDB 全テーブル + S3 の該当ユーザーデータを物理削除）
 
 **フロントエンド（hooks）**
 
@@ -611,6 +612,7 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 *プロフィール*
 - `src/hooks/useFetchProfile.ts` — プロフィール取得
 - `src/hooks/useUpdateProfile.ts` — プロフィール画像選択 → S3アップロード → プロフィール更新
+- `src/hooks/useDeleteAccount.ts` — アカウント削除（退会）API 呼び出し
 
 *UI / アニメーション*
 - `src/hooks/useAnimatedSequence.ts` — 要素のフェードイン・スライドアニメーションを管理

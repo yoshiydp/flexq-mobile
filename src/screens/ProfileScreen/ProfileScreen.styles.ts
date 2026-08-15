@@ -32,6 +32,17 @@ export default StyleSheet.create({
   logoutButton: {
     width: 240,
     marginHorizontal: 'auto',
+    marginBottom: 16,
+  },
+  deleteAccountButton: {
+    width: 240,
+    marginHorizontal: 'auto',
     marginBottom: 32,
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: COLORS.action.record,
+  },
+  deleteAccountLabel: {
+    color: COLORS.action.record,
   },
 });
