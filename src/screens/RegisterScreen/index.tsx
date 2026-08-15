@@ -92,7 +92,8 @@ export default function RegisterScreen() {
       if (!result) return;
 
       showLoading();
-      const succeeded = await loginWithGoogle(result.accessToken);
+      // Register 画面からは未登録ユーザーの自動作成を許可する
+      const succeeded = await loginWithGoogle(result.accessToken, 'register');
       if (succeeded) {
         navigation.navigate('HomeTabs');
       }

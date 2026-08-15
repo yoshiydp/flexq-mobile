@@ -361,6 +361,13 @@
                 "properties": {
                   "accessToken": {
                     "type": "string"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "login",
+                      "register"
+                    ]
                   }
                 }
               }
@@ -379,6 +386,9 @@
           },
           "401": {
             "description": "Invalid Google access token"
+          },
+          "404": {
+            "description": "Account not found (mode=login)"
           }
         },
         "x-amazon-apigateway-integration": {

@@ -10,7 +10,9 @@ import { verifyGoogleAccessToken } from './google-auth';
 // ユーザーの照合は一般的なサービスと同じ 3 段階:
 //   ① googleSub（連携済み Google アカウントの不変 ID）で検索
 //   ② メールアドレスで検索（一致したら googleSub を自動ひも付け）
-//   ③ どちらもなければ新規作成（パスワードなし）
+//   ③ どちらもなければ mode に応じて分岐:
+//      - mode: 'register'（Register 画面）→ 新規作成（パスワードなし）
+//      - mode: 'login'（SignIn 画面・デフォルト）→ 404 を返し新規登録へ誘導
 // パスワード認証（post-auth-login）と同じ形式のレスポンス・JWT を返す。
 
 // google 連携の socialAccounts エントリを isLinked: true で upsert する
@@ -31,11 +33,13 @@ const upsertGoogleSocialAccount = (
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
-  const { accessToken } = body;
+  const { accessToken, mode } = body;
 
   if (!accessToken) {
     return createResponse({ message: 'Google access token is required' }, 400);
   }
+  // 未指定・不明値は安全側（新規作成しない）の 'login' として扱う
+  const allowCreate = mode === 'register';
 
   const googleUser = await verifyGoogleAccessToken(accessToken);
   if (!googleUser) {
@@ -90,6 +94,12 @@ export const handler = async (event: any) => {
         }),
       );
       user = { ...user, googleSub: googleUser.sub, socialAccounts };
+    } else if (!allowCreate) {
+      // ③' SignIn 画面からのログインでは自動作成しない（Register 画面へ誘導）
+      return createResponse(
+        { message: 'Account not found. Please sign up first.' },
+        404,
+      );
     } else {
       // ③ 新規作成
       isNewUser = true;
