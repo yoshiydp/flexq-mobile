@@ -44,7 +44,8 @@ export default StyleSheet.create({
     gap: 10,
     marginTop: 24,
     marginHorizontal: 20,
-    paddingVertical: 12,
+    // SubmitButton（CREATE）と同じ高さに揃える
+    height: 52,
     borderRadius: 8,
     borderWidth: 1,
     borderColor: COLORS.font.label,
