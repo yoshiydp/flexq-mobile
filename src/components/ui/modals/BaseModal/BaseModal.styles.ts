@@ -31,6 +31,17 @@ export default StyleSheet.create({
     fontSize: 28,
     lineHeight: 28,
   },
+  // 日本語ラベル用（BebasNeue は Latin 専用のため NotoSansJP ボールドに切替）。
+  // BebasNeue 向けの非対称パディング（paddingTop: 7）を打ち消して上下中央に配置する
+  buttonContainerJa: {
+    paddingTop: 7,
+    paddingBottom: 7,
+  },
+  buttonTextJa: {
+    fontFamily: 'NotoSansJP_700Bold',
+    fontSize: 16,
+    lineHeight: 22,
+  },
   cancelButton: {
     backgroundColor: COLORS.form.default.background,
   },
