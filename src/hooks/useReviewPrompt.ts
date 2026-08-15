@@ -1,6 +1,5 @@
 import { useEffect, useRef } from 'react';
 import { Linking, Platform } from 'react-native';
-import * as StoreReview from 'expo-store-review';
 import { useModal } from '@/contexts/ModalContext';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import {
@@ -10,17 +9,32 @@ import {
   markReviewCompleted,
 } from '@/utils/reviewPromptStorage';
 
-// OS のネイティブレビューダイアログが使えない端末向けのフォールバック URL
+// expo-store-review はネイティブモジュールのため、モジュール未搭載の旧バイナリが
+// OTA update（EAS Update）でこのコードを受け取っても起動クラッシュしないよう
+// try/catch 付きで解決する。解決できない場合はストアページへのフォールバックで動作する
+let StoreReview: typeof import('expo-store-review') | null = null;
+try {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  StoreReview = require('expo-store-review');
+} catch {
+  StoreReview = null;
+}
+
+// OS のネイティブレビューダイアログが使えない端末向けのフォールバック URL。
+// Android は Play ストアアプリがない端末で market:// を開けないため、
+// Web 版 Play ストアの URL へさらにフォールバックする
 const APP_STORE_REVIEW_URL =
   'https://apps.apple.com/app/id6762039606?action=write-review';
 const PLAY_STORE_REVIEW_URL =
   'market://details?id=com.yoshiydp.lyricsapp&showAllReviews=true';
+const PLAY_STORE_REVIEW_URL_WEB =
+  'https://play.google.com/store/apps/details?id=com.yoshiydp.lyricsapp&showAllReviews=true';
 
 // OS ネイティブのアプリ内レビューダイアログを表示する。
 // 利用できない場合（旧 OS・ストア未インストール等）はストアのレビューページを開く
 async function requestStoreReview(): Promise<void> {
   try {
-    if (await StoreReview.isAvailableAsync()) {
+    if (StoreReview && (await StoreReview.isAvailableAsync())) {
       await StoreReview.requestReview();
       return;
     }
@@ -28,12 +42,17 @@ async function requestStoreReview(): Promise<void> {
     console.warn('StoreReview.requestReview failed:', err);
   }
 
-  const url =
-    Platform.OS === 'android' ? PLAY_STORE_REVIEW_URL : APP_STORE_REVIEW_URL;
-  try {
-    await Linking.openURL(url);
-  } catch (err) {
-    console.warn('Failed to open store review page:', err);
+  const fallbackUrls =
+    Platform.OS === 'android'
+      ? [PLAY_STORE_REVIEW_URL, PLAY_STORE_REVIEW_URL_WEB]
+      : [APP_STORE_REVIEW_URL];
+  for (const url of fallbackUrls) {
+    try {
+      await Linking.openURL(url);
+      return;
+    } catch (err) {
+      console.warn(`Failed to open store review page (${url}):`, err);
+    }
   }
 }
 
