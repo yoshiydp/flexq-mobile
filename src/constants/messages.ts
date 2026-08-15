@@ -128,4 +128,10 @@ export const MODAL_MESSAGES = {
     description: '全てのCUEポイントをリセットしますか？',
     submitButtonLabel: 'OK',
   },
+  reviewPrompt: {
+    message: 'FlexQ を楽しんでいただけていますか？',
+    description: 'よろしければストアでのレビューにご協力ください。',
+    submitButtonLabel: 'レビューする',
+    closeLabel: 'あとで',
+  },
 };

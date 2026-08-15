@@ -36,6 +36,11 @@ jest.mock('@/hooks/useFetchProject', () => ({
   }),
 }));
 
+// レビュー依頼モーダル (TASK-79) は ModalProvider が必要なため、このテストでは無効化する
+jest.mock('@/hooks/useReviewPrompt', () => ({
+  useReviewPrompt: jest.fn(),
+}));
+
 describe('ProjectListScreen の pull-to-refresh', () => {
   beforeEach(() => {
     jest.clearAllMocks();
