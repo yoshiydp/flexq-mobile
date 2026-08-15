@@ -34,8 +34,10 @@ export default StyleSheet.create({
     opacity: 0.4,
   },
   dividerText: {
+    fontFamily: 'BebasNeue',
     color: COLORS.font.label,
-    fontSize: 12,
+    fontSize: 16,
+    letterSpacing: 1,
   },
   googleButton: {
     flexDirection: 'row',
