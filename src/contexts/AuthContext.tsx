@@ -21,6 +21,7 @@ interface AuthContextValue {
   isAuthenticated: boolean;
   loading: boolean;
   login: (email: string, password: string) => Promise<void>;
+  loginWithGoogle: (googleAccessToken: string) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -30,6 +31,7 @@ const AuthContext = createContext<AuthContextValue>({
   isAuthenticated: false,
   loading: false,
   login: async () => {},
+  loginWithGoogle: async () => false,
   logout: async () => {},
   refreshProfile: async () => {},
 });
@@ -52,6 +54,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       Alert.alert('Login Failed', 'Invalid email or password.');
     }
   }, []);
+
+  // Google アクセストークンでログイン（未登録ユーザーはサーバー側で自動作成）。
+  // 呼び出し側で成功時のみ画面遷移できるよう boolean を返す
+  const loginWithGoogle = useCallback(
+    async (googleAccessToken: string): Promise<boolean> => {
+      try {
+        const res = await DefaultService.postDataAuthGoogle({
+          accessToken: googleAccessToken,
+        });
+        const { accessToken, refreshToken } = res?.token ?? {};
+        if (!accessToken || !refreshToken) {
+          throw new Error('Google login failed');
+        }
+
+        await saveAuthTokens({ accessToken, refreshToken });
+        setUser(res as AuthUser);
+        return true;
+      } catch (err) {
+        console.error('Google login failed:', err);
+        Alert.alert(
+          'ログインに失敗しました',
+          'Google アカウントでのログインに失敗しました。時間をおいて再度お試しください。'
+        );
+        return false;
+      }
+    },
+    []
+  );
 
   const logout = useCallback(async () => {
     try {
@@ -132,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         isAuthenticated: !!user,
         loading,
         login,
+        loginWithGoogle,
         logout,
         refreshProfile,
       }}

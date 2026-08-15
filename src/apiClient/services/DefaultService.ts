@@ -788,6 +788,73 @@ export class DefaultService {
         });
     }
     /**
+     * Link a Google account to the signed-in user
+     * Verifies a Google OAuth access token and stores the Google account id (sub) on the signed-in user, so the linked Google account can sign in to this user afterwards.
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataProfileLinkGoogle(
+        requestBody: {
+            /**
+             * Google OAuth access token obtained on the device
+             */
+            accessToken: string;
+        },
+    ): CancelablePromise<{
+        linked?: boolean;
+        name?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/profile/link-google',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized`,
+                409: `Google account already linked to another user`,
+            },
+        });
+    }
+    /**
+     * Sign in with a Google account
+     * Verifies a Google OAuth access token, creates the user automatically if the email is not registered yet, and returns the same auth payload as login.
+     * @param requestBody
+     * @returns any OK (existing user signed in)
+     * @throws ApiError
+     */
+    public static postDataAuthGoogle(
+        requestBody: {
+            /**
+             * Google OAuth access token obtained on the device
+             */
+            accessToken: string;
+        },
+    ): CancelablePromise<{
+        userId?: string;
+        username?: string;
+        email?: string;
+        thumbnail?: string | null;
+        socialAccounts?: Array<Record<string, any>>;
+        token?: {
+            accessToken?: string;
+            refreshToken?: string;
+            expiresIn?: number;
+        };
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/google',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Invalid Google access token`,
+            },
+        });
+    }
+    /**
      * Reset user password
      * @param requestBody
      * @returns any OK

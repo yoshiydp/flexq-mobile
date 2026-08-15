@@ -237,6 +237,35 @@ async function generateOpenAPI() {
       },
     };
 
+    baseYaml.paths['/data/auth/google'] = {
+      post: {
+        summary: 'Sign in with a Google account',
+        operationId: 'post_auth_google',
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            'application/json': {
+              schema: {
+                type: 'object',
+                required: ['accessToken'],
+                properties: {
+                  accessToken: { type: 'string' },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          '200': { description: 'OK (existing user signed in)' },
+          '201': { description: 'Created (new user registered and signed in)' },
+          '400': { description: 'Bad Request' },
+          '401': { description: 'Invalid Google access token' },
+        },
+        ...createIntegration('post-auth-google'),
+      },
+    };
+
     baseYaml.paths['/data/auth/reset-password'] = {
       post: {
         summary: 'Reset user password',

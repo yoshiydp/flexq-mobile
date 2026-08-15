@@ -14,6 +14,7 @@ import { useUpdateProfile } from '@/hooks/useUpdateProfile';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
+import { DefaultService } from '@/apiClient/services/DefaultService';
 import styles from './ProfileEditScreen.styles';
 
 const SOCIAL_DISPLAY_NAMES: Record<string, string> = {
@@ -110,13 +111,26 @@ export default function ProfileEditScreen() {
       const userInfo = await googleSignIn();
       if (!userInfo) return;
 
+      // googleSub をサーバーへ保存し、連携済み Google アカウントでの
+      // 再ログイン（post-auth-google の sub 照合）を可能にする (TASK-78)
+      await DefaultService.postDataProfileLinkGoogle({
+        accessToken: userInfo.accessToken,
+      });
+
       const updated = localSocialAccounts.map((acc, i) =>
         i === index ? { ...acc, username: userInfo.name, isLinked: true } : acc,
       );
       await saveSocialAccounts(updated);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Failed to link Google account:', err);
-      Alert.alert('エラー', 'Google アカウントの連携に失敗しました。');
+      if (err?.status === 409) {
+        Alert.alert(
+          'エラー',
+          'この Google アカウントはすでに別のアカウントに連携されています。',
+        );
+      } else {
+        Alert.alert('エラー', 'Google アカウントの連携に失敗しました。');
+      }
     } finally {
       hideLoading();
     }
