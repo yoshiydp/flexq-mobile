@@ -1,14 +1,33 @@
-import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
+import { QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
+import { verifyGoogleAccessToken } from './google-auth';
 
-// Google OAuth のアクセストークンを検証してログイン（未登録ユーザーは自動作成）する。
+// Google OAuth のアクセストークンを検証してログインする。
+// ユーザーの照合は一般的なサービスと同じ 3 段階:
+//   ① googleSub（連携済み Google アカウントの不変 ID）で検索
+//   ② メールアドレスで検索（一致したら googleSub を自動ひも付け）
+//   ③ どちらもなければ新規作成（パスワードなし）
 // パスワード認証（post-auth-login）と同じ形式のレスポンス・JWT を返す。
-const GOOGLE_TOKENINFO_URL = 'https://www.googleapis.com/oauth2/v3/tokeninfo';
-const GOOGLE_USERINFO_URL = 'https://www.googleapis.com/userinfo/v2/me';
+
+// google 連携の socialAccounts エントリを isLinked: true で upsert する
+const upsertGoogleSocialAccount = (
+  socialAccounts: any[] | undefined,
+  googleName: string,
+) => {
+  const accounts = Array.isArray(socialAccounts) ? [...socialAccounts] : [];
+  const index = accounts.findIndex((acc) => acc?.provider === 'google');
+  const entry = { provider: 'google', username: googleName, isLinked: true };
+  if (index >= 0) {
+    accounts[index] = { ...accounts[index], ...entry };
+  } else {
+    accounts.push(entry);
+  }
+  return accounts;
+};
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
@@ -18,93 +37,102 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Google access token is required' }, 400);
   }
 
-  // 1. tokeninfo でトークンの有効性と発行先クライアント（aud）を検証する。
-  //    aud の照合により、他アプリ向けに発行されたトークンの流用を防ぐ
-  //    （GOOGLE_CLIENT_IDS 未設定時は照合をスキップし、有効性のみ検証する）
-  const tokenInfoRes = await fetch(
-    `${GOOGLE_TOKENINFO_URL}?access_token=${encodeURIComponent(accessToken)}`,
-  );
-  if (!tokenInfoRes.ok) {
-    return createResponse({ message: 'Invalid Google access token' }, 401);
-  }
-  const tokenInfo = await tokenInfoRes.json();
-  const allowedClientIds = (process.env.GOOGLE_CLIENT_IDS ?? '')
-    .split(',')
-    .map((id) => id.trim())
-    .filter(Boolean);
-  if (allowedClientIds.length && !allowedClientIds.includes(tokenInfo.aud)) {
+  const googleUser = await verifyGoogleAccessToken(accessToken);
+  if (!googleUser) {
     return createResponse({ message: 'Invalid Google access token' }, 401);
   }
 
-  // 2. Google のユーザー情報を取得（アプリ側 useGoogleAuth と同じエンドポイント）
-  const userInfoRes = await fetch(GOOGLE_USERINFO_URL, {
-    headers: { Authorization: `Bearer ${accessToken}` },
-  });
-  if (!userInfoRes.ok) {
-    return createResponse({ message: 'Failed to fetch Google user info' }, 401);
-  }
-  const googleUser = await userInfoRes.json();
-  const email: string | undefined = googleUser.email;
-  if (!email) {
-    return createResponse({ message: 'Google account has no email' }, 401);
-  }
-
-  // 3. email でユーザーを検索し、未登録なら自動作成（パスワードなし）
-  const result = await docClient.send(
+  // ① 連携済み Google アカウント（googleSub）で検索
+  const subResult = await docClient.send(
     new QueryCommand({
       TableName: process.env.USERS_TABLE!,
-      IndexName: 'email-index',
-      KeyConditionExpression: 'email = :email',
-      ExpressionAttributeValues: { ':email': email },
+      IndexName: 'googleSub-index',
+      KeyConditionExpression: 'googleSub = :sub',
+      ExpressionAttributeValues: { ':sub': googleUser.sub },
     }),
   );
-
-  let user = result.Items?.[0];
+  let user = subResult.Items?.[0];
   let isNewUser = false;
 
   if (!user) {
-    isNewUser = true;
-    const username = googleUser.name || email.split('@')[0];
-    user = {
-      userId: randomUUID(),
-      email,
-      username,
-      thumbnail: null,
-      socialAccounts: [
-        { provider: 'google', username: googleUser.name ?? '', isLinked: true },
-      ],
-      createdAt: new Date().toISOString(),
-    };
-    await docClient.send(
-      new PutCommand({
+    // ② メールアドレスで検索（Google のメールは検証済みのため email 一致での
+    //    自動ひも付けを許容する。一致したら googleSub を保存して次回以降は ① で照合）
+    const email = googleUser.email;
+    if (!email) {
+      return createResponse({ message: 'Google account has no email' }, 401);
+    }
+
+    const emailResult = await docClient.send(
+      new QueryCommand({
         TableName: process.env.USERS_TABLE!,
-        Item: user,
+        IndexName: 'email-index',
+        KeyConditionExpression: 'email = :email',
+        ExpressionAttributeValues: { ':email': email },
       }),
     );
+    user = emailResult.Items?.[0];
 
-    try {
-      await sendEmail({
-        to: email,
-        subject: '【FlexQ】新規登録が完了しました',
-        body: [
-          `${username} 様`,
-          '',
-          'FlexQ へのご登録ありがとうございます。',
-          'Google アカウントでログインしてご利用ください。',
-          '',
-          `メールアドレス: ${email}`,
-          '',
-          '今後ともどうぞよろしくお願いいたします。',
-          '',
-          'FlexQ チーム',
-        ].join('\n'),
-      });
-    } catch (err) {
-      console.warn('Registration email failed to send:', err);
+    if (user) {
+      const socialAccounts = upsertGoogleSocialAccount(
+        user.socialAccounts,
+        googleUser.name ?? '',
+      );
+      await docClient.send(
+        new UpdateCommand({
+          TableName: process.env.USERS_TABLE!,
+          Key: { userId: user.userId },
+          UpdateExpression:
+            'SET googleSub = :sub, socialAccounts = :socialAccounts',
+          ExpressionAttributeValues: {
+            ':sub': googleUser.sub,
+            ':socialAccounts': socialAccounts,
+          },
+        }),
+      );
+      user = { ...user, googleSub: googleUser.sub, socialAccounts };
+    } else {
+      // ③ 新規作成
+      isNewUser = true;
+      const username = googleUser.name || email.split('@')[0];
+      user = {
+        userId: randomUUID(),
+        email,
+        username,
+        thumbnail: null,
+        googleSub: googleUser.sub,
+        socialAccounts: upsertGoogleSocialAccount([], googleUser.name ?? ''),
+        createdAt: new Date().toISOString(),
+      };
+      await docClient.send(
+        new PutCommand({
+          TableName: process.env.USERS_TABLE!,
+          Item: user,
+        }),
+      );
+
+      try {
+        await sendEmail({
+          to: email,
+          subject: '【FlexQ】新規登録が完了しました',
+          body: [
+            `${username} 様`,
+            '',
+            'FlexQ へのご登録ありがとうございます。',
+            'Google アカウントでログインしてご利用ください。',
+            '',
+            `メールアドレス: ${email}`,
+            '',
+            '今後ともどうぞよろしくお願いいたします。',
+            '',
+            'FlexQ チーム',
+          ].join('\n'),
+        });
+      } catch (err) {
+        console.warn('Registration email failed to send:', err);
+      }
     }
   }
 
-  // 4. JWT を発行（post-auth-login と同形式）
   const payload = { userId: user.userId, email: user.email };
   const jwtAccessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
     expiresIn: '7d',

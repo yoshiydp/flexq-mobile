@@ -72,6 +72,8 @@ Resources:
           AttributeType: S
         - AttributeName: email
           AttributeType: S
+        - AttributeName: googleSub
+          AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
@@ -79,6 +81,13 @@ Resources:
         - IndexName: email-index
           KeySchema:
             - AttributeName: email
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        # 連携済み Google アカウント（sub）でのログイン照合用 (TASK-78)
+        - IndexName: googleSub-index
+          KeySchema:
+            - AttributeName: googleSub
               KeyType: HASH
           Projection:
             ProjectionType: ALL
@@ -1062,6 +1071,30 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/post-auth-google.ts
+
+  PostProfileLinkGoogleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-profile-link-google.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        PostProfileLinkGoogle:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/profile/link-google
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-profile-link-google.ts
 
   PostAuthResetPasswordFunction:
     Type: AWS::Serverless::Function

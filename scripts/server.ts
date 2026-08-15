@@ -51,6 +51,16 @@ app.post('/data/auth/google', (req, res) => {
 });
 console.log('Mock endpoint ready: POST /data/auth/google');
 
+// POST /data/profile/link-google（Google アカウント連携のモック。トークン検証は行わない）
+app.post('/data/profile/link-google', (req, res) => {
+  const { accessToken } = req.body;
+  if (!accessToken) {
+    return res.status(400).json({ message: 'Google access token is required' });
+  }
+  return res.json({ linked: true, name: 'Mock Google User' });
+});
+console.log('Mock endpoint ready: POST /data/profile/link-google');
+
 // POST /data/auth/reset-password
 app.post('/data/auth/reset-password', (req, res) => {
   const { email, newPassword } = req.body;
