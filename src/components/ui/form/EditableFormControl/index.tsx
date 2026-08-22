@@ -1,5 +1,5 @@
 import React, { FC, useState } from 'react';
-import { View, Text, TextInput, Pressable } from 'react-native';
+import { View, Text, TextInput, Pressable, KeyboardTypeOptions } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { SvgProps } from 'react-native-svg';
 import ProfileEditSocialAccountList from '@/components/ui/socialAccount/ProfileEditSocialAccountList';
@@ -21,6 +21,8 @@ interface EditableFormControlProps {
   readOnly?: boolean;
   showSocialAccounts?: boolean;
   socialAccounts?: SocialAccount[] | undefined;
+  keyboardType?: KeyboardTypeOptions;
+  maxLength?: number;
   testID?: string;
   onChangeText?: (text: string) => void;
   onPressRemoveLink?: (index: number) => void;
@@ -36,6 +38,8 @@ export default function EditableFormControl({
   readOnly = false,
   showSocialAccounts,
   socialAccounts,
+  keyboardType,
+  maxLength,
   onChangeText,
   onPressRemoveLink,
   onPressLinkAccount,
@@ -106,6 +110,8 @@ export default function EditableFormControl({
           onChangeText={handleChangeText}
           secureTextEntry={false}
           editable={!readOnly}
+          keyboardType={keyboardType}
+          maxLength={maxLength}
         />
       )}
     </View>

@@ -1,0 +1,60 @@
+/**
+ * メール認証コード（6 桁 OTP）の純粋ロジック (TASK-85)
+ * AWS SDK に依存しないヘルパーのみを置く（account-deletion.ts と同じく
+ * ユニットテスト対象）。DynamoDB への保存・検証消費は
+ * verification-code-store.ts が担う。
+ */
+import { createHash, randomInt } from 'crypto';
+
+// 新規登録のメール検証（ダブルオプトイン）とパスワードリセットの本人確認で共用する。
+// コードは平文では保存せず SHA-256 ハッシュで保存し、TTL（expiresAt）で自動削除される。
+
+export const CODE_TTL_SECONDS = 600; // コードの有効期限: 10 分
+export const RESEND_INTERVAL_SECONDS = 60; // 再送の最短間隔: 60 秒
+export const MAX_ATTEMPTS = 5; // 検証の最大試行回数（超過でコード失効）
+
+export type VerificationPurpose = 'register' | 'reset';
+
+export interface StoredCode {
+  email: string;
+  purpose: VerificationPurpose;
+  codeHash: string;
+  expiresAt: number; // epoch 秒（DynamoDB TTL 属性）
+  attempts: number;
+  lastSentAt: number; // epoch ミリ秒
+}
+
+export type VerifyResult = 'ok' | 'invalid' | 'expired' | 'attempts_exceeded';
+
+export function generateCode(): string {
+  return String(randomInt(0, 1000000)).padStart(6, '0');
+}
+
+export function hashCode(code: string): string {
+  return createHash('sha256').update(code).digest('hex');
+}
+
+// 保存済みコードに対する検証判定（純粋関数）。
+// 未発行・期限切れは 'expired'（再送を促す）、試行超過は 'attempts_exceeded'。
+export function evaluateCode(
+  item: Pick<StoredCode, 'codeHash' | 'expiresAt' | 'attempts'> | undefined,
+  code: string,
+  nowMs: number,
+): VerifyResult {
+  if (!item || item.expiresAt * 1000 <= nowMs) return 'expired';
+  if (item.attempts >= MAX_ATTEMPTS) return 'attempts_exceeded';
+  if (hashCode(code) !== item.codeHash) {
+    // この失敗で試行上限に達する場合は失効扱いにして再送を促す
+    return item.attempts + 1 >= MAX_ATTEMPTS ? 'attempts_exceeded' : 'invalid';
+  }
+  return 'ok';
+}
+
+// 再送レート制限の判定（純粋関数）
+export function canResend(
+  item: Pick<StoredCode, 'lastSentAt'> | undefined,
+  nowMs: number,
+): boolean {
+  if (!item) return true;
+  return nowMs - item.lastSentAt >= RESEND_INTERVAL_SECONDS * 1000;
+}

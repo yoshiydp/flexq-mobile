@@ -3,14 +3,15 @@ import * as bcrypt from 'bcryptjs';
 import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
+import { verifyAndConsumeCode } from './verification-code-store';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
-  const { email, newPassword } = body;
+  const { email, newPassword, code } = body;
 
-  if (!email || !newPassword) {
+  if (!email || !newPassword || !code) {
     return createResponse(
-      { message: 'Email and new password are required' },
+      { message: 'Email, new password, and code are required' },
       400,
     );
   }
@@ -27,6 +28,16 @@ export const handler = async (event: any) => {
   const user = result.Items?.[0];
   if (!user) {
     return createResponse({ message: 'User not found' }, 404);
+  }
+
+  // 本人確認: メール宛に発行した 6 桁コードの一致を必須にする。
+  // これがないと email + 新パスワードだけで任意アカウントを乗っ取れてしまう (TASK-85)
+  const verifyResult = await verifyAndConsumeCode(email, 'reset', code);
+  if (verifyResult !== 'ok') {
+    return createResponse(
+      { message: 'Verification code check failed', reason: `code_${verifyResult}` },
+      400,
+    );
   }
 
   const passwordHash = await bcrypt.hash(newPassword, 10);

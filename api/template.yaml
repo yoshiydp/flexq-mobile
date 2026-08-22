@@ -48,6 +48,7 @@ Globals:
         TRACKS_TABLE: !Ref TracksTable
         RECORDS_TABLE: !Ref RecordsTable
         MEMOS_TABLE: !Ref MemosTable
+        VERIFICATION_CODES_TABLE: !Ref VerificationCodesTable
         JWT_SECRET: !Ref JwtSecret
         TRACK_AUDIO_BUCKET: !Ref TrackAudioBucket
         SENDER_EMAIL: !Ref SenderEmail
@@ -160,6 +161,26 @@ Resources:
           KeyType: HASH
         - AttributeName: memoId
           KeyType: RANGE
+
+  # メール認証コード（6 桁 OTP）。新規登録のメール検証とパスワードリセットの
+  # 本人確認で共用する。expiresAt の TTL で期限切れコードは自動削除される (TASK-85)
+  VerificationCodesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: email
+          AttributeType: S
+        - AttributeName: purpose
+          AttributeType: S
+      KeySchema:
+        - AttributeName: email
+          KeyType: HASH
+        - AttributeName: purpose
+          KeyType: RANGE
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
 
   # ─── S3 Bucket ─────────────────────────────────────────
   TrackAudioBucket:
@@ -1052,6 +1073,36 @@ Resources:
         EntryPoints:
           - lambda/post-auth-refresh.ts
 
+  PostAuthVerificationCodeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-verification-code.handler
+      CodeUri: ./
+      Policies:
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VerificationCodesTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource: '*'
+      Events:
+        PostAuthVerificationCode:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/verification-code
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-verification-code.ts
+
   PostAuthRegisterFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1060,6 +1111,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VerificationCodesTable
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
@@ -1140,6 +1193,8 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VerificationCodesTable
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
