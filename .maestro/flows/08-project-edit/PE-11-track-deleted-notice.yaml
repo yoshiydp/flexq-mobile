@@ -1,0 +1,78 @@
+# ID: PE-11
+# シナリオ名: トラック削除済みの案内
+# 前提条件: dev API に接続できること（前提データはフロー内で API セットアップ・後始末する）
+# 操作手順: API で「削除済みトラックを参照するプロジェクト」を再現 → ログイン → そのプロジェクトを開く
+#           → SELECT でトラック選択モーダルを開く → 閉じる
+# 期待結果: 「トラックが見つかりません」の案内が表示され、SELECT で画面下からトラック選択モーダルが開き、
+#           既存トラックの一覧と新規アップロード（UPLOAD NEW TRACK）の導線が表示される。
+#           モーダルを閉じた後も、再生系コントロール上のオーバーレイ（SELECT TRACK ボタン）から
+#           トラック選択モーダルを開き直せる（コントロール・REC MODE は非活性）
+# 備考: 実際のトラック選択・アップロードによる設定は PS-02 / PS-04（手動）で確認する
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PE
+  - PE-11
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+---
+# データセットアップ（削除済みトラックを参照する e2e-PE11-project を API で作成）
+- runScript: ../../scripts/pe11-setup.js
+
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# 対象プロジェクトを開く（作成直後のため、更新日降順のリスト最上部に表示される。
+# リスト項目は Pressable で子テキストがグループ化され、ラベルが
+# 「プロジェクト名 + トラック名 + 更新日」の連結になるため部分一致（正規表現）で探す）
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible: '.*e2e-PE11-project.*'
+    timeout: 15000
+- tapOn: '.*e2e-PE11-project.*'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 「トラックが見つかりません」モーダルの表示を確認
+- extendedWaitUntil:
+    visible: 'トラックが見つかりません'
+    timeout: 10000
+- assertVisible: 'このプロジェクトに設定されていたトラックは削除されています。新しいトラックを設定してください。'
+
+# SELECT で画面下からトラック選択モーダルが開く
+# （案内モーダルが閉じ切ってから開くため、表示までタイムラグがある）
+- tapOn: 'SELECT'
+- extendedWaitUntil:
+    visible: 'SELECT TRACK'
+    timeout: 10000
+# 新規アップロード行（Pressable のためテキストではなく id でアサートする）
+- assertVisible:
+    id: 'upload-new-track-button'
+
+# 閉じて編集画面に戻れることを確認
+- tapOn:
+    id: 'track-picker-close-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'toolbar-hamburger'
+
+# トラック未解決の間は再生系コントロール上にオーバーレイが表示され、
+# SELECT TRACK ボタンからトラック選択モーダルを開き直せる
+- assertVisible:
+    id: 'track-missing-overlay'
+- tapOn:
+    id: 'track-missing-select-button'
+- extendedWaitUntil:
+    visible: 'SELECT TRACK'
+    timeout: 10000
+- tapOn:
+    id: 'track-picker-close-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 後始末（作成した e2e プロジェクトを API で削除）
+- runScript: ../../scripts/pe11-cleanup.js

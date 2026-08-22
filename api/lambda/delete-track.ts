@@ -1,4 +1,4 @@
-import { DeleteCommand, GetCommand, QueryCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
+import { DeleteCommand, GetCommand, QueryCommand } from '@aws-sdk/lib-dynamodb';
 import { DeleteObjectCommand } from '@aws-sdk/client-s3';
 import { docClient } from './db';
 import { s3Client } from './s3';
@@ -12,7 +12,7 @@ export const handler = async (event: any) => {
   const trackId = event.pathParameters?.id;
   if (!trackId) return createResponse({ message: 'id is required' }, 400);
 
-  // Fetch item first to get s3Key / artworkKey / linkedProjects
+  // Fetch item first to get s3Key / artworkKey
   const getResult = await docClient.send(new GetCommand({
     TableName: process.env.TRACKS_TABLE!,
     Key: { userId: claims.userId, trackId },
@@ -22,25 +22,13 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Track not found' }, 404);
   }
 
-  const { s3Key, artworkKey, linkedProjects } = getResult.Item;
+  const { s3Key, artworkKey } = getResult.Item;
 
-  // 連携プロジェクトから trackId / trackName を除去
-  const projectIds = ((linkedProjects ?? []) as Array<string | { id: string }>)
-    .map((item) => (typeof item === 'string' ? item : item.id))
-    .filter(Boolean);
-  for (const projectId of projectIds) {
-    const projectResult = await docClient.send(new GetCommand({
-      TableName: process.env.PROJECTS_TABLE!,
-      Key: { userId: claims.userId, projectId },
-    }));
-    if (projectResult.Item?.trackId === trackId) {
-      await docClient.send(new UpdateCommand({
-        TableName: process.env.PROJECTS_TABLE!,
-        Key: { userId: claims.userId, projectId },
-        UpdateExpression: 'REMOVE trackId, trackName',
-      }));
-    }
-  }
+  // 連携プロジェクトの trackId / trackName は意図的に残す。
+  // ProjectEditScreen が「trackId あり + trackSource 解決不可」を検知して
+  // 「トラックが見つかりません」モーダルを表示し、SETTING での再設定へ誘導する
+  // （docs/test-cases.md PE-11）。get-project / get-project-detail / put-project /
+  // delete-project は存在しない trackId をガード済みで、黙って壊れることはない。
 
   // トラックと同じ artworkKey を参照しているプロジェクトが 1 つでもあれば
   // S3 のアートワークは削除しない（別トラックへ差し替え済みで linkedProjects から

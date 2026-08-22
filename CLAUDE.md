@@ -458,6 +458,23 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します。iOS シミュレーター・Android エミュレーターの両方で実行できます。
 
+**ディレクトリ構成（`docs/test-cases.md` ベースへ移行中）:**
+
+```
+.maestro/
+├── config.yaml            # ワークスペース設定（flows の glob）
+├── scripts/               # runScript 用 JS（dev API を直叩きするデータ準備・後始末）
+└── flows/
+    ├── helpers/           # 共通ヘルパー（launch-app / login / hide-keyboard など）
+    ├── <セクション番号-slug>/   # 新構成: docs/test-cases.md のセクションに対応
+    │   └── <ケースID>-<slug>.yaml   # 例: 08-project-edit/PE-11-track-deleted-notice.yaml
+    └── *.yaml             # 旧構成（フラット）。順次新構成へ移行する
+```
+
+- 新しいフローは**新構成**で作成し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
+- 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）
+- ネイティブ UI（DocumentPicker / ImagePicker など）を伴う操作は E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
+
 **実行前提:**
 - `yarn start` で開発サーバーを起動済み（dev 環境に接続）
 - iOS シミュレーターまたは Android エミュレーターに開発ビルド（expo-dev-client）をインストール済み（初回のみ `yarn ios` / `yarn android`）
@@ -466,10 +483,11 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 **実行方法:**
 
 ```bash
-maestro test .maestro/flows/login.yaml   # 単一フロー
-maestro test .maestro/flows/             # 全フロー
+maestro test .maestro                    # 全フロー（config.yaml の glob で新旧構成とも実行）
+maestro test .maestro --include-tags=PE  # セクション単位（tags で絞り込み）
+maestro test .maestro/flows/login.yaml   # 単一フロー（ファイル指定）
 # デバイスが複数接続されている場合は明示指定（例: Android エミュレーター）
-maestro --device emulator-5554 test .maestro/flows/
+maestro --device emulator-5554 test .maestro
 ```
 
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。

@@ -29,6 +29,19 @@ export default StyleSheet.create({
   volumeSliderWrapper: {
     marginTop: 24,
   },
+  bottomAreaWrapper: {
+    position: 'relative',
+  },
+  trackMissingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.7)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  trackMissingSelectButton: {
+    minWidth: 200,
+  },
   bottomUpButtonWrapper: {
     position: 'absolute',
     bottom: 16,

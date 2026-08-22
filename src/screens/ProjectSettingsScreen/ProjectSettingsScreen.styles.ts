@@ -1,7 +1,5 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet } from 'react-native';
 import { COLORS } from '@/globalStyles';
-
-const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default StyleSheet.create({
   container: {
@@ -28,72 +26,6 @@ export default StyleSheet.create({
   },
   changeTrackButtonContainer: {
     width: 110,
-  },
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.75)',
-    justifyContent: 'flex-end',
-  },
-  modalContent: {
-    backgroundColor: COLORS.form.default.background,
-    borderTopLeftRadius: 16,
-    borderTopRightRadius: 16,
-    maxHeight: SCREEN_HEIGHT * 0.65,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.base.borderDefault,
-  },
-  modalTitle: {
-    fontFamily: 'BebasNeue',
-    color: COLORS.font.default,
-    fontSize: 22,
-  },
-  modalCloseText: {
-    color: COLORS.font.default,
-    fontSize: 18,
-    paddingHorizontal: 8,
-  },
-  trackItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.base.borderDefault,
-  },
-  trackItemArtwork: {
-    width: 48,
-    height: 48,
-    borderRadius: 4,
-    backgroundColor: COLORS.surface.waveform,
-    marginRight: 12,
-    justifyContent: 'center',
-    alignItems: 'center',
-    overflow: 'hidden',
-  },
-  trackItemArtworkImage: {
-    width: '100%',
-    height: '100%',
-  },
-  trackItemArtworkLoading: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  trackItemTitle: {
-    color: COLORS.font.default,
-    fontSize: 15,
-    flex: 1,
   },
   deleteButton: {
     marginTop: 32,
