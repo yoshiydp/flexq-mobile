@@ -490,6 +490,15 @@ maestro test .maestro/flows/login.yaml   # 単一フロー（ファイル指定�
 maestro --device emulator-5554 test .maestro
 ```
 
+**モック API 前提のフロー（`tags: mock`）:** 認証コード入力ステップのように、dev（AWS）では実際のメール受信が必要で自動化できないケースはモック API サーバー前提のフローとして用意している（固定コード `123456`）。`config.yaml` の `excludeTags` により通常実行からは除外されるため、実行するときは以下の準備をしたうえで `--include-tags=mock` を付ける。
+
+```bash
+yarn mock:server                             # 別ターミナルで起動（http://localhost:3000）
+# .env.local に EXPO_PUBLIC_API_BASE_URL=http://localhost:3000 を設定して yarn start
+maestro test .maestro --include-tags=mock
+# Android エミュレーターの場合は事前に adb reverse tcp:3000 tcp:3000 を実行する
+```
+
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
 **テストアカウント（dev）:** `demo@example.com` / `password123`

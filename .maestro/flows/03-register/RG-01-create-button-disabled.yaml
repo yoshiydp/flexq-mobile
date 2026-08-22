@@ -1,0 +1,57 @@
+# ID: RG-01
+# シナリオ名: 未入力時のボタン
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: 新規登録へ → 未入力状態を確認 → 名前・メール・パスワードを順に入力
+# 期待結果: 3 項目すべてが埋まるまで CREATE ボタンは非活性のまま。すべて入力すると活性化する
+# 備考: CREATE を押さないため API 呼び出し・メール送信は発生しない（dev 環境で安全に実行できる）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - RG
+  - RG-01
+---
+# 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
+- runFlow: ../helpers/launch-app.yaml
+
+# 新規登録画面へ遷移
+- tapOn: '新規登録へ'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'REGISTER'
+
+# 未入力の状態では CREATE が押せない
+- assertVisible:
+    id: 'submit-button'
+    enabled: false
+
+# 名前のみ入力（まだ押せない）
+# ※ Android の Maestro は非 ASCII 文字の inputText をサポートしないため ASCII で入力する
+- tapOn: 'ユーザー名を入力してください'
+- inputText: 'E2E Tester'
+- runFlow: ../helpers/hide-keyboard.yaml
+- assertVisible:
+    id: 'submit-button'
+    enabled: false
+
+# メールも入力（パスワードが空なのでまだ押せない）
+- tapOn: 'メールアドレスを入力してください'
+- inputText: 'e2e-rg01@example.com'
+- runFlow: ../helpers/hide-keyboard.yaml
+- assertVisible:
+    id: 'submit-button'
+    enabled: false
+
+# パスワードまで入力すると押せるようになる
+- tapOn: 'パスワードを入力してください'
+- inputText: 'password123'
+- runFlow: ../helpers/hide-keyboard.yaml
+- assertVisible:
+    id: 'submit-button'
+    enabled: true
+
+# サインイン画面に戻る（CREATE は押さない）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Your Email'
