@@ -1,0 +1,55 @@
+# ID: RG-04
+# シナリオ名: 登録済みメール
+# 前提条件: dev API に接続できること。E2E_REGISTERED_EMAIL のアカウントが登録済みであること
+# 操作手順: 新規登録へ → 登録済みのメールアドレスを含む 3 項目を入力 → CREATE
+# 期待結果: 「このメールアドレスはすでに登録されています。」と表示され、認証コード入力画面へは進まない
+# 備考: 登録済みメールの場合サーバーは 409 を返しコードを発行しないため、DB もメール送信も変化しない
+#       （TASK-85 でコード発行前に重複チェックする実装。dev 環境で安全に実行できる）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - RG
+  - RG-04
+env:
+  E2E_REGISTERED_EMAIL: 'demo@example.com'
+---
+# 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
+- runFlow: ../helpers/launch-app.yaml
+
+# 新規登録画面へ遷移
+- tapOn: '新規登録へ'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'REGISTER'
+
+# 登録済みのメールアドレスで 3 項目を入力
+- tapOn: 'ユーザー名を入力してください'
+- inputText: 'E2E Tester'
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn: 'メールアドレスを入力してください'
+- inputText: ${E2E_REGISTERED_EMAIL}
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn: 'パスワードを入力してください'
+- inputText: 'password123'
+- runFlow: ../helpers/hide-keyboard.yaml
+
+# CREATE（サーバーは 409 を返す）
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible: '.*すでに登録されています.*'
+    timeout: 30000
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 認証コード入力画面へは進まず、入力フォームのままであること
+- assertVisible: 'User Name'
+- assertNotVisible: 'Verification Code'
+
+# サインイン画面に戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Your Email'

@@ -1,0 +1,47 @@
+# ID: PW-02
+# シナリオ名: 存在しないメール
+# 前提条件: dev API に接続できること。E2E_UNKNOWN_EMAIL が未登録であること
+# 操作手順: パスワードをリセットする → 未登録のメールアドレスを入力 → SEND CODE
+# 期待結果: 「該当のメールアドレスが見つかりません。」と表示され、コード入力ステップへは進まない
+# 備考: 未登録メールの場合サーバーは 404 を返しコードを発行しないため、DB もメール送信も変化しない
+#       （dev 環境で安全に実行できる）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PW
+  - PW-02
+env:
+  E2E_UNKNOWN_EMAIL: 'e2e-not-registered@example.com'
+---
+# 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
+- runFlow: ../helpers/launch-app.yaml
+
+# パスワードリセット画面へ遷移
+- tapOn: 'パスワードをリセットする'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'PASSWORD RESET'
+
+# 未登録のメールアドレスで SEND CODE（サーバーは 404 を返す）
+- tapOn: 'メールアドレスを入力してください'
+- inputText: ${E2E_UNKNOWN_EMAIL}
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible: '.*見つかりません.*'
+    timeout: 30000
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# コード入力ステップへは進まず、メール入力ステップのままであること
+- assertVisible: 'SEND CODE'
+- assertNotVisible: 'Verification Code'
+
+# サインイン画面に戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Your Email'

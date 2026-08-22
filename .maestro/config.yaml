@@ -9,6 +9,12 @@
 #   - docs/test-cases.md のセクション・ケース ID と 1:1 で対応させる
 #   - 各フローの tags にセクション ID（例: PE）とケース ID（例: PE-11）を付与する
 # 旧構成（flows/ 直下のフラットな *.yaml）はセクション別ディレクトリへ順次移行する
+#
+# tags: mock — モック API サーバー（yarn mock:server + .env.local で localhost:3000）
+#   接続を前提とするフロー。dev 接続の通常実行では失敗するため既定で除外する。
+#   実行する場合: maestro test .maestro --include-tags=mock
 flows:
   - "flows/*.yaml"
   - "flows/[0-9]*/*.yaml"
+excludeTags:
+  - mock
