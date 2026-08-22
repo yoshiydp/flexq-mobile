@@ -9,9 +9,19 @@
 #   - docs/test-cases.md のセクション・ケース ID と対応させる
 #   - 各フローの tags にセクション ID（例: PE）とケース ID（例: PE-11）を付与する
 # flows/helpers/ は共通ヘルパー（glob 対象外。各フローから runFlow で呼び出す）
+#
+# tags: mock — モック API サーバー（yarn mock:server + .env.local で localhost:3000）
+#   接続を前提とするフロー（TASK-85 の認証コード関連）。dev 接続の通常実行では
+#   失敗するため既定で除外する。実行する場合はファイル / セクションディレクトリを
+#   直接指定する（ワークスペース指定だと下の excludeTags が --include-tags より
+#   優先され 0 件になる）:
+#     maestro test .maestro/flows/03-register/RG-07-invalid-verification-code.yaml
 flows:
   - "flows/[0-9]*/*.yaml"
-# BAN 状態の前提が必要なフロー（25-account-suspension）はデフォルト実行から除外する。
-# scripts/e2e-ban.sh が BAN → フロー実行 → 解除をまとめて行う（ディレクトリ直接指定のためこの除外は効かない）
+# tags: requires-ban — BAN 状態の前提が必要なフロー（25-account-suspension）。BAN の切り替えは
+#   API ではなく scripts/ban-user.ts（DynamoDB 直接更新）のためフロー単体では前提状態を作れず、
+#   既定で除外する。scripts/e2e-ban.sh が BAN → フロー実行 → 解除をまとめて行う
+#   （ディレクトリ直接指定で実行するためこの除外は効かない）
 excludeTags:
+  - mock
   - requires-ban
