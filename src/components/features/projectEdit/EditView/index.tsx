@@ -12,6 +12,7 @@ import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
 import CueButtonList from '@/components/features/projectEdit/CueButtonList';
 import PlayerControls from '@/components/features/audioPlayer/PlayerControls';
 import VolumeSlider from '@/components/ui/VolumeSlider';
+import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import styles from './EditView.styles';
 
 interface EditViewProps {
@@ -44,6 +45,11 @@ interface EditViewProps {
   volumeTranslateY: Animated.Value;
   bottomSectionTranslateY: Animated.Value;
   editor: EditorBridge;
+  /** トラック削除済み（trackId ありで音源が解決できない）状態。
+   *  再生系コントロールを非活性にし、オーバーレイ + SELECT TRACK ボタンを表示する */
+  trackMissing?: boolean;
+  /** トラック未解決オーバーレイの SELECT TRACK ボタン押下時に呼ばれる */
+  onSelectTrack?: () => void;
 }
 
 export default function EditView({
@@ -76,6 +82,8 @@ export default function EditView({
   volumeTranslateY,
   bottomSectionTranslateY,
   editor,
+  trackMissing = false,
+  onSelectTrack,
 }: EditViewProps) {
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   // Android 用: タイトル入力を「キーボードを閉じない」保護領域として登録する
@@ -123,60 +131,77 @@ export default function EditView({
         />
       </Animated.View>
 
-      <Animated.View
-        style={{ transform: [{ translateY: bottomSectionTranslateY }] }}
-      >
-        {trackSource && (
-          <View style={styles.seekBarWrapper}>
-            <WaveformPlayer
-              sound={sound}
-              waveformJson={waveformData}
-              cuePoints={cueButtons}
-              onSeek={onSeek}
-              onCuePointUpdate={onCuePointUpdate}
-              onPlaybackFinish={() => onPlayPause()}
+      {/* 再生系コントロール一式。トラック削除済みの場合は非活性化し、
+          オーバーレイ + SELECT TRACK ボタンを被せる（リリック編集は上部で引き続き可能） */}
+      <View style={styles.bottomAreaWrapper}>
+        <View pointerEvents={trackMissing ? 'none' : 'auto'}>
+          <Animated.View
+            style={{ transform: [{ translateY: bottomSectionTranslateY }] }}
+          >
+            {trackSource && (
+              <View style={styles.seekBarWrapper}>
+                <WaveformPlayer
+                  sound={sound}
+                  waveformJson={waveformData}
+                  cuePoints={cueButtons}
+                  onSeek={onSeek}
+                  onCuePointUpdate={onCuePointUpdate}
+                  onPlaybackFinish={() => onPlayPause()}
+                />
+              </View>
+            )}
+
+            <View style={styles.cueButtonListWrapper}>
+              <CueButtonList
+                cueButtons={cueButtons}
+                onPress={onCueButtonPress}
+                onLongPress={onCueButtonLongPress}
+              />
+            </View>
+
+            <View style={styles.playerControlsWrapper}>
+              <PlayerControls
+                onPlayPause={onPlayPause}
+                onLoopToggle={onLoopToggle}
+                isPlaying={isPlaying}
+                isLooping={isLooping}
+                prevButtonVisible={false}
+                nextButtonVisible={false}
+                repeatButtonVisible={false}
+                cueRepeatButtonVisible
+                allCueResetButtonVisible
+                onAllCueReset={onAllCueReset}
+                isAllCueResetDisabled={isAllCueResetDisabled}
+              />
+            </View>
+          </Animated.View>
+
+          {showVolumeSlider && (
+            <Animated.View
+              style={[
+                styles.volumeSliderWrapper,
+                {
+                  opacity: volumeOpacity,
+                  transform: [{ translateY: volumeTranslateY }],
+                },
+              ]}
+            >
+              <VolumeSlider volume={volume} onVolumeChange={onVolumeChange} />
+            </Animated.View>
+          )}
+        </View>
+
+        {trackMissing && (
+          <View style={styles.trackMissingOverlay} testID="track-missing-overlay">
+            <SubmitButton
+              label="SELECT TRACK"
+              onPress={() => onSelectTrack?.()}
+              containerClassName={styles.trackMissingSelectButton}
+              testID="track-missing-select-button"
             />
           </View>
         )}
-
-        <View style={styles.cueButtonListWrapper}>
-          <CueButtonList
-            cueButtons={cueButtons}
-            onPress={onCueButtonPress}
-            onLongPress={onCueButtonLongPress}
-          />
-        </View>
-
-        <View style={styles.playerControlsWrapper}>
-          <PlayerControls
-            onPlayPause={onPlayPause}
-            onLoopToggle={onLoopToggle}
-            isPlaying={isPlaying}
-            isLooping={isLooping}
-            prevButtonVisible={false}
-            nextButtonVisible={false}
-            repeatButtonVisible={false}
-            cueRepeatButtonVisible
-            allCueResetButtonVisible
-            onAllCueReset={onAllCueReset}
-            isAllCueResetDisabled={isAllCueResetDisabled}
-          />
-        </View>
-      </Animated.View>
-
-      {showVolumeSlider && (
-        <Animated.View
-          style={[
-            styles.volumeSliderWrapper,
-            {
-              opacity: volumeOpacity,
-              transform: [{ translateY: volumeTranslateY }],
-            },
-          ]}
-        >
-          <VolumeSlider volume={volume} onVolumeChange={onVolumeChange} />
-        </Animated.View>
-      )}
+      </View>
     </View>
   );
 }

@@ -1,0 +1,53 @@
+# ID: PS-04
+# シナリオ名: トラック新規アップロード（導線表示まで）
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する・demo アカウントに 1 件以上のプロジェクトが存在する
+# 操作手順: ログイン → プロジェクトを開く → 設定（三本線）→ Change/Select Track でトラック選択モーダルを開く
+# 期待結果: トラック選択モーダルが下から開き、先頭に UPLOAD NEW TRACK 行が表示される
+# 備考: 実ファイルのアップロードは OS のファイルピッカー操作になるため E2E 対象外
+#       （手動確認: docs/test-cases.md PS-04）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PS
+  - PS-04
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# 先頭のプロジェクトを開く
+- tapOn:
+    id: 'project-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# トラック削除済みの案内モーダルが出た場合は閉じる（データ状態に依存しないようにする）
+- runFlow:
+    when:
+      visible: 'トラックが見つかりません'
+    commands:
+      - tapOn: 'CANCEL'
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# プロジェクト設定を開く
+- tapOn:
+    id: 'toolbar-hamburger'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# トラック選択モーダルを開く（トラック設定済みなら Change Track / 未設定なら Select Track。testID は共通）
+- tapOn:
+    id: 'change-track-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: 'SELECT TRACK'
+# 新規アップロード行（Pressable のためテキストではなく id でアサートする）
+- assertVisible:
+    id: 'upload-new-track-button'
+
+# 閉じて設定画面に戻れることを確認
+- tapOn:
+    id: 'track-picker-close-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: 'AUDIO DATA'
