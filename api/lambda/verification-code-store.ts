@@ -102,20 +102,41 @@ export async function verifyAndConsumeCode(
   const result = evaluateCode(item, code, Date.now());
 
   if (result === 'ok') {
-    // 使用済みコードは再利用できないよう削除する
-    await docClient.send(
-      new DeleteCommand({ TableName: tableName(), Key: { email, purpose } }),
-    );
+    // 使用済みコードは再利用できないよう削除する。検証したハッシュとの一致を
+    // 条件にすることで、同一コードの同時送信は片方だけが成功し（単回使用）、
+    // 再送で置き換わった新コードの行を誤って消すこともない
+    try {
+      await docClient.send(
+        new DeleteCommand({
+          TableName: tableName(),
+          Key: { email, purpose },
+          ConditionExpression: 'codeHash = :hash',
+          ExpressionAttributeValues: { ':hash': item!.codeHash },
+        }),
+      );
+    } catch (err: any) {
+      if (err?.name === 'ConditionalCheckFailedException') {
+        // 並行リクエストが消費済み、または再送で置き換わった → 再送を促す
+        return 'expired';
+      }
+      throw err;
+    }
   } else if (result === 'invalid' || result === 'attempts_exceeded') {
-    // attempts_exceeded は行が存在する場合のみ返る（evaluateCode 参照）
-    await docClient.send(
-      new UpdateCommand({
-        TableName: tableName(),
-        Key: { email, purpose },
-        UpdateExpression: 'SET attempts = attempts + :one',
-        ExpressionAttributeValues: { ':one': 1 },
-      }),
-    );
+    // attempts_exceeded は行が存在する場合のみ返る（evaluateCode 参照）。
+    // 再送で行が置き換わっていた場合は新コードの attempts を汚さないようスキップ
+    try {
+      await docClient.send(
+        new UpdateCommand({
+          TableName: tableName(),
+          Key: { email, purpose },
+          UpdateExpression: 'SET attempts = attempts + :one',
+          ConditionExpression: 'codeHash = :hash',
+          ExpressionAttributeValues: { ':one': 1, ':hash': item!.codeHash },
+        }),
+      );
+    } catch (err: any) {
+      if (err?.name !== 'ConditionalCheckFailedException') throw err;
+    }
   }
 
   return result;
