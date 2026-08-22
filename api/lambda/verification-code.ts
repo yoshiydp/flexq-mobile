@@ -4,10 +4,12 @@
  * ユニットテスト対象）。DynamoDB への保存・検証消費は
  * verification-code-store.ts が担う。
  */
-import { createHash, randomInt } from 'crypto';
+import { createHmac, randomInt } from 'crypto';
 
 // 新規登録のメール検証（ダブルオプトイン）とパスワードリセットの本人確認で共用する。
-// コードは平文では保存せず SHA-256 ハッシュで保存し、TTL（expiresAt）で自動削除される。
+// コードは平文では保存せず、サーバー側シークレットを鍵にした HMAC-SHA256 で保存し、
+// TTL（expiresAt）で自動削除される。素の SHA-256 だと 6 桁 = 100 万通りしかないため
+// テーブル読み取りだけでオフライン総当たりが可能になる（Codex レビュー指摘）。
 
 export const CODE_TTL_SECONDS = 600; // コードの有効期限: 10 分
 export const RESEND_INTERVAL_SECONDS = 60; // 再送の最短間隔: 60 秒
@@ -30,8 +32,8 @@ export function generateCode(): string {
   return String(randomInt(0, 1000000)).padStart(6, '0');
 }
 
-export function hashCode(code: string): string {
-  return createHash('sha256').update(code).digest('hex');
+export function hashCode(code: string, pepper: string): string {
+  return createHmac('sha256', pepper).update(code).digest('hex');
 }
 
 // 保存済みコードに対する検証判定（純粋関数）。
@@ -40,10 +42,11 @@ export function evaluateCode(
   item: Pick<StoredCode, 'codeHash' | 'expiresAt' | 'attempts'> | undefined,
   code: string,
   nowMs: number,
+  pepper: string,
 ): VerifyResult {
   if (!item || item.expiresAt * 1000 <= nowMs) return 'expired';
   if (item.attempts >= MAX_ATTEMPTS) return 'attempts_exceeded';
-  if (hashCode(code) !== item.codeHash) {
+  if (hashCode(code, pepper) !== item.codeHash) {
     // この失敗で試行上限に達する場合は失効扱いにして再送を促す
     return item.attempts + 1 >= MAX_ATTEMPTS ? 'attempts_exceeded' : 'invalid';
   }

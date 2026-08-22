@@ -23,6 +23,12 @@ function tableName(): string {
   return process.env.VERIFICATION_CODES_TABLE!;
 }
 
+// HMAC の鍵（ペッパー）。テーブル読み取りだけではコードを復元できないよう、
+// DynamoDB の外にあるサーバー側シークレットを使う
+function pepper(): string {
+  return process.env.JWT_SECRET!;
+}
+
 export async function getStoredCode(
   email: string,
   purpose: VerificationPurpose,
@@ -48,7 +54,7 @@ export async function storeCode(
         Item: {
           email,
           purpose,
-          codeHash: hashCode(code),
+          codeHash: hashCode(code, pepper()),
           expiresAt: Math.floor(nowMs / 1000) + CODE_TTL_SECONDS,
           attempts: 0,
           lastSentAt: nowMs,
@@ -99,7 +105,7 @@ export async function verifyAndConsumeCode(
   code: string,
 ): Promise<VerifyResult> {
   const item = await getStoredCode(email, purpose);
-  const result = evaluateCode(item, code, Date.now());
+  const result = evaluateCode(item, code, Date.now(), pepper());
 
   if (result === 'ok') {
     // 使用済みコードは再利用できないよう削除する。検証したハッシュとの一致を
