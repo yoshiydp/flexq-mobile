@@ -11,6 +11,7 @@ import {
 import { docClient } from './db';
 import {
   CODE_TTL_SECONDS,
+  MAX_ATTEMPTS,
   RESEND_INTERVAL_SECONDS,
   StoredCode,
   VerificationPurpose,
@@ -96,54 +97,85 @@ export async function rollbackStoredCode(
   }
 }
 
-// コードを検証し、成功時のみ消費（削除）する。失敗時は試行回数を加算する。
-// 試行超過でも行は削除しない（lastSentAt を保持して再送レート制限を維持する
-// ため。行自体は expiresAt の TTL で自動削除される）
+// コードを検証し、成功時のみ消費（削除）する。試行超過でも行は削除しない
+// （lastSentAt を保持して再送レート制限を維持するため。行自体は expiresAt の
+// TTL で自動削除される）。
+//
+// 試行回数は「先に条件付き Update でスロットを確保 → その後にハッシュ照合」の
+// 順で数える。読み取り後に加算する方式だと、並行リクエストが同じ attempts を
+// 読んで MAX_ATTEMPTS 回を超える照合が通ってしまうため（Codex レビュー指摘）。
 export async function verifyAndConsumeCode(
   email: string,
   purpose: VerificationPurpose,
   code: string,
 ): Promise<VerifyResult> {
+  const nowMs = Date.now();
   const item = await getStoredCode(email, purpose);
-  const result = evaluateCode(item, code, Date.now(), pepper());
 
-  if (result === 'ok') {
-    // 使用済みコードは再利用できないよう削除する。検証したハッシュとの一致を
-    // 条件にすることで、同一コードの同時送信は片方だけが成功し（単回使用）、
-    // 再送で置き換わった新コードの行を誤って消すこともない
-    try {
-      await docClient.send(
-        new DeleteCommand({
-          TableName: tableName(),
-          Key: { email, purpose },
-          ConditionExpression: 'codeHash = :hash',
-          ExpressionAttributeValues: { ':hash': item!.codeHash },
-        }),
-      );
-    } catch (err: any) {
-      if (err?.name === 'ConditionalCheckFailedException') {
-        // 並行リクエストが消費済み、または再送で置き換わった → 再送を促す
+  // 行なし・期限切れの事前判定（evaluateCode の expired 境界と同じ扱い）
+  if (evaluateCode(item, code, nowMs, pepper()) === 'expired') return 'expired';
+  if (item!.attempts >= MAX_ATTEMPTS) return 'attempts_exceeded';
+
+  // 試行スロットを原子的に確保。並行リクエストでも同一コードへの照合は
+  // 合計 MAX_ATTEMPTS 回までに制限される
+  let attemptsAfter: number;
+  try {
+    const updated = await docClient.send(
+      new UpdateCommand({
+        TableName: tableName(),
+        Key: { email, purpose },
+        UpdateExpression: 'SET attempts = attempts + :one',
+        ConditionExpression:
+          'codeHash = :hash AND attempts < :max AND expiresAt > :nowSec',
+        ExpressionAttributeValues: {
+          ':one': 1,
+          ':hash': item!.codeHash,
+          ':max': MAX_ATTEMPTS,
+          ':nowSec': Math.floor(nowMs / 1000),
+        },
+        ReturnValues: 'ALL_NEW',
+      }),
+    );
+    attemptsAfter = (updated.Attributes as StoredCode).attempts;
+  } catch (err: any) {
+    if (err?.name === 'ConditionalCheckFailedException') {
+      // 再送で置き換え済み・期限切れ・並行リクエストによる試行上限到達のいずれか
+      const current = await getStoredCode(email, purpose);
+      if (
+        !current ||
+        current.codeHash !== item!.codeHash ||
+        current.expiresAt * 1000 <= nowMs
+      ) {
         return 'expired';
       }
-      throw err;
+      return 'attempts_exceeded';
     }
-  } else if (result === 'invalid' || result === 'attempts_exceeded') {
-    // attempts_exceeded は行が存在する場合のみ返る（evaluateCode 参照）。
-    // 再送で行が置き換わっていた場合は新コードの attempts を汚さないようスキップ
-    try {
-      await docClient.send(
-        new UpdateCommand({
-          TableName: tableName(),
-          Key: { email, purpose },
-          UpdateExpression: 'SET attempts = attempts + :one',
-          ConditionExpression: 'codeHash = :hash',
-          ExpressionAttributeValues: { ':one': 1, ':hash': item!.codeHash },
-        }),
-      );
-    } catch (err: any) {
-      if (err?.name !== 'ConditionalCheckFailedException') throw err;
-    }
+    throw err;
   }
 
-  return result;
+  if (hashCode(code, pepper()) !== item!.codeHash) {
+    return attemptsAfter >= MAX_ATTEMPTS ? 'attempts_exceeded' : 'invalid';
+  }
+
+  // 正しいコード: 検証したハッシュとの一致を条件に削除することで、同一コードの
+  // 同時送信は片方だけが成功し（単回使用）、再送で置き換わった新コードの行を
+  // 誤って消すこともない
+  try {
+    await docClient.send(
+      new DeleteCommand({
+        TableName: tableName(),
+        Key: { email, purpose },
+        ConditionExpression: 'codeHash = :hash',
+        ExpressionAttributeValues: { ':hash': item!.codeHash },
+      }),
+    );
+  } catch (err: any) {
+    if (err?.name === 'ConditionalCheckFailedException') {
+      // 並行リクエストが消費済み、または再送で置き換わった → 再送を促す
+      return 'expired';
+    }
+    throw err;
+  }
+
+  return 'ok';
 }
