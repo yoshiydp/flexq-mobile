@@ -986,6 +986,8 @@ Resources:
             TableName: !Ref RecordsTable
         - DynamoDBCrudPolicy:
             TableName: !Ref MemosTable
+        - DynamoDBCrudPolicy:
+            TableName: !Ref VerificationCodesTable
         - S3CrudPolicy:
             BucketName: !Ref TrackAudioBucket
       Events:
