@@ -1,13 +1,16 @@
-# ID: PROF-01
+# ID: PF-01
 # シナリオ名: プロフィール画面表示
 # 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: ログイン → PROFILE タブをタップ
 # 期待結果: ユーザー名・メールアドレス・LOGOUT が表示される
 
 appId: com.yoshiydp.lyricsapp
+tags:
+  - PF
+  - PF-01
 ---
 # ログイン
-- runFlow: ./helpers/login.yaml
+- runFlow: ../helpers/login.yaml
 
 # プロフィール画面へ遷移
 - tapOn:
