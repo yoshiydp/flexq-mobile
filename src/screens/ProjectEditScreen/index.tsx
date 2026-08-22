@@ -40,6 +40,7 @@ import type { RootStackParamList } from '@/navigation/types';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import EditView from '@/components/features/projectEdit/EditView';
 import RecView from '@/components/features/projectEdit/RecView';
+import TrackPickerModal from '@/components/features/projectEdit/TrackPickerModal';
 import BottomUpButton from '@/components/ui/buttons/BottomUpButton';
 import { useModal } from '@/contexts/ModalContext';
 import { CuePointType } from '@/types/cuePointType';
@@ -52,6 +53,7 @@ import { KEYBOARD_CHECKMARK_BUTTON_KEYBOARD_OFFSET } from '@/constants/keyboardC
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
+import type { TrackType } from '@/hooks/useFetchTrack';
 import { useFetchProjectRecords } from '@/hooks/useFetchProjectRecords';
 import {
   useProjectAutoSave,
@@ -138,6 +140,7 @@ export default function ProjectEditScreen() {
   }, [body]);
 
   const hasShownTrackDeletedWarning = useRef(false);
+  const [showTrackPicker, setShowTrackPicker] = useState(false);
 
   useEffect(() => {
     if (!project) return;
@@ -174,16 +177,13 @@ export default function ProjectEditScreen() {
         message: 'トラックが見つかりません',
         description: 'このプロジェクトに設定されていたトラックは削除されています。新しいトラックを設定してください。',
         submitButton: {
-          label: 'SETTING',
+          label: 'SELECT',
           onPress: () => {
             closeModal();
-            navigation.navigate('ProjectSettings', {
-              id: id ?? '',
-              artwork: project.artwork ? { uri: project.artwork } : undefined,
-              trackSource: undefined,
-              trackId: undefined,
-              trackName: undefined,
-            });
+            // ConfirmModal（RN Modal）のフェードアウト（200ms）と dismiss が
+            // 完了する前に別の Modal を present すると iOS では表示されないため、
+            // 閉じ切ってからトラック選択モーダルを開く
+            setTimeout(() => setShowTrackPicker(true), 500);
           },
         },
         closeLabel: 'CANCEL',
@@ -209,6 +209,20 @@ export default function ProjectEditScreen() {
       clearPendingProjectSettings(id);
     }, [id, refreshProjectRecords]),
   );
+
+  // トラック削除済み（trackId ありで音源が解決できない）状態。
+  // 再生系コントロール・REC MODE を非活性にし、EditView にオーバーレイ +
+  // SELECT TRACK ボタンを表示する（リリック編集は引き続き可能）
+  const isTrackMissing = !!trackId && !trackSource;
+
+  // トラック選択モーダル（既存トラック選択・新規アップロード）の反映。
+  // ProjectSettings 経由の pending 反映（上記）と同じ項目を直接更新する
+  const handlePickTrack = (track: TrackType) => {
+    setTrackId(track.id);
+    setTrackName(track.title);
+    setTrackSource(track.source ?? null);
+    setShowTrackPicker(false);
+  };
 
   useEffect(() => {
     if (!project?.waveformJson) return;
@@ -976,6 +990,8 @@ export default function ProjectEditScreen() {
               volumeTranslateY={volumeTranslateY}
               bottomSectionTranslateY={bottomSectionTranslateY}
               editor={editor}
+              trackMissing={isTrackMissing}
+              onSelectTrack={() => setShowTrackPicker(true)}
             />
           </View>
           {/* preloadRecView=true のとき不可視でプリマウント、currentView='rec' で通常表示 */}
@@ -1034,10 +1050,15 @@ export default function ProjectEditScreen() {
         </View>
         {currentView === 'edit' && isBottomButtonVisible && (
           <Animated.View
-            pointerEvents={mode === 'transition' ? 'none' : 'auto'}
+            pointerEvents={
+              mode === 'transition' || isTrackMissing ? 'none' : 'auto'
+            }
             style={[StyleSheet.absoluteFill, { opacity: bottomButtonOpacity }]}
           >
-            <BottomUpButton label="REC MODE" onPress={handleEnterRecMode} />
+            {/* トラック削除済みの間は REC MODE を非活性（減光）にする */}
+            <View style={isTrackMissing ? { opacity: 0.4 } : null}>
+              <BottomUpButton label="REC MODE" onPress={handleEnterRecMode} />
+            </View>
           </Animated.View>
         )}
         {currentView === 'rec' && mode !== 'transition' && (
@@ -1063,6 +1084,12 @@ export default function ProjectEditScreen() {
           <Ionicons name="checkmark" size={28} color={COLORS.base.bgDefault} />
         </Pressable>
       )}
+
+      <TrackPickerModal
+        visible={showTrackPicker}
+        onClose={() => setShowTrackPicker(false)}
+        onSelect={handlePickTrack}
+      />
     </View>
   );
 }
