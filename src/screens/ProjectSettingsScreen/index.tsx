@@ -1,28 +1,23 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ScrollView,
   View,
   Text,
-  Modal,
-  FlatList,
-  Pressable,
-  Animated,
   ActivityIndicator,
   Alert,
 } from 'react-native';
 import { useRoute, useNavigation, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import * as ImagePicker from 'expo-image-picker';
-import { FontAwesome } from '@expo/vector-icons';
 import type { RootStackParamList } from '@/navigation/types';
 import OverlayScreenTemplate from '@/components/features/overlay/OverlayScreenTemplate';
 import SettingsTitledContentBlock from '@/components/features/projectEdit/SettingsTitledContentBlock';
 import SettingsTitledContentBox from '@/components/features/projectEdit/SettingsTitledContentBox';
+import TrackPickerModal from '@/components/features/projectEdit/TrackPickerModal';
 import ProfileIcon from '@/components/features/profile/ProfileIcon';
 import ActionButton from '@/components/ui/buttons/ActionButton';
 import CancelButton from '@/components/ui/buttons/CancelButton';
-import Icon from '@/components/ui/Icon';
-import { useFetchTrack, TrackType } from '@/hooks/useFetchTrack';
+import { TrackType } from '@/hooks/useFetchTrack';
 import { useDeleteProject } from '@/hooks/useDeleteProject';
 import { useModal } from '@/contexts/ModalContext';
 import { DefaultService } from '@/apiClient/services/DefaultService';
@@ -46,7 +41,6 @@ export default function ProjectSettingsScreen() {
 
   const route = useRoute<RouteProp<RootStackParamList, 'ProjectSettings'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { tracks } = useFetchTrack();
   const { deleteProject } = useDeleteProject();
   const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
 
@@ -64,26 +58,6 @@ export default function ProjectSettingsScreen() {
   const [audioExt, setAudioExt] = useState('');
   const [showTrackPicker, setShowTrackPicker] = useState(false);
   const [uploading, setUploading] = useState(false);
-  const [loadedTrackIds, setLoadedTrackIds] = useState<Set<string>>(new Set());
-  const trackAnimatedValuesRef = useRef<Map<string, { img: Animated.Value; spinner: Animated.Value }>>(new Map());
-
-  const getTrackAnimatedValues = (id: string) => {
-    if (!trackAnimatedValuesRef.current.has(id)) {
-      trackAnimatedValuesRef.current.set(id, {
-        img: new Animated.Value(0),
-        spinner: new Animated.Value(1),
-      });
-    }
-    return trackAnimatedValuesRef.current.get(id)!;
-  };
-
-  const handleTrackArtworkLoadEnd = (id: string) => {
-    const { img, spinner } = getTrackAnimatedValues(id);
-    Animated.parallel([
-      Animated.timing(img, { toValue: 1, duration: 300, useNativeDriver: true }),
-      Animated.timing(spinner, { toValue: 0, duration: 300, useNativeDriver: true }),
-    ]).start(() => setLoadedTrackIds((prev) => new Set([...prev, id])));
-  };
 
   // pending changes to pass back
   const [pendingArtworkUri, setPendingArtworkUri] = useState<string | null>(null);
@@ -271,53 +245,11 @@ export default function ProjectSettingsScreen() {
       </ScrollView>
 
       {/* Track picker modal */}
-      <Modal visible={showTrackPicker} transparent animationType="slide">
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>SELECT TRACK</Text>
-              <Pressable onPress={() => setShowTrackPicker(false)}>
-                <Text style={styles.modalCloseText}>✕</Text>
-              </Pressable>
-            </View>
-            <FlatList
-              data={tracks}
-              keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
-                <Pressable
-                  style={styles.trackItem}
-                  onPress={() => handleSelectTrack(item)}
-                >
-                  {item.artwork ? (
-                    <View style={styles.trackItemArtwork}>
-                      <Animated.Image
-                        source={{ uri: item.artwork }}
-                        style={[styles.trackItemArtworkImage, { opacity: getTrackAnimatedValues(item.id).img }]}
-                        onLoadEnd={() => handleTrackArtworkLoadEnd(item.id)}
-                      />
-                      {!loadedTrackIds.has(item.id) && (
-                        <Animated.View style={[styles.trackItemArtworkLoading, { opacity: getTrackAnimatedValues(item.id).spinner }]}>
-                          <ActivityIndicator size="small" color={COLORS.accent.goldPrimary} />
-                        </Animated.View>
-                      )}
-                    </View>
-                  ) : (
-                    <View style={styles.trackItemArtwork}>
-                      <Icon
-                        component={FontAwesome}
-                        name="music"
-                        size={22}
-                        style={{ color: COLORS.icon.default }}
-                      />
-                    </View>
-                  )}
-                  <Text style={styles.trackItemTitle}>{item.title}</Text>
-                </Pressable>
-              )}
-            />
-          </View>
-        </View>
-      </Modal>
+      <TrackPickerModal
+        visible={showTrackPicker}
+        onClose={() => setShowTrackPicker(false)}
+        onSelect={handleSelectTrack}
+      />
     </OverlayScreenTemplate>
   );
 }

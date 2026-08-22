@@ -1,0 +1,14 @@
+# Maestro ワークスペース設定
+#
+# 実行例:
+#   maestro test .maestro                     # 全フロー（旧構成 + 新構成）
+#   maestro test .maestro --include-tags=PE   # セクション単位（tags で絞り込み）
+#   maestro test .maestro/flows/08-project-edit/PE-11-track-deleted-notice.yaml  # 単一フロー
+#
+# 新構成: flows/<セクション番号-slug>/<ケースID>-<slug>.yaml
+#   - docs/test-cases.md のセクション・ケース ID と 1:1 で対応させる
+#   - 各フローの tags にセクション ID（例: PE）とケース ID（例: PE-11）を付与する
+# 旧構成（flows/ 直下のフラットな *.yaml）はセクション別ディレクトリへ順次移行する
+flows:
+  - "flows/*.yaml"
+  - "flows/[0-9]*/*.yaml"
