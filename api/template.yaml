@@ -210,6 +210,9 @@ Resources:
       Handler: lambda/get-project.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBReadPolicy:
             TableName: !Ref ProjectsTable
         - DynamoDBReadPolicy:
@@ -238,6 +241,9 @@ Resources:
       Handler: lambda/get-project-detail.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBReadPolicy:
             TableName: !Ref ProjectsTable
         - DynamoDBReadPolicy:
@@ -266,6 +272,9 @@ Resources:
       Handler: lambda/post-project.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ProjectsTable
         - DynamoDBCrudPolicy:
@@ -292,6 +301,9 @@ Resources:
       Handler: lambda/put-project.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ProjectsTable
         - DynamoDBCrudPolicy:
@@ -318,6 +330,9 @@ Resources:
       Handler: lambda/delete-project.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref ProjectsTable
         - DynamoDBCrudPolicy:
@@ -348,6 +363,9 @@ Resources:
       Handler: lambda/get-project-records.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBReadPolicy:
             TableName: !Ref RecordsTable
         - S3ReadPolicy:
@@ -400,6 +418,9 @@ Resources:
       Handler: lambda/get-memo.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBReadPolicy:
             TableName: !Ref MemosTable
       Events:
@@ -424,6 +445,9 @@ Resources:
       Handler: lambda/get-track.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBReadPolicy:
             TableName: !Ref TracksTable
         - S3ReadPolicy:
@@ -450,6 +474,9 @@ Resources:
       Handler: lambda/get-track-upload-url.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - Statement:
             - Effect: Allow
               Action: s3:PutObject
@@ -476,6 +503,9 @@ Resources:
       Handler: lambda/post-track.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref TracksTable
       Events:
@@ -500,6 +530,9 @@ Resources:
       Handler: lambda/put-track.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref TracksTable
       Events:
@@ -524,6 +557,9 @@ Resources:
       Handler: lambda/delete-track.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref TracksTable
         - DynamoDBCrudPolicy:
@@ -552,6 +588,9 @@ Resources:
       Handler: lambda/get-record.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBReadPolicy:
             TableName: !Ref RecordsTable
         - S3ReadPolicy:
@@ -578,6 +617,9 @@ Resources:
       Handler: lambda/get-record-upload-url.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - Statement:
             - Effect: Allow
               Action: s3:PutObject
@@ -604,6 +646,9 @@ Resources:
       Handler: lambda/post-record.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         - S3ReadPolicy:
@@ -630,6 +675,9 @@ Resources:
       Handler: lambda/put-record.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
       Events:
@@ -654,6 +702,9 @@ Resources:
       Handler: lambda/delete-record.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         # ミックス済み音源（records/mixed/）の削除用 (TASK-49)
@@ -682,6 +733,9 @@ Resources:
       CodeUri: ./
       Timeout: 25
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         - S3ReadPolicy:
@@ -712,6 +766,9 @@ Resources:
       # （24-bit stereo 44.1kHz ≈ 15.5MB/分。長尺録音でも収まるサイズ）
       MemorySize: 1024
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         - S3CrudPolicy:
@@ -757,6 +814,9 @@ Resources:
         Variables:
           RECORD_MIX_WORKER_FUNCTION: !Ref RecordMixWorkerFunction
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         - DynamoDBReadPolicy:
@@ -825,6 +885,9 @@ Resources:
       CodeUri: ./
       Timeout: 25
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref RecordsTable
         - S3ReadPolicy:
@@ -851,6 +914,9 @@ Resources:
       Handler: lambda/post-memo.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref MemosTable
       Events:
@@ -875,6 +941,9 @@ Resources:
       Handler: lambda/put-memo.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref MemosTable
       Events:
@@ -899,6 +968,9 @@ Resources:
       Handler: lambda/delete-memo.handler
       CodeUri: ./
       Policies:
+        # BAN（アカウント停止）チェックで Users テーブルの status を参照する (TASK-81)
+        - DynamoDBReadPolicy:
+            TableName: !Ref UsersTable
         - DynamoDBCrudPolicy:
             TableName: !Ref MemosTable
       Events:

@@ -2,6 +2,7 @@ import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import * as jwt from 'jsonwebtoken';
 import { docClient } from './db';
 import { createResponse } from './utils';
+import { isSuspendedUser, suspendedResponse } from './account-suspension';
 
 interface RefreshTokenPayload {
   userId?: string;
@@ -43,6 +44,11 @@ export const handler = async (event: any) => {
   const user = result.Item;
   if (!user) {
     return createResponse({ message: 'Invalid refresh token' }, 401);
+  }
+
+  // 停止（BAN）中のアカウントには新しいアクセストークンを発行しない (TASK-81)
+  if (isSuspendedUser(user)) {
+    return suspendedResponse();
   }
 
   const accessToken = jwt.sign(

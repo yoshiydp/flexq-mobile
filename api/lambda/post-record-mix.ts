@@ -23,7 +23,7 @@ const lambdaClient = new LambdaClient({});
  * - 処理中の場合は現在のステータスをそのまま返す（固着している場合は作り直す）
  */
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const recordId = event.pathParameters?.id;
