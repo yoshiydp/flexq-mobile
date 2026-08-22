@@ -22,8 +22,9 @@ yarn test:ci              # Jest カバレッジ付き実行 (CI)
 yarn test src/components/ui/buttons/ArrowButton/ArrowButton.test.tsx
 
 # E2E テスト (Maestro) ※ yarn start (dev 環境) + iOS シミュレーター起動が前提
-maestro test .maestro/flows/login.yaml   # ログインフロー
-maestro test .maestro/flows/             # 全フロー実行
+maestro test .maestro                                       # 全フロー実行
+maestro test .maestro --include-tags=SI                     # セクション単位（tags で絞り込み）
+maestro test .maestro/flows/02-sign-in/SI-04-login.yaml     # 単一フロー（ログイン）
 
 # モック API サーバー (Swagger UI: http://localhost:3000)
 yarn mock:server
@@ -518,20 +519,19 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します。iOS シミュレーター・Android エミュレーターの両方で実行できます。
 
-**ディレクトリ構成（`docs/test-cases.md` ベースへ移行中）:**
+**ディレクトリ構成（`docs/test-cases.md` ベース）:**
 
 ```
 .maestro/
 ├── config.yaml            # ワークスペース設定（flows の glob）
 ├── scripts/               # runScript 用 JS（dev API を直叩きするデータ準備・後始末）
 └── flows/
-    ├── helpers/           # 共通ヘルパー（launch-app / login / hide-keyboard など）
-    ├── <セクション番号-slug>/   # 新構成: docs/test-cases.md のセクションに対応
-    │   └── <ケースID>-<slug>.yaml   # 例: 08-project-edit/PE-11-track-deleted-notice.yaml
-    └── *.yaml             # 旧構成（フラット）。順次新構成へ移行する
+    ├── helpers/           # 共通ヘルパー（launch-app / login / hide-keyboard など。glob 対象外）
+    └── <セクション番号-slug>/   # docs/test-cases.md のセクションに対応
+        └── <ケースID>-<slug>.yaml   # 例: 08-project-edit/PE-11-track-deleted-notice.yaml
 ```
 
-- 新しいフローは**新構成**で作成し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
+- 各フローは docs/test-cases.md のケース ID を代表 ID としてヘッダーコメント（ID / シナリオ名 / 前提条件 / 操作手順 / 期待結果 / 備考）に記載し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
 - 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）。作成に外部 API の実行（Replicate 等）が必要なデータは demo アカウントの既存サンプルを読み取り専用で使い、`updatedAt` の更新やブックマークで一覧先頭に出す（例: `sy05-setup.js`）
 - リスト項目の `Pressable` は子テキストがグループ化され、ラベルが「タイトル, 日付 …」の連結になるため `'.*タイトル.*'` の部分一致で探す。表示領域の狭い内側の ScrollView では枠外の項目も階層上は「表示中」扱いになり `scrollUntilVisible` → `tapOn` が枠外をタップして失敗するため、対象を先頭に出す前提データにする
 - ネイティブ UI（DocumentPicker / ImagePicker など）を伴う操作は E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
@@ -544,9 +544,9 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 **実行方法:**
 
 ```bash
-maestro test .maestro                    # 全フロー（config.yaml の glob で新旧構成とも実行）
+maestro test .maestro                    # 全フロー（config.yaml の glob で実行）
 maestro test .maestro --include-tags=PE  # セクション単位（tags で絞り込み）
-maestro test .maestro/flows/login.yaml   # 単一フロー（ファイル指定）
+maestro test .maestro/flows/02-sign-in/SI-04-login.yaml  # 単一フロー（ファイル指定）
 scripts/e2e-ban.sh                       # アカウント停止（AS）フロー。BAN 前提のため通常実行（config.yaml の excludeTags: requires-ban）から除外されている
 # デバイスが複数接続されている場合は明示指定（例: Android エミュレーター）
 maestro --device emulator-5554 test .maestro
@@ -557,7 +557,7 @@ maestro --device emulator-5554 test .maestro
 **テストアカウント（dev）:** `demo@example.com` / `password123`
 **BAN 検証用アカウント（dev）:** `e2e-ban@example.com` / `password123`（`25-account-suspension` のフロー専用。`scripts/e2e-ban.sh` が BAN → フロー実行 → 解除を行う。demo アカウントを BAN すると他の全 E2E が巻き添えになるため共用しない。アカウントが無い場合はアプリの新規登録（メール認証コードあり）で作成する）
 
-**前提データ:** `project-detail` / `project-edit-save` / `project-delete` は demo アカウントに 1 件以上のプロジェクト、`track-play` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
+**前提データ:** `PL-05` / `PE-01` / `PS-03` / `PS-04` は demo アカウントに 1 件以上のプロジェクト、`AP-01` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
 
 **フロー作成時のルール:**
 - アプリの起動・ログインは共通ヘルパーを使う（起動のみ: `helpers/launch-app.yaml` / ログインまで: `helpers/login.yaml`）
