@@ -9,6 +9,7 @@ import {
   evaluateCode,
   generateCode,
   hashCode,
+  verificationEmailContent,
 } from './verification-code';
 
 const NOW_MS = 1_700_000_000_000;
@@ -82,6 +83,44 @@ describe('evaluateCode', () => {
   it('上限直前（attempts = MAX - 2）の失敗はまだ invalid（再入力可能）', () => {
     const item = storedCode('123456', { attempts: MAX_ATTEMPTS - 2 });
     expect(evaluateCode(item, '000000', NOW_MS, PEPPER)).toBe('invalid');
+  });
+});
+
+describe('verificationEmailContent', () => {
+  it('新規登録は用途が件名・本文から分かる', () => {
+    const { subject, body } = verificationEmailContent('register', '123456');
+    expect(subject).toContain('新規登録');
+    expect(body).toContain('新規登録のお手続き');
+    expect(body).toContain('アカウントはまだ作成されていません');
+  });
+
+  it('パスワードリセットは用途が件名・本文から分かる', () => {
+    const { subject, body } = verificationEmailContent('reset', '123456');
+    expect(subject).toContain('パスワードリセット');
+    expect(body).toContain('パスワードリセットのお手続き');
+    // 身に覚えのない受信者を不安にさせないため、まだ変更されていないことを伝える
+    expect(body).toContain('パスワードはまだ変更されていません');
+  });
+
+  it('用途によって件名・本文が異なる（取り違えを防ぐ）', () => {
+    const reg = verificationEmailContent('register', '123456');
+    const res = verificationEmailContent('reset', '123456');
+    expect(reg.subject).not.toBe(res.subject);
+    expect(reg.body).not.toBe(res.body);
+  });
+
+  it('コードと有効期限が本文に含まれる', () => {
+    const { body } = verificationEmailContent('register', '987654');
+    expect(body).toContain('認証コード: 987654');
+    expect(body).toContain(`有効期限は ${Math.floor(CODE_TTL_SECONDS / 60)} 分`);
+  });
+
+  it('心当たりがない場合の案内が両方の用途に含まれる', () => {
+    for (const purpose of ['register', 'reset'] as const) {
+      expect(verificationEmailContent(purpose, '123456').body).toContain(
+        '心当たりがない場合',
+      );
+    }
   });
 });
 

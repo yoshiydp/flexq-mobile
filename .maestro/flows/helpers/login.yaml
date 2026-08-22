@@ -17,9 +17,13 @@ appId: com.yoshiydp.lyricsapp
 - inputText: 'password123'
 # キーボードを閉じてから SIGN IN をタップ（iOS / Android で閉じ方が異なる）
 - runFlow: ./hide-keyboard.yaml
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる（SIGN IN を覆うため）
+- runFlow: ./dismiss-password-save.yaml
 - tapOn: 'SIGN IN'
 - waitForAnimationToEnd:
     timeout: 10000
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ./dismiss-password-save.yaml
 # ログインに成功しプロジェクトリストへ遷移したことを確認
 - extendedWaitUntil:
     visible: 'PROJECT'

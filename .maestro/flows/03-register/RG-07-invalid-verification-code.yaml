@@ -38,10 +38,14 @@ tags:
 - tapOn: 'パスワードを入力してください'
 - inputText: 'password123'
 - runFlow: ../helpers/hide-keyboard.yaml
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
 
 # CREATE でコードを送信 → 認証コード入力ステップへ
 - tapOn:
     id: 'submit-button'
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
 - extendedWaitUntil:
     visible: 'Verification Code'
     timeout: 30000
@@ -52,9 +56,11 @@ tags:
     enabled: false
 
 # 誤った 6 桁を入力（モックの正解は 123456）
+# ※ 認証コード欄は keyboardType: number-pad で Return キーがないため、
+#   hide-keyboard（iOS は pressKey: Enter）を使うと入力が確定せず空になる。
+#   CREATE ボタンはキーボードに隠れない位置にあるためそのままタップする
 - tapOn: '6桁の認証コードを入力してください'
 - inputText: '000000'
-- runFlow: ../helpers/hide-keyboard.yaml
 - assertVisible:
     id: 'submit-button'
     enabled: true
@@ -81,5 +87,7 @@ tags:
     id: 'toolbar-back'
 - waitForAnimationToEnd:
     timeout: 3000
+# iOS の「パスワードを保存しますか？」が遷移後に出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
 - assertVisible: 'User Name'
 - assertNotVisible: 'Verification Code'

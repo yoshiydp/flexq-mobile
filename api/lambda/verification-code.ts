@@ -61,3 +61,39 @@ export function canResend(
   if (!item) return true;
   return nowMs - item.lastSentAt >= RESEND_INTERVAL_SECONDS * 1000;
 }
+
+// 認証コードメールの件名・本文を用途別に組み立てる（純粋関数）。
+// 用途を明記するのは、第三者が他人のメールアドレスでリセットを要求した場合に
+// 本人が「身に覚えのない操作」だと気づけるようにするため。
+// あわせて「まだ変更されていない」ことを伝えて不安を与えないようにする。
+export function verificationEmailContent(
+  purpose: VerificationPurpose,
+  code: string,
+): { subject: string; body: string } {
+  const isRegister = purpose === 'register';
+  const minutes = Math.floor(CODE_TTL_SECONDS / 60);
+
+  return {
+    subject: isRegister
+      ? '【FlexQ】新規登録の認証コード'
+      : '【FlexQ】パスワードリセットの認証コード',
+    body: [
+      isRegister
+        ? 'FlexQ の新規登録のお手続きを受け付けました。'
+        : 'FlexQ のパスワードリセットのお手続きを受け付けました。',
+      'アプリの画面に戻り、以下の 6 桁の認証コードを入力してください。',
+      '',
+      `認証コード: ${code}`,
+      '',
+      `有効期限は ${minutes} 分です。期限が切れた場合は、アプリの`,
+      '「認証コードを再送する」から新しいコードを受け取れます。',
+      '',
+      'このメールに心当たりがない場合は、コードを誰にも教えず破棄してください。',
+      isRegister
+        ? 'アカウントはまだ作成されていません。'
+        : 'お客様のパスワードはまだ変更されていません。',
+      '',
+      'FlexQ チーム',
+    ].join('\n'),
+  };
+}

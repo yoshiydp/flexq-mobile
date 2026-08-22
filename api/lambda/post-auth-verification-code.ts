@@ -7,6 +7,7 @@ import {
   RESEND_INTERVAL_SECONDS,
   canResend,
   generateCode,
+  verificationEmailContent,
 } from './verification-code';
 import {
   getStoredCode,
@@ -82,20 +83,8 @@ export const handler = async (event: any) => {
   }
 
   try {
-    await sendEmail({
-      to: email,
-      subject: '【FlexQ】認証コード',
-      body: [
-        'FlexQ の認証コードは以下のとおりです。',
-        '',
-        `認証コード: ${code}`,
-        '',
-        `有効期限は ${Math.floor(CODE_TTL_SECONDS / 60)} 分です。`,
-        'このメールに心当たりがない場合は、破棄してください。',
-        '',
-        'FlexQ チーム',
-      ].join('\n'),
-    });
+    const { subject, body } = verificationEmailContent(purpose, code);
+    await sendEmail({ to: email, subject, body });
   } catch (err) {
     // 予約した行を巻き戻し、ユーザーが再送間隔を待たずに再試行できるようにする
     console.error('Verification email failed to send:', err);
