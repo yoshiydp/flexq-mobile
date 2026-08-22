@@ -9,5 +9,11 @@
 #   - docs/test-cases.md のセクション・ケース ID と対応させる
 #   - 各フローの tags にセクション ID（例: PE）とケース ID（例: PE-11）を付与する
 # flows/helpers/ は共通ヘルパー（glob 対象外。各フローから runFlow で呼び出す）
+#
+# tags: mock — モック API サーバー（yarn mock:server + .env.local で localhost:3000）
+#   接続を前提とするフロー（TASK-85 の認証コード関連）。dev 接続の通常実行では
+#   失敗するため既定で除外する。実行する場合: maestro test .maestro --include-tags=mock
 flows:
   - "flows/[0-9]*/*.yaml"
+excludeTags:
+  - mock
