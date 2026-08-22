@@ -36,6 +36,9 @@ export default function PasswordResetScreen() {
   // 本人確認ステップ（TASK-85）: email で認証コードを送信 → verify でコード + 新パスワードを入力
   const [step, setStep] = useState<'email' | 'verify'>('email');
   const [code, setCode] = useState('');
+  // EditableFormControl は内部 state を持つため、再送時は key を変えて
+  // 再マウントし、表示中の古いコードをクリアする
+  const [codeFieldKey, setCodeFieldKey] = useState(0);
   const { secondsLeft, canResend, start: startResendCountdown } =
     useResendCountdown();
   const { showLoading, hideLoading } = useModal();
@@ -67,6 +70,7 @@ export default function PasswordResetScreen() {
       });
       startResendCountdown(res?.resendIn ?? 60);
       setCode('');
+      setCodeFieldKey((prev) => prev + 1);
       if (step !== 'verify') {
         setStep('verify');
       } else {
@@ -167,6 +171,7 @@ export default function PasswordResetScreen() {
                 {`${email} 宛に 6 桁の認証コードを送信しました。\nコードと新しいパスワードを入力してください。`}
               </Text>
               <EditableFormControl
+                key={`code-${codeFieldKey}`}
                 label="Verification Code"
                 darkMode
                 formValue={code}

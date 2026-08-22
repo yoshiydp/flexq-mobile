@@ -8,7 +8,11 @@ import {
   canResend,
   generateCode,
 } from './verification-code';
-import { getStoredCode, storeCode } from './verification-code-store';
+import {
+  getStoredCode,
+  rollbackStoredCode,
+  storeCode,
+} from './verification-code-store';
 
 // 6 桁認証コードの発行・メール送信 (TASK-85)
 // purpose:
@@ -62,7 +66,21 @@ export const handler = async (event: any) => {
     );
   }
 
+  // 先に条件付き Put でスロットを予約してからメールを送る。
+  // 送信後に保存する方式だと同時リクエストが両方 canResend を通過して
+  // 60 秒 1 通の制限をすり抜けるため（Codex レビュー指摘）
   const code = generateCode();
+  const reserved = await storeCode(email, purpose, code, now);
+  if (!reserved) {
+    return createResponse(
+      {
+        message: 'Please wait before requesting a new code',
+        resendIn: RESEND_INTERVAL_SECONDS,
+      },
+      429,
+    );
+  }
+
   try {
     await sendEmail({
       to: email,
@@ -79,15 +97,14 @@ export const handler = async (event: any) => {
       ].join('\n'),
     });
   } catch (err) {
-    // コードを保存する前に失敗させ、ユーザーがすぐ再試行できるようにする
+    // 予約した行を巻き戻し、ユーザーが再送間隔を待たずに再試行できるようにする
     console.error('Verification email failed to send:', err);
+    await rollbackStoredCode(email, purpose, stored);
     return createResponse(
       { message: 'Failed to send verification email' },
       502,
     );
   }
-
-  await storeCode(email, purpose, code, now);
 
   return createResponse({
     message: 'Verification code sent',
