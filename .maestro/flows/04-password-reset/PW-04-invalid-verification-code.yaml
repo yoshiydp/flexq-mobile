@@ -1,0 +1,89 @@
+# ID: PW-04
+# シナリオ名: 誤った認証コード（パスワードリセット）
+# 前提条件: **モック API サーバー接続が前提**（tags: mock）
+#   1. `yarn mock:server` を起動（http://localhost:3000・固定コード 123456）
+#   2. `.env.local` に `EXPO_PUBLIC_API_BASE_URL=http://localhost:3000` を設定して `yarn start`
+#   ※ dev（AWS）に接続した状態では実行しないこと。実際の認証コードはメールでしか受け取れず、
+#     コード入力ステップまで到達できないため（正常系 PW-03 は手動テストで確認する）
+# 操作手順: パスワードをリセットする → モックの登録済みメールで SEND CODE
+#           → 誤った 6 桁 + 新パスワードを入力 → PASSWORD RESET → 戻る
+# 期待結果: コード入力ステップに切り替わり、誤コードでは「認証コードが正しくありません。」が表示され
+#           パスワードは変更されない。戻るでメール入力ステップに復帰する（PW-06）
+# 備考: TASK-85 以前は email + 新パスワードだけで任意アカウントのパスワードを上書きできたため、
+#       「コードが合わなければ変更されない」ことがこのフローの主眼。
+#       モックサーバーはコードを保存せず 123456 との一致のみを見るため何度でも再実行できる
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PW
+  - PW-04
+  - mock
+env:
+  # モックサーバーのシードユーザー（src/data/authData.ts）
+  E2E_MOCK_EMAIL: 'testuser@example.com'
+---
+# 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
+- runFlow: ../helpers/launch-app.yaml
+
+# パスワードリセット画面へ遷移
+- tapOn: 'パスワードをリセットする'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'PASSWORD RESET'
+
+# 登録済みメールで SEND CODE → コード入力ステップへ
+# ※ Android の Maestro は非 ASCII 文字の inputText をサポートしないため ASCII で入力する
+- tapOn: 'メールアドレスを入力してください'
+- inputText: ${E2E_MOCK_EMAIL}
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible: 'Verification Code'
+    timeout: 30000
+
+# コード・新パスワードが揃うまで PASSWORD RESET は押せない（PW-01 のコード入力ステップ側）
+- assertVisible:
+    id: 'submit-button'
+    enabled: false
+
+# 誤った 6 桁 + 新パスワードを入力（モックの正解は 123456）
+# ※ 認証コード欄は keyboardType: number-pad で Return キーがないため、
+#   hide-keyboard（iOS は pressKey: Enter）を使うと入力が確定せず空になる。
+#   次の入力欄をタップすればキーボードは切り替わるためそのまま進める
+- tapOn: '6桁の認証コードを入力してください'
+- inputText: '000000'
+- tapOn: '新しいパスワードを入力してください'
+- inputText: 'newpassword123'
+- runFlow: ../helpers/hide-keyboard.yaml
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+- assertVisible:
+    id: 'submit-button'
+    enabled: true
+
+# PASSWORD RESET（コードが合わないためパスワードは変更されない）
+- tapOn:
+    id: 'submit-button'
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+- extendedWaitUntil:
+    visible: '.*認証コードが正しくありません.*'
+    timeout: 30000
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 完了画面へは進まず、コード入力ステップに留まる
+- assertVisible: 'Verification Code'
+- assertNotVisible: '.*パスワードをリセットしました.*'
+
+# 戻るでメール入力ステップに復帰する（画面は閉じない・PW-06）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 3000
+# iOS の「パスワードを保存しますか？」が遷移後に出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+- assertVisible: 'SEND CODE'
+- assertNotVisible: 'Verification Code'

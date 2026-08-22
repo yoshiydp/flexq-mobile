@@ -12,7 +12,10 @@
 #
 # tags: mock — モック API サーバー（yarn mock:server + .env.local で localhost:3000）
 #   接続を前提とするフロー（TASK-85 の認証コード関連）。dev 接続の通常実行では
-#   失敗するため既定で除外する。実行する場合: maestro test .maestro --include-tags=mock
+#   失敗するため既定で除外する。実行する場合はファイル / セクションディレクトリを
+#   直接指定する（ワークスペース指定だと下の excludeTags が --include-tags より
+#   優先され 0 件になる）:
+#     maestro test .maestro/flows/03-register/RG-07-invalid-verification-code.yaml
 flows:
   - "flows/[0-9]*/*.yaml"
 excludeTags:
