@@ -26,7 +26,7 @@ jest.mock('@/hooks/useScreenAnimation', () => ({
 }));
 
 jest.mock('@/hooks/useUploadTrack', () => ({
-  useUploadTrack: () => ({ pickAndUpload: jest.fn() }),
+  useUploadTrack: () => ({ pickAudio: jest.fn(), uploadTrack: jest.fn() }),
 }));
 
 jest.mock('@/hooks/useDeleteTrack', () => ({

@@ -13,6 +13,9 @@ import { FontAwesome } from '@expo/vector-icons';
 import Icon from '@/components/ui/Icon';
 import { useFetchTrack, TrackType } from '@/hooks/useFetchTrack';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
+import type { PickedAudio } from '@/hooks/useUploadTrack';
+import TrackAddSheet from '@/components/features/trackList/TrackAddSheet';
+import type { TrackAddInput } from '@/components/features/trackList/TrackAddSheet';
 import { COLORS } from '@/globalStyles';
 import styles from './TrackPickerModal.styles';
 
@@ -30,9 +33,11 @@ interface TrackPickerModalProps {
  */
 export default function TrackPickerModal({ visible, onClose, onSelect }: TrackPickerModalProps) {
   const { tracks, refreshTrack } = useFetchTrack();
-  const { pickAndUpload, loading: uploading } = useUploadTrack();
+  const { pickAudio, uploadTrack, loading: uploading } = useUploadTrack();
 
   const [loadedTrackIds, setLoadedTrackIds] = useState<Set<string>>(new Set());
+  // 音源選択後・アップロード前に追加確認シートへ渡す音源
+  const [pendingAudio, setPendingAudio] = useState<PickedAudio | null>(null);
   const trackAnimatedValuesRef = useRef<Map<string, { img: Animated.Value; spinner: Animated.Value }>>(new Map());
 
   // アップロード進行中にモーダルが閉じられた場合、完了後の onSelect を
@@ -43,6 +48,8 @@ export default function TrackPickerModal({ visible, onClose, onSelect }: TrackPi
   useEffect(() => {
     visibleRef.current = visible;
     if (visible) refreshTrack();
+    // 閉じられたら追加確認シートも一緒に閉じる
+    else setPendingAudio(null);
   }, [visible, refreshTrack]);
 
   const getTrackAnimatedValues = (id: string) => {
@@ -69,17 +76,31 @@ export default function TrackPickerModal({ visible, onClose, onSelect }: TrackPi
   };
 
   const handleUploadNew = async () => {
-    if (uploading) return;
+    if (uploading || pendingAudio) return;
+    try {
+      const picked = await pickAudio();
+      if (picked) setPendingAudio(picked); // 追加確認シートを表示
+    } catch {
+      if (visibleRef.current) {
+        Alert.alert('エラー', '音源の読み込みに失敗しました。');
+      }
+    }
+  };
+
+  const handleAddSheetSubmit = async (input: TrackAddInput) => {
+    const audio = pendingAudio;
+    if (!audio) return;
+    setPendingAudio(null);
+
     let uploaded;
     try {
-      uploaded = await pickAndUpload();
+      uploaded = await uploadTrack({ audio, ...input });
     } catch {
       if (visibleRef.current) {
         Alert.alert('エラー', '音源のアップロードに失敗しました。');
       }
       return;
     }
-    if (!uploaded) return; // ファイル選択キャンセル
     if (!visibleRef.current) return; // 進行中にモーダルが閉じられた場合は反映しない
 
     try {
@@ -163,6 +184,13 @@ export default function TrackPickerModal({ visible, onClose, onSelect }: TrackPi
             )}
           />
         </View>
+
+        <TrackAddSheet
+          visible={!!pendingAudio}
+          audio={pendingAudio}
+          onCancel={() => setPendingAudio(null)}
+          onSubmit={handleAddSheetSubmit}
+        />
       </View>
     </Modal>
   );
