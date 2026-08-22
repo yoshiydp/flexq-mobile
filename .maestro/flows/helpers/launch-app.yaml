@@ -33,14 +33,23 @@ appId: com.yoshiydp.lyricsapp
     commands:
       - tapOn: 'Continue'
 
-# Android は Continue 後も開発メニュー（bottom sheet）が開いたままになるため back で閉じる
-# （iOS は Continue のタップでメニューごと閉じる）
+# Continue 後も開発メニュー（bottom sheet）が開いたままになることがあるため閉じる。
+# Continue ダイアログが出ずにメニューだけ表示される場合もあるので 'Connected to:' で判定する
+# （Android: back / iOS: メニュー右上の Close ボタン）
 - runFlow:
     when:
       platform: Android
       visible: 'Connected to:'
     commands:
       - back
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runFlow:
+    when:
+      platform: iOS
+      visible: 'Connected to:'
+    commands:
+      - tapOn: 'Close'
       - waitForAnimationToEnd:
           timeout: 3000
 
