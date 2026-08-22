@@ -45,6 +45,8 @@ tags:
 - tapOn: 'パスワードを入力してください'
 - inputText: 'password123'
 - runFlow: ../helpers/hide-keyboard.yaml
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
 - assertVisible:
     id: 'submit-button'
     enabled: true
@@ -54,4 +56,6 @@ tags:
     id: 'toolbar-back'
 - waitForAnimationToEnd:
     timeout: 5000
+# iOS の「パスワードを保存しますか？」が遷移後に出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
 - assertVisible: 'Your Email'
