@@ -5,6 +5,7 @@ import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
 import { verifyGoogleAccessToken } from './google-auth';
+import { isSuspendedUser, suspendedResponse } from './account-suspension';
 
 // Google OAuth のアクセストークンを検証してログインする。
 // ユーザーの照合は一般的なサービスと同じ 3 段階:
@@ -77,6 +78,11 @@ export const handler = async (event: any) => {
     user = emailResult.Items?.[0];
 
     if (user) {
+      // 停止（BAN）中のアカウントには googleSub をひも付けず、
+      // レコードを変更しないまま拒否する (TASK-81)
+      if (isSuspendedUser(user)) {
+        return suspendedResponse();
+      }
       const socialAccounts = upsertGoogleSocialAccount(
         user.socialAccounts,
         googleUser.name ?? '',
@@ -141,6 +147,14 @@ export const handler = async (event: any) => {
         console.warn('Registration email failed to send:', err);
       }
     }
+  }
+
+  // 停止（BAN）中のアカウントは Google ログイン・再登録とも不可 (TASK-81)。
+  // ②（email 照合）は上で遮断済みのため、ここでは ①（googleSub 照合）を遮断する。
+  // Users レコードが論理削除で残るため、mode: 'register' でも新規作成には
+  // 進まず（①/② でヒットする）BAN の回避はできない
+  if (isSuspendedUser(user)) {
+    return suspendedResponse();
   }
 
   const payload = { userId: user.userId, email: user.email };

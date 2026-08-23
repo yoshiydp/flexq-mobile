@@ -3,6 +3,7 @@ import * as jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
 import { docClient } from './db';
 import { createResponse } from './utils';
+import { isSuspendedUser, suspendedResponse } from './account-suspension';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
@@ -30,6 +31,12 @@ export const handler = async (event: any) => {
   const valid = await bcrypt.compare(password, user.passwordHash);
   if (!valid) {
     return createResponse({ message: 'Invalid credentials' }, 401);
+  }
+
+  // 停止（BAN）中のアカウントはログイン不可 (TASK-81)。
+  // 資格情報の検証後に判定し、第三者にアカウントの存在を漏らさない
+  if (isSuspendedUser(user)) {
+    return suspendedResponse();
   }
 
   const payload = { userId: user.userId, email: user.email };

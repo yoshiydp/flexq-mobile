@@ -4,7 +4,7 @@ import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const trackId = event.pathParameters?.id;
