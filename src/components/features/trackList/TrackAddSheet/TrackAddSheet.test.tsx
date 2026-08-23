@@ -206,9 +206,11 @@ describe('TrackAddSheet', () => {
     expect(onCancel).toHaveBeenCalled();
   });
 
-  it('閉じるアニメーションの途中で開き直してもシートが閉じない', async () => {
+  // presentation="inline"（TrackPickerModal の中）は JS アニメーションで開閉する
+  it('inline: 閉じるアニメーションの途中で開き直してもシートが閉じない', async () => {
     const props = {
       audio: audioWithoutArtwork,
+      presentation: 'inline' as const,
       onCancel: jest.fn(),
       onSubmit: jest.fn(),
     };
@@ -224,6 +226,25 @@ describe('TrackAddSheet', () => {
       await new Promise((resolve) => setTimeout(resolve, 400));
     });
     expect(getByTestId('track-add-sheet')).toBeTruthy();
+  });
+
+  it('inline: 閉じるアニメーションの完了後に onCancel が呼ばれる', async () => {
+    const onCancel = jest.fn();
+    const { getByTestId, queryByTestId } = render(
+      <TrackAddSheet
+        visible
+        audio={audioWithoutArtwork}
+        presentation="inline"
+        onCancel={onCancel}
+        onSubmit={jest.fn()}
+      />,
+    );
+    fireEvent.press(getByTestId('track-add-close-button'));
+
+    await waitFor(() => {
+      expect(onCancel).toHaveBeenCalled();
+    });
+    expect(queryByTestId('track-add-sheet')).toBeNull();
   });
 
   it('audio が未選択のときは何も表示しない', () => {
