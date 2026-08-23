@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ScrollView, ActivityIndicator, View, Text, Alert, RefreshControl } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -33,9 +33,16 @@ export default function TrackListScreen() {
   // 音源選択後・アップロード前に追加確認シートへ渡す音源
   const [pendingAudio, setPendingAudio] = useState<PickedAudio | null>(null);
 
+  // ファイル選択中にタブを離れた場合、戻るまで追加確認シートを出さないための参照
+  const isFocusedRef = useRef(true);
+
   useFocusEffect(
     useCallback(() => {
+      isFocusedRef.current = true;
       refreshTrack();
+      return () => {
+        isFocusedRef.current = false;
+      };
     }, [refreshTrack]),
   );
 
@@ -51,7 +58,8 @@ export default function TrackListScreen() {
   const handleAddTrack = async () => {
     try {
       const picked = await pickAudio();
-      if (picked) setPendingAudio(picked);
+      // 選択中にタブを離れていた場合は、別画面の上にシートを出さない
+      if (picked && isFocusedRef.current) setPendingAudio(picked);
     } catch (err) {
       console.error('Pick audio failed:', err);
       Alert.alert('エラー', '音源の読み込みに失敗しました。');

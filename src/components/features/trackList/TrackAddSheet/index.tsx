@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Dimensions,
@@ -6,6 +6,8 @@ import {
   Image,
   Keyboard,
   KeyboardAvoidingView,
+  LayoutChangeEvent,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -37,8 +39,15 @@ interface TrackAddSheetProps {
   visible: boolean;
   /** 選択済みの音源。ID3 から取得できたアートワークが初期値になる */
   audio: PickedAudio | null;
+  /**
+   * 'modal': RN の Modal で全画面に重ねる（画面から直接開く場合）。
+   *          タブバー・ヘッダーボタンより上に出て、背後のタップも遮る。
+   * 'inline': 絶対配置のオーバーレイのみ（別の Modal の中から開く場合）。
+   *           iOS で Modal をネストすると表示が不安定になるため分けている。
+   */
+  presentation?: 'modal' | 'inline';
   onCancel: () => void;
-  /** 「追加」タップ時に呼ばれる。シートを閉じるのは呼び出し側の責務 */
+  /** 「ADD TRACK」タップ時に呼ばれる。シートを閉じるのは呼び出し側の責務 */
   onSubmit: (input: TrackAddInput) => void | Promise<void>;
 }
 
@@ -46,12 +55,11 @@ interface TrackAddSheetProps {
  * 音源選択後・アップロード前に表示する追加確認シート。
  *
  * アートワークの設定は任意で、ユーザーがタップしたときだけ写真ライブラリを開く。
- * TrackPickerModal（RN の Modal）の中からも開くため、Modal のネストを避けて
- * 絶対配置のオーバーレイ + スライドアニメーションで実装している。
  */
 export default function TrackAddSheet({
   visible,
   audio,
+  presentation = 'modal',
   onCancel,
   onSubmit,
 }: TrackAddSheetProps) {
@@ -60,8 +68,14 @@ export default function TrackAddSheet({
   const [artworkUri, setArtworkUri] = useState<string | null>(null);
   const [artworkIsDataUri, setArtworkIsDataUri] = useState(false);
 
-  // 0 = 表示位置 / 1 = 画面外（下）
-  const slideAnim = useRef(new Animated.Value(1)).current;
+  // 画面外（下）からシートの高さぶんだけスライドさせる。
+  // 実測前は画面高で退避しておき、初回レイアウトで実際の高さに置き換える
+  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const overlayOpacity = useRef(new Animated.Value(0)).current;
+  const sheetHeightRef = useRef(SCREEN_HEIGHT);
+  const openedRef = useRef(false);
+  // 閉じるアニメーションの完了時点で再度開かれていないかを判定するために保持する
+  const visibleRef = useRef(visible);
 
   // 開くたびに選択された音源の内容で初期化する
   useEffect(() => {
@@ -71,27 +85,71 @@ export default function TrackAddSheet({
     setArtworkIsDataUri(!!audio.artworkDataUri);
   }, [visible, audio]);
 
+  const animateOpen = useCallback(
+    (from?: number) => {
+      if (from !== undefined) translateY.setValue(from);
+      Animated.parallel([
+        Animated.timing(translateY, {
+          toValue: 0,
+          duration: 320,
+          easing: Easing.out(Easing.cubic),
+          useNativeDriver: true,
+        }),
+        Animated.timing(overlayOpacity, {
+          toValue: 1,
+          duration: 240,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      ]).start();
+    },
+    [translateY, overlayOpacity],
+  );
+
   useEffect(() => {
+    visibleRef.current = visible;
+
     if (visible) {
       setMounted(true);
-      slideAnim.setValue(1);
-      Animated.timing(slideAnim, {
-        toValue: 0,
-        duration: 300,
-        easing: Easing.out(Easing.exp),
-        useNativeDriver: true,
-      }).start();
-    } else {
-      Animated.timing(slideAnim, {
-        toValue: 1,
-        duration: 200,
-        easing: Easing.in(Easing.ease),
-        useNativeDriver: true,
-      }).start(({ finished }) => {
-        if (finished) setMounted(false);
-      });
+      // 閉じるアニメーションの途中で開き直された場合は、現在位置から開く
+      if (openedRef.current) animateOpen();
+      return;
     }
-  }, [visible, slideAnim]);
+
+    // まだ開いていない（初期マウント時など）なら何もしない
+    if (!openedRef.current) return;
+
+    Animated.parallel([
+      Animated.timing(translateY, {
+        toValue: sheetHeightRef.current,
+        duration: 220,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }),
+      Animated.timing(overlayOpacity, {
+        toValue: 0,
+        duration: 180,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    ]).start(({ finished }) => {
+      // 完了前に開き直された場合はアンマウントしない
+      if (!finished || visibleRef.current) return;
+      openedRef.current = false;
+      setMounted(false);
+    });
+  }, [visible, translateY, overlayOpacity, animateOpen]);
+
+  // シートの実高さが決まってから開くことで、移動距離が最短になり動きが自然になる
+  const handleSheetLayout = (event: LayoutChangeEvent) => {
+    const height = event.nativeEvent.layout.height;
+    if (height <= 0) return;
+    sheetHeightRef.current = height;
+    if (!visible || openedRef.current) return;
+
+    openedRef.current = true;
+    animateOpen(height);
+  };
 
   const handlePickArtwork = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -118,16 +176,7 @@ export default function TrackAddSheet({
 
   if (!mounted || !audio) return null;
 
-  const translateY = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [0, SCREEN_HEIGHT],
-  });
-  const overlayOpacity = slideAnim.interpolate({
-    inputRange: [0, 1],
-    outputRange: [1, 0],
-  });
-
-  return (
+  const content = (
     <KeyboardAvoidingView
       style={styles.root}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -137,7 +186,10 @@ export default function TrackAddSheet({
         <Pressable style={styles.overlay} onPress={() => Keyboard.dismiss()} />
       </Animated.View>
 
-      <Animated.View style={[styles.sheet, { transform: [{ translateY }] }]}>
+      <Animated.View
+        style={[styles.sheet, { transform: [{ translateY }] }]}
+        onLayout={handleSheetLayout}
+      >
         <View style={styles.header}>
           <Text style={styles.headerTitle}>ADD TRACK</Text>
           <Pressable onPress={onCancel} testID="track-add-close-button">
@@ -220,5 +272,21 @@ export default function TrackAddSheet({
         />
       </Animated.View>
     </KeyboardAvoidingView>
+  );
+
+  if (presentation === 'inline') return content;
+
+  return (
+    <Modal
+      transparent
+      visible
+      animationType="none"
+      onRequestClose={onCancel}
+      // Android の edge-to-edge でステータスバー・ナビゲーションバーの背後まで覆う
+      statusBarTranslucent
+      navigationBarTranslucent
+    >
+      {content}
+    </Modal>
   );
 }

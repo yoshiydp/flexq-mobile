@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import * as ImagePicker from 'expo-image-picker';
 import TrackAddSheet from './index';
 
@@ -204,6 +204,26 @@ describe('TrackAddSheet', () => {
     );
     fireEvent.press(getByTestId('track-add-close-button'));
     expect(onCancel).toHaveBeenCalled();
+  });
+
+  it('閉じるアニメーションの途中で開き直してもシートが閉じない', async () => {
+    const props = {
+      audio: audioWithoutArtwork,
+      onCancel: jest.fn(),
+      onSubmit: jest.fn(),
+    };
+    const { getByTestId, rerender } = render(
+      <TrackAddSheet visible {...props} />,
+    );
+    // 閉じる → アニメーション完了前に開き直す
+    rerender(<TrackAddSheet visible={false} {...props} />);
+    rerender(<TrackAddSheet visible {...props} />);
+
+    // 閉じるアニメーションの完了コールバックでアンマウントされないこと
+    await act(async () => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+    });
+    expect(getByTestId('track-add-sheet')).toBeTruthy();
   });
 
   it('audio が未選択のときは何も表示しない', () => {
