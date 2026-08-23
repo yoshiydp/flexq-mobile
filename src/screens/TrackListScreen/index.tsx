@@ -163,6 +163,7 @@ export default function TrackListScreen() {
           iconSize={22}
           onPress={handleAddTrack}
           startAnimation={startListAnimation}
+          testID="track-list-add-button"
         />
       )}
       <ScrollView
@@ -201,6 +202,7 @@ export default function TrackListScreen() {
               containerClassName={styles.addButton}
               label="ADD TRACK"
               onPress={handleAddTrack}
+              testID="track-list-add-button-empty"
             />
           </View>
         )}
