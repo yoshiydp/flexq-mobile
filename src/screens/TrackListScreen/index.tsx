@@ -1,4 +1,4 @@
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import { ScrollView, ActivityIndicator, View, Text, Alert, RefreshControl } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -12,6 +12,9 @@ import { useFetchTrack } from '@/hooks/useFetchTrack';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
+import type { PickedAudio } from '@/hooks/useUploadTrack';
+import TrackAddSheet from '@/components/features/trackList/TrackAddSheet';
+import type { TrackAddInput } from '@/components/features/trackList/TrackAddSheet';
 import { useDeleteTrack } from '@/hooks/useDeleteTrack';
 import { useModal } from '@/contexts/ModalContext';
 import { COLORS } from '@/globalStyles';
@@ -23,14 +26,23 @@ export default function TrackListScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
 
   const { tracks, loading, error, refreshTrack } = useFetchTrack();
-  const { pickAndUpload } = useUploadTrack();
+  const { pickAudio, uploadTrack } = useUploadTrack();
   const { deleteTrack } = useDeleteTrack();
   const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
   const [refreshing, setRefreshing] = useState(false);
+  // 音源選択後・アップロード前に追加確認シートへ渡す音源
+  const [pendingAudio, setPendingAudio] = useState<PickedAudio | null>(null);
+
+  // ファイル選択中にタブを離れた場合、戻るまで追加確認シートを出さないための参照
+  const isFocusedRef = useRef(true);
 
   useFocusEffect(
     useCallback(() => {
+      isFocusedRef.current = true;
       refreshTrack();
+      return () => {
+        isFocusedRef.current = false;
+      };
     }, [refreshTrack]),
   );
 
@@ -45,9 +57,23 @@ export default function TrackListScreen() {
 
   const handleAddTrack = async () => {
     try {
+      const picked = await pickAudio();
+      // 選択中にタブを離れていた場合は、別画面の上にシートを出さない
+      if (picked && isFocusedRef.current) setPendingAudio(picked);
+    } catch (err) {
+      console.error('Pick audio failed:', err);
+      Alert.alert('エラー', '音源の読み込みに失敗しました。');
+    }
+  };
+
+  const handleAddSheetSubmit = async (input: TrackAddInput) => {
+    const audio = pendingAudio;
+    if (!audio) return;
+    setPendingAudio(null);
+    try {
       showLoading();
-      const track = await pickAndUpload();
-      if (track) await refreshTrack();
+      await uploadTrack({ audio, ...input });
+      await refreshTrack();
     } catch (err) {
       console.error('Upload failed:', err);
       Alert.alert('エラー', 'トラックのアップロードに失敗しました。');
@@ -145,6 +171,7 @@ export default function TrackListScreen() {
           iconSize={22}
           onPress={handleAddTrack}
           startAnimation={startListAnimation}
+          testID="track-list-add-button"
         />
       )}
       <ScrollView
@@ -183,10 +210,18 @@ export default function TrackListScreen() {
               containerClassName={styles.addButton}
               label="ADD TRACK"
               onPress={handleAddTrack}
+              testID="track-list-add-button-empty"
             />
           </View>
         )}
       </ScrollView>
+
+      <TrackAddSheet
+        visible={!!pendingAudio}
+        audio={pendingAudio}
+        onCancel={() => setPendingAudio(null)}
+        onSubmit={handleAddSheetSubmit}
+      />
     </HomeTabsScreenTemplate>
   );
 }

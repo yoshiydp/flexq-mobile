@@ -33,8 +33,17 @@ const mockRefreshedNewTrack = {
   updatedAt: new Date('2026-01-02'),
 };
 
+const mockPickedAudio = {
+  uri: 'file:///tmp/new.mp3',
+  name: 'new.mp3',
+  ext: 'mp3',
+  contentType: 'audio/mpeg',
+  artworkDataUri: null,
+};
+
 const mockRefreshTrack = jest.fn();
-const mockPickAndUpload = jest.fn();
+const mockPickAudio = jest.fn();
+const mockUploadTrack = jest.fn();
 
 jest.mock('@/hooks/useFetchTrack', () => ({
   useFetchTrack: () => ({
@@ -47,10 +56,15 @@ jest.mock('@/hooks/useFetchTrack', () => ({
 
 jest.mock('@/hooks/useUploadTrack', () => ({
   useUploadTrack: () => ({
-    pickAndUpload: mockPickAndUpload,
+    pickAudio: mockPickAudio,
+    uploadTrack: mockUploadTrack,
     loading: false,
     error: null,
   }),
+}));
+
+jest.mock('expo-image-picker', () => ({
+  launchImageLibraryAsync: jest.fn(),
 }));
 
 describe('TrackPickerModal', () => {
@@ -86,8 +100,23 @@ describe('TrackPickerModal', () => {
     expect(onClose).toHaveBeenCalled();
   });
 
-  it('新規アップロード完了後、再取得したトラックが onSelect に渡される', async () => {
-    mockPickAndUpload.mockResolvedValue(mockUploadedTrack);
+  it('音源選択後はアップロードせず追加確認シートを表示する', async () => {
+    mockPickAudio.mockResolvedValue(mockPickedAudio);
+
+    const { getByTestId } = render(
+      <TrackPickerModal visible onClose={jest.fn()} onSelect={jest.fn()} />,
+    );
+    fireEvent.press(getByTestId('upload-new-track-button'));
+
+    await waitFor(() => {
+      expect(getByTestId('track-add-sheet')).toBeTruthy();
+    });
+    expect(mockUploadTrack).not.toHaveBeenCalled();
+  });
+
+  it('シートの追加ボタンでアップロードし、再取得したトラックが onSelect に渡される', async () => {
+    mockPickAudio.mockResolvedValue(mockPickedAudio);
+    mockUploadTrack.mockResolvedValue(mockUploadedTrack);
     mockRefreshTrack.mockResolvedValue([mockRefreshedNewTrack, mockTrackA]);
 
     const onSelect = jest.fn();
@@ -97,13 +126,23 @@ describe('TrackPickerModal', () => {
     fireEvent.press(getByTestId('upload-new-track-button'));
 
     await waitFor(() => {
+      expect(getByTestId('track-add-sheet')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('track-add-submit-button'));
+
+    await waitFor(() => {
       expect(onSelect).toHaveBeenCalledWith(mockRefreshedNewTrack);
     });
+    // アートワーク未設定のまま追加できる
+    expect(mockUploadTrack).toHaveBeenCalledWith(
+      expect.objectContaining({ artworkUri: null, artworkIsDataUri: false }),
+    );
   });
 
   it('アップロード進行中にモーダルを閉じた場合は onSelect を呼ばない', async () => {
+    mockPickAudio.mockResolvedValue(mockPickedAudio);
     let resolveUpload: (value: typeof mockUploadedTrack) => void;
-    mockPickAndUpload.mockReturnValue(
+    mockUploadTrack.mockReturnValue(
       new Promise((resolve) => {
         resolveUpload = resolve;
       }),
@@ -116,6 +155,11 @@ describe('TrackPickerModal', () => {
     );
     fireEvent.press(getByTestId('upload-new-track-button'));
 
+    await waitFor(() => {
+      expect(getByTestId('track-add-sheet')).toBeTruthy();
+    });
+    fireEvent.press(getByTestId('track-add-submit-button'));
+
     // アップロード完了前にモーダルを閉じる
     rerender(
       <TrackPickerModal visible={false} onClose={jest.fn()} onSelect={onSelect} />,
@@ -123,23 +167,53 @@ describe('TrackPickerModal', () => {
     resolveUpload!(mockUploadedTrack);
 
     await waitFor(() => {
-      expect(mockPickAndUpload).toHaveBeenCalled();
+      expect(mockUploadTrack).toHaveBeenCalled();
     });
     expect(onSelect).not.toHaveBeenCalled();
   });
 
-  it('ファイル選択をキャンセルした場合は onSelect を呼ばない', async () => {
-    mockPickAndUpload.mockResolvedValue(null);
+  it('ファイル選択中にモーダルを閉じた場合はシートを表示しない', async () => {
+    let resolvePick: (value: typeof mockPickedAudio) => void;
+    mockPickAudio.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePick = resolve;
+      }),
+    );
+
+    const { getByTestId, queryByTestId, rerender } = render(
+      <TrackPickerModal visible onClose={jest.fn()} onSelect={jest.fn()} />,
+    );
+    fireEvent.press(getByTestId('upload-new-track-button'));
+
+    // 選択が終わる前にモーダルを閉じる
+    rerender(
+      <TrackPickerModal visible={false} onClose={jest.fn()} onSelect={jest.fn()} />,
+    );
+    resolvePick!(mockPickedAudio);
+
+    await waitFor(() => {
+      expect(mockPickAudio).toHaveBeenCalled();
+    });
+    // 開き直してもシートが残っていないこと
+    rerender(
+      <TrackPickerModal visible onClose={jest.fn()} onSelect={jest.fn()} />,
+    );
+    expect(queryByTestId('track-add-sheet')).toBeNull();
+  });
+
+  it('ファイル選択をキャンセルした場合はシートを表示せず onSelect も呼ばない', async () => {
+    mockPickAudio.mockResolvedValue(null);
 
     const onSelect = jest.fn();
-    const { getByTestId } = render(
+    const { getByTestId, queryByTestId } = render(
       <TrackPickerModal visible onClose={jest.fn()} onSelect={onSelect} />,
     );
     fireEvent.press(getByTestId('upload-new-track-button'));
 
     await waitFor(() => {
-      expect(mockPickAndUpload).toHaveBeenCalled();
+      expect(mockPickAudio).toHaveBeenCalled();
     });
+    expect(queryByTestId('track-add-sheet')).toBeNull();
     expect(onSelect).not.toHaveBeenCalled();
   });
 });
