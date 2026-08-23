@@ -25,6 +25,9 @@ export interface PickedAudio {
   artworkDataUri: string | null;
 }
 
+/** ファイルピッカーの dismiss アニメーションが終わるのを待つ時間 */
+const PICKER_DISMISS_DELAY_MS = 300;
+
 export interface UploadTrackInput {
   audio: PickedAudio;
   title: string;
@@ -60,6 +63,10 @@ export function useUploadTrack() {
     } catch (err) {
       console.warn('Failed to read ID3 artwork:', err);
     }
+
+    // ファイルピッカーが閉じ切る前に追加確認シート（iOS では Modal）を出すと、
+    // 表示に失敗したり閉じるアニメーションと重なってカクつくため少し待つ
+    await new Promise((resolve) => setTimeout(resolve, PICKER_DISMISS_DELAY_MS));
 
     return {
       uri: audioAsset.uri,

@@ -172,6 +172,35 @@ describe('TrackPickerModal', () => {
     expect(onSelect).not.toHaveBeenCalled();
   });
 
+  it('ファイル選択中にモーダルを閉じた場合はシートを表示しない', async () => {
+    let resolvePick: (value: typeof mockPickedAudio) => void;
+    mockPickAudio.mockReturnValue(
+      new Promise((resolve) => {
+        resolvePick = resolve;
+      }),
+    );
+
+    const { getByTestId, queryByTestId, rerender } = render(
+      <TrackPickerModal visible onClose={jest.fn()} onSelect={jest.fn()} />,
+    );
+    fireEvent.press(getByTestId('upload-new-track-button'));
+
+    // 選択が終わる前にモーダルを閉じる
+    rerender(
+      <TrackPickerModal visible={false} onClose={jest.fn()} onSelect={jest.fn()} />,
+    );
+    resolvePick!(mockPickedAudio);
+
+    await waitFor(() => {
+      expect(mockPickAudio).toHaveBeenCalled();
+    });
+    // 開き直してもシートが残っていないこと
+    rerender(
+      <TrackPickerModal visible onClose={jest.fn()} onSelect={jest.fn()} />,
+    );
+    expect(queryByTestId('track-add-sheet')).toBeNull();
+  });
+
   it('ファイル選択をキャンセルした場合はシートを表示せず onSelect も呼ばない', async () => {
     mockPickAudio.mockResolvedValue(null);
 

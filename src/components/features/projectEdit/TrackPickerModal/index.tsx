@@ -79,7 +79,8 @@ export default function TrackPickerModal({ visible, onClose, onSelect }: TrackPi
     if (uploading || pendingAudio) return;
     try {
       const picked = await pickAudio();
-      if (picked) setPendingAudio(picked); // 追加確認シートを表示
+      // 選択中にモーダルが閉じられた場合は、次に開いたときに残らないよう破棄する
+      if (picked && visibleRef.current) setPendingAudio(picked);
     } catch {
       if (visibleRef.current) {
         Alert.alert('エラー', '音源の読み込みに失敗しました。');
@@ -188,6 +189,8 @@ export default function TrackPickerModal({ visible, onClose, onSelect }: TrackPi
         <TrackAddSheet
           visible={!!pendingAudio}
           audio={pendingAudio}
+          // すでに Modal の中にいるため、Modal のネストを避けて絶対配置で重ねる
+          presentation="inline"
           onCancel={() => setPendingAudio(null)}
           onSubmit={handleAddSheetSubmit}
         />

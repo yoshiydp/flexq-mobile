@@ -1,11 +1,11 @@
-import { StyleSheet, Dimensions } from 'react-native';
+import { StyleSheet, Dimensions, Platform } from 'react-native';
 import { COLORS } from '@/globalStyles';
 
 const { height: SCREEN_HEIGHT } = Dimensions.get('window');
 
 export default StyleSheet.create({
-  // RN の Modal を使わず絶対配置で重ねる（TrackPickerModal の Modal 内からも
-  // 開くため、Modal のネストを避ける必要がある）
+  // presentation='modal' では Modal の中身として全画面に、'inline' では
+  // 親（別の Modal）の中に絶対配置で重ねる
   root: {
     ...StyleSheet.absoluteFillObject,
     justifyContent: 'flex-end',
@@ -115,6 +115,8 @@ export default StyleSheet.create({
   },
   submitButton: {
     marginHorizontal: 20,
-    marginBottom: 28,
+    // Modal は画面全体を覆うため、ホームインジケーター（iOS）とタブバーに
+    // 隠れないよう下側に余白を確保する
+    marginBottom: Platform.OS === 'ios' ? 40 : 28,
   },
 });
