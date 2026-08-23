@@ -12,6 +12,9 @@ import { useFetchTrack } from '@/hooks/useFetchTrack';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
+import type { PickedAudio } from '@/hooks/useUploadTrack';
+import TrackAddSheet from '@/components/features/trackList/TrackAddSheet';
+import type { TrackAddInput } from '@/components/features/trackList/TrackAddSheet';
 import { useDeleteTrack } from '@/hooks/useDeleteTrack';
 import { useModal } from '@/contexts/ModalContext';
 import { COLORS } from '@/globalStyles';
@@ -23,10 +26,12 @@ export default function TrackListScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
 
   const { tracks, loading, error, refreshTrack } = useFetchTrack();
-  const { pickAndUpload } = useUploadTrack();
+  const { pickAudio, uploadTrack } = useUploadTrack();
   const { deleteTrack } = useDeleteTrack();
   const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
   const [refreshing, setRefreshing] = useState(false);
+  // 音源選択後・アップロード前に追加確認シートへ渡す音源
+  const [pendingAudio, setPendingAudio] = useState<PickedAudio | null>(null);
 
   useFocusEffect(
     useCallback(() => {
@@ -45,9 +50,22 @@ export default function TrackListScreen() {
 
   const handleAddTrack = async () => {
     try {
+      const picked = await pickAudio();
+      if (picked) setPendingAudio(picked);
+    } catch (err) {
+      console.error('Pick audio failed:', err);
+      Alert.alert('エラー', '音源の読み込みに失敗しました。');
+    }
+  };
+
+  const handleAddSheetSubmit = async (input: TrackAddInput) => {
+    const audio = pendingAudio;
+    if (!audio) return;
+    setPendingAudio(null);
+    try {
       showLoading();
-      const track = await pickAndUpload();
-      if (track) await refreshTrack();
+      await uploadTrack({ audio, ...input });
+      await refreshTrack();
     } catch (err) {
       console.error('Upload failed:', err);
       Alert.alert('エラー', 'トラックのアップロードに失敗しました。');
@@ -145,6 +163,7 @@ export default function TrackListScreen() {
           iconSize={22}
           onPress={handleAddTrack}
           startAnimation={startListAnimation}
+          testID="track-list-add-button"
         />
       )}
       <ScrollView
@@ -183,10 +202,18 @@ export default function TrackListScreen() {
               containerClassName={styles.addButton}
               label="ADD TRACK"
               onPress={handleAddTrack}
+              testID="track-list-add-button-empty"
             />
           </View>
         )}
       </ScrollView>
+
+      <TrackAddSheet
+        visible={!!pendingAudio}
+        audio={pendingAudio}
+        onCancel={() => setPendingAudio(null)}
+        onSubmit={handleAddSheetSubmit}
+      />
     </HomeTabsScreenTemplate>
   );
 }
