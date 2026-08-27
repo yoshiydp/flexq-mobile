@@ -42,6 +42,7 @@ import type { SeparationStatus } from '@/types/separationType';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
+import { getSeparationStartErrorMessage } from '@/utils/separationErrorMessage';
 import styles from './RecordPlayerScreen.styles';
 
 /**
@@ -551,7 +552,8 @@ export default function RecordPlayerScreen() {
       await startSeparation(params.id);
     } catch (error) {
       console.error('Failed to start AI cleanup:', error);
-      Alert.alert('エラー', SEPARATION_LABELS.startFailed);
+      // 503（サーバー側で機能が無効）は再試行しても回復しないため文言を分ける (TASK-88)
+      Alert.alert('エラー', getSeparationStartErrorMessage(error));
     }
   };
 
@@ -626,6 +628,8 @@ export default function RecordPlayerScreen() {
             await startSeparation(record.id);
           } catch (error) {
             console.error('Failed to auto-start AI cleanup:', error);
+            // 自動実行の失敗も利用者へ通知する（保存自体は成功しているため保存処理は継続する）
+            Alert.alert('エラー', getSeparationStartErrorMessage(error));
           }
         }
       }

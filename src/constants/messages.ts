@@ -16,6 +16,9 @@ export const SEPARATION_LABELS = {
   toggleLabel: 'AI クリーンアップ',
   startFailed: 'AI クリーンアップの開始に失敗しました。',
   failed: 'AI クリーンアップに失敗しました。時間をおいて再度お試しください。',
+  // サーバー側で AI クリーンアップが未設定のとき（503）。再試行しても回復しないため
+  // 「開始に失敗」ではなく利用不可の案内を出す (TASK-88)
+  unavailable: 'AI クリーンアップは現在ご利用いただけません。復旧までしばらくお待ちください。',
 };
 
 export const SHARE_LABELS = {

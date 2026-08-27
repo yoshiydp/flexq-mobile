@@ -80,7 +80,11 @@ export function useSeparateRecord() {
         return res;
       } catch (err) {
         if (isMountedRef.current) {
-          setStatus('failed');
+          // 開始できなかった場合は failed で固定せず none に戻し、ボタンから再実行できるようにする。
+          // failed に落とすと RecordPlayerScreen 側の failed 監視 effect
+          // （ポーリング中の失敗を通知するもの）が開始失敗でも発火し、
+          // 呼び出し元の catch と合わせてエラーアラートが二重表示になる (TASK-88)
+          setStatus('none');
           setError(err as Error);
         }
         throw err;

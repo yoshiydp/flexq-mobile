@@ -180,7 +180,7 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 
 > **注意:** `api/samconfig.toml` のデフォルトスタック名は dev の `lyrics-dev-api`（`--stack-name` なしの `sam deploy` は dev に向く）。**staging / production へのデプロイでは `--stack-name` と `AWS_PROFILE=flexq-ops` を必ず明示する**。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
 
-- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、未指定でも CloudFormation が前回値を保持する
+- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（新規作成時はテンプレートの `Default` が入る。下記「Replicate トークン」の注意も参照）
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
@@ -277,6 +277,15 @@ cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-chang
 - Replicate のトークン・費用は**当面開発側負担**（運営者アカウントの stg / prod への設定も開発者が行う。`docs/aws-account-migration-guide.md` 第 III 部 7）
 - `ReplicateApiToken` は NoEcho（CloudFormation コンソールに表示されない）。**未設定の間は分離エンドポイントが 503 を返す**が、他機能には影響しない
 - 一度設定した値は以後の未指定デプロイでも保持される（CloudFormation の UsePreviousValue）。ただし確実を期すなら毎回明示指定する
+- **⚠️ UsePreviousValue が効くのは「既存スタックの更新」だけ。スタックを新規作成した場合は `Default` の空文字が入り、AI クリーンアップが 503 になる**（TASK-88: 運営者アカウントへの移行で新設した `lyrics-dev-api` / `flexq-stg-api` / `flexq-prod-api` の 3 スタックとも空のままで、TestFlight / Play 内部テストの AI クリーンアップが全滅していた）
+- デプロイ後は環境変数が空でないことを確認する（`/deploy-api-dev` / `/deploy-api-stg` の手順 5 のスモークチェック）:
+
+```bash
+FN=$(aws lambda list-functions --region ap-northeast-1 \
+  --query "Functions[?starts_with(FunctionName,'lyrics-dev-api-PostRecordSeparateFunction')].FunctionName" --output text)
+aws lambda get-function-configuration --function-name "$FN" --region ap-northeast-1 \
+  --query "Environment.Variables.REPLICATE_API_TOKEN" --output text | wc -c   # 1 なら空 = 未設定
+```
 - トークンをローテーションした場合は staging / production（利用していれば dev も）へ再デプロイで反映する
 
 #### コスト
