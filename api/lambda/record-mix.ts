@@ -54,8 +54,32 @@ export function mixedS3KeyFor(
  *     同期ズレの修正）
  * v3: iTunes 系 mp3（Xing/LAME ヘッダーなし）の gapless 補正を追加
  *     （エンコーダ priming + デコーダディレイぶんトラックが遅れる問題の修正）
+ * v4: Bluetooth 録音のテイクは開始位置から出力遅延の代表値を差し引く
+ *     （録音時の BT 出力遅延が startPositionMs に焼き込まれ声が先行する問題の修正 / TASK-89）
  */
-export const MIX_PIPELINE_VERSION = 3;
+export const MIX_PIPELINE_VERSION = 4;
+
+/**
+ * Bluetooth イヤホンで録音したテイクの開始位置補正（ms）。
+ * 録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、Bluetooth
+ * （A2DP）では耳に届くのが出力遅延ぶん後のため、保存値が真の値より大きくなり
+ * 声が先行する。アプリ側の同時再生（src/utils/syncStartPosition.ts）と
+ * 同じ値・同じ規則で差し引く
+ */
+export const BLUETOOTH_RECORDING_LATENCY_MS = 220;
+
+/**
+ * ミックスで使う実効的な録音開始位置（ms）。
+ * Bluetooth 録音のテイクは出力遅延の代表値を差し引く（0 未満にはしない）
+ */
+export function effectiveStartPositionMs(record: {
+  startPositionMs?: number;
+  recordedWithHeadphones?: string;
+}): number {
+  const base = Math.max(0, record.startPositionMs ?? 0);
+  if (record.recordedWithHeadphones !== 'bluetooth') return base;
+  return Math.max(0, base - BLUETOOTH_RECORDING_LATENCY_MS);
+}
 
 /**
  * キャッシュ済みのミックスが現在の素材と一致しているか。
@@ -71,6 +95,7 @@ export function isMixCacheValid(
     mixTrackRef?: string;
     mixStartPositionMs?: number;
     startPositionMs?: number;
+    recordedWithHeadphones?: string;
     mixVersion?: number;
   },
   trackRef: string
@@ -79,7 +104,8 @@ export function isMixCacheValid(
     record.mixStatus === 'done' &&
     !!record.mixedS3Key &&
     record.mixTrackRef === trackRef &&
-    (record.mixStartPositionMs ?? 0) === (record.startPositionMs ?? 0) &&
+    // mixStartPositionMs には補正後の実効値を保存している
+    (record.mixStartPositionMs ?? 0) === effectiveStartPositionMs(record) &&
     record.mixVersion === MIX_PIPELINE_VERSION
   );
 }

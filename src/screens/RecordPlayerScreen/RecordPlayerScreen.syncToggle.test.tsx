@@ -224,6 +224,14 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
     );
   });
 
+  it('Bluetooth 録音のテイクは出力遅延ぶん手前の開始位置を useSyncedTrackPlayback に渡す（TASK-89）', async () => {
+    mockParams = { ...mockParams, recordedWithHeadphones: 'bluetooth' };
+    await renderScreen();
+    expect(mockedUseSyncedTrackPlayback).toHaveBeenCalledWith(
+      expect.objectContaining({ startPositionMs: 5000 - 220 }),
+    );
+  });
+
   it('projectId を持たない（QuickRecord 由来の）レコードの場合、トグルを表示しない', async () => {
     mockParams = {
       recordedFile: 'file:///tmp/recording.m4a',
