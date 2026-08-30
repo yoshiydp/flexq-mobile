@@ -259,11 +259,19 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 - 従量課金（プリペイドクレジットから消費）。demucs は GPU 実行数秒〜十数秒で **1 回あたり数円程度**（実測: 8.7 秒の音源で処理 17 秒）
 - アプリ側の課金ガード: 実行はユーザーのオプトインのみ・処理済みレコードの再実行はキャッシュ（`separatedS3Key`）を返して二重課金を防止
 
+#### クライアント側の再生（ローカルキャッシュ / TASK-89）
+
+- 分離音源（声のみ）は 16-bit PCM wav（約 1.4 Mbps・元録音 m4a の 5 倍超）のため、Presigned URL をそのまま `Audio.Sound` に渡す**ストリーミング再生では冒頭の再バッファリングで音が途切れ（カクつき）、その間に録音側の再生位置だけが止まってトラック同時再生が 0.2〜0.3 秒ズレる**（補正ウィンドウの外で起きるため残る）。ファイル自体は元録音と相互相関で 0.00 ms 一致しており、サーバー側の位置合わせ（TASK-44）の問題ではない
+- そのため「声のみ」への切替時に `src/utils/recordAudioCache.ts` でキャッシュディレクトリ（`record-audio/`）へダウンロードしてからローカルファイルとして再生する（切替中はフルスクリーンローディング）。2 回目以降はキャッシュから即再生。鮮度は Presigned URL の ETag（`Range: bytes=0-0` の GET で取得。HEAD は署名不一致で 403）で判定し、再実行で上書きされた音源は作り直す。ダウンロード失敗時は従来のストリーミング再生にフォールバックする
+- iOS の発音開始タイミング補正（`useSyncedTrackPlayback.correctSyncOffset`）のウィンドウは 150ms × 8 回（1.2 秒）
+- Metro 接続の開発ビルド（`__DEV__`）では再生画面の下部に `source=… sync=… offset=…` の可視化テキスト（`sync-offset-debug`）を表示する。`offset` はトラック位置 −（開始位置 + 録音位置）の実測値（正 = 声が遅れて聞こえる）。E2E `.maestro/flows/13-sync-playback/SY-05-separated-timing.yaml` はこの値が ±39ms 以内であることを検証する
+
 #### トラブルシューティング
 
 | 症状 | 原因 / 確認先 |
 |------|--------------|
 | 実行時に 503 | `ReplicateApiToken` 未設定（SAM パラメータを確認） |
+| 声のみの同時再生がズレる・冒頭がカクつく | 分離音源がローカルキャッシュではなくストリーミング再生されている（開発ビルドの `sync-offset-debug` が `separated:remote` になる = ダウンロード失敗。端末の空き容量・Presigned URL の期限切れを確認）。`separated:local` でズレる場合は `offset` の値と `useSyncedTrackPlayback` の補正ログを確認する |
 | 開始直後に 502 | `PostRecordSeparateFunction` の CloudWatch ログ（Replicate API エラーの詳細が出る） |
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
@@ -481,13 +489,14 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 ```
 
 - 新しいフローは**新構成**で作成し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
-- 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）
+- 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）。作成に外部 API の実行（Replicate 等）が必要なデータは demo アカウントの既存サンプルを読み取り専用で使い、`updatedAt` の更新やブックマークで一覧先頭に出す（例: `sy05-setup.js`）
+- リスト項目の `Pressable` は子テキストがグループ化され、ラベルが「タイトル, 日付 …」の連結になるため `'.*タイトル.*'` の部分一致で探す。表示領域の狭い内側の ScrollView では枠外の項目も階層上は「表示中」扱いになり `scrollUntilVisible` → `tapOn` が枠外をタップして失敗するため、対象を先頭に出す前提データにする
 - ネイティブ UI（DocumentPicker / ImagePicker など）を伴う操作は E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
 
 **実行前提:**
-- `yarn start` で開発サーバーを起動済み（dev 環境に接続）
+- `yarn start` で開発サーバーを起動済み（dev 環境に接続）。非対話で起動する場合は `CI=1 npx expo start`（ファイル監視なし。ソース変更後は再起動が必要）
 - iOS シミュレーターまたは Android エミュレーターに開発ビルド（expo-dev-client）をインストール済み（初回のみ `yarn ios` / `yarn android`）
-- **手動ログアウトは不要**（各フローが起動時に `clearState` + `clearKeychain` でアプリ状態を初期化し、ログイン画面から開始する。Expo Dev Client のランチャー画面・初回ダイアログも `helpers/launch-app.yaml` が自動処理する）
+- **手動ログアウトは不要**（各フローが起動時に `clearState` + `clearKeychain` でアプリ状態を初期化し、ログイン画面から開始する。Expo Dev Client のランチャー画面・初回ダイアログ・Continue 後に残る開発メニュー（iOS は `Close`、Android は back）、iOS のパスワード保存ダイアログ（`今はしない`）も `helpers/launch-app.yaml` / `helpers/login.yaml` が自動処理する）
 
 **実行方法:**
 

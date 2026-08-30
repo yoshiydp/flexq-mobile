@@ -43,7 +43,16 @@ import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { getSeparationStartErrorMessage } from '@/utils/separationErrorMessage';
+import { isRemoteUri, resolveCachedRecordAudio } from '@/utils/recordAudioCache';
 import styles from './RecordPlayerScreen.styles';
+
+/**
+ * 開発時の同期状態の可視化（Metro 接続の開発ビルドのみ / TASK-89）。
+ * 「再生対象とその取得元 / 同時再生の有効状態 / 実測ズレ」を 1 行で表示し、
+ * E2E（.maestro/flows/13-sync-playback）はこの表示でズレが許容値内かを検証する。
+ * EAS Update / ストア配布のバンドルでは __DEV__ が false のため表示されない
+ */
+const SYNC_DEBUG_INTERVAL_MS = 500;
 
 /**
  * 再生ボタンの表示・操作判定に使う「再生意図」。
@@ -107,6 +116,10 @@ export default function RecordPlayerScreen() {
   );
   // 音源再取得リトライ時に、切替直後でも最新の再生対象を参照するための ref
   const activeSourceRef = useRef<'original' | 'separated'>('original');
+  // 声のみ音源のローカルキャッシュ URI（file://）。ストリーミングにフォールバック
+  // した場合は null（共有時のダウンロード省略と開発時の可視化に使う / TASK-89）
+  const [separatedLocalUri, setSeparatedLocalUri] = useState<string | null>(null);
+  const [debugSyncOffsetMs, setDebugSyncOffsetMs] = useState<number | null>(null);
   const prevSeparationStatusRef = useRef<SeparationStatus>('none');
 
   // プロジェクト録音のみ、イヤホン装着時にトラック音源との同期同時再生を有効化できる (TASK-37)。
@@ -136,6 +149,40 @@ export default function RecordPlayerScreen() {
   // 画面遷移などで既にアンマウント済みの場合、音源再取得リトライの継続処理
   // （Alert 表示や Audio.Sound の生成）を行わないようにするための参照 (TASK-34)
   const isMountedRef = useRef(true);
+
+  /**
+   * 声のみ音源（S3 Presigned URL の wav）を再生用のローカルファイルに解決する (TASK-89)。
+   * 16-bit PCM wav のストリーミング再生は冒頭の再バッファリングで音が途切れ、
+   * その間に録音側の再生位置だけが止まってトラックとの同時再生がズレるため、
+   * ダウンロード（2 回目以降はキャッシュ）してから再生する。
+   * ダウンロードに失敗した場合は従来どおり URL のストリーミング再生にフォールバックする。
+   * @param forceRefresh キャッシュを無視して再ダウンロードする（ロード失敗後のリトライ用）
+   */
+  const resolveSeparatedPlaybackUri = async (
+    remoteUri: string,
+    forceRefresh = false,
+  ): Promise<string> => {
+    if (!params?.id || !isRemoteUri(remoteUri)) return remoteUri;
+    showLoading();
+    try {
+      const cached = await resolveCachedRecordAudio(
+        remoteUri,
+        `${params.id}-separated`,
+        { forceRefresh },
+      );
+      if (isMountedRef.current) setSeparatedLocalUri(cached.uri);
+      return cached.uri;
+    } catch (error) {
+      console.error(
+        'Failed to cache separated audio; falling back to streaming:',
+        error,
+      );
+      if (isMountedRef.current) setSeparatedLocalUri(null);
+      return remoteUri;
+    } finally {
+      hideLoading();
+    }
+  };
 
   const loadTrack = async (
     autoPlay = false,
@@ -250,10 +297,12 @@ export default function RecordPlayerScreen() {
           Alert.alert('エラー', '音源の再取得に失敗しました。');
           return;
         }
-        // 「声のみ」再生中に期限切れになった場合は分離済み音源の最新 URL でリトライする
+        // 「声のみ」再生中に期限切れになった場合は分離済み音源の最新 URL でリトライする。
+        // 声のみはローカルキャッシュ経由で再生するため、キャッシュファイルの破損等に
+        // 備えて作り直してからリトライする (TASK-89)
         const retryUri =
-          activeSourceRef.current === 'separated'
-            ? updated.separatedSource ?? updated.source
+          activeSourceRef.current === 'separated' && updated.separatedSource
+            ? await resolveSeparatedPlaybackUri(updated.separatedSource, true)
             : updated.source;
         await loadTrack(autoPlay, retryUri, true);
       } catch (refetchErr) {
@@ -339,9 +388,11 @@ export default function RecordPlayerScreen() {
   // iOS はファイルに保存（デバイス / iCloud Drive）や Google Drive 等への共有に
   // 共有シートのみで対応する (TASK-45)。Android は共有シート + SAF 保存 (TASK-55)
   const runForActiveSource = async (action: 'share' | 'save') => {
+    // 声のみは再生用にダウンロード済みのローカルキャッシュがあればそれを使う
+    // （再ダウンロードを省略。失敗時のリトライは最新 URL で行う / TASK-89）
     const uri =
       activeSource === 'separated' && separatedSource
-        ? separatedSource
+        ? separatedLocalUri ?? separatedSource
         : recordedFile;
     if (!uri) return;
     try {
@@ -560,16 +611,51 @@ export default function RecordPlayerScreen() {
   // 「元の録音 / 声のみ」の再生対象を切り替える
   const handleSourceChange = async (target: 'original' | 'separated') => {
     if (target === activeSource) return;
-    const uri = target === 'separated' ? separatedSource : recordedFile;
-    if (!uri) return;
+    const sourceUri = target === 'separated' ? separatedSource : recordedFile;
+    if (!sourceUri) return;
     activeSourceRef.current = target;
     setActiveSource(target);
     setPosition(0);
-    // 切替後のレコードは停止状態で読み込まれるため、同時再生中のトラックも一時停止する
-    // （同時再生の有効/無効状態は useSyncedTrackPlayback 側の canSync に応じて維持・解除される）
+    // 切替後のレコードは停止状態で読み込まれるため、現在の録音と同時再生中のトラックを
+    // 先に一時停止する（声のみのダウンロード待ちの間に旧音源が鳴り続けないようにする。
+    // 同時再生の有効/無効状態は useSyncedTrackPlayback 側の canSync に応じて維持・解除される）
+    if (sound) {
+      try {
+        await sound.pauseAsync();
+      } catch {
+        // 既にアンロード済みなどの停止失敗は無視する（loadTrack 側で unload される）
+      }
+    }
+    setIsPlaying(false);
     await syncPlayback.syncPause();
+    // 声のみはローカルキャッシュ（ダウンロード）に解決してから読み込む (TASK-89)
+    const uri =
+      target === 'separated'
+        ? await resolveSeparatedPlaybackUri(sourceUri)
+        : sourceUri;
+    if (!isMountedRef.current) return;
     await loadTrack(false, uri);
   };
+
+  // 開発時のみ: 同時再生中の実測ズレを定期的に取得して表示する（TASK-89）
+  useEffect(() => {
+    if (!__DEV__ || !sound || !syncPlayback.syncEnabled || !isPlaying) {
+      setDebugSyncOffsetMs(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      const offset = await syncPlaybackRef.current.measureSyncOffset(sound);
+      // 計測不能（バッファリング中・未発音）のときは古い値を残さず「--」に戻す
+      if (!cancelled) {
+        setDebugSyncOffsetMs(offset === null ? null : Math.round(offset));
+      }
+    }, SYNC_DEBUG_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [sound, syncPlayback.syncEnabled, isPlaying]);
 
   const handleSyncToggle = async (value: boolean) => {
     if (!value) {
@@ -856,6 +942,21 @@ export default function RecordPlayerScreen() {
                   onVolumeChange={syncPlayback.setTrackVolume}
                 />
               </View>
+            )}
+            {__DEV__ && (
+              <Text style={styles.syncDebugText} testID="sync-offset-debug">
+                {`source=${
+                  activeSource === 'separated'
+                    ? separatedLocalUri
+                      ? 'separated:local'
+                      : 'separated:remote'
+                    : 'original'
+                } sync=${syncPlayback.syncEnabled ? 'on' : 'off'} offset=${
+                  debugSyncOffsetMs === null
+                    ? '--'
+                    : `${debugSyncOffsetMs >= 0 ? '+' : ''}${debugSyncOffsetMs}ms`
+                }`}
+              </Text>
             )}
           </View>
         ) : null}

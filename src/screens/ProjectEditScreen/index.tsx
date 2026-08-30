@@ -1057,7 +1057,11 @@ export default function ProjectEditScreen() {
           >
             {/* トラック削除済みの間は REC MODE を非活性（減光）にする */}
             <View style={isTrackMissing ? { opacity: 0.4 } : null}>
-              <BottomUpButton label="REC MODE" onPress={handleEnterRecMode} />
+              <BottomUpButton
+                label="REC MODE"
+                onPress={handleEnterRecMode}
+                testID="rec-mode-button"
+              />
             </View>
           </Animated.View>
         )}
@@ -1067,6 +1071,7 @@ export default function ProjectEditScreen() {
               label="EDIT MODE"
               iconName="angle-down"
               onPress={handleExitRecMode}
+              testID="edit-mode-button"
             />
           </View>
         )}
