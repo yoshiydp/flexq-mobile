@@ -20,6 +20,17 @@ appId: com.yoshiydp.lyricsapp
 - tapOn: 'SIGN IN'
 - waitForAnimationToEnd:
     timeout: 10000
+# iOS のパスワード保存ダイアログ（iOS 26 のパスワード App）が出た場合は閉じる (TASK-89)
+- runFlow:
+    when:
+      visible: 'パスワードを保存しますか.*'
+    commands:
+      - tapOn: '今はしない'
+- runFlow:
+    when:
+      visible: 'Save Password.*'
+    commands:
+      - tapOn: 'Not Now'
 # ログインに成功しプロジェクトリストへ遷移したことを確認
 - extendedWaitUntil:
     visible: 'PROJECT'
