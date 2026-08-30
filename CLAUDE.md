@@ -262,7 +262,8 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 #### クライアント側の再生（ローカルキャッシュ / TASK-89）
 
 - 分離音源（声のみ）は 16-bit PCM wav（約 1.4 Mbps・元録音 m4a の 5 倍超）のため、Presigned URL をそのまま `Audio.Sound` に渡す**ストリーミング再生では冒頭の再バッファリングで音が途切れ（カクつき）、その間に録音側の再生位置だけが止まってトラック同時再生が 0.2〜0.3 秒ズレる**（補正ウィンドウの外で起きるため残る）。ファイル自体は元録音と相互相関で 0.00 ms 一致しており、サーバー側の位置合わせ（TASK-44）の問題ではない
-- そのため「声のみ」への切替時に `src/utils/recordAudioCache.ts` でキャッシュディレクトリ（`record-audio/`）へダウンロードしてからローカルファイルとして再生する（切替中はフルスクリーンローディング）。2 回目以降はキャッシュから即再生。鮮度は Presigned URL の ETag（`Range: bytes=0-0` の GET で取得。HEAD は署名不一致で 403）で判定し、再実行で上書きされた音源は作り直す。ダウンロード失敗時は従来のストリーミング再生にフォールバックする
+- そのため `src/utils/recordAudioCache.ts` でキャッシュディレクトリ（`record-audio/`）へダウンロードしてからローカルファイルとして再生する（ダウンロード中はフルスクリーンローディング）。2 回目以降はキャッシュから即再生。鮮度は Presigned URL の ETag（`Range: bytes=0-0` の GET で取得。HEAD は署名不一致で 403）で判定し、再実行で上書きされた音源は作り直す。ダウンロード失敗時は従来のストリーミング再生にフォールバックする
+- **同時再生に使う全音源（元の録音・声のみ・トラック）をローカルに揃えること**。ストリーミング再生は再生開始直後のバッファリングの間、報告される再生位置だけが進んで音は遅れて出るため、位置ベースの同期補正（`correctSyncOffset` / ミュート合流）では検出できない数百 ms のズレになる。両方がストリーミングなら遅れが相殺されて目立たないが、片方だけローカル化すると露出する（TASK-89 でトラックだけ先にローカル化した際、元の録音が 0.4〜0.5 秒遅れて聞こえた）。保存済みレコードの元の録音（m4a）もキャッシュキー `<recordId>-original` でローカル化している。録音側の開始位置（`startPositionMs`）は staging の実テイクをトラックと相互相関して −12 ms（有線）/ −72 ms（スピーカー）の精度で正確だと確認済み
 - **トラック音源も同時再生の有効化時に同じ仕組みでローカルキャッシュする**（`useSyncedTrackPlayback.resolveTrackPlaybackUri`、キー `track-<S3 オブジェクト名>`）。ストリーミングのままだと再生開始・シーク直後のバッファリングに同期補正のシークが重なり、トラックの出だしが引っかかる（iOS / Android 共通）。ダウンロード中はフルスクリーンローディングを表示する
 - **Bluetooth 録音のテイクは開始位置を出力遅延ぶん手前に補正する**（`src/utils/syncStartPosition.ts` の `getEffectiveStartPositionMs`、代表値 220ms）。録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、Bluetooth（A2DP）では耳に届くのが出力遅延ぶん後のため保存値が真の値より大きくなり、同時再生・ミックスで声が 0.2〜0.3 秒先行していた（有線は遅延ほぼ 0 のため無症状。無線で録ったテイクは有線で再生しても先行する）。サーバー側のミックス（`api/lambda/record-mix.ts` の `effectiveStartPositionMs`、`MIX_PIPELINE_VERSION` v4）も同じ値・同じ規則で補正する。**両方の定数は必ず同じ値に揃えること**。OS の実測値（iOS `AVAudioSession.outputLatency`）を保存する方式への置き換えは別タスク
 - iOS の発音開始タイミング補正（`useSyncedTrackPlayback.correctSyncOffset`）のウィンドウは 150ms × 8 回（1.2 秒）
@@ -275,6 +276,7 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 | 実行時に 503 | `ReplicateApiToken` 未設定（SAM パラメータを確認） |
 | 声のみの同時再生がズレる・冒頭がカクつく | 分離音源がローカルキャッシュではなくストリーミング再生されている（開発ビルドの `sync-offset-debug` が `separated:remote` になる = ダウンロード失敗。端末の空き容量・Presigned URL の期限切れを確認）。`separated:local` でズレる場合は `offset` の値と `useSyncedTrackPlayback` の補正ログを確認する |
 | 声が一定時間**先行**する（有線で再生しても同じ） | 録音時の Bluetooth 出力遅延が `startPositionMs` に焼き込まれている。`recordedWithHeadphones` が `bluetooth` なら `getEffectiveStartPositionMs` の補正が効いているか、代表値（220ms）と機種の実遅延の差を疑う |
+| 声が一定時間**遅れる**（トラックが先行） | 元の録音がストリーミングのまま再生されている（開発ビルドの `sync-offset-debug` が `original:remote`）。ローカル化の失敗（空き容量・URL 期限切れ）を確認。録音側の誤差を疑う場合は staging の S3 からテイクとトラックを取得し相互相関で `startPositionMs` を検証する（イヤホンなし・有線のテイクはかぶりで相関が取れる） |
 | トラックの出だしが引っかかる | トラック音源のローカルキャッシュに失敗してストリーミングにフォールバックしている（`Failed to cache project track audio` のログ）。空き容量・URL 期限切れを確認 |
 | 開始直後に 502 | `PostRecordSeparateFunction` の CloudWatch ログ（Replicate API エラーの詳細が出る） |
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |

@@ -117,8 +117,9 @@ export default function RecordPlayerScreen() {
   );
   // 音源再取得リトライ時に、切替直後でも最新の再生対象を参照するための ref
   const activeSourceRef = useRef<'original' | 'separated'>('original');
-  // 声のみ音源のローカルキャッシュ URI（file://）。ストリーミングにフォールバック
-  // した場合は null（共有時のダウンロード省略と開発時の可視化に使う / TASK-89）
+  // 元の録音 / 声のみ音源のローカルキャッシュ URI（file://）。ストリーミングに
+  // フォールバックした場合は null（共有時のダウンロード省略と開発時の可視化に使う / TASK-89）
+  const [originalLocalUri, setOriginalLocalUri] = useState<string | null>(null);
   const [separatedLocalUri, setSeparatedLocalUri] = useState<string | null>(null);
   const [debugSyncOffsetMs, setDebugSyncOffsetMs] = useState<number | null>(null);
   const prevSeparationStatusRef = useRef<SeparationStatus>('none');
@@ -153,34 +154,47 @@ export default function RecordPlayerScreen() {
   const isMountedRef = useRef(true);
 
   /**
-   * 声のみ音源（S3 Presigned URL の wav）を再生用のローカルファイルに解決する (TASK-89)。
-   * 16-bit PCM wav のストリーミング再生は冒頭の再バッファリングで音が途切れ、
-   * その間に録音側の再生位置だけが止まってトラックとの同時再生がズレるため、
-   * ダウンロード（2 回目以降はキャッシュ）してから再生する。
+   * 録音音源（S3 Presigned URL）を再生用のローカルファイルに解決する (TASK-89)。
+   *
+   * ストリーミング再生は再生開始直後のバッファリングの間、報告される再生位置だけが
+   * 進んで音は遅れて出るため、位置ベースの同期補正では検出できないズレになる
+   * （声のみ wav は再バッファリングで音が途切れる問題も併発）。トラック音源が
+   * ローカル再生（即時に鳴る）になったことでこの遅れが露出したため、元の録音・
+   * 声のみとも保存済みレコードはダウンロード（2 回目以降はキャッシュ）してから再生し、
+   * 同時再生に使う全音源をローカルに揃える。
    * ダウンロードに失敗した場合は従来どおり URL のストリーミング再生にフォールバックする。
+   * 未保存のテイク（file://）はそのまま返す。
    * @param forceRefresh キャッシュを無視して再ダウンロードする（ロード失敗後のリトライ用）
    */
-  const resolveSeparatedPlaybackUri = async (
-    remoteUri: string,
+  const resolvePlaybackUri = async (
+    sourceUri: string,
+    variant: 'original' | 'separated',
     forceRefresh = false,
   ): Promise<string> => {
-    if (!params?.id || !isRemoteUri(remoteUri)) return remoteUri;
+    const setLocalUri =
+      variant === 'separated' ? setSeparatedLocalUri : setOriginalLocalUri;
+    if (!isRemoteUri(sourceUri)) {
+      // 録音直後の未保存テイクなどローカルファイルはそのまま再生する
+      if (isMountedRef.current) setLocalUri(sourceUri);
+      return sourceUri;
+    }
+    if (!params?.id) return sourceUri;
     showLoading();
     try {
       const cached = await resolveCachedRecordAudio(
-        remoteUri,
-        `${params.id}-separated`,
+        sourceUri,
+        `${params.id}-${variant}`,
         { forceRefresh },
       );
-      if (isMountedRef.current) setSeparatedLocalUri(cached.uri);
+      if (isMountedRef.current) setLocalUri(cached.uri);
       return cached.uri;
     } catch (error) {
       console.error(
-        'Failed to cache separated audio; falling back to streaming:',
+        `Failed to cache ${variant} audio; falling back to streaming:`,
         error,
       );
-      if (isMountedRef.current) setSeparatedLocalUri(null);
-      return remoteUri;
+      if (isMountedRef.current) setLocalUri(null);
+      return sourceUri;
     } finally {
       hideLoading();
     }
@@ -304,8 +318,9 @@ export default function RecordPlayerScreen() {
         // 備えて作り直してからリトライする (TASK-89)
         const retryUri =
           activeSourceRef.current === 'separated' && updated.separatedSource
-            ? await resolveSeparatedPlaybackUri(updated.separatedSource, true)
-            : updated.source;
+            ? await resolvePlaybackUri(updated.separatedSource, 'separated', true)
+            : await resolvePlaybackUri(updated.source, 'original', true);
+        if (!isMountedRef.current) return;
         await loadTrack(autoPlay, retryUri, true);
       } catch (refetchErr) {
         console.error('Failed to refetch record:', refetchErr);
@@ -323,7 +338,14 @@ export default function RecordPlayerScreen() {
     );
     confirmModalMessageRef.current = { message, description };
 
-    loadTrack(false);
+    // 保存済みレコードの元の録音はローカルキャッシュへ解決してから読み込む (TASK-89)
+    (async () => {
+      const uri = recordedFile
+        ? await resolvePlaybackUri(recordedFile, 'original')
+        : undefined;
+      if (!isMountedRef.current) return;
+      await loadTrack(false, uri);
+    })();
 
     return () => {
       isMountedRef.current = false;
@@ -403,7 +425,7 @@ export default function RecordPlayerScreen() {
     const uri =
       activeSource === 'separated' && separatedSource
         ? separatedLocalUri ?? separatedSource
-        : recordedFile;
+        : originalLocalUri ?? recordedFile;
     if (!uri) return;
     try {
       await deliverRecord(action, uri, title);
@@ -639,10 +661,7 @@ export default function RecordPlayerScreen() {
     setIsPlaying(false);
     await syncPlayback.syncPause();
     // 声のみはローカルキャッシュ（ダウンロード）に解決してから読み込む (TASK-89)
-    const uri =
-      target === 'separated'
-        ? await resolveSeparatedPlaybackUri(sourceUri)
-        : sourceUri;
+    const uri = await resolvePlaybackUri(sourceUri, target);
     if (!isMountedRef.current) return;
     await loadTrack(false, uri);
   };
@@ -960,7 +979,9 @@ export default function RecordPlayerScreen() {
                     ? separatedLocalUri
                       ? 'separated:local'
                       : 'separated:remote'
-                    : 'original'
+                    : originalLocalUri
+                      ? 'original:local'
+                      : 'original:remote'
                 } sync=${syncPlayback.syncEnabled ? 'on' : 'off'} offset=${
                   debugSyncOffsetMs === null
                     ? '--'
