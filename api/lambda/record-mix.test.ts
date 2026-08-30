@@ -120,10 +120,15 @@ describe('effectiveStartPositionMs（Bluetooth 録音の開始位置補正 / TAS
     expect(effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'none' })).toBe(10000);
     expect(effectiveStartPositionMs({ startPositionMs: 10000 })).toBe(10000);
     expect(effectiveStartPositionMs({})).toBe(0);
+    // 開始位置のない旧レコードは Bluetooth でも補正しない
+    expect(effectiveStartPositionMs({ recordedWithHeadphones: 'bluetooth' })).toBe(0);
   });
 
-  it('補正で 0 未満になる場合は 0 に丸める', () => {
-    expect(effectiveStartPositionMs({ startPositionMs: 100, recordedWithHeadphones: 'bluetooth' })).toBe(0);
+  it('負の開始位置（録音がトラックより先に始まったテイク）はそのまま返す', () => {
+    expect(effectiveStartPositionMs({ startPositionMs: -450 })).toBe(-450);
+    expect(effectiveStartPositionMs({ startPositionMs: 100, recordedWithHeadphones: 'bluetooth' })).toBe(
+      100 - BLUETOOTH_RECORDING_LATENCY_MS,
+    );
   });
 
   it('Bluetooth 録音のキャッシュは補正後の実効値で判定する', () => {
@@ -204,7 +209,20 @@ describe('buildMixFfmpegArgs', () => {
     expect(args[args.length - 1]).toBe('/tmp/mixed.m4a');
   });
 
-  it('startPositionMs 未指定・負値は 0 秒として扱う', () => {
+  it('startPositionMs が負のときはトラックを頭出しせず adelay で遅らせる（TASK-89）', () => {
+    const args = buildMixFfmpegArgs({
+      vocalsPath: '/tmp/vocals.wav',
+      trackPath: '/tmp/track-input',
+      outPath: '/tmp/mixed.m4a',
+      startPositionMs: -450,
+      trackHeadTrimSec: 0.022,
+    });
+    const filter = args[args.indexOf('-filter_complex') + 1];
+    expect(filter).toContain('atrim=start=0.022000,asetpts=PTS-STARTPTS,adelay=450:all=1[trk]');
+    expect(filter).not.toContain('atrim=start=-');
+  });
+
+  it('startPositionMs 未指定は 0 秒として扱う', () => {
     const defaultArgs = buildMixFfmpegArgs({
       vocalsPath: '/tmp/vocals.wav',
       trackPath: '/tmp/track-input',
