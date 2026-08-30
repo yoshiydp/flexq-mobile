@@ -34,6 +34,21 @@ jest.mock('@/apiClient/services/DefaultService', () => ({
   },
 }));
 
+// トラック音源のローカルキャッシュ（TASK-89）。既定では URL をそのまま返す
+const mockResolveCachedRecordAudio = jest.fn(
+  async (uri: string): Promise<{ uri: string; source: 'cache' | 'download' }> => ({
+    uri,
+    source: 'cache',
+  }),
+);
+jest.mock('@/utils/recordAudioCache', () => ({
+  isRemoteUri: (uri: string) => /^https?:/i.test(uri),
+  cacheKeyForRemoteUri: (prefix: string, uri: string) =>
+    `${prefix}-${uri.split('?')[0].split('/').pop()?.replace(/\.[^.]+$/, '')}`,
+  resolveCachedRecordAudio: (...args: unknown[]) =>
+    mockResolveCachedRecordAudio(...(args as [string])),
+}));
+
 const mockedCreateAsync = Audio.Sound.createAsync as jest.Mock;
 const mockedService = DefaultService as jest.Mocked<typeof DefaultService>;
 
@@ -461,6 +476,97 @@ describe('useSyncedTrackPlayback', () => {
 
       expect(result.current.trackVolume).toBe(0.4);
       expect(trackSound.setVolumeAsync).toHaveBeenCalledWith(0.4);
+    });
+  });
+
+  describe('トラック音源のローカルキャッシュ（TASK-89）', () => {
+    beforeEach(() => {
+      mockResolveCachedRecordAudio.mockClear();
+      mockResolveCachedRecordAudio.mockImplementation(async (uri: string) => ({
+        uri,
+        source: 'cache',
+      }));
+    });
+
+    it('Presigned URL のトラックはローカルキャッシュへ解決してから読み込む', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      mockResolveCachedRecordAudio.mockResolvedValue({
+        uri: 'file:///cache/record-audio/track-track--etag.mp3',
+        source: 'download',
+      });
+      const { result } = renderSyncHook({ projectId: 'project-1' });
+
+      await act(async () => {
+        await result.current.enableSync(0);
+      });
+
+      expect(mockResolveCachedRecordAudio).toHaveBeenCalledWith(
+        'https://example.com/track.mp3',
+        'track-track',
+        { forceRefresh: false },
+      );
+      expect(mockedCreateAsync).toHaveBeenCalledWith(
+        { uri: 'file:///cache/record-audio/track-track--etag.mp3' },
+        { shouldPlay: false, volume: 1 },
+      );
+      expect(result.current.syncEnabled).toBe(true);
+    });
+
+    it('キャッシュへの解決に失敗した場合は URL のストリーミング再生にフォールバックする', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      mockResolveCachedRecordAudio.mockRejectedValue(new Error('disk full'));
+      const { result } = renderSyncHook({ projectId: 'project-1' });
+
+      await act(async () => {
+        await result.current.enableSync(0);
+      });
+
+      expect(mockedCreateAsync).toHaveBeenCalledWith(
+        { uri: 'https://example.com/track.mp3' },
+        { shouldPlay: false, volume: 1 },
+      );
+      expect(result.current.syncEnabled).toBe(true);
+    });
+
+    it('ローカル URI（未保存のトラック差し替え）はキャッシュ解決せずそのまま読み込む', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      const { result } = renderSyncHook({
+        projectId: 'project-1',
+        initialTrackSource: 'file:///pending/track.mp3',
+      });
+
+      await act(async () => {
+        await result.current.enableSync(0);
+      });
+
+      expect(mockResolveCachedRecordAudio).not.toHaveBeenCalled();
+      expect(mockedCreateAsync).toHaveBeenCalledWith(
+        { uri: 'file:///pending/track.mp3' },
+        { shouldPlay: false, volume: 1 },
+      );
+    });
+
+    it('ローカルファイルのロードに失敗したら最新 URL でキャッシュを作り直してリトライする', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync
+        .mockRejectedValueOnce(new Error('broken cache file'))
+        .mockResolvedValue({ sound: trackSound });
+      const { result } = renderSyncHook({ projectId: 'project-1' });
+
+      await act(async () => {
+        await result.current.enableSync(0);
+      });
+
+      expect(mockResolveCachedRecordAudio).toHaveBeenNthCalledWith(
+        2,
+        'https://example.com/track.mp3',
+        'track-track',
+        { forceRefresh: true },
+      );
+      expect(result.current.syncEnabled).toBe(true);
     });
   });
 

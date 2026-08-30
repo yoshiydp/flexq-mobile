@@ -58,6 +58,17 @@ export interface ResolveCachedRecordAudioOptions {
 /** http(s) の URL かどうか（file:// などローカル URI はキャッシュ対象外） */
 export const isRemoteUri = (uri: string): boolean => /^https?:/i.test(uri);
 
+/**
+ * Presigned URL のパス末尾（S3 オブジェクト名。署名クエリは除く）からキャッシュキーを作る。
+ * 同じオブジェクトを指す URL は署名が変わっても同じキーになる（トラック音源など、
+ * レコード ID に紐づかない音源用）
+ */
+export const cacheKeyForRemoteUri = (prefix: string, remoteUri: string): string => {
+  const path = remoteUri.split('?')[0];
+  const base = path.substring(path.lastIndexOf('/') + 1).replace(/\.[^.]+$/, '');
+  return `${prefix}-${base || 'unknown'}`;
+};
+
 /** ファイル名に使える文字だけにする */
 const sanitize = (value: string): string => value.replace(/[^0-9a-zA-Z_-]/g, '_');
 

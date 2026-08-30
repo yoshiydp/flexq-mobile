@@ -3,6 +3,11 @@ import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import type { HeadphoneConnection } from '@/hooks/useHeadphonesConnected';
+import {
+  cacheKeyForRemoteUri,
+  isRemoteUri,
+  resolveCachedRecordAudio,
+} from '@/utils/recordAudioCache';
 
 /**
  * enableSync の結果
@@ -183,10 +188,42 @@ export function useSyncedTrackPlayback({
   };
 
   /**
+   * トラック音源（S3 Presigned URL）を再生用のローカルファイルに解決する (TASK-89)。
+   * ストリーミング再生だと再生開始・シーク直後のバッファリングと同期補正のシークが
+   * 重なり、トラックの出だしが引っかかる（滑らかに鳴り始めない）ため、同時再生の
+   * 有効化時にダウンロード（2 回目以降はキャッシュ）してから再生する。
+   * ローカル URI（未保存のトラック差し替え等）はそのまま返し、ダウンロードに
+   * 失敗した場合は従来どおり URL のストリーミング再生にフォールバックする
+   * @param forceRefresh キャッシュを無視して再ダウンロードする（ロード失敗後のリトライ用）
+   */
+  const resolveTrackPlaybackUri = async (
+    source: string,
+    forceRefresh: boolean,
+  ): Promise<string> => {
+    if (!isRemoteUri(source)) return source;
+    try {
+      const cached = await resolveCachedRecordAudio(
+        source,
+        cacheKeyForRemoteUri('track', source),
+        { forceRefresh },
+      );
+      return cached.uri;
+    } catch (e) {
+      console.error(
+        'Failed to cache project track audio; falling back to streaming:',
+        e,
+      );
+      return source;
+    }
+  };
+
+  /**
    * トラック音源の Audio.Sound を生成する。
    * 録音時に使用していたソース（initialTrackSource）があればそれを優先し、
    * ない場合はプロジェクト詳細から Presigned URL を取得する。
-   * ロードに失敗した場合は TASK-34 と同様に最新の URL を再取得して 1 回だけリトライする。
+   * 音源はローカルキャッシュへ解決してから読み込む（resolveTrackPlaybackUri）。
+   * ロードに失敗した場合は TASK-34 と同様に最新の URL を再取得し、キャッシュを
+   * 作り直して 1 回だけリトライする。
    */
   const loadTrackSound = async (): Promise<Audio.Sound | 'no-track' | null> => {
     let trackSource: string | null = initialTrackSource || null;
@@ -201,9 +238,14 @@ export function useSyncedTrackPlayback({
     }
 
     for (let attempt = 0; attempt < 2; attempt++) {
+      const playbackUri = await resolveTrackPlaybackUri(
+        trackSource,
+        attempt > 0,
+      );
+      if (!isMountedRef.current) return null;
       try {
         const { sound } = await Audio.Sound.createAsync(
-          { uri: trackSource },
+          { uri: playbackUri },
           { shouldPlay: false, volume: trackVolumeRef.current },
         );
         return sound;

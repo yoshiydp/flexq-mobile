@@ -2,9 +2,11 @@
  * record-mix.ts（ミックス処理の純粋ロジック）のユニットテスト (TASK-49)
  */
 import {
+  BLUETOOTH_RECORDING_LATENCY_MS,
   MIX_PIPELINE_VERSION,
   MIX_STUCK_TIMEOUT_MS,
   buildMixFfmpegArgs,
+  effectiveStartPositionMs,
   isMixCacheValid,
   isMixStuck,
   mixedS3KeyFor,
@@ -102,6 +104,44 @@ describe('isMixCacheValid', () => {
         },
         'tracks/user-1/track-1.mp3'
       )
+    ).toBe(true);
+  });
+});
+
+describe('effectiveStartPositionMs（Bluetooth 録音の開始位置補正 / TASK-89）', () => {
+  it('Bluetooth 録音は出力遅延の代表値を差し引く', () => {
+    expect(
+      effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'bluetooth' }),
+    ).toBe(10000 - BLUETOOTH_RECORDING_LATENCY_MS);
+  });
+
+  it('有線・イヤホンなし・未設定は補正しない（未定義は 0）', () => {
+    expect(effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'wired' })).toBe(10000);
+    expect(effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'none' })).toBe(10000);
+    expect(effectiveStartPositionMs({ startPositionMs: 10000 })).toBe(10000);
+    expect(effectiveStartPositionMs({})).toBe(0);
+  });
+
+  it('補正で 0 未満になる場合は 0 に丸める', () => {
+    expect(effectiveStartPositionMs({ startPositionMs: 100, recordedWithHeadphones: 'bluetooth' })).toBe(0);
+  });
+
+  it('Bluetooth 録音のキャッシュは補正後の実効値で判定する', () => {
+    const base = {
+      mixStatus: 'done',
+      mixedS3Key: 'records/mixed/u/r-token.m4a',
+      mixTrackRef: 'tracks/t.mp3',
+      mixVersion: MIX_PIPELINE_VERSION,
+      startPositionMs: 10000,
+      recordedWithHeadphones: 'bluetooth',
+    };
+    // 補正前の値で生成したキャッシュは無効（作り直す）
+    expect(isMixCacheValid({ ...base, mixStartPositionMs: 10000 }, 'tracks/t.mp3')).toBe(false);
+    expect(
+      isMixCacheValid(
+        { ...base, mixStartPositionMs: 10000 - BLUETOOTH_RECORDING_LATENCY_MS },
+        'tracks/t.mp3',
+      ),
     ).toBe(true);
   });
 });
