@@ -8,7 +8,12 @@ import styles from './RecRecordingSection.styles';
 
 /** 実測 startPositionMs のサンプリング間隔（ms）と最大試行回数（合計 2 秒待つ） */
 const MEASURE_START_POSITION_INTERVAL_MS = 100;
-const MEASURE_START_POSITION_MAX_ATTEMPTS = 20;
+/**
+ * 実測の試行上限（100ms × 100 = 10 秒）。ストリーミングのトラックはモバイル回線だと
+ * 鳴り始めるまで数秒かかることがあり、2 秒で諦めると選択位置（0 など）に
+ * フォールバックして起動遅延ぶんズレたテイクが保存される (TASK-89)
+ */
+const MEASURE_START_POSITION_MAX_ATTEMPTS = 100;
 
 interface RecRecordingSectionProps {
   /**
@@ -214,13 +219,18 @@ export default function RecRecordingSection({
             trackStatus.isPlaying &&
             recStatus.isRecording
           ) {
-            measuredStartPositionMsRef.current = Math.max(
-              0,
-              Math.round(
-                (trackStatus.positionMillis ?? 0) -
-                  (recStatus.durationMillis ?? 0),
-              ),
+            // 負の値も保持する（録音がトラックの発音より先に始まったケース。
+            // 0 に丸めると起動遅延ぶんトラックが先行するテイクになる / TASK-89）。
+            // 同時再生・ミックス側は負の開始位置に対応している
+            measuredStartPositionMsRef.current = Math.round(
+              (trackStatus.positionMillis ?? 0) -
+                (recStatus.durationMillis ?? 0),
             );
+            if (__DEV__) {
+              console.log(
+                `[rec-start-measure] startPositionMs=${measuredStartPositionMsRef.current} (track=${trackStatus.positionMillis} rec=${recStatus.durationMillis}, attempt=${attempt})`,
+              );
+            }
             return;
           }
         } catch (err) {

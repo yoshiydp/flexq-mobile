@@ -986,7 +986,7 @@ export default function RecordPlayerScreen() {
                   debugSyncOffsetMs === null
                     ? '--'
                     : `${debugSyncOffsetMs >= 0 ? '+' : ''}${debugSyncOffsetMs}ms`
-                }`}
+                } start=${getEffectiveStartPositionMs(params)}ms`}
               </Text>
             )}
           </View>

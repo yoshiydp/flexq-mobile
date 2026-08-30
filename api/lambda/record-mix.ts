@@ -56,8 +56,10 @@ export function mixedS3KeyFor(
  *     （エンコーダ priming + デコーダディレイぶんトラックが遅れる問題の修正）
  * v4: Bluetooth 録音のテイクは開始位置から出力遅延の代表値を差し引く
  *     （録音時の BT 出力遅延が startPositionMs に焼き込まれ声が先行する問題の修正 / TASK-89）
+ * v5: 負の開始位置（録音がトラックの発音より先に始まったテイク）に対応し、
+ *     トラック側を adelay で遅らせる（TASK-89）
  */
-export const MIX_PIPELINE_VERSION = 4;
+export const MIX_PIPELINE_VERSION = 5;
 
 /**
  * Bluetooth イヤホンで録音したテイクの開始位置補正（ms）。
@@ -76,9 +78,14 @@ export function effectiveStartPositionMs(record: {
   startPositionMs?: number;
   recordedWithHeadphones?: string;
 }): number {
-  const base = Math.max(0, record.startPositionMs ?? 0);
+  // 負の値は「録音がトラックの発音より先に始まった」テイク（TASK-89）。
+  // 0 に丸めるとトラックが先行するため、そのまま（補正込みで）返す
+  // 開始位置が保存されていない旧レコードは「トラック先頭から」として扱い、
+  // Bluetooth 補正も適用しない（アプリ側 getEffectiveStartPositionMs と同じ規則）
+  if (typeof record.startPositionMs !== 'number') return 0;
+  const base = record.startPositionMs;
   if (record.recordedWithHeadphones !== 'bluetooth') return base;
-  return Math.max(0, base - BLUETOOTH_RECORDING_LATENCY_MS);
+  return base - BLUETOOTH_RECORDING_LATENCY_MS;
 }
 
 /**
@@ -258,6 +265,8 @@ export function mp3GaplessHeadTrimSec(track: Buffer): number {
  * - trackHeadTrimSec（mp3GaplessHeadTrimSec の結果）を頭出しに上乗せし、
  *   ffmpeg が取り除かない mp3 の gapless ディレイをアプリ内再生の
  *   タイムラインに合わせて除去する
+ * - startPositionMs が負（録音がトラックの発音より先に始まったテイク / TASK-89）の
+ *   場合は、トラックを頭出しせず adelay で |startPositionMs| だけ遅らせて重ねる
  * - `duration=first` で出力の長さを声のみ音源（= 録音尺）に合わせる（録音尺をマスター）
  * - `normalize=0` で入力音量を維持し（デフォルトは入力数で除算され音が半減する）、
  *   加算によるクリッピングは alimiter（ピークリミッター）で防ぐ
@@ -272,11 +281,13 @@ export function buildMixFfmpegArgs(options: {
   trackHeadTrimSec?: number;
 }): string[] {
   const { vocalsPath, trackPath, outPath } = options;
+  const startMs = options.startPositionMs ?? 0;
+  const headTrimSec = Math.max(0, options.trackHeadTrimSec ?? 0);
   // gapless 補正はサブミリ秒精度（例: 529/48000 秒）のため 6 桁で丸める
-  const offsetSec = (
-    Math.max(0, options.startPositionMs ?? 0) / 1000 +
-    Math.max(0, options.trackHeadTrimSec ?? 0)
-  ).toFixed(6);
+  const trackFilter =
+    startMs >= 0
+      ? `[1:a]atrim=start=${(startMs / 1000 + headTrimSec).toFixed(6)},asetpts=PTS-STARTPTS[trk];`
+      : `[1:a]atrim=start=${headTrimSec.toFixed(6)},asetpts=PTS-STARTPTS,adelay=${Math.round(-startMs)}:all=1[trk];`;
   return [
     '-y',
     '-hide_banner',
@@ -287,7 +298,7 @@ export function buildMixFfmpegArgs(options: {
     '-i',
     trackPath,
     '-filter_complex',
-    `[1:a]atrim=start=${offsetSec},asetpts=PTS-STARTPTS[trk];` +
+    trackFilter +
       '[0:a][trk]amix=inputs=2:duration=first:dropout_transition=0:normalize=0,alimiter=limit=0.89:level=false[out]',
     // ミックス結果のみ出力する。自動選択に任せるとトラック mp3 の埋め込み
     // アートワーク（映像ストリーム）まで選択され、m4a の mux 失敗や

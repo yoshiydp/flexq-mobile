@@ -29,11 +29,13 @@ describe('getEffectiveStartPositionMs', () => {
     expect(getEffectiveStartPositionMs({ startPositionMs: 10000 })).toBe(10000);
   });
 
-  it('開始位置が未定義・負値・補正で 0 未満になる場合は 0 に丸める', () => {
+  it('開始位置が未定義なら 0、負値（録音がトラックより先に始まったテイク）はそのまま返す', () => {
     expect(getEffectiveStartPositionMs(undefined)).toBe(0);
-    expect(getEffectiveStartPositionMs({ startPositionMs: -5 })).toBe(0);
+    // 開始位置のない旧レコードは Bluetooth でも補正しない（Codex レビュー指摘対応）
+    expect(getEffectiveStartPositionMs({ recordedWithHeadphones: 'bluetooth' })).toBe(0);
+    expect(getEffectiveStartPositionMs({ startPositionMs: -450 })).toBe(-450);
     expect(
       getEffectiveStartPositionMs({ startPositionMs: 100, recordedWithHeadphones: 'bluetooth' }),
-    ).toBe(0);
+    ).toBe(100 - BLUETOOTH_RECORDING_LATENCY_MS);
   });
 });

@@ -25,12 +25,17 @@ export interface SyncStartPositionSource {
 
 /**
  * 同時再生・ミックスで使う実効的な録音開始位置（ms）を返す。
- * Bluetooth 録音のテイクは出力遅延の代表値を差し引く（0 未満にはしない）
+ * Bluetooth 録音のテイクは出力遅延の代表値を差し引く。
+ * 負の値は「録音がトラックの発音より先に始まった」テイクで、同時再生では
+ * トラックの開始をその分遅らせる（0 に丸めるとトラックが先行する / TASK-89）
  */
 export function getEffectiveStartPositionMs(
   record: SyncStartPositionSource | undefined,
 ): number {
-  const base = Math.max(0, record?.startPositionMs ?? 0);
-  if (record?.recordedWithHeadphones !== 'bluetooth') return base;
-  return Math.max(0, base - BLUETOOTH_RECORDING_LATENCY_MS);
+  // 開始位置が保存されていない旧レコードは「トラック先頭から」として扱い、
+  // Bluetooth 補正も適用しない（補正すると存在しない遅延を差し引いてしまう）
+  if (typeof record?.startPositionMs !== 'number') return 0;
+  const base = record.startPositionMs;
+  if (record.recordedWithHeadphones !== 'bluetooth') return base;
+  return base - BLUETOOTH_RECORDING_LATENCY_MS;
 }
