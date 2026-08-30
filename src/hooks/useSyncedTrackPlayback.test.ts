@@ -492,9 +492,10 @@ describe('useSyncedTrackPlayback', () => {
       return { ...rendered, trackSound };
     };
 
+    // 補正ウィンドウは 150ms × 8 回（TASK-89 で 4 回から延長）
     const runCorrection = async (
       promise: Promise<void>,
-      ms = 150 * 4 + 100,
+      ms = 150 * 8 + 100,
     ) => {
       await act(async () => {
         await jest.advanceTimersByTimeAsync(ms);
@@ -557,6 +558,27 @@ describe('useSyncedTrackPlayback', () => {
       expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
     });
 
+    it('発音開始が遅れても 1.2 秒の補正ウィンドウ内なら補正する（TASK-89）', async () => {
+      const { result, trackSound } = await setup(0);
+      // 最初の 5 回（750ms）はトラックがまだ発音していない（ストリーミングのストール等）
+      const notPlaying = { isLoaded: true, isPlaying: false, positionMillis: 0 };
+      trackSound.getStatusAsync
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      // 6 回目の実測（900ms 後）で 80ms 進んでいる → 1000 へ補正
+      expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1000);
+    });
+
     it('ループ頭出し時（handleRecordFinish）にも補正がかかる', async () => {
       const { result, trackSound } = await setup(500);
       trackSound.getStatusAsync
@@ -573,6 +595,72 @@ describe('useSyncedTrackPlayback', () => {
 
       // トラック 580 に対し対応位置は 500 + 0 → 80ms 進んでいる → 500 へ補正
       expect(trackSound.setPositionAsync).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe('measureSyncOffset（同期ズレの実測 / TASK-89）', () => {
+    const setup = async (startPositionMs = 0) => {
+      const trackSound = {
+        ...makeTrackSound(),
+        getStatusAsync: jest.fn(),
+      };
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      const rendered = renderSyncHook({ projectId: 'project-1', startPositionMs });
+      await act(async () => {
+        await rendered.result.current.enableSync(0);
+      });
+      return { ...rendered, trackSound };
+    };
+
+    it('トラック位置 − (startPositionMs + 録音位置) を返す（補正はしない）', async () => {
+      const { result, trackSound } = await setup(500);
+      trackSound.getStatusAsync.mockResolvedValue({
+        isLoaded: true,
+        isPlaying: true,
+        positionMillis: 1530,
+      });
+      const recordSound = {
+        getStatusAsync: jest
+          .fn()
+          .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1000 }),
+      };
+
+      await expect(
+        result.current.measureSyncOffset(recordSound as any),
+      ).resolves.toBe(30);
+      expect(trackSound.setPositionAsync).not.toHaveBeenCalledWith(1500);
+    });
+
+    it('どちらかが未発音・バッファリング中のときは null を返す', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync.mockResolvedValue({
+        isLoaded: true,
+        isPlaying: true,
+        isBuffering: true,
+        positionMillis: 1000,
+      });
+      const recordSound = {
+        getStatusAsync: jest
+          .fn()
+          .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1000 }),
+      };
+
+      await expect(
+        result.current.measureSyncOffset(recordSound as any),
+      ).resolves.toBeNull();
+    });
+
+    it('同時再生が無効のときは null を返す', async () => {
+      const { result } = await setup(0);
+      await act(async () => {
+        await result.current.disableSync();
+      });
+      const recordSound = { getStatusAsync: jest.fn() };
+
+      await expect(
+        result.current.measureSyncOffset(recordSound as any),
+      ).resolves.toBeNull();
+      expect(recordSound.getStatusAsync).not.toHaveBeenCalled();
     });
   });
 

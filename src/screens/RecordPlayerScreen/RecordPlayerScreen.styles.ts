@@ -45,6 +45,13 @@ export default StyleSheet.create({
     color: COLORS.font.label,
     fontSize: 12,
   },
+  // 開発時のみ表示する同期状態の可視化テキスト (TASK-89)
+  syncDebugText: {
+    marginTop: 8,
+    color: COLORS.font.label,
+    fontSize: 10,
+    fontVariant: ['tabular-nums'],
+  },
   trackVolumeSliderWrapper: {
     marginTop: 16,
     marginHorizontal: -20,

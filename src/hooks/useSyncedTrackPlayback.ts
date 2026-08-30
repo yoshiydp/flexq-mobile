@@ -26,8 +26,13 @@ export type EnableSyncResult =
 const SYNC_OFFSET_TOLERANCE_MS = 15;
 /** 開始タイミング補正の実測サンプリング間隔（ms） */
 const SYNC_OFFSET_CHECK_INTERVAL_MS = 150;
-/** 開始タイミング補正の最大試行回数 */
-const SYNC_OFFSET_MAX_CHECKS = 4;
+/**
+ * 開始タイミング補正の最大試行回数（iOS）。
+ * 発音開始直後の 1.2 秒（150ms × 8）を補正ウィンドウとする。ストリーミング再生の
+ * 再バッファリングなど発音直後のストールが 600ms（旧: 4 回）を超えて続くと、
+ * その間に生じたズレが補正されないまま残っていた (TASK-89)
+ */
+const SYNC_OFFSET_MAX_CHECKS = 8;
 /**
  * Android の最大試行回数。ExoPlayer は起動直後のバッファリングが長く、
  * その間の測定をスキップする（isBuffering ガード）ぶん試行回数を増やして
@@ -669,6 +674,41 @@ export function useSyncedTrackPlayback({
     }
   };
 
+  /**
+   * 現在の同期ズレ（ms）を実測する: トラック位置 − (startPositionMs + 録音位置)。
+   * 正の値はトラックが先行（声が遅れて聞こえる）。同時再生が無効・どちらかが
+   * 未発音（一時停止・バッファリング中）・ステータス取得失敗のときは null。
+   * 補正は行わない（開発時の目視確認・E2E の計測用 / TASK-89）
+   */
+  const measureSyncOffset = async (
+    recordSound: Audio.Sound,
+  ): Promise<number | null> => {
+    const track = trackSoundRef.current;
+    if (!syncEnabledRef.current || !track) return null;
+    try {
+      const [recordStatus, trackStatus] = await Promise.all([
+        recordSound.getStatusAsync(),
+        track.getStatusAsync(),
+      ]);
+      if (
+        !recordStatus.isLoaded ||
+        !trackStatus.isLoaded ||
+        !recordStatus.isPlaying ||
+        !trackStatus.isPlaying ||
+        recordStatus.isBuffering ||
+        trackStatus.isBuffering
+      ) {
+        return null;
+      }
+      return (
+        (trackStatus.positionMillis ?? 0) -
+        (startPositionMs + (recordStatus.positionMillis ?? 0))
+      );
+    } catch {
+      return null;
+    }
+  };
+
   /** 録音側の一時停止に合わせてトラックも一時停止する */
   const syncPause = async () => {
     const track = trackSoundRef.current;
@@ -770,6 +810,7 @@ export function useSyncedTrackPlayback({
     syncPause,
     syncSeek,
     correctSyncOffset,
+    measureSyncOffset,
     handleRecordFinish,
     setTrackVolume,
     syncJoinPlaying,
