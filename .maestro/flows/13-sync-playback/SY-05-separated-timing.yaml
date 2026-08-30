@@ -61,12 +61,15 @@ env:
 - waitForAnimationToEnd:
     timeout: 5000
 
-# 「元の録音 / 声のみ」の切替が表示される（AI クリーンアップ済み）
+# 「元の録音 / 声のみ」の切替が表示される（AI クリーンアップ済み）。
+# 元の録音もローカルキャッシュへのダウンロード完了（original:local）を待つ
 - extendedWaitUntil:
     visible:
       id: 'source-segment-separated'
     timeout: 15000
-- assertVisible: 'source=original sync=off offset=--'
+- extendedWaitUntil:
+    visible: 'source=original:local sync=off offset=--'
+    timeout: 60000
 
 # 「声のみ」を選択 → ローカルキャッシュへのダウンロード完了（ローディング終了）を待つ
 - tapOn:

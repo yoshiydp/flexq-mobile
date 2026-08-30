@@ -135,7 +135,10 @@ jest.mock('@/utils/recordAudioCache', () => ({
 }));
 
 const mockedResolveCache = resolveCachedRecordAudio as jest.Mock;
-const LOCAL_URI = 'file:///cache/record-audio/rec-1-separated--etag.wav';
+const localUriFor = (key: string, ext = 'wav') =>
+  `file:///cache/record-audio/${key}--etag.${ext}`;
+const LOCAL_ORIGINAL_URI = localUriFor('rec-1-original', 'm4a');
+const LOCAL_URI = localUriFor('rec-1-separated');
 
 const renderScreen = async () => {
   const utils = render(<RecordPlayerScreen />);
@@ -170,19 +173,63 @@ beforeEach(() => {
     positionMillis: 0,
   });
   mockCreateAsync.mockImplementation(async () => ({ sound: mockRecordSound }));
-  mockedResolveCache.mockResolvedValue({ uri: LOCAL_URI, source: 'download' });
+  mockedResolveCache.mockImplementation(async (uri: string, key: string) => ({
+    uri: localUriFor(key, uri.includes('.m4a') ? 'm4a' : 'wav'),
+    source: 'download',
+  }));
 });
 
 describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK-89)', () => {
-  it('元の録音は従来どおり URL をそのまま読み込む（キャッシュ解決しない）', async () => {
+  it('保存済みレコードの元の録音もローカルキャッシュへ解決してから読み込む', async () => {
+    const utils = await renderScreen();
+
+    expect(mockedResolveCache).toHaveBeenCalledWith(
+      mockParams.recordedFile,
+      'rec-1-original',
+      { forceRefresh: false },
+    );
+    expect(mockCreateAsync).toHaveBeenCalledWith(
+      { uri: LOCAL_ORIGINAL_URI },
+      { shouldPlay: false },
+    );
+    expect(mockShowLoading).toHaveBeenCalledTimes(1);
+    expect(mockHideLoading).toHaveBeenCalledTimes(1);
+    expect(utils.getByTestId('sync-offset-debug')).toHaveTextContent(
+      'source=original:local sync=off offset=--',
+    );
+  });
+
+  it('未保存のテイク（file://）はキャッシュ解決せずそのまま読み込む', async () => {
+    mockParams = {
+      recordedFile: 'file:///tmp/recording.m4a',
+      recordedDuration: 3000,
+      source: 'ProjectEdit',
+      projectId: 'project-1',
+    };
+    mockSeparation.separatedSource = null;
     await renderScreen();
+
+    expect(mockedResolveCache).not.toHaveBeenCalled();
+    expect(mockCreateAsync).toHaveBeenCalledWith(
+      { uri: 'file:///tmp/recording.m4a' },
+      { shouldPlay: false },
+    );
+    expect(mockShowLoading).not.toHaveBeenCalled();
+  });
+
+  it('元の録音のキャッシュに失敗した場合は URL のストリーミング再生にフォールバックする', async () => {
+    mockedResolveCache.mockRejectedValue(new Error('disk full'));
+    const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
+    const utils = await renderScreen();
 
     expect(mockCreateAsync).toHaveBeenCalledWith(
       { uri: mockParams.recordedFile },
       { shouldPlay: false },
     );
-    expect(mockedResolveCache).not.toHaveBeenCalled();
-    expect(mockShowLoading).not.toHaveBeenCalled();
+    expect(utils.getByTestId('sync-offset-debug')).toHaveTextContent(
+      /source=original:remote/,
+    );
+    consoleError.mockRestore();
   });
 
   it('「声のみ」への切替時はローカルキャッシュへ解決してから読み込み、解決中はローディングを表示する', async () => {
@@ -195,8 +242,9 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
       'rec-1-separated',
       { forceRefresh: false },
     );
-    expect(mockShowLoading).toHaveBeenCalledTimes(1);
-    expect(mockHideLoading).toHaveBeenCalledTimes(1);
+    // 初期ロード（元の録音）と切替（声のみ）で 1 回ずつ
+    expect(mockShowLoading).toHaveBeenCalledTimes(2);
+    expect(mockHideLoading).toHaveBeenCalledTimes(2);
     await waitFor(() => expect(mockCreateAsync).toHaveBeenCalledTimes(2));
     expect(mockCreateAsync).toHaveBeenLastCalledWith(
       { uri: LOCAL_URI },
@@ -205,8 +253,9 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
     // 切替時は現在の録音と同時再生中のトラックをダウンロード待ちの前に一時停止する
     // （Codex レビュー指摘対応: 旧音源がローディング中に鳴り続けない）
     expect(mockRecordSound.pauseAsync).toHaveBeenCalled();
+    // resolveCachedRecordAudio の 1 回目は初期ロード（元の録音）、2 回目が声のみ
     expect(mockRecordSound.pauseAsync.mock.invocationCallOrder[0]).toBeLessThan(
-      mockedResolveCache.mock.invocationCallOrder[0],
+      mockedResolveCache.mock.invocationCallOrder[1],
     );
     expect(mockSyncPlayback.syncPause).toHaveBeenCalled();
     // 開発時の可視化: 再生対象がローカルキャッシュであることを表示する
@@ -216,9 +265,9 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
   });
 
   it('キャッシュへの解決に失敗した場合は URL のストリーミング再生にフォールバックする', async () => {
-    mockedResolveCache.mockRejectedValue(new Error('disk full'));
     const consoleError = jest.spyOn(console, 'error').mockImplementation(() => {});
     const utils = await renderScreen();
+    mockedResolveCache.mockRejectedValue(new Error('disk full'));
 
     await switchToSeparated(utils);
 
@@ -227,7 +276,7 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
       { uri: SEPARATED_URL },
       { shouldPlay: false },
     );
-    expect(mockHideLoading).toHaveBeenCalledTimes(1);
+    expect(mockHideLoading).toHaveBeenCalledTimes(2);
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(utils.getByTestId('sync-offset-debug')).toHaveTextContent(
       /source=separated:remote/,
@@ -243,6 +292,7 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
       { id: 'rec-1', source: 'https://s3.example.com/records/u/rec-1.m4a?sig=2', separatedSource: REFRESHED_URL },
     ]);
     mockedResolveCache
+      .mockResolvedValueOnce({ uri: LOCAL_ORIGINAL_URI, source: 'cache' }) // 初期ロード（元の録音）
       .mockResolvedValueOnce({ uri: LOCAL_URI, source: 'cache' })
       .mockResolvedValueOnce({ uri: REFRESHED_LOCAL, source: 'download' });
     mockCreateAsync
@@ -257,7 +307,7 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
 
     await waitFor(() => expect(mockCreateAsync).toHaveBeenCalledTimes(3));
     expect(mockedResolveCache).toHaveBeenNthCalledWith(
-      2,
+      3,
       REFRESHED_URL,
       'rec-1-separated',
       { forceRefresh: true },
