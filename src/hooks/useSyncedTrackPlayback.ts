@@ -164,6 +164,49 @@ export function useSyncedTrackPlayback({
   };
 
   /**
+   * 対応位置が負（録音がトラックの発音より先に始まったテイク / TASK-89）のとき、
+   * トラックを先頭で待機させて対応位置が 0 になる時点で開始する予約タイマー。
+   * 位置の対応は 録音位置 t ⇔ トラック位置 startPositionMs + t のままで、
+   * 負の間はトラックを鳴らさない
+   */
+  const pendingTrackStartRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const cancelPendingTrackStart = () => {
+    if (pendingTrackStartRef.current) {
+      clearTimeout(pendingTrackStartRef.current);
+      pendingTrackStartRef.current = null;
+    }
+  };
+
+  /**
+   * 対応位置 startPositionMs + recordPositionMs が負なら、トラックを先頭で停止して
+   * 対応位置が 0 になるタイミングで start を呼ぶ予約を入れ true を返す。
+   * 負でなければ何もせず false を返す
+   */
+  const scheduleTrackStartIfEarly = async (
+    track: Audio.Sound,
+    recordPositionMs: number,
+    start: () => Promise<void>,
+  ): Promise<boolean> => {
+    const target = startPositionMs + recordPositionMs;
+    if (target >= 0) return false;
+    cancelPendingTrackStart();
+    try {
+      await track.pauseAsync();
+      await track.setPositionAsync(0);
+    } catch {
+      // 未ロード時などの失敗は無視する（予約した開始時に改めて再生する）
+    }
+    pendingTrackStartRef.current = setTimeout(() => {
+      pendingTrackStartRef.current = null;
+      if (!isMountedRef.current || !syncEnabledRef.current) return;
+      start().catch((e) => {
+        console.error('Failed to start project track after delay:', e);
+      });
+    }, -target);
+    return true;
+  };
+
+  /**
    * ミュート合流（mutedRealignAndroid）実行中フラグ。
    * 合流中に音量スライダーが操作されると一時ミュートが解除され、
    * 同期前のプレロールや補正シークが可聴になるため、適用を合流完了まで遅延する
@@ -295,7 +338,9 @@ export function useSyncedTrackPlayback({
       if (!canSyncRef.current) return 'headphones-disconnected';
 
       try {
-        await trackSoundRef.current.setPositionAsync(startPositionMs + recordPositionMs);
+        await trackSoundRef.current.setPositionAsync(
+          Math.max(0, startPositionMs + recordPositionMs),
+        );
       } catch {
         // トラック尺を超える位置などへのシーク失敗は無視する（再生時に再同期される）
       }
@@ -309,6 +354,7 @@ export function useSyncedTrackPlayback({
   /** トラック同時再生を無効化する（トラック音源は解放せず保持する） */
   const disableSync = async () => {
     setSyncEnabled(false);
+    cancelPendingTrackStart();
     const track = trackSoundRef.current;
     if (!track) return;
     try {
@@ -357,6 +403,14 @@ export function useSyncedTrackPlayback({
     const track = trackSoundRef.current;
     if (!syncEnabledRef.current || !track) return;
     try {
+      cancelPendingTrackStart();
+      if (
+        await scheduleTrackStartIfEarly(track, recordPositionMs, () =>
+          playTrackFromPosition(track, 0),
+        )
+      ) {
+        return;
+      }
       await playTrackFromPosition(track, startPositionMs + recordPositionMs);
     } catch (e) {
       console.error('Failed to play project track in sync:', e);
@@ -469,9 +523,12 @@ export function useSyncedTrackPlayback({
     // ズレが残っていればミュートのまま合わせ直す。これにより
     // 「鳴り始めた瞬間から同期している」状態を保証する (TASK-61)
     await track.setPositionAsync(
-      startPositionMs +
-        (recordStatus.positionMillis ?? 0) +
-        seekStallEstimateRef.current,
+      Math.max(
+        0,
+        startPositionMs +
+          (recordStatus.positionMillis ?? 0) +
+          seekStallEstimateRef.current,
+      ),
     );
 
     let confirmedInSync = false;
@@ -528,9 +585,12 @@ export function useSyncedTrackPlayback({
       learnSeekStall(offsetMs);
       try {
         await track.setPositionAsync(
-          startPositionMs +
-            (verifyRecord.positionMillis ?? 0) +
-            seekStallEstimateRef.current,
+          Math.max(
+            0,
+            startPositionMs +
+              (verifyRecord.positionMillis ?? 0) +
+              seekStallEstimateRef.current,
+          ),
         );
       } catch {
         break;
@@ -580,19 +640,67 @@ export function useSyncedTrackPlayback({
         // 進めないよう、次の再生操作時に合わせる）
         const recordStatus = await recordSound.getStatusAsync();
         if (!recordStatus.isLoaded || recordStatus.shouldPlay === false) return;
-        await mutedRealignAndroid(recordSound);
+        // 対応位置が負なら遅延開始ヘルパーを通す（再開・シークと同じ扱い）
+        await realignTrackForRecordAndroid(track, recordSound);
         return;
       }
       const recordStatus = await recordSound.getStatusAsync();
       if (!recordStatus.isLoaded || !recordStatus.isPlaying) return;
-      await track.playFromPositionAsync(
-        startPositionMs + (recordStatus.positionMillis ?? 0),
-      );
-      // 途中合流も発音開始タイミング差が出るため補正する
-      void correctSyncOffset(recordSound);
+      await startTrackForRecord(track, recordSound, recordStatus.positionMillis ?? 0);
     } catch (e) {
       console.error('Failed to join project track to playing record:', e);
     }
+  };
+
+  /**
+   * iOS: 録音位置に対応する位置からトラックを再生し、発音開始タイミング差を実測補正する。
+   * 対応位置が負（録音がトラックより先に始まったテイク）の場合はトラックを先頭で待機させ、
+   * 対応位置が 0 になった時点で録音側の最新位置を取り直して開始する (TASK-89)
+   */
+  const startTrackForRecord = async (
+    track: Audio.Sound,
+    recordSound: Audio.Sound,
+    recordPositionMs: number,
+  ) => {
+    cancelPendingTrackStart();
+    const scheduled = await scheduleTrackStartIfEarly(
+      track,
+      recordPositionMs,
+      async () => {
+        const latest = await recordSound.getStatusAsync();
+        // 待機中に一時停止された場合は開始しない（次の再生操作で改めて合流する）
+        if (!latest.isLoaded || latest.shouldPlay === false) return;
+        const current = trackSoundRef.current;
+        if (!current) return;
+        await current.playFromPositionAsync(
+          Math.max(0, startPositionMs + (latest.positionMillis ?? 0)),
+        );
+        void correctSyncOffset(recordSound);
+      },
+    );
+    if (scheduled) return;
+    await track.playFromPositionAsync(startPositionMs + recordPositionMs);
+    void correctSyncOffset(recordSound);
+  };
+
+  /**
+   * Android: ミュート合流でトラックを追従させる。対応位置が負の場合はトラックを
+   * 先頭で待機させ、対応位置が 0 になった時点で合流する (TASK-89)
+   */
+  const realignTrackForRecordAndroid = async (
+    track: Audio.Sound,
+    recordSound: Audio.Sound,
+  ) => {
+    cancelPendingTrackStart();
+    const status = await recordSound.getStatusAsync();
+    if (!status.isLoaded) return;
+    const scheduled = await scheduleTrackStartIfEarly(
+      track,
+      status.positionMillis ?? 0,
+      () => mutedRealignAndroid(recordSound),
+    );
+    if (scheduled) return;
+    await mutedRealignAndroid(recordSound);
   };
 
   /**
@@ -609,11 +717,10 @@ export function useSyncedTrackPlayback({
     if (!syncEnabledRef.current || !track) return;
     try {
       if (Platform.OS === 'android') {
-        await mutedRealignAndroid(recordSound);
+        await realignTrackForRecordAndroid(track, recordSound);
         return;
       }
-      await track.playFromPositionAsync(startPositionMs + recordPositionMs);
-      void correctSyncOffset(recordSound);
+      await startTrackForRecord(track, recordSound, recordPositionMs);
     } catch (e) {
       console.error('Failed to resume project track in sync:', e);
     }
@@ -625,10 +732,26 @@ export function useSyncedTrackPlayback({
    * - Android: シーク後の再バッファリングで大きくズレるためミュート合流で回復する
    */
   const syncReconcile = async (recordSound: Audio.Sound) => {
-    if (!syncEnabledRef.current || !trackSoundRef.current) return;
+    const track = trackSoundRef.current;
+    if (!syncEnabledRef.current || !track) return;
     try {
       if (Platform.OS === 'android') {
-        await mutedRealignAndroid(recordSound);
+        await realignTrackForRecordAndroid(track, recordSound);
+        return;
+      }
+      // シーク先の対応位置が負なら、トラックを先頭で待機させて対応位置 0 で開始する。
+      // 先頭待機中（トラック停止中）に対応位置が 0 以上へシークされた場合も、
+      // syncSeek で予約が取り消されているためここで対応位置から再生を開始する
+      const [status, trackStatus] = await Promise.all([
+        recordSound.getStatusAsync(),
+        track.getStatusAsync(),
+      ]);
+      if (
+        status.isLoaded &&
+        (startPositionMs + (status.positionMillis ?? 0) < 0 ||
+          (trackStatus.isLoaded && !trackStatus.isPlaying))
+      ) {
+        await startTrackForRecord(track, recordSound, status.positionMillis ?? 0);
         return;
       }
       void correctSyncOffset(recordSound);
@@ -753,6 +876,7 @@ export function useSyncedTrackPlayback({
 
   /** 録音側の一時停止に合わせてトラックも一時停止する */
   const syncPause = async () => {
+    cancelPendingTrackStart();
     const track = trackSoundRef.current;
     if (!syncEnabledRef.current || !track) return;
     try {
@@ -767,7 +891,12 @@ export function useSyncedTrackPlayback({
     const track = trackSoundRef.current;
     if (!syncEnabledRef.current || !track) return;
     try {
-      await track.setPositionAsync(startPositionMs + recordPositionMs);
+      cancelPendingTrackStart();
+      const target = startPositionMs + recordPositionMs;
+      // 対応位置が負（トラックの発音前）の間はトラックを鳴らさず先頭で待機する
+      // （再生中のシークでは syncReconcile が対応位置 0 での開始を予約し直す）
+      if (target < 0) await track.pauseAsync();
+      await track.setPositionAsync(Math.max(0, target));
     } catch {
       // トラック尺を超える位置などへのシーク失敗は無視する
     }
@@ -787,12 +916,22 @@ export function useSyncedTrackPlayback({
     const track = trackSoundRef.current;
     if (!syncEnabledRef.current || !track) return;
     try {
+      cancelPendingTrackStart();
       if (isLooping) {
+        // 録音側は 0 に頭出しされる。対応位置（startPositionMs）が負なら先頭で待機させる
+        if (
+          await scheduleTrackStartIfEarly(track, 0, async () => {
+            await playTrackFromPosition(track, 0);
+            if (recordSound) void correctSyncOffset(recordSound);
+          })
+        ) {
+          return;
+        }
         await playTrackFromPosition(track, startPositionMs);
         if (recordSound) void correctSyncOffset(recordSound);
       } else {
         await track.pauseAsync();
-        await track.setPositionAsync(startPositionMs);
+        await track.setPositionAsync(Math.max(0, startPositionMs));
       }
     } catch (e) {
       console.error('Failed to sync project track on record finish:', e);
@@ -831,6 +970,7 @@ export function useSyncedTrackPlayback({
     isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
+      cancelPendingTrackStart();
       const track = trackSoundRef.current;
       if (track) {
         track.stopAsync().catch(() => {});
