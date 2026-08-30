@@ -100,6 +100,17 @@ const mockRefreshRecord = jest.fn();
 jest.mock('@/hooks/useFetchRecord', () => ({
   useFetchRecord: () => ({ refreshRecord: mockRefreshRecord }),
 }));
+// 録音音源のローカルキャッシュ（TASK-89）は URL をそのまま返す（Jest では
+// expo-file-system が動かず、テスト終了後にエラーログが出て CI が exit 1 になるため）。
+// キャッシュ動作自体は RecordPlayerScreen.separatedCache.test.tsx で検証する
+jest.mock('@/utils/recordAudioCache', () => ({
+  isRemoteUri: (uri: string) => /^https?:/i.test(uri),
+  resolveCachedRecordAudio: jest.fn(async (uri: string) => ({
+    uri,
+    source: 'cache',
+  })),
+}));
+
 jest.mock('@/hooks/useHeadphonesConnected', () => ({
   useHeadphonesConnected: jest.fn(() => 'bluetooth'),
 }));
