@@ -44,6 +44,7 @@ import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { getSeparationStartErrorMessage } from '@/utils/separationErrorMessage';
 import { isRemoteUri, resolveCachedRecordAudio } from '@/utils/recordAudioCache';
+import { getEffectiveStartPositionMs } from '@/utils/syncStartPosition';
 import styles from './RecordPlayerScreen.styles';
 
 /**
@@ -128,7 +129,8 @@ export default function RecordPlayerScreen() {
   const headphoneConnection = useHeadphonesConnected();
   const syncPlayback = useSyncedTrackPlayback({
     projectId: params?.projectId,
-    startPositionMs: params?.startPositionMs,
+    // Bluetooth 録音のテイクは録音時の出力遅延ぶん開始位置を手前に補正する (TASK-89)
+    startPositionMs: getEffectiveStartPositionMs(params),
     initialTrackSource: params?.trackSource,
     headphoneConnection,
     allowWithoutHeadphones: activeSource === 'separated',
@@ -357,6 +359,14 @@ export default function RecordPlayerScreen() {
     showLoading();
     return () => hideLoading();
   }, [shareDownloading, mixing]);
+
+  // 同時再生の有効化でトラック音源をローカルキャッシュへダウンロードしている間も
+  // フルスクリーンローディングを表示する（初回は数 MB のダウンロードになる / TASK-89）
+  useEffect(() => {
+    if (!syncPlayback.trackLoading) return;
+    showLoading();
+    return () => hideLoading();
+  }, [syncPlayback.trackLoading]);
 
   // ミックス版（声のみ + トラック音源）を共有できるか (TASK-49)。
   // 保存済みのプロジェクト録音で、位置合わせ済みの分離音源（声のみ）がある場合のみ

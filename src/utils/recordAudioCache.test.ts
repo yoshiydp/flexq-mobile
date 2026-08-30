@@ -19,6 +19,7 @@ import {
 import {
   RECORD_AUDIO_CACHE_DIRECTORY,
   RECORD_AUDIO_CACHE_MAX_FILES,
+  cacheKeyForRemoteUri,
   isRemoteUri,
   resolveCachedRecordAudio,
 } from './recordAudioCache';
@@ -73,6 +74,18 @@ describe('isRemoteUri', () => {
     expect(isRemoteUri('http://example.com/a.wav')).toBe(true);
     expect(isRemoteUri('file:///cache/a.wav')).toBe(false);
     expect(isRemoteUri('/var/mobile/a.wav')).toBe(false);
+  });
+});
+
+describe('cacheKeyForRemoteUri', () => {
+  it('署名クエリを除いたオブジェクト名からキーを作る（署名が変わっても同じキー）', () => {
+    expect(
+      cacheKeyForRemoteUri('track', 'https://s3.example.com/tracks/abc-123.mp3?X-Amz-Signature=1'),
+    ).toBe('track-abc-123');
+    expect(
+      cacheKeyForRemoteUri('track', 'https://s3.example.com/tracks/abc-123.mp3?X-Amz-Signature=2'),
+    ).toBe('track-abc-123');
+    expect(cacheKeyForRemoteUri('track', 'https://example.com/')).toBe('track-unknown');
   });
 });
 

@@ -7,7 +7,7 @@ import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isStaleSeparation } from './separation-status';
-import { isMixCacheValid, isMixStuck } from './record-mix';
+import { effectiveStartPositionMs, isMixCacheValid, isMixStuck } from './record-mix';
 import type { MixWorkerEvent } from './record-mix-worker';
 
 const lambdaClient = new LambdaClient({});
@@ -127,7 +127,8 @@ export const handler = async (event: any) => {
     trackS3Key,
     trackUrl,
     trackRef,
-    startPositionMs: record.startPositionMs ?? 0,
+    // Bluetooth 録音は出力遅延の代表値を差し引いた実効値を使う (TASK-89)
+    startPositionMs: effectiveStartPositionMs(record),
     mixStartedAt: startedAt,
   };
 
@@ -156,7 +157,7 @@ export const handler = async (event: any) => {
           ':status': 'processing',
           ':startedAt': startedAt,
           ':trackRef': trackRef,
-          ':startPositionMs': record.startPositionMs ?? 0,
+          ':startPositionMs': effectiveStartPositionMs(record),
           ...(prevStartedAt ? { ':prevStartedAt': prevStartedAt } : {}),
         },
       })
