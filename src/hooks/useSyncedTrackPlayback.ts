@@ -82,6 +82,24 @@ const MUTED_VERIFY_MAX_ITERATIONS = 30;
  * かえって大きなズレと音飛びが出るため、許容値以内ならシークせず再生する
  */
 const SYNC_RESUME_SEEK_SKIP_TOLERANCE_MS = 80;
+/**
+ * 連続同期監視（補正ウィンドウ終了後）の実測間隔（ms / TASK-89）。
+ * 再生中はズレの発生を低頻度で監視し続け、途中で生じたドリフトを補正する保険。
+ * 補正ウィンドウより低頻度なのは、実測・補正シーク自体のコストと
+ * 誤補正リスクを抑えるため
+ */
+const SYNC_WATCH_INTERVAL_MS = 1000;
+/**
+ * 連続同期監視の補正しきい値（ms）。補正シークは可聴のストール（音飛び）を
+ * 伴うため、開始直後の補正ウィンドウより緩くして明確なズレだけを対象にする
+ */
+const SYNC_WATCH_TOLERANCE_MS = 60;
+/**
+ * 連続同期監視で補正を発動するまでの連続超過回数。
+ * バッファリング直後などの一時的な位置の飛びで誤補正しないよう、
+ * 連続して超過を実測した場合のみ補正する
+ */
+const SYNC_WATCH_CONFIRM_COUNT = 2;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -218,6 +236,12 @@ export function useSyncedTrackPlayback({
    * 古い呼び出しはトラックに触れずに終了する
    */
   const realignGenerationRef = useRef(0);
+  /**
+   * 実測補正（correctSyncOffset）の世代トークン。再生・シーク・合流の各経路から
+   * 投げ放しで並行に呼ばれるため、最新の呼び出しだけが補正・連続監視を続け、
+   * 古い呼び出しのループは終了する（監視ループを常に 1 本に保つ / TASK-89）
+   */
+  const syncCorrectionGenerationRef = useRef(0);
 
   const setSyncEnabled = (value: boolean) => {
     syncEnabledRef.current = value;
@@ -761,16 +785,24 @@ export function useSyncedTrackPlayback({
   };
 
   /**
-   * 再生開始・シーク直後の実測ズレを補正する（TASK-44）。
+   * 実測ズレの補正（TASK-44 / TASK-89）。
    * expo-av の 2 つの Audio.Sound は発音開始タイミングが保証されず、
    * フォーマット差（wav / AAC）・バッファリング・シーク遅延により
    * 数十 ms の系統的なオフセットが生じる。両プレイヤーの再生位置を
    * 同時刻に実測し、対応位置（トラック = startPositionMs + 録音位置）
    * との誤差が許容値を超えていればトラック側をシークして合わせる。
-   * 補正のシーク自体にも遅延があるため、許容値に収まるまで数回繰り返す。
-   * await せず投げ放しで呼んでよい（内部でガードする）
+   *
+   * - フェーズ 1（補正ウィンドウ）: 発音開始直後の 150ms × 8 回。
+   *   補正のシーク自体にも遅延があるため、許容値に収まるまで数回繰り返す
+   * - フェーズ 2（連続同期監視）: その後は再生が続く限り低頻度（1 秒間隔）で
+   *   監視し、明確なズレ（60ms 超）を連続して実測した場合のみ補正する。
+   *   再生途中のドリフトへの保険で、保存された開始位置の誤りは直せない
+   *
+   * await せず投げ放しで呼んでよい（内部でガードし、後から呼ばれた補正が
+   * 実行中の古いループを止める）
    */
   const correctSyncOffset = async (recordSound: Audio.Sound) => {
+    const generation = ++syncCorrectionGenerationRef.current;
     const isAndroid = Platform.OS === 'android';
     const maxChecks = isAndroid
       ? SYNC_OFFSET_MAX_CHECKS_ANDROID
@@ -783,11 +815,19 @@ export function useSyncedTrackPlayback({
     // 約 150〜200ms 停止し、補正量とほぼ同じだけ再びズレることを実測で確認済み。
     // 補正後の残差からストール量を学習（セッション共有）し、次の補正で先読みする (TASK-61)
     let hasCorrected = false;
-    for (let attempt = 0; attempt < maxChecks; attempt++) {
-      await delay(SYNC_OFFSET_CHECK_INTERVAL_MS);
-      const track = trackSoundRef.current;
-      if (!isMountedRef.current || !syncEnabledRef.current || !track) return;
 
+    const isStale = () =>
+      !isMountedRef.current ||
+      !syncEnabledRef.current ||
+      syncCorrectionGenerationRef.current !== generation ||
+      !trackSoundRef.current;
+
+    /** 両プレイヤーの実測ズレを 1 回サンプリングする */
+    const sample = async (): Promise<
+      { offsetMs: number; trackPositionMillis: number } | 'stop' | 'not-playing'
+    > => {
+      const track = trackSoundRef.current;
+      if (isStale() || !track) return 'stop';
       let recordStatus;
       let trackStatus;
       try {
@@ -796,9 +836,9 @@ export function useSyncedTrackPlayback({
           track.getStatusAsync(),
         ]);
       } catch {
-        return;
+        return 'stop';
       }
-      if (!recordStatus.isLoaded || !trackStatus.isLoaded) return;
+      if (!recordStatus.isLoaded || !trackStatus.isLoaded) return 'stop';
       // どちらかがまだ発音を開始していない・バッファリング中の間に測ると
       // 誤補正になるため待つ。特に Android（ExoPlayer）はバッファリング中も
       // 再生位置が進んで報告されるため、聴感上のズレが残っていても
@@ -809,31 +849,82 @@ export function useSyncedTrackPlayback({
         recordStatus.isBuffering ||
         trackStatus.isBuffering
       ) {
-        continue;
+        return 'not-playing';
       }
+      const trackPositionMillis = trackStatus.positionMillis ?? 0;
+      return {
+        offsetMs:
+          trackPositionMillis -
+          (startPositionMs + (recordStatus.positionMillis ?? 0)),
+        trackPositionMillis,
+      };
+    };
 
-      const offsetMs =
-        (trackStatus.positionMillis ?? 0) -
-        (startPositionMs + (recordStatus.positionMillis ?? 0));
-      if (Math.abs(offsetMs) <= toleranceMs) return;
-
-      if (hasCorrected) {
-        // 直前の補正後も残るズレ = ストール見積もりの誤差。学習して次の補正に反映する
-        learnSeekStall(offsetMs);
-      }
-
+    /** 対応位置（startPositionMs + 録音位置）+ ストール見込みぶん先へシークする */
+    const applyCorrection = async (
+      offsetMs: number,
+      trackPositionMillis: number,
+    ): Promise<boolean> => {
+      const track = trackSoundRef.current;
+      // 実測（sample）の await 中にシーク・ループ頭出し等で新しい補正が始まって
+      // いることがある。古い位置に基づくシークで巻き戻さないよう適用直前にも確認する
+      if (isStale() || !track) return false;
       try {
-        // 対応位置（startPositionMs + 録音位置）+ ストール見込みぶん先へシークする
         await track.setPositionAsync(
           Math.max(
             0,
-            (trackStatus.positionMillis ?? 0) -
-              offsetMs +
-              seekStallEstimateRef.current,
+            trackPositionMillis - offsetMs + seekStallEstimateRef.current,
           ),
         );
         hasCorrected = true;
+        return true;
       } catch {
+        return false;
+      }
+    };
+
+    // フェーズ 1: 発音開始直後の補正ウィンドウ
+    for (let attempt = 0; attempt < maxChecks; attempt++) {
+      await delay(SYNC_OFFSET_CHECK_INTERVAL_MS);
+      const sampled = await sample();
+      if (sampled === 'stop') return;
+      if (sampled === 'not-playing') continue;
+      if (Math.abs(sampled.offsetMs) <= toleranceMs) break; // 収束 → 監視フェーズへ
+      if (hasCorrected) {
+        // 直前の補正後も残るズレ = ストール見積もりの誤差。学習して次の補正に反映する
+        learnSeekStall(sampled.offsetMs);
+      }
+      if (
+        !(await applyCorrection(sampled.offsetMs, sampled.trackPositionMillis))
+      ) {
+        return;
+      }
+    }
+
+    // フェーズ 2: 連続同期監視（TASK-89）。再生が続く限りズレを見張る。
+    // 一時停止・バッファリング中はカウントを戻して待つだけで、ループは
+    // isStale()（無効化・アンマウント・新しい補正の開始）で終了する
+    let outOfSyncStreak = 0;
+    for (;;) {
+      await delay(SYNC_WATCH_INTERVAL_MS);
+      const sampled = await sample();
+      if (sampled === 'stop') return;
+      if (sampled === 'not-playing') {
+        outOfSyncStreak = 0;
+        continue;
+      }
+      if (Math.abs(sampled.offsetMs) <= SYNC_WATCH_TOLERANCE_MS) {
+        outOfSyncStreak = 0;
+        continue;
+      }
+      outOfSyncStreak += 1;
+      if (outOfSyncStreak < SYNC_WATCH_CONFIRM_COUNT) continue;
+      outOfSyncStreak = 0;
+      // 監視フェーズの補正は間隔が空くため、残差をストール学習には使わない
+      // （学習は連続実測できる補正ウィンドウ内でのみ行う）
+      if (
+        !(await applyCorrection(sampled.offsetMs, sampled.trackPositionMillis))
+      ) {
         return;
       }
     }
