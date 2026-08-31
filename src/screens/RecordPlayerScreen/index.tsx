@@ -48,11 +48,14 @@ import { getEffectiveStartPositionMs } from '@/utils/syncStartPosition';
 import styles from './RecordPlayerScreen.styles';
 
 /**
- * 開発時の同期状態の可視化（Metro 接続の開発ビルドのみ / TASK-89）。
- * 「再生対象とその取得元 / 同時再生の有効状態 / 実測ズレ」を 1 行で表示し、
- * E2E（.maestro/flows/13-sync-playback）はこの表示でズレが許容値内かを検証する。
- * EAS Update / ストア配布のバンドルでは __DEV__ が false のため表示されない
+ * 同期状態の可視化（TASK-89）。
+ * 「再生対象とその取得元 / 同時再生の有効状態 / 実測ズレ / 開始位置 / トラック取得元」を
+ * 1 行で表示し、E2E（.maestro/flows/13-sync-playback）はこの表示でズレが許容値内かを検証する。
+ * Metro 接続の開発ビルド（__DEV__）に加え、EXPO_PUBLIC_SYNC_DEBUG=1 でビルドされた
+ * OTA バンドル（dev / staging チャンネル）でも表示され、TestFlight / Play 内部テストの
+ * 実機を計測器として使える（production では設定しないこと）
  */
+const SYNC_DEBUG_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_SYNC_DEBUG === '1';
 const SYNC_DEBUG_INTERVAL_MS = 500;
 
 /**
@@ -666,9 +669,9 @@ export default function RecordPlayerScreen() {
     await loadTrack(false, uri);
   };
 
-  // 開発時のみ: 同時再生中の実測ズレを定期的に取得して表示する（TASK-89）
+  // デバッグ表示が有効なとき: 同時再生中の実測ズレを定期的に取得して表示する（TASK-89）
   useEffect(() => {
-    if (!__DEV__ || !sound || !syncPlayback.syncEnabled || !isPlaying) {
+    if (!SYNC_DEBUG_ENABLED || !sound || !syncPlayback.syncEnabled || !isPlaying) {
       setDebugSyncOffsetMs(null);
       return;
     }
@@ -972,7 +975,7 @@ export default function RecordPlayerScreen() {
                 />
               </View>
             )}
-            {__DEV__ && (
+            {SYNC_DEBUG_ENABLED && (
               <Text style={styles.syncDebugText} testID="sync-offset-debug">
                 {`source=${
                   activeSource === 'separated'
@@ -986,7 +989,9 @@ export default function RecordPlayerScreen() {
                   debugSyncOffsetMs === null
                     ? '--'
                     : `${debugSyncOffsetMs >= 0 ? '+' : ''}${debugSyncOffsetMs}ms`
-                } start=${getEffectiveStartPositionMs(params)}ms`}
+                } start=${getEffectiveStartPositionMs(params)}ms track=${
+                  syncPlayback.trackPlaybackSource ?? '--'
+                }`}
               </Text>
             )}
           </View>
