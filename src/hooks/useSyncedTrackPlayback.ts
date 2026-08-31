@@ -149,6 +149,14 @@ export function useSyncedTrackPlayback({
   const [syncEnabled, setSyncEnabledState] = useState(false);
   const [trackVolume, setTrackVolumeState] = useState(1);
   const [trackLoading, setTrackLoading] = useState(false);
+  /**
+   * トラック音源の取得元（local = キャッシュ済みファイル / remote = ストリーミング
+   * フォールバック）。実機でキャッシュ失敗によるストリーミング再生（出だしの
+   * ブツ切れ・ズレの原因）を切り分けるための可視化用 (TASK-89)
+   */
+  const [trackPlaybackSource, setTrackPlaybackSource] = useState<
+    'local' | 'remote' | null
+  >(null);
 
   const headphonesConnected =
     headphoneConnection === 'wired' || headphoneConnection === 'bluetooth';
@@ -267,19 +275,24 @@ export function useSyncedTrackPlayback({
     source: string,
     forceRefresh: boolean,
   ): Promise<string> => {
-    if (!isRemoteUri(source)) return source;
+    if (!isRemoteUri(source)) {
+      setTrackPlaybackSource('local');
+      return source;
+    }
     try {
       const cached = await resolveCachedRecordAudio(
         source,
         cacheKeyForRemoteUri('track', source),
         { forceRefresh },
       );
+      setTrackPlaybackSource('local');
       return cached.uri;
     } catch (e) {
       console.error(
         'Failed to cache project track audio; falling back to streaming:',
         e,
       );
+      setTrackPlaybackSource('remote');
       return source;
     }
   };
@@ -1076,6 +1089,8 @@ export function useSyncedTrackPlayback({
     canSync,
     syncEnabled,
     trackLoading,
+    /** トラック音源の取得元（可視化用）: local = キャッシュ / remote = ストリーミング */
+    trackPlaybackSource,
     trackVolume,
     enableSync,
     disableSync,

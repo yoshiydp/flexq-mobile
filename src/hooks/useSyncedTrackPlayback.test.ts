@@ -511,6 +511,7 @@ describe('useSyncedTrackPlayback', () => {
         { shouldPlay: false, volume: 1 },
       );
       expect(result.current.syncEnabled).toBe(true);
+      expect(result.current.trackPlaybackSource).toBe('local');
     });
 
     it('キャッシュへの解決に失敗した場合は URL のストリーミング再生にフォールバックする', async () => {
@@ -528,6 +529,7 @@ describe('useSyncedTrackPlayback', () => {
         { shouldPlay: false, volume: 1 },
       );
       expect(result.current.syncEnabled).toBe(true);
+      expect(result.current.trackPlaybackSource).toBe('remote');
     });
 
     it('ローカル URI（未保存のトラック差し替え）はキャッシュ解決せずそのまま読み込む', async () => {

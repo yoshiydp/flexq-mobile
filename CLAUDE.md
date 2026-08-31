@@ -303,7 +303,7 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 - **トラック音源も同時再生の有効化時に同じ仕組みでローカルキャッシュする**（`useSyncedTrackPlayback.resolveTrackPlaybackUri`、キー `track-<S3 オブジェクト名>`）。ストリーミングのままだと再生開始・シーク直後のバッファリングに同期補正のシークが重なり、トラックの出だしが引っかかる（iOS / Android 共通）。ダウンロード中はフルスクリーンローディングを表示する
 - **Bluetooth 録音のテイクは開始位置を出力遅延ぶん手前に補正する**（`src/utils/syncStartPosition.ts` の `getEffectiveStartPositionMs`、代表値 220ms）。録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、Bluetooth（A2DP）では耳に届くのが出力遅延ぶん後のため保存値が真の値より大きくなり、同時再生・ミックスで声が 0.2〜0.3 秒先行していた（有線は遅延ほぼ 0 のため無症状。無線で録ったテイクは有線で再生しても先行する）。サーバー側のミックス（`api/lambda/record-mix.ts` の `effectiveStartPositionMs`、`MIX_PIPELINE_VERSION` v4）も同じ値・同じ規則で補正する。**両方の定数は必ず同じ値に揃えること**。OS の実測値（iOS `AVAudioSession.outputLatency`）を保存する方式への置き換えは別タスク
 - 発音開始タイミング補正（`useSyncedTrackPlayback.correctSyncOffset`）は 2 フェーズ: 開始直後の補正ウィンドウ（150ms × 8 回 = 1.2 秒、許容 15ms iOS / 40ms Android）→ その後は再生が続く限り連続同期監視（1 秒間隔・60ms 超のズレを 2 回連続で実測した場合のみ補正）。連続監視は再生途中のドリフトへの保険で、**保存された startPositionMs の誤りは補正できない**（対応位置に正確に合わせるだけ）
-- Metro 接続の開発ビルド（`__DEV__`）では再生画面の下部に `source=… sync=… offset=…` の可視化テキスト（`sync-offset-debug`）を表示する。`offset` はトラック位置 −（開始位置 + 録音位置）の実測値（正 = 声が遅れて聞こえる）。E2E `.maestro/flows/13-sync-playback/SY-05-separated-timing.yaml` はこの値が ±39ms 以内であることを検証する
+- 再生画面下部の可視化テキスト（`sync-offset-debug`・`source=… sync=… offset=… start=… track=…`）は Metro 接続の開発ビルド（`__DEV__`）に加え、`EXPO_PUBLIC_SYNC_DEBUG=1` でビルドされた OTA バンドルでも表示される（dev / staging の EAS Update ワークフローで設定済み。production では設定しない）。`track=` はトラック音源の取得元（local = キャッシュ / remote = ストリーミングフォールバック）で、実機でのキャッシュ失敗の切り分けに使う。`offset` はトラック位置 −（開始位置 + 録音位置）の実測値（正 = 声が遅れて聞こえる）。E2E `.maestro/flows/13-sync-playback/SY-05-separated-timing.yaml` はこの値が ±39ms 以内であることを検証する
 
 #### トラブルシューティング
 
