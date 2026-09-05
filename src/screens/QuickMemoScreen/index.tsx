@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Alert, KeyboardAvoidingView, Platform, Keyboard, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -32,6 +32,7 @@ import { useCreateMemo } from '@/hooks/useCreateMemo';
 import { useUpdateMemo } from '@/hooks/useUpdateMemo';
 import { useDeleteMemo } from '@/hooks/useDeleteMemo';
 import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
+import { appendTranscriptToHtml } from '@/utils/appendTranscriptToHtml';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './QuickMemoScreen.styles';
 
@@ -79,18 +80,41 @@ export default function QuickMemoScreen() {
   const { updateMemo } = useUpdateMemo();
   const { deleteMemo } = useDeleteMemo();
 
-  const handleTranscriptionResult = (text: string) => {
-    editor.injectJS(`window.editor.commands.insertContent(${JSON.stringify(text)})`);
-  };
+  // 本文 HTML の最新値。音声入力の連続確定でも state 更新待ちにならないよう ref で保持する
+  const bodyHtmlRef = useRef(params.body ?? '');
+  useEffect(() => {
+    bodyHtmlRef.current = body;
+  }, [body]);
+
+  // TenTap の WebView には window.editor が存在しないため injectJS では挿入できない。
+  // 公式ブリッジの setContent で本文 HTML を差し替える（TASK-91）
+  const handleTranscriptionResult = useCallback(
+    (text: string) => {
+      const nextHtml = appendTranscriptToHtml(bodyHtmlRef.current, text);
+      if (nextHtml === bodyHtmlRef.current) return;
+      bodyHtmlRef.current = nextHtml;
+      setBody(nextHtml);
+      editor.setContent(nextHtml);
+      // setContent はカーソルを先頭へ戻すため、続きを入力できるよう末尾へ移動する
+      editor.focus('end');
+    },
+    [editor],
+  );
+
+  const handleTranscriptionError = useCallback((message: string) => {
+    Alert.alert('音声入力', message);
+  }, []);
+
   const { isListening, startListening, stopListening } = useVoiceTranscription(
     handleTranscriptionResult,
+    handleTranscriptionError,
   );
 
   const handleMicPress = () => {
     if (isListening) {
       stopListening();
     } else {
-      startListening();
+      void startListening();
     }
   };
 
