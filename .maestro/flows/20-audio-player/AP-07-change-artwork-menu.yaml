@@ -1,0 +1,54 @@
+# ID: AP-07
+# シナリオ名: アートワーク変更メニューの表示（導線表示まで）
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する・demo アカウントに 1 件以上のトラックが存在する
+# 操作手順: ログイン → TRACK LIST → 先頭のトラックをタップ → 右上の 3 点メニューを開く
+# 期待結果: メニューに Edit track name / Change artwork / Delete が表示される
+# 備考: 写真の選択は OS の ImagePicker 操作になるため E2E 対象外
+#       （手動確認: docs/test-cases.md AP-07 / AP-08）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - AP
+  - AP-07
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# トラックリスト画面へ遷移
+- tapOn:
+    id: 'nav-TrackList'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 先頭のトラックをタップしてオーディオプレイヤーを起動
+- tapOn:
+    id: 'track-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'audio-player-title'
+
+# 右上の 3 点メニューを開く
+- tapOn:
+    id: 'action-button-with-menu'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# メニュー項目（Edit track name → Change artwork → Delete）が表示される
+- assertVisible: 'Edit track name'
+- assertVisible: 'Change artwork'
+- assertVisible: 'Delete'
+
+# メニューを閉じてプレイヤーに戻れることを確認
+- tapOn:
+    id: 'action-button-with-menu'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible: 'Change artwork'
+
+# 戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'TRACK'
