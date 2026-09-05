@@ -1,4 +1,5 @@
 import React from 'react';
+import { Dimensions, StyleSheet } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 import HeaderToolBar from './index';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
@@ -10,15 +11,20 @@ const mockUseHeadphonesConnected = useHeadphonesConnected as jest.Mock;
 jest.mock('@expo/vector-icons', () => {
   return {
     FontAwesome: jest.fn(() => null),
+    FontAwesome6: jest.fn(() => null),
     MaterialIcons: jest.fn(() => null),
     Ionicons: jest.fn(() => null),
   };
 });
 
 jest.mock('@/components/ui/buttons/RippleButton', () => {
-  return jest.fn(({ testID, children }) => {
-    const { View } = require('react-native');
-    return <View testID={testID}>{children}</View>;
+  return jest.fn(({ testID, children, onPress }) => {
+    const { Pressable } = require('react-native');
+    return (
+      <Pressable testID={testID} onPress={onPress}>
+        {children}
+      </Pressable>
+    );
   });
 });
 
@@ -29,8 +35,16 @@ jest.mock(
   },
 );
 
+// メニューの開閉を検証できるよう、トグル用のボタンと開閉状態を表示する簡易モックにする
 jest.mock('@/components/ui/ActionButtonWithMenu', () => {
-  return jest.fn(() => null);
+  return jest.fn(({ isOpen, onToggle }) => {
+    const { Pressable, Text } = require('react-native');
+    return (
+      <Pressable testID="mock-action-toggle" onPress={onToggle}>
+        <Text>{isOpen ? 'menu-open' : 'menu-closed'}</Text>
+      </Pressable>
+    );
+  });
 });
 
 const audioPlayerScreenItems = [
@@ -195,6 +209,85 @@ describe('HeaderToolBar コンポーネント', () => {
     );
     fireEvent.press(getByTestId('toolbar-share'));
     expect(onPress).toHaveBeenCalled();
+  });
+
+  it('create ボタンがレンダリングされ、タップで onPress が呼ばれる (TASK-92)', () => {
+    const onPress = jest.fn();
+    const { getByTestId } = render(
+      <HeaderToolBar
+        items={[{ id: 'toolbar-create', type: 'create' as const, onPress }]}
+      />,
+    );
+    fireEvent.press(getByTestId('toolbar-create'));
+    expect(onPress).toHaveBeenCalled();
+  });
+
+  it('メニューが閉じている間はオーバーレイが表示されない (TASK-92)', () => {
+    const { queryByTestId } = render(
+      <HeaderToolBar
+        items={[{ id: 'toolbar-action', type: 'action' as const, menuItems: [] }]}
+      />,
+    );
+    expect(queryByTestId('header-toolbar-menu-overlay')).toBeNull();
+  });
+
+  it('ヘッダーのルートは画面コンテンツより手前に重なるスタイルを持つ (TASK-92)', () => {
+    // 各画面ではヘッダーの「後」に ScrollView などが描画されるため、
+    // zIndex / elevation がないとメニューやオーバーレイがコンテンツの下に潜ってタップできない
+    const { toJSON } = render(
+      <HeaderToolBar items={projectEditorScreenItems} />,
+    );
+    const rootStyle = StyleSheet.flatten(toJSON()!.props.style);
+
+    expect(rootStyle.zIndex).toBeGreaterThan(0);
+    expect(rootStyle.elevation).toBeGreaterThan(0);
+    expect(rootStyle.overflow).toBe('visible');
+  });
+
+  it('オーバーレイは画面全体を覆い、ヘッダー内のボタンより先に描画される (TASK-92)', () => {
+    const { getByTestId, toJSON } = render(
+      <HeaderToolBar
+        items={[{ id: 'toolbar-action', type: 'action' as const, menuItems: [] }]}
+      />,
+    );
+
+    fireEvent.press(getByTestId('mock-action-toggle'));
+
+    const overlayStyle = StyleSheet.flatten(
+      getByTestId('header-toolbar-menu-overlay').props.style,
+    );
+    const window = Dimensions.get('window');
+
+    expect(overlayStyle.position).toBe('absolute');
+    expect(overlayStyle.top).toBe(0);
+    // 画面全体（ヘッダーの左右パディング分も含めて）を覆う
+    expect(overlayStyle.width).toBeGreaterThanOrEqual(window.width);
+    expect(overlayStyle.height).toBeGreaterThanOrEqual(window.height);
+
+    // オーバーレイはコンテナの先頭に描画される（= ヘッダー内のボタン・メニューが手前に残る）
+    const children = toJSON()!.children as any[];
+    expect(children[0].props.testID).toBe('header-toolbar-menu-overlay');
+    expect(
+      children.findIndex((child) =>
+        JSON.stringify(child).includes('mock-action-toggle'),
+      ),
+    ).toBeGreaterThan(0);
+  });
+
+  it('メニュー表示中にオーバーレイをタップするとメニューが閉じる (TASK-92)', () => {
+    const { getByTestId, getByText, queryByTestId } = render(
+      <HeaderToolBar
+        items={[{ id: 'toolbar-action', type: 'action' as const, menuItems: [] }]}
+      />,
+    );
+
+    fireEvent.press(getByTestId('mock-action-toggle'));
+    expect(getByText('menu-open')).toBeTruthy();
+
+    fireEvent.press(getByTestId('header-toolbar-menu-overlay'));
+
+    expect(getByText('menu-closed')).toBeTruthy();
+    expect(queryByTestId('header-toolbar-menu-overlay')).toBeNull();
   });
 
   it('headphoneIndicator アイテムがあってもイヤホン未接続時は何も表示されない', () => {

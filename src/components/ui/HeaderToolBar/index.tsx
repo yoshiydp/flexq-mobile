@@ -1,13 +1,13 @@
 import React, { useState } from 'react';
-import { View, Pressable, Text } from 'react-native';
-import { FontAwesome } from '@expo/vector-icons';
+import { View, Pressable, Text, useWindowDimensions } from 'react-native';
+import { FontAwesome, FontAwesome6 } from '@expo/vector-icons';
 import RippleButton from '@/components/ui/buttons/RippleButton';
 import LinkedProjectsButtonWithMenu from '@/components/features/audioPlayer/LinkedProjectsButtonWithMenu';
 import ActionButtonWithMenu from '@/components/ui/ActionButtonWithMenu';
 import HeadphoneIndicator from '@/components/ui/HeadphoneIndicator';
 import Icon from '@/components/ui/Icon';
 import type { HeaderToolBarButton } from '@/constants/headerToolBarButtons';
-import styles from './HeaderToolBar.styles';
+import styles, { HEADER_HORIZONTAL_PADDING } from './HeaderToolBar.styles';
 
 interface HeaderToolBarProps {
   items: HeaderToolBarButton[];
@@ -19,10 +19,13 @@ export default function HeaderToolBar({
   isBookmarked = false,
 }: HeaderToolBarProps) {
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+  const { width: windowWidth, height: windowHeight } = useWindowDimensions();
 
   const toggleMenu = (menuId: string) => {
     setOpenMenuId((prev) => (prev === menuId ? null : menuId));
   };
+
+  const closeMenu = () => setOpenMenuId(null);
 
   const leftItems = items.filter((item) => item.type === 'back');
 
@@ -39,12 +42,31 @@ export default function HeaderToolBar({
       item.type === 'share' ||
       item.type === 'navigationListScreen' ||
       item.type === 'action' ||
+      item.type === 'create' ||
       item.type === 'hamburger' ||
       item.type === 'buttonGroup',
   );
 
   return (
     <View style={styles.container}>
+      {/* メニュー表示中に画面のどこかをタップすると閉じる（TASK-92）。
+          ヘッダー内のボタンより先に描画するため、ボタン自体のタップは従来どおり動作する */}
+      {openMenuId !== null && (
+        <Pressable
+          testID="header-toolbar-menu-overlay"
+          accessibilityRole="button"
+          accessibilityLabel="メニューを閉じる"
+          style={[
+            styles.menuOverlay,
+            {
+              width: windowWidth + HEADER_HORIZONTAL_PADDING * 2,
+              height: windowHeight,
+            },
+          ]}
+          onPress={closeMenu}
+        />
+      )}
+
       <View style={styles.left}>
         {leftItems.map((item) => (
           <Pressable key={item.id} testID={item.id} style={styles.button} onPress={item.onPress}>
@@ -239,6 +261,23 @@ export default function HeaderToolBar({
                   isOpen={openMenuId === item.id}
                   onToggle={() => toggleMenu(item.id)}
                 />
+              );
+
+            case 'create':
+              return (
+                <RippleButton
+                  key={item.id}
+                  testID={item.id}
+                  onPress={item.onPress}
+                  size={52}
+                >
+                  <Icon
+                    component={FontAwesome6}
+                    name="pen-to-square"
+                    size={22}
+                    style={styles.defaultColor}
+                  />
+                </RippleButton>
               );
 
             case 'hamburger':

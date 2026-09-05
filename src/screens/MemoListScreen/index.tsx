@@ -65,10 +65,8 @@ export default function MemoListScreen() {
   const items: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     { ...HEADER_TOOLBAR_TEMPLATES.headerTitle, headerTitle: 'MEMO LIST' },
-    {
-      ...HEADER_TOOLBAR_TEMPLATES.action,
-      menuItems: [{ label: '新規メモ', onPress: handleNewMemo }],
-    },
+    // 項目が「新規メモ」だけのため 3 点リーダーではなく新規作成アイコンで直接遷移する（TASK-92）
+    { ...HEADER_TOOLBAR_TEMPLATES.create, onPress: handleNewMemo },
   ];
 
   if (loading && memos.length === 0) {
