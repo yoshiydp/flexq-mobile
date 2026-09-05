@@ -79,6 +79,20 @@ describe('RecRecordingModal コンポーネント', () => {
     expect(propsPassed.trackSource).toBeUndefined();
   });
 
+  it('countdownSeconds が未指定の場合、5 秒（プロジェクトの REC モード）が渡される', () => {
+    render(<RecRecordingModal {...mockProps} />);
+
+    const propsPassed = (RecRecordingSection as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.countdownSeconds).toBe(5);
+  });
+
+  it('countdownSeconds=0（クイック録音）がそのまま渡される', () => {
+    render(<RecRecordingModal {...mockProps} countdownSeconds={0} />);
+
+    const propsPassed = (RecRecordingSection as jest.Mock).mock.calls[0][0];
+    expect(propsPassed.countdownSeconds).toBe(0);
+  });
+
   it('lyrics が指定された場合、RichText コンポーネントが表示される', () => {
     const lyrics = '<p>Verse 1</p><p>Verse 2</p>';
     const { getByTestId } = render(<RecRecordingModal {...mockProps} lyrics={lyrics} />);
