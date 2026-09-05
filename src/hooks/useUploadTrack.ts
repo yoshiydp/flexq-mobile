@@ -3,6 +3,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { readId3Artwork } from '@/utils/readId3Artwork';
 import { uploadFileToS3, uploadBase64ToS3 } from '@/utils/uploadToS3';
+import type { UploadProgressCallback } from '@/utils/uploadToS3';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
 
 export interface UploadedTrack {
@@ -35,6 +36,14 @@ export interface UploadTrackInput {
   artworkUri: string | null;
   /** artworkUri が base64 data URI（ID3 由来）かどうか */
   artworkIsDataUri: boolean;
+}
+
+export interface UploadTrackOptions {
+  /**
+   * 音源（S3 PUT）の進捗通知（0〜100）。
+   * wav など大きなファイルで待ち時間を伝えるために使う (TASK-94)
+   */
+  onAudioProgress?: UploadProgressCallback;
 }
 
 export function useUploadTrack() {
@@ -78,12 +87,10 @@ export function useUploadTrack() {
   };
 
   /** 選択済みの音源とアートワーク（任意）を S3 にアップロードし、メタデータを保存する */
-  const uploadTrack = async ({
-    audio,
-    title,
-    artworkUri,
-    artworkIsDataUri,
-  }: UploadTrackInput): Promise<UploadedTrack> => {
+  const uploadTrack = async (
+    { audio, title, artworkUri, artworkIsDataUri }: UploadTrackInput,
+    { onAudioProgress }: UploadTrackOptions = {},
+  ): Promise<UploadedTrack> => {
     setLoading(true);
     setError(null);
 
@@ -91,7 +98,12 @@ export function useUploadTrack() {
       // 1. 音源を S3 にアップロード
       const { uploadUrl: audioUploadUrl, key: audioKey } =
         await DefaultService.getTrackUploadUrl(audio.name, audio.contentType) as any;
-      await uploadFileToS3(audioUploadUrl, audio.uri, audio.contentType);
+      await uploadFileToS3(
+        audioUploadUrl,
+        audio.uri,
+        audio.contentType,
+        onAudioProgress,
+      );
 
       // 2. アートワークを S3 にアップロード（未設定ならスキップ）
       let artworkKey: string | undefined;

@@ -7,6 +7,17 @@ export const REC_LABELS = {
   currentPosition: '現在位置',
 };
 
+export const TRACK_UPLOAD_LABELS = {
+  // wav も引き続きサポートするが、ファイルサイズが大きくアップロードに時間がかかるため
+  // 追加シート・空状態で mp3 を推奨する旨を案内する (TASK-94)
+  formatHint:
+    'mp3 推奨（wav はファイルサイズが大きくアップロードに時間がかかります）',
+  formatHintShort: 'mp3 推奨（wav は時間がかかります）',
+  uploading: '音源データをアップロード中…',
+  uploadingProgress: (percent: number) =>
+    `音源データをアップロード中… ${percent}%`,
+};
+
 export const SEPARATION_LABELS = {
   button: 'AI クリーンアップ',
   processing: '処理中…',

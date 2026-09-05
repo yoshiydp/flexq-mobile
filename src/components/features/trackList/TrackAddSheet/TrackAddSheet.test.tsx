@@ -44,6 +44,23 @@ describe('TrackAddSheet', () => {
     expect(getByText('MP3')).toBeTruthy();
   });
 
+  it('mp3 推奨の注記を表示する', () => {
+    const { getByTestId, getByText } = render(
+      <TrackAddSheet
+        visible
+        audio={audioWithoutArtwork}
+        onCancel={jest.fn()}
+        onSubmit={jest.fn()}
+      />,
+    );
+    expect(getByTestId('track-add-format-hint')).toBeTruthy();
+    expect(
+      getByText(
+        'mp3 推奨（wav はファイルサイズが大きくアップロードに時間がかかります）',
+      ),
+    ).toBeTruthy();
+  });
+
   it('ID3 にアートワークがない場合でも写真ライブラリを自動で開かない', () => {
     render(
       <TrackAddSheet
