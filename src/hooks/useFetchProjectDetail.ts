@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
+import { withRequestTimeout } from '@/utils/requestTimeout';
 
 export interface ProjectDetailType {
   id: string;
@@ -30,7 +31,7 @@ export function useFetchProjectDetail(
     setLoading(true);
     setError(null);
     try {
-      const res = await DefaultService.getDataProject(id); // ✅ GET /projects/:id
+      const res = await withRequestTimeout(DefaultService.getDataProject(id)); // GET /projects/:id
       setProject({
         ...res,
         updatedAt: new Date(res.updatedAt),

@@ -16,6 +16,11 @@ export default StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // 一覧コンテナが left: 20 + width: 100% で画面右端まではみ出すため、
+  // エラー表示は右側に余白を確保して収める（TASK-97）
+  fetchError: {
+    paddingRight: 40,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',

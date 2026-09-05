@@ -75,6 +75,17 @@ export const SYNC_PLAYBACK_LABELS = {
   loadFailed: 'トラック音源の読み込みに失敗しました。',
 };
 
+export const FETCH_ERROR_MESSAGES = {
+  // 一覧取得の失敗時に表示する文言（TASK-97 / CM-01）。
+  // 現状このアプリは日本語固定で、文言はこのファイルに集約する方針のため
+  // i18n ライブラリは導入せずここに追加する
+  offline: '通信できません。接続を確認してください',
+  offlineDescription: '機内モードや電波状況を確認して、再度お試しください。',
+  failed: 'データを取得できませんでした',
+  failedDescription: '時間をおいて再度お試しください。',
+  retry: '再試行',
+};
+
 export const MODAL_MESSAGES = {
   confirmProjectEditSave: {
     message: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？',

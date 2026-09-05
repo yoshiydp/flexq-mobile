@@ -4,6 +4,8 @@ import ScreenTemplate from '@/components/features/home/templates/HomeTabsScreenT
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import ProjectItem from '@/components/features/projectList/ProjectItem';
 import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
+import ErrorBanner from '@/components/ui/ErrorBanner';
+import ErrorRetryView from '@/components/ui/ErrorRetryView';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
@@ -61,20 +63,6 @@ export default function ProjectListScreen() {
     );
   }
 
-  if (error) {
-    return (
-      <ScreenTemplate
-        title="PROJECT LIST"
-        titleAnim1={titleAnim1}
-        titleAnim2={titleAnim2}
-      >
-        <View style={styles.container}>
-          <Text style={{ color: 'red' }}>Failed to load projects.</Text>
-        </View>
-      </ScreenTemplate>
-    );
-  }
-
   return (
     <ScreenTemplate
       title="PROJECT LIST"
@@ -103,6 +91,14 @@ export default function ProjectListScreen() {
           />
         }
       >
+        {/* 取得済みデータは残したまま通信エラーだけを上部バナーで知らせる（TASK-97 / CM-01） */}
+        {projects.length > 0 && (
+          <ErrorBanner
+            error={error}
+            onRetry={handleRefresh}
+            containerClassName={styles.fetchError}
+          />
+        )}
         {projects.length > 0 ? (
           projects.map((project, index) => (
             <ProjectItem
@@ -118,6 +114,13 @@ export default function ProjectListScreen() {
               testID={`project-item-${index}`}
             />
           ))
+        ) : error ? (
+          // 初回取得に失敗して表示できるデータが無い場合は再試行を促す（TASK-97 / CM-01）
+          <ErrorRetryView
+            error={error}
+            onRetry={handleRefresh}
+            containerClassName={styles.fetchError}
+          />
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>プロジェクトがありません</Text>

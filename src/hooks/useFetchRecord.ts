@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
+import { withRequestTimeout } from '@/utils/requestTimeout';
 import type {
   RecordedWithHeadphones,
   SeparationStatus,
@@ -33,6 +34,10 @@ export function useFetchRecord() {
   const [error, setError] = useState<Error | null>(null);
   const [cachedHasItems, setCachedHasItems] = useState<boolean | undefined>(undefined);
   const hasFetchedOnce = useRef(false);
+  // 画面フォーカス・フォアグラウンド復帰・引っ張って更新が重なって同時に
+  // 走ったとき、先行フェッチの遅れた結果が後発フェッチの結果（特にエラー）を
+  // 打ち消さないように、最新リクエストの結果だけを state に反映する（TASK-97）
+  const requestIdRef = useRef(0);
 
   useEffect(() => {
     AsyncStorage.getItem(CACHE_KEY).then((val) => {
@@ -41,11 +46,12 @@ export function useFetchRecord() {
   }, []);
 
   const fetchRecord = useCallback(async (): Promise<RecordType[] | undefined> => {
+    const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
 
     try {
-      const res = await DefaultService.getRecord();
+      const res = await withRequestTimeout(DefaultService.getRecord());
 
       const sortedRecords = res
         .map((record: any) => ({
@@ -60,16 +66,19 @@ export function useFetchRecord() {
           return b.createdAt.getTime() - a.createdAt.getTime();
         });
 
-      setRecords(sortedRecords);
+      if (requestId === requestIdRef.current) setRecords(sortedRecords);
       await AsyncStorage.setItem(CACHE_KEY, String(sortedRecords.length > 0));
       return sortedRecords;
     } catch (err) {
+      if (requestId !== requestIdRef.current) return undefined;
       console.error('Failed to fetch record:', err);
       setError(err as Error);
       return undefined;
     } finally {
-      setLoading(false);
-      hasFetchedOnce.current = true;
+      if (requestId === requestIdRef.current) {
+        setLoading(false);
+        hasFetchedOnce.current = true;
+      }
     }
   }, []);
 
