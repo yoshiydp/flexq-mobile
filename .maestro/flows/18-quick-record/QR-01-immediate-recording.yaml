@@ -41,11 +41,20 @@ tags:
     timeout: 60000
 
 # DRAFTS タブ → QUICK RECORD
-- tapOn:
-    id: 'nav-Drafts'
-- waitForAnimationToEnd:
-    timeout: 5000
-- assertVisible: 'DRAFTS'
+# 再起動直後はタブバーが描画されていてもタップを受け付けないことがあるため、
+# 遷移できるまでリトライする。画面タイトルは文字ごとのアニメーションで描画され
+# 判定が不安定なので、QUICK RECORD ボタン（testID）の表示で遷移完了を待つ
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: 'nav-Drafts'
+      - waitForAnimationToEnd:
+          timeout: 5000
+      - extendedWaitUntil:
+          visible:
+            id: 'drafts-quick-record-button'
+          timeout: 15000
 - tapOn:
     id: 'drafts-quick-record-button'
 - waitForAnimationToEnd:
