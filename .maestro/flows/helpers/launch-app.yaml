@@ -13,6 +13,12 @@ appId: com.yoshiydp.lyricsapp
 - waitForAnimationToEnd:
     timeout: 5000
 
+# 起動直後はランチャー画面もログイン画面もまだ描画されていないため、
+# どちらかが出るまで待ってから分岐する（待たずに条件判定すると必ず false になり取りこぼす）
+- extendedWaitUntil:
+    visible: '(?i)(development servers|Your Email|Continue)'
+    timeout: 120000
+
 # Expo Dev Client のランチャー画面が出た場合は開発サーバー (localhost:8081) を選択
 - runFlow:
     when:
