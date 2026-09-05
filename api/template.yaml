@@ -502,6 +502,13 @@ Resources:
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref TracksTable
+        # アートワーク差し替え時に旧オブジェクトを削除してよいか判定するため、
+        # 同じ artworkKey を参照するプロジェクトを Query する（読み取りのみ）
+        - DynamoDBReadPolicy:
+            TableName: !Ref ProjectsTable
+        # 旧アートワーク（artworks/）の DeleteObject に必要（DeleteTrackFunction と同様）
+        - S3CrudPolicy:
+            BucketName: !Ref TrackAudioBucket
       Events:
         PutTrack:
           Type: Api
