@@ -1,9 +1,22 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { Platform } from 'react-native';
 
 interface UseVoiceTranscriptionReturn {
   isListening: boolean;
   startListening: () => Promise<void>;
   stopListening: () => void;
+}
+
+/**
+ * アプリ内の音声入力（本文ツールバーのマイクボタン）を提供するかどうか。
+ *
+ * iOS は expo-speech-recognition の認識結果が本文へ入るまでの待ち時間が長く、
+ * 端末標準のキーボード音声入力（ディクテーション）の方が速度・精度とも上回っていたため、
+ * アプリ内の音声入力は提供せず OS 標準に委ねる。
+ * Android は認識から入力までの反応が速いため従来どおりマイクボタンを提供する（TASK-100）。
+ */
+export function isInAppVoiceInputSupported(): boolean {
+  return Platform.OS !== 'ios';
 }
 
 /** 音声入力で利用者に提示するメッセージ */
@@ -88,7 +101,7 @@ export function useVoiceTranscription(
   }, []);
 
   useEffect(() => {
-    if (!SpeechModule) return;
+    if (!SpeechModule || !isInAppVoiceInputSupported()) return;
     const speech = SpeechModule.ExpoSpeechRecognitionModule;
 
     const subscriptions = [
@@ -143,7 +156,7 @@ export function useVoiceTranscription(
   );
 
   const startListening = useCallback(async () => {
-    if (!SpeechModule) {
+    if (!SpeechModule || !isInAppVoiceInputSupported()) {
       onErrorRef.current?.(VOICE_TRANSCRIPTION_MESSAGES.unavailable);
       return;
     }

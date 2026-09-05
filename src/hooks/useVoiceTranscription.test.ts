@@ -1,5 +1,7 @@
 import { act, renderHook } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import {
+  isInAppVoiceInputSupported,
   useVoiceTranscription,
   VOICE_TRANSCRIPTION_MESSAGES,
   VOICE_TRANSCRIPTION_START_OPTIONS,
@@ -46,6 +48,9 @@ describe('useVoiceTranscription (TASK-91)', () => {
       status: 'granted',
     });
     jest.spyOn(console, 'warn').mockImplementation(() => {});
+    // アプリ内の音声入力は Android のみで提供する（TASK-100）。
+    // jest のデフォルトプラットフォームは ios のため明示的に切り替える
+    jest.replaceProperty(Platform, 'OS', 'android');
   });
 
   afterEach(() => {
@@ -266,6 +271,41 @@ describe('useVoiceTranscription (TASK-91)', () => {
     unmount();
 
     expect(mockModule.abort).toHaveBeenCalled();
+  });
+
+  describe('プラットフォーム別の提供可否 (TASK-100)', () => {
+    it('Android ではアプリ内の音声入力を提供する', () => {
+      expect(isInAppVoiceInputSupported()).toBe(true);
+    });
+
+    it('iOS ではアプリ内の音声入力を提供しない（端末標準のディクテーションに委ねる）', () => {
+      jest.replaceProperty(Platform, 'OS', 'ios');
+
+      expect(isInAppVoiceInputSupported()).toBe(false);
+    });
+
+    it('iOS では開始してもマイクを掴まず利用不可を案内する', async () => {
+      jest.replaceProperty(Platform, 'OS', 'ios');
+      const { result, onError } = setup();
+
+      await act(async () => {
+        await result.current.startListening();
+      });
+
+      expect(mockModule.start).not.toHaveBeenCalled();
+      expect(mockModule.requestPermissionsAsync).not.toHaveBeenCalled();
+      expect(result.current.isListening).toBe(false);
+      expect(onError).toHaveBeenCalledWith(
+        VOICE_TRANSCRIPTION_MESSAGES.unavailable,
+      );
+    });
+
+    it('iOS ではネイティブのイベントを購読しない', () => {
+      jest.replaceProperty(Platform, 'OS', 'ios');
+      setup();
+
+      expect(mockModule.addListener).not.toHaveBeenCalled();
+    });
   });
 
   it('エラーコードをメッセージへ変換する', () => {
