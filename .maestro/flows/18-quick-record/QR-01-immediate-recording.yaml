@@ -1,0 +1,104 @@
+# ID: QR-01
+# シナリオ名: クイック録音の即録音（カウントダウンなし）
+# 前提条件: dev API に接続できること。マイク権限はフロー内で事前許可するため、事前準備は不要
+#           （録音を SAVE しないため dev 環境に前提データも残骸も作らない）
+# 操作手順: ログイン → マイク権限を許可した状態でアプリを再起動 → DRAFTS タブ
+#           → QUICK RECORD → REC ボタンをタップ → 2 秒以上録音 → 停止ボタンをタップ
+# 期待結果: REC タップ直後にカウントダウンの数字（rec-countdown-text）が表示されず、
+#           録音中の UI（タイマー rec-recording-timer・停止ボタン）が即座に表示される。
+#           タイマーが進む（＝実際に録音が開始されている）ことを確認でき、停止すると
+#           録音の再生画面（レコードプレイヤー）へ遷移して SAVE ボタンとタイトル入力が表示される
+# 備考: - プロジェクト編集の REC モード（PR-05）は 5 秒カウントダウンのままで、本フローの対象外
+#         （RecRecordingModal の countdownSeconds のデフォルトが 5 秒 / TASK-93）
+#       - レコードプレイヤーで SAVE をタップしないため、録音は dev API へアップロードされない。
+#         したがって API での後始末は不要（端末内の一時ファイルのみが残り、次回の
+#         clearState 付き起動で消える）
+#       - AI クリーンアップの自動実行は SAVE 時にのみ走り、トグルも clearState 後は OFF が
+#         デフォルトのため、本フローで Replicate の課金は発生しない
+#       - 実際に音が録れているか（声の内容）の確認は docs/test-cases.md の QR-01 で手動確認する
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - QR
+  - QR-01
+---
+# ログイン（launch-app.yaml が clearState + clearKeychain でアプリ状態を初期化する）
+- runFlow: ../helpers/login.yaml
+
+# マイク権限を許可した状態でアプリを再起動する。
+# REC タップ直後にシステムの権限ダイアログが出ると「カウントダウンなしで即録音」を
+# 検証できないため、他フローへ影響しないよう共有ヘルパー（launch-app.yaml）は変更せず、
+# このフロー内でのみ権限を付与する。clearState を付けないため、ログイン状態
+# （SecureStore / iOS Keychain のトークン）は維持されたままホーム（タブ）に戻る
+- launchApp:
+    permissions:
+      all: allow
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: 'nav-Drafts'
+    timeout: 60000
+
+# DRAFTS タブ → QUICK RECORD
+- tapOn:
+    id: 'nav-Drafts'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'DRAFTS'
+- tapOn:
+    id: 'drafts-quick-record-button'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'rec-ready-section-pressable'
+- assertVisible:
+    id: 'ai-cleanup-toggle'
+
+# REC ボタンで録音開始
+- tapOn:
+    id: 'rec-ready-section-pressable'
+
+# 事前許可が効かずシステムのマイク権限ダイアログが出た場合のみ許可する
+# （iOS: OK / Allow、Android: 許可 / アプリの使用時のみ）
+- runFlow:
+    when:
+      visible: '(?i)(OK|Allow|許可|アプリの使用時のみ)'
+    commands:
+      - tapOn: '(?i)(OK|Allow|許可|アプリの使用時のみ)'
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# カウントダウンの数字が表示されないこと（5 秒カウントダウンが動いていれば
+# この時点では rec-countdown-text が表示されている / TASK-93）
+- assertNotVisible:
+    id: 'rec-countdown-text'
+
+# 録音中の UI（タイマー・停止ボタン）が即座に表示されること
+- assertVisible:
+    id: 'rec-recording-timer'
+- assertVisible:
+    id: 'rec-recording-section-pressable'
+
+# タイマーが進む（＝カウントダウンを挟まず録音が始まっている）ことを確認しつつ、
+# 2 秒以上録音する（タイマーの表記は mm:ss:1/100 秒）
+- extendedWaitUntil:
+    visible: '00:0[2-9]:[0-9][0-9]'
+    timeout: 15000
+
+# 停止 → 録音の再生画面（レコードプレイヤー）へ遷移する
+- tapOn:
+    id: 'rec-recording-section-pressable'
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: 'submit-button'
+    timeout: 15000
+- assertVisible: 'QUICK RECORD'
+- assertVisible: 'タイトルを入力してください'
+
+# SAVE はタップしない（dev 環境にデータを残さないため）。
+# 録音中モーダルが閉じ切っていることもあわせて確認する
+- assertNotVisible:
+    id: 'rec-recording-timer'

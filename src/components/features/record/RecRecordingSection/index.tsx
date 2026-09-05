@@ -413,10 +413,15 @@ export default function RecRecordingSection({
   return (
     <View style={styles.container}>
       {countdown > 0 ? (
-        <Text style={styles.timer}>{countdown}</Text>
+        // E2E（QR-01）でカウントダウンの有無を判定するため testID を付ける
+        <Text style={styles.timer} testID="rec-countdown-text">
+          {countdown}
+        </Text>
       ) : (
         <>
-          <Text style={styles.timer}>{formatTime(timer)}</Text>
+          <Text style={styles.timer} testID="rec-recording-timer">
+            {formatTime(timer)}
+          </Text>
           <Pressable
             style={styles.stopButton}
             onPress={stopRecording}
