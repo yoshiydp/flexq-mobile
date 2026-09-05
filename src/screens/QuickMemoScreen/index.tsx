@@ -31,7 +31,10 @@ import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useCreateMemo } from '@/hooks/useCreateMemo';
 import { useUpdateMemo } from '@/hooks/useUpdateMemo';
 import { useDeleteMemo } from '@/hooks/useDeleteMemo';
-import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
+import {
+  isInAppVoiceInputSupported,
+  useVoiceTranscription,
+} from '@/hooks/useVoiceTranscription';
 import { insertTranscript } from '@/utils/transcriptInsertion';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './QuickMemoScreen.styles';
@@ -98,6 +101,9 @@ export default function QuickMemoScreen() {
     handleTranscriptionResult,
     handleTranscriptionError,
   );
+
+  // iOS はマイクボタンを出さず、キーボード標準の音声入力（ディクテーション）に委ねる（TASK-100）
+  const isVoiceInputEnabled = isInAppVoiceInputSupported();
 
   const handleMicPress = () => {
     if (isListening) {
@@ -256,7 +262,7 @@ export default function QuickMemoScreen() {
               isEditing={true}
               fillContainer
               isListening={isListening}
-              onMicPress={handleMicPress}
+              onMicPress={isVoiceInputEnabled ? handleMicPress : undefined}
             />
           </View>
         </View>
