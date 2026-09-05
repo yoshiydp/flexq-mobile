@@ -7,6 +7,8 @@ import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTab
 import TrackItem from '@/components/features/trackList/TrackItem';
 import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
+import ErrorBanner from '@/components/ui/ErrorBanner';
+import ErrorRetryView from '@/components/ui/ErrorRetryView';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
@@ -141,22 +143,6 @@ export default function TrackListScreen() {
     );
   }
 
-  if (error) {
-    return (
-      <HomeTabsScreenTemplate
-        title="TRACK LIST"
-        titleAnim1={titleAnim1}
-        titleAnim2={titleAnim2}
-      >
-        <View style={styles.container}>
-          <Text style={{ color: 'red', padding: 16 }}>
-            Failed to load tracks.
-          </Text>
-        </View>
-      </HomeTabsScreenTemplate>
-    );
-  }
-
   return (
     <HomeTabsScreenTemplate
       title="TRACK LIST"
@@ -186,6 +172,14 @@ export default function TrackListScreen() {
           />
         }
       >
+        {/* 取得済みデータは残したまま通信エラーだけを上部バナーで知らせる（TASK-97 / CM-01） */}
+        {tracks.length > 0 && (
+          <ErrorBanner
+            error={error}
+            onRetry={handleRefresh}
+            containerClassName={styles.fetchError}
+          />
+        )}
         {tracks.length > 0 ? (
           tracks.map((track, index) => (
             <TrackItem
@@ -203,6 +197,13 @@ export default function TrackListScreen() {
               testID={`track-item-${index}`}
             />
           ))
+        ) : error ? (
+          // 初回取得に失敗して表示できるデータが無い場合は再試行を促す（TASK-97 / CM-01）
+          <ErrorRetryView
+            error={error}
+            onRetry={handleRefresh}
+            containerClassName={styles.fetchError}
+          />
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>トラックがありません</Text>
