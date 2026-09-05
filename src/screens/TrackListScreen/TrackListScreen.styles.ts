@@ -31,4 +31,13 @@ export default StyleSheet.create({
   addButton: {
     width: '90%',
   },
+  // ADD TRACK ボタン直下の形式の案内（mp3 推奨）
+  emptyHint: {
+    // rowGap（24）だとボタンから離れすぎるため、案内文だけ間隔を詰める
+    marginTop: -12,
+    paddingHorizontal: 40,
+    color: COLORS.font.label,
+    fontSize: 12,
+    textAlign: 'center',
+  },
 });

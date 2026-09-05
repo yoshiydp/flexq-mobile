@@ -10,7 +10,7 @@ import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
-import { MODAL_MESSAGES } from '@/constants/messages';
+import { MODAL_MESSAGES, TRACK_UPLOAD_LABELS } from '@/constants/messages';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
 import type { PickedAudio } from '@/hooks/useUploadTrack';
 import TrackAddSheet from '@/components/features/trackList/TrackAddSheet';
@@ -28,13 +28,21 @@ export default function TrackListScreen() {
   const { tracks, loading, error, refreshTrack } = useFetchTrack();
   const { pickAudio, uploadTrack } = useUploadTrack();
   const { deleteTrack } = useDeleteTrack();
-  const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
+  const {
+    showConfirmModal,
+    closeModal,
+    showLoading,
+    updateLoadingMessage,
+    hideLoading,
+  } = useModal();
   const [refreshing, setRefreshing] = useState(false);
   // 音源選択後・アップロード前に追加確認シートへ渡す音源
   const [pendingAudio, setPendingAudio] = useState<PickedAudio | null>(null);
 
   // ファイル選択中にタブを離れた場合、戻るまで追加確認シートを出さないための参照
   const isFocusedRef = useRef(true);
+  // 進捗コールバックは細かく呼ばれるため、パーセントが変わったときだけ再描画する
+  const uploadPercentRef = useRef(-1);
 
   useFocusEffect(
     useCallback(() => {
@@ -71,8 +79,19 @@ export default function TrackListScreen() {
     if (!audio) return;
     setPendingAudio(null);
     try {
-      showLoading();
-      await uploadTrack({ audio, ...input });
+      uploadPercentRef.current = -1;
+      // wav など大きなファイルでは待ち時間が長くなるため、進捗を文言で伝える (TASK-94)
+      showLoading(TRACK_UPLOAD_LABELS.uploading);
+      await uploadTrack(
+        { audio, ...input },
+        {
+          onAudioProgress: (percent) => {
+            if (percent === uploadPercentRef.current) return;
+            uploadPercentRef.current = percent;
+            updateLoadingMessage(TRACK_UPLOAD_LABELS.uploadingProgress(percent));
+          },
+        },
+      );
       await refreshTrack();
     } catch (err) {
       console.error('Upload failed:', err);
@@ -212,6 +231,9 @@ export default function TrackListScreen() {
               onPress={handleAddTrack}
               testID="track-list-add-button-empty"
             />
+            <Text style={styles.emptyHint} testID="track-list-format-hint">
+              {TRACK_UPLOAD_LABELS.formatHintShort}
+            </Text>
           </View>
         )}
       </ScrollView>

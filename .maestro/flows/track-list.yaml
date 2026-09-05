@@ -3,6 +3,8 @@
 # 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: ログイン → TRACK LIST タブをタップ
 # 期待結果: TRACK LIST タイトルとトラック一覧が表示される
+# 備考: ADD TRACK シートの mp3 推奨の注記とアップロード進捗（音源データをアップロード中… NN%）は
+#       OS のファイルピッカー操作を伴うため E2E 対象外（手動確認: docs/test-cases.md TL-02 / TL-02-1）
 
 appId: com.yoshiydp.lyricsapp
 ---
@@ -18,3 +20,11 @@ appId: com.yoshiydp.lyricsapp
 # トラックリスト画面のアサーション
 - assertVisible: 'TRACK'
 - assertVisible: 'LIST'
+
+# 0 件のときは ADD TRACK ボタンの下に mp3 推奨の注記が出る（データ状態に依存しないよう条件付き）
+- runFlow:
+    when:
+      visible: 'トラックがありません'
+    commands:
+      - assertVisible:
+          id: 'track-list-format-hint'

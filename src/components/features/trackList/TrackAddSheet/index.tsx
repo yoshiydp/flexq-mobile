@@ -21,6 +21,7 @@ import Icon from '@/components/ui/Icon';
 import ExtensionLabel from '@/components/ui/ExtensionLabel';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { getFileName } from '@/utils/getFileName';
+import { TRACK_UPLOAD_LABELS } from '@/constants/messages';
 import { COLORS } from '@/globalStyles';
 import type { PickedAudio } from '@/hooks/useUploadTrack';
 import styles from './TrackAddSheet.styles';
@@ -298,6 +299,11 @@ export default function TrackAddSheet({
             </Text>
             <ExtensionLabel label={displayAudio.ext.toUpperCase()} />
           </View>
+
+          {/* wav も追加できるが、サイズが大きく待ち時間が長くなるため mp3 を推奨する (TASK-94) */}
+          <Text style={styles.formatHint} testID="track-add-format-hint">
+            {TRACK_UPLOAD_LABELS.formatHint}
+          </Text>
         </ScrollView>
 
         <SubmitButton

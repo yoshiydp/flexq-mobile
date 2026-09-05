@@ -11,4 +11,11 @@ export default StyleSheet.create({
   indicator: {
     color: COLORS.icon.navigation,
   },
+  message: {
+    marginTop: 16,
+    paddingHorizontal: 32,
+    color: COLORS.font.default,
+    fontSize: 14,
+    textAlign: 'center',
+  },
 });
