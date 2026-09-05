@@ -112,8 +112,15 @@ export const handler = async (event: any) => {
           Key: previousArtworkKey,
         }));
       }
-    } catch (err) {
-      console.error('Failed to delete previous artwork:', err);
+    } catch (err: any) {
+      // IAM 権限不足（AccessDenied）などを CloudWatch から追えるよう、
+      // 対象キーとエラー種別・メッセージを残す
+      console.error(
+        `Failed to delete previous artwork (key=${previousArtworkKey}, trackId=${trackId}):`,
+        err?.name,
+        err?.message,
+        err,
+      );
     }
   }
 
