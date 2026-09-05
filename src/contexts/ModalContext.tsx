@@ -29,7 +29,16 @@ interface ModalContextType {
   showRecordingModal: (options: RecordingOptions) => void;
   closeModal: () => void;
 
-  showLoading: () => void;
+  /**
+   * フルスクリーンローディングを表示する。
+   * message を渡すとインジケーターの下に文言を表示する（未指定ならテキストなし）。
+   */
+  showLoading: (message?: string) => void;
+  /**
+   * 表示中のローディングの文言を差し替える（進捗表示など）。
+   * ローディングが表示されていないときは何もしない。
+   */
+  updateLoadingMessage: (message?: string) => void;
   hideLoading: () => void;
 }
 
@@ -51,8 +60,12 @@ export function ModalProvider({ children }: { children: ReactNode }) {
   const [recordingOptions, setRecordingOptions] =
     useState<RecordingOptions | null>(null);
 
-  const [loadingCount, setLoadingCount] = useState(0);
-  const loading = loadingCount > 0;
+  // 表示件数と文言をまとめて管理する（hideLoading で 0 件になったら文言も破棄する）
+  const [loadingState, setLoadingState] = useState<{
+    count: number;
+    message?: string;
+  }>({ count: 0 });
+  const loading = loadingState.count > 0;
 
   const closeModal = () => {
     setConfirmOptions(null);
@@ -78,8 +91,23 @@ export function ModalProvider({ children }: { children: ReactNode }) {
     setRecordingOptions(options);
   };
 
-  const showLoading = () => setLoadingCount((c) => c + 1);
-  const hideLoading = () => setLoadingCount((c) => Math.max(c - 1, 0));
+  const showLoading = (message?: string) =>
+    setLoadingState((state) => ({
+      count: state.count + 1,
+      // 文言なしで重ねて呼ばれても、表示中の文言は消さない
+      message: message ?? state.message,
+    }));
+
+  const updateLoadingMessage = (message?: string) =>
+    setLoadingState((state) =>
+      state.count > 0 ? { ...state, message } : state,
+    );
+
+  const hideLoading = () =>
+    setLoadingState((state) => {
+      const count = Math.max(state.count - 1, 0);
+      return { count, message: count > 0 ? state.message : undefined };
+    });
 
   return (
     <ModalContext.Provider
@@ -89,6 +117,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
         showRecordingModal,
         closeModal,
         showLoading,
+        updateLoadingMessage,
         hideLoading,
       }}
     >
@@ -109,7 +138,7 @@ export function ModalProvider({ children }: { children: ReactNode }) {
         </RecRecordingModal>
       )}
 
-      {loading && <LoadingOverlay visible={true} />}
+      {loading && <LoadingOverlay visible message={loadingState.message} />}
     </ModalContext.Provider>
   );
 }
