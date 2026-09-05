@@ -1,4 +1,5 @@
 import React from 'react';
+import { Dimensions, StyleSheet } from 'react-native';
 import { render, fireEvent } from '@testing-library/react-native';
 import HeaderToolBar from './index';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
@@ -228,6 +229,49 @@ describe('HeaderToolBar コンポーネント', () => {
       />,
     );
     expect(queryByTestId('header-toolbar-menu-overlay')).toBeNull();
+  });
+
+  it('ヘッダーのルートは画面コンテンツより手前に重なるスタイルを持つ (TASK-92)', () => {
+    // 各画面ではヘッダーの「後」に ScrollView などが描画されるため、
+    // zIndex / elevation がないとメニューやオーバーレイがコンテンツの下に潜ってタップできない
+    const { toJSON } = render(
+      <HeaderToolBar items={projectEditorScreenItems} />,
+    );
+    const rootStyle = StyleSheet.flatten(toJSON()!.props.style);
+
+    expect(rootStyle.zIndex).toBeGreaterThan(0);
+    expect(rootStyle.elevation).toBeGreaterThan(0);
+    expect(rootStyle.overflow).toBe('visible');
+  });
+
+  it('オーバーレイは画面全体を覆い、ヘッダー内のボタンより先に描画される (TASK-92)', () => {
+    const { getByTestId, toJSON } = render(
+      <HeaderToolBar
+        items={[{ id: 'toolbar-action', type: 'action' as const, menuItems: [] }]}
+      />,
+    );
+
+    fireEvent.press(getByTestId('mock-action-toggle'));
+
+    const overlayStyle = StyleSheet.flatten(
+      getByTestId('header-toolbar-menu-overlay').props.style,
+    );
+    const window = Dimensions.get('window');
+
+    expect(overlayStyle.position).toBe('absolute');
+    expect(overlayStyle.top).toBe(0);
+    // 画面全体（ヘッダーの左右パディング分も含めて）を覆う
+    expect(overlayStyle.width).toBeGreaterThanOrEqual(window.width);
+    expect(overlayStyle.height).toBeGreaterThanOrEqual(window.height);
+
+    // オーバーレイはコンテナの先頭に描画される（= ヘッダー内のボタン・メニューが手前に残る）
+    const children = toJSON()!.children as any[];
+    expect(children[0].props.testID).toBe('header-toolbar-menu-overlay');
+    expect(
+      children.findIndex((child) =>
+        JSON.stringify(child).includes('mock-action-toggle'),
+      ),
+    ).toBeGreaterThan(0);
   });
 
   it('メニュー表示中にオーバーレイをタップするとメニューが閉じる (TASK-92)', () => {

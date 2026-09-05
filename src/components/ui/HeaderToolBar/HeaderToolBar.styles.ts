@@ -12,6 +12,16 @@ export default StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: HEADER_HORIZONTAL_PADDING,
     position: 'relative',
+    // 各画面ではヘッダーの「後」に ScrollView などのコンテンツが描画されるため、
+    // 何も指定しないとヘッダーからはみ出すメニュー / オーバーレイがコンテンツの下に潜り、
+    // タップが届かない。ヘッダー自体を手前に重ねてヒットテストを通す（TASK-92）
+    // ※ iOS / Android（RN の zIndex はタップ判定の順序にも効く）
+    zIndex: 10,
+    // Android のネイティブ描画順（Z）対策。影は出さない
+    elevation: 10,
+    shadowColor: 'transparent',
+    // ヘッダーの高さ（70）を超えて描画されるメニュー / オーバーレイを切り取らせない
+    overflow: 'visible',
   },
   // メニュー表示中に画面外タップを拾う透明オーバーレイ（TASK-92）
   menuOverlay: {
