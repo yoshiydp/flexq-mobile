@@ -13,6 +13,12 @@ appId: com.yoshiydp.lyricsapp
 - waitForAnimationToEnd:
     timeout: 5000
 
+# 起動直後はランチャー画面もログイン画面もまだ描画されていないため、
+# どちらかが出るまで待ってから分岐する（待たずに条件判定すると必ず false になり取りこぼす）
+- extendedWaitUntil:
+    visible: '(?i)(development servers|Your Email|Continue)'
+    timeout: 120000
+
 # Expo Dev Client のランチャー画面が出た場合は開発サーバー (localhost:8081) を選択
 - runFlow:
     when:
@@ -33,8 +39,9 @@ appId: com.yoshiydp.lyricsapp
     commands:
       - tapOn: 'Continue'
 
-# Android は Continue 後も開発メニュー（bottom sheet）が開いたままになるため back で閉じる
-# （iOS は Continue のタップでメニューごと閉じる）
+# Continue 後も開発メニュー（bottom sheet）が開いたままになることがあるため閉じる。
+# Continue ダイアログが出ずにメニューだけ表示される場合もあるので 'Connected to:' で判定する
+# （Android: back / iOS: メニュー右上の Close ボタン）
 - runFlow:
     when:
       platform: Android
@@ -43,6 +50,17 @@ appId: com.yoshiydp.lyricsapp
       - back
       - waitForAnimationToEnd:
           timeout: 3000
+- runFlow:
+    when:
+      platform: iOS
+      visible: 'Connected to:'
+    commands:
+      - tapOn: 'Close'
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# 前回セッションの「パスワードを保存しますか？」が起動直後に残ることがあるため閉じる
+- runFlow: ./dismiss-password-save.yaml
 
 # ログイン画面が表示されることを確認
 - extendedWaitUntil:
