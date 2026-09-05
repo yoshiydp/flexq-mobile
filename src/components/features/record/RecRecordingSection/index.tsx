@@ -29,6 +29,11 @@ interface RecRecordingSectionProps {
   onAbort?: () => void;
   trackSource?: string | null;
   startPositionMs?: number;
+  /**
+   * 録音開始までのカウントダウン秒数。0 を指定するとカウントダウンの数字を
+   * 表示せず、マイク許可の取得完了後ただちに録音を開始する
+   * （クイック録音は即録音・プロジェクトの REC モードは 5 秒 / TASK-93）
+   */
   countdownSeconds?: number;
   testID?: string;
 }
@@ -116,7 +121,9 @@ export default function RecRecordingSection({
   }, []);
 
   useEffect(() => {
-    // マイク許可（ダイアログ応答含む）が取れるまでカウントダウンを開始しない
+    // マイク許可（ダイアログ応答含む）が取れるまでカウントダウンを開始しない。
+    // countdownSeconds が 0 の場合はカウントダウンを挟まず、許可の取得完了
+    // 直後にそのまま録音を開始する（クイック録音 / TASK-93）
     if (!permissionGranted) return;
     let interval: ReturnType<typeof setInterval>;
     if (countdown > 0) {
