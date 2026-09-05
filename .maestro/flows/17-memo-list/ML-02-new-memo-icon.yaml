@@ -1,0 +1,71 @@
+# ID: ML-02
+# シナリオ名: メモ一覧の新規メモ導線（新規作成アイコン）
+# 前提条件: dev API に接続できること（前提データはフロー内で API セットアップ・後始末する）。
+#           起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: API で検証用メモを 1 件作成 → ログイン → DRAFTS タブ → MEMO LIST
+#           → ヘッダー右上の新規作成アイコンをタップ
+# 期待結果: メモ一覧のヘッダー右上が 3 点リーダーではなく新規作成アイコン（toolbar-create）になっており、
+#           タップするとメニューを経由せず直接 QUICK MEMO（新規メモ作成画面）が開く
+# 備考: TASK-92。DRAFTS の「MEMO LIST」ボタンはメモが 1 件以上ないと表示されないため、
+#       前提メモを ml02-setup.js で作成し ml02-cleanup.js で削除する
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - ML
+  - ML-02
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+---
+# データセットアップ（MEMO LIST ボタンの表示条件を満たすメモを API で作成）
+- runScript: ../../scripts/ml02-setup.js
+
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# DRAFTS 画面へ遷移
+- tapOn:
+    id: 'nav-Drafts'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'DRAFTS'
+
+# MEMO LIST へ遷移（メモ取得後にボタンがフェードインするため待ってからタップする）
+- extendedWaitUntil:
+    visible: 'MEMO LIST'
+    timeout: 15000
+- tapOn: 'MEMO LIST'
+- waitForAnimationToEnd:
+    timeout: 5000
+# 一覧取得中はローディング表示のためリストが出るまで待つ
+- extendedWaitUntil:
+    visible:
+      id: 'memo-list-scroll'
+    timeout: 15000
+
+# ヘッダー右上が新規作成アイコンになっており、3 点リーダーは表示されていない
+- assertVisible:
+    id: 'toolbar-create'
+- assertNotVisible:
+    id: 'action-button-with-menu'
+
+# アイコンをタップすると新規メモ作成画面が開く（メニューを経由しない）
+- tapOn:
+    id: 'toolbar-create'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'QUICK MEMO'
+- assertVisible:
+    id: 'submit-button'
+
+# メモ一覧へ戻る（未入力のため破棄確認は出ない）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'memo-list-scroll'
+
+# 後始末（作成した e2e メモを API で削除）
+- runScript: ../../scripts/ml02-cleanup.js
