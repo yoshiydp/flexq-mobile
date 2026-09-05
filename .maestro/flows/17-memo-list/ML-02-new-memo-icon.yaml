@@ -32,10 +32,15 @@ env:
 - assertVisible: 'DRAFTS'
 
 # MEMO LIST へ遷移（メモ取得後にボタンがフェードインするため待ってからタップする）
+# DRAFTS 画面のボタンはラベルをアクセシビリティに公開しないため、testID で指定する。
+# MEMO / RECORD の 2 行が同じ drafts-list-button を共有するので index で上段（MEMO）を選ぶ。
 - extendedWaitUntil:
-    visible: 'MEMO LIST'
-    timeout: 15000
-- tapOn: 'MEMO LIST'
+    visible:
+      id: 'drafts-list-button'
+    timeout: 30000
+- tapOn:
+    id: 'drafts-list-button'
+    index: 0
 - waitForAnimationToEnd:
     timeout: 5000
 # 一覧取得中はローディング表示のためリストが出るまで待つ
