@@ -36,3 +36,6 @@ api
 
 # Mock server scripts
 scripts/server.ts
+
+# Demo account seed assets
+demo-assets/
