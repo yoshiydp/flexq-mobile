@@ -1,0 +1,39 @@
+# ID: TL-02-2
+# シナリオ名: 空状態の形式の案内（mp3 推奨）
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: ログイン → TRACK LIST タブをタップ → トラックが 0 件のときに空状態の案内を確認する
+# 期待結果: トラックが 0 件のとき、「トラックがありません」と ADD TRACK ボタンの下に
+#           「mp3 推奨（wav は時間がかかります）」の注記（id: track-list-format-hint）が表示される。
+#           トラックが 1 件以上ある環境では空状態にならないため、この検証はスキップして
+#           トラック一覧が表示されることのみを確認する
+# 備考: ADD TRACK シート内の mp3 推奨の注記と、アップロード中の
+#       「音源データをアップロード中… NN%」の進捗表示は、OS のファイルピッカー操作を
+#       伴うため E2E 対象外（手動確認: docs/test-cases.md TL-02 / TL-02-1）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - TL
+  - TL-02-2
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# トラックリスト画面へ遷移
+- tapOn:
+    id: 'nav-TrackList'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# トラックリスト画面のアサーション（タイトルはアニメーションで分割されるため部分テキストで確認）
+- assertVisible: 'TRACK'
+- assertVisible: 'LIST'
+
+# 0 件のときだけ空状態の注記を検証する（demo アカウントのデータ状態に依存しないよう条件付き）
+- runFlow:
+    when:
+      visible: 'トラックがありません'
+    commands:
+      - assertVisible:
+          id: 'track-list-add-button-empty'
+      - assertVisible:
+          id: 'track-list-format-hint'

@@ -113,6 +113,12 @@ export default StyleSheet.create({
     color: COLORS.font.label,
     fontSize: 13,
   },
+  formatHint: {
+    marginTop: 10,
+    color: COLORS.font.label,
+    fontSize: 12,
+    lineHeight: 18,
+  },
   submitButton: {
     marginHorizontal: 20,
     // Modal は画面全体を覆うため、ホームインジケーター（iOS）とタブバーに

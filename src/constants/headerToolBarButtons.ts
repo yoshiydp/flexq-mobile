@@ -6,6 +6,7 @@ export type HeaderToolBarButtonType =
   | 'headerTitle'
   | 'headphoneIndicator'
   | 'action'
+  | 'create'
   | 'hamburger'
   | 'bookmark'
   | 'share'
@@ -38,6 +39,8 @@ export const HEADER_TOOLBAR_TEMPLATES = {
     type: 'headphoneIndicator',
   } as HeaderToolBarButton,
   action: { id: 'toolbar-action', type: 'action' } as HeaderToolBarButton,
+  // 新規作成アイコン（メニューを介さず直接 onPress を実行する。TASK-92）
+  create: { id: 'toolbar-create', type: 'create' } as HeaderToolBarButton,
   hamburger: {
     id: 'toolbar-hamburger',
     type: 'hamburger',

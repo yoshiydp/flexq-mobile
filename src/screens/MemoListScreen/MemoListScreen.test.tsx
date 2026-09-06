@@ -1,5 +1,5 @@
 import React from 'react';
-import { act, render, waitFor } from '@testing-library/react-native';
+import { act, fireEvent, render, waitFor } from '@testing-library/react-native';
 import MemoListScreen from './index';
 
 const mockNavigate = jest.fn();
@@ -90,5 +90,28 @@ describe('MemoListScreen の pull-to-refresh', () => {
     await waitFor(() => {
       expect(getScrollView().props.refreshControl.props.refreshing).toBe(false);
     });
+  });
+});
+
+describe('MemoListScreen の新規メモ導線 (TASK-92)', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockRefreshMemo = jest.fn().mockResolvedValue(undefined);
+  });
+
+  it('ヘッダーに新規作成アイコンが表示され、タップで QuickMemo へ遷移する', () => {
+    const { getByTestId } = render(<MemoListScreen />);
+
+    fireEvent.press(getByTestId('toolbar-create'));
+
+    expect(mockNavigate).toHaveBeenCalledWith('QuickMemo', {
+      source: undefined,
+    });
+  });
+
+  it('3 点リーダーのメニューは表示されない', () => {
+    const { queryByTestId } = render(<MemoListScreen />);
+
+    expect(queryByTestId('action-button-with-menu')).toBeNull();
   });
 });

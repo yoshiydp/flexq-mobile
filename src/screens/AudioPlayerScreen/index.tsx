@@ -78,7 +78,7 @@ export default function AudioPlayerScreen() {
     closeModal,
   } = useModal();
 
-  const { updateTrack } = useUpdateTrack();
+  const { updateTrack, pickArtwork, uploadArtwork } = useUpdateTrack();
   const { deleteTrack } = useDeleteTrack();
   const { refreshTrack } = useFetchTrack();
 
@@ -286,6 +286,54 @@ export default function AudioPlayerScreen() {
     });
   };
 
+  /**
+   * アートワークの変更（TASK-95）。
+   * 画像タップはシークバー・コントロールの誤操作を招くため、
+   * 右上メニューからのみ変更できるようにしている。
+   * 未設定（デフォルト画像表示）のトラックにも同じ導線で設定できる。
+   */
+  const onPressChangeArtwork = async () => {
+    const targetTrackId = currentTrack.id;
+
+    let pickedUri: string | null = null;
+    try {
+      pickedUri = await pickArtwork();
+    } catch (err) {
+      console.error('Failed to pick artwork:', err);
+      Alert.alert('エラー', '画像の選択に失敗しました。');
+      return;
+    }
+    // キャンセル、または選択中に画面を離れた場合は何もしない
+    if (!pickedUri || !isMountedRef.current) return;
+
+    // アップロード中はテキストなしのローディングを表示する
+    showLoading();
+    try {
+      const artworkKey = await uploadArtwork(pickedUri);
+      await updateTrack(targetTrackId, { artworkKey });
+
+      // 一覧を再取得し、新しい Presigned URL をプレイヤーへ即時反映する
+      const latestTracks = await refreshTrack();
+      if (!isMountedRef.current) return;
+
+      const updated = latestTracks?.find((t) => t.id === targetTrackId);
+      setLocalTracks((prev) =>
+        prev.map((t) =>
+          t.id === targetTrackId
+            ? { ...t, artwork: updated?.artwork || pickedUri! }
+            : t,
+        ),
+      );
+    } catch (err) {
+      console.error('Failed to update track artwork:', err);
+      if (isMountedRef.current) {
+        Alert.alert('エラー', 'アートワークの変更に失敗しました。');
+      }
+    } finally {
+      hideLoading();
+    }
+  };
+
   const onSubmitDeleteTrack = async () => {
     closeModal();
     showLoading();
@@ -330,6 +378,7 @@ export default function AudioPlayerScreen() {
       ...HEADER_TOOLBAR_TEMPLATES.action,
       menuItems: [
         { label: 'Edit track name', onPress: onPressEdit },
+        { label: 'Change artwork', onPress: onPressChangeArtwork },
         { label: 'Delete', onPress: onPressDeleteConfirm },
       ],
     },

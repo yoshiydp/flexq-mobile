@@ -7,10 +7,12 @@ import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTab
 import TrackItem from '@/components/features/trackList/TrackItem';
 import HeaderActionButton from '@/components/ui/buttons/HeaderActionButton';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
+import ErrorBanner from '@/components/ui/ErrorBanner';
+import ErrorRetryView from '@/components/ui/ErrorRetryView';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
 import type { LinkedProject } from '@/hooks/useFetchTrack';
-import { MODAL_MESSAGES } from '@/constants/messages';
+import { MODAL_MESSAGES, TRACK_UPLOAD_LABELS } from '@/constants/messages';
 import { useUploadTrack } from '@/hooks/useUploadTrack';
 import type { PickedAudio } from '@/hooks/useUploadTrack';
 import TrackAddSheet from '@/components/features/trackList/TrackAddSheet';
@@ -28,13 +30,21 @@ export default function TrackListScreen() {
   const { tracks, loading, error, refreshTrack } = useFetchTrack();
   const { pickAudio, uploadTrack } = useUploadTrack();
   const { deleteTrack } = useDeleteTrack();
-  const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
+  const {
+    showConfirmModal,
+    closeModal,
+    showLoading,
+    updateLoadingMessage,
+    hideLoading,
+  } = useModal();
   const [refreshing, setRefreshing] = useState(false);
   // 音源選択後・アップロード前に追加確認シートへ渡す音源
   const [pendingAudio, setPendingAudio] = useState<PickedAudio | null>(null);
 
   // ファイル選択中にタブを離れた場合、戻るまで追加確認シートを出さないための参照
   const isFocusedRef = useRef(true);
+  // 進捗コールバックは細かく呼ばれるため、パーセントが変わったときだけ再描画する
+  const uploadPercentRef = useRef(-1);
 
   useFocusEffect(
     useCallback(() => {
@@ -71,8 +81,19 @@ export default function TrackListScreen() {
     if (!audio) return;
     setPendingAudio(null);
     try {
-      showLoading();
-      await uploadTrack({ audio, ...input });
+      uploadPercentRef.current = -1;
+      // wav など大きなファイルでは待ち時間が長くなるため、進捗を文言で伝える (TASK-94)
+      showLoading(TRACK_UPLOAD_LABELS.uploading);
+      await uploadTrack(
+        { audio, ...input },
+        {
+          onAudioProgress: (percent) => {
+            if (percent === uploadPercentRef.current) return;
+            uploadPercentRef.current = percent;
+            updateLoadingMessage(TRACK_UPLOAD_LABELS.uploadingProgress(percent));
+          },
+        },
+      );
       await refreshTrack();
     } catch (err) {
       console.error('Upload failed:', err);
@@ -141,22 +162,6 @@ export default function TrackListScreen() {
     );
   }
 
-  if (error) {
-    return (
-      <HomeTabsScreenTemplate
-        title="TRACK LIST"
-        titleAnim1={titleAnim1}
-        titleAnim2={titleAnim2}
-      >
-        <View style={styles.container}>
-          <Text style={{ color: 'red', padding: 16 }}>
-            Failed to load tracks.
-          </Text>
-        </View>
-      </HomeTabsScreenTemplate>
-    );
-  }
-
   return (
     <HomeTabsScreenTemplate
       title="TRACK LIST"
@@ -186,6 +191,14 @@ export default function TrackListScreen() {
           />
         }
       >
+        {/* 取得済みデータは残したまま通信エラーだけを上部バナーで知らせる（TASK-97 / CM-01） */}
+        {tracks.length > 0 && (
+          <ErrorBanner
+            error={error}
+            onRetry={handleRefresh}
+            containerClassName={styles.fetchError}
+          />
+        )}
         {tracks.length > 0 ? (
           tracks.map((track, index) => (
             <TrackItem
@@ -203,6 +216,13 @@ export default function TrackListScreen() {
               testID={`track-item-${index}`}
             />
           ))
+        ) : error ? (
+          // 初回取得に失敗して表示できるデータが無い場合は再試行を促す（TASK-97 / CM-01）
+          <ErrorRetryView
+            error={error}
+            onRetry={handleRefresh}
+            containerClassName={styles.fetchError}
+          />
         ) : (
           <View style={styles.emptyState}>
             <Text style={styles.emptyText}>トラックがありません</Text>
@@ -212,6 +232,9 @@ export default function TrackListScreen() {
               onPress={handleAddTrack}
               testID="track-list-add-button-empty"
             />
+            <Text style={styles.emptyHint} testID="track-list-format-hint">
+              {TRACK_UPLOAD_LABELS.formatHintShort}
+            </Text>
           </View>
         )}
       </ScrollView>

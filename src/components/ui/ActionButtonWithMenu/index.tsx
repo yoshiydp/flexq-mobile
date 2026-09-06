@@ -67,12 +67,17 @@ export default function ActionButtonWithMenu({
       </RippleButton>
 
       {shouldRender && (
-        <Animated.View style={[styles.menuContainer, { opacity: fadeAnim }]}>
+        // testID はラベル文言に依存せずメニューの開閉を検証できるようにするため（TASK-92 / E2E CM-05）
+        <Animated.View
+          testID="action-menu"
+          style={[styles.menuContainer, { opacity: fadeAnim }]}
+        >
           {menuItems.map((item, idx) => {
             const isLast = idx === menuItems.length - 1;
             return (
               <Pressable
                 key={idx}
+                testID={`action-menu-item-${idx}`}
                 style={[styles.menuItem, isLast && styles.menuItemLast]}
                 onPress={() => handleSelect(item.onPress)}
               >

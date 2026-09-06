@@ -84,7 +84,7 @@ export default function PlayerControls({
           />
         </RippleButton>
       )}
-      <RippleButton onPress={onPlayPause} size={80}>
+      <RippleButton onPress={onPlayPause} size={80} testID="player-play-button">
         <Icon
           component={FontAwesome6}
           name={isPlaying ? 'pause' : 'play'}
