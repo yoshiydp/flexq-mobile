@@ -9,6 +9,7 @@ develop から master への Pull Request を作成するコマンドです。
    git log origin/master..origin/develop --oneline
    ```
 2. `gh pr create` で master ベースの PR を作成する
+3. **マージ後**、この PR に含まれる全タスクの Notion「リリース」チェックを OFF に戻す（後述の「マージ後の後処理」）
 
 ## PR 作成ルール
 
@@ -44,6 +45,36 @@ develop → master へのリリース PR です。
 
 🤖 Generated with [Claude Code](https://claude.com/claude-code)
 ```
+
+## マージ後の後処理：リリースチェックのリセット
+
+**master へのマージが完了したら、この PR に含まれた全タスクの Notion「リリース」チェックを OFF に戻す。**
+
+「リリース」チェックは「**まだ production に出していない未リリース分**」を示すフィルタとして使っている。
+master に入ったあとも ON のまま残すと、次のリリース PR でどこまでが新規分か判別できなくなる。
+ステータスは **Done のまま維持**し、チェックだけを外す。
+
+### 手順
+
+1. PR に含まれる TASK 番号を、マージコミットの develop 側から抽出する:
+
+   ```bash
+   # <merge-sha> は今回のリリース PR のマージコミット（gh pr view <PR番号> --json mergeCommit -q .mergeCommit.oid）
+   git fetch origin
+   git log <merge-sha>^1..<merge-sha>^2 --oneline | grep -oE 'TASK-[0-9]+' | sort -u -t- -k2 -n
+   ```
+
+   マージ前に確認する場合は `git log origin/master..origin/develop --oneline | grep -oE 'TASK-[0-9]+' | sort -u -t- -k2 -n` でも同じ集合が得られる。
+
+2. 抽出した各 TASK について Notion のページ ID を引き、`mcp__notion__API-patch-page` で
+   `{"リリース": {"checkbox": false}}` を送る
+   - ページ ID は `mcp__notion__API-post-search`（`filter` に `{"property": "object", "value": "page"}`、
+     `sort` は `last_edited_time` の降順）の結果から ID プロパティで突き合わせる
+   - `mcp__notion__API-query-data-source` は Notion のプラン制限で使えない（`invalid_request_url` になる）
+
+3. 対象タスクのうち、リリース ON になっていなかったもの（develop 経由で master に入ったが
+   `/task-done` を通していないもの）も同様に OFF のままで問題ない。**ステータスが Done でないタスクが
+   含まれていた場合は、動作確認の漏れがないかユーザーに確認する**
 
 ## 注意事項
 
