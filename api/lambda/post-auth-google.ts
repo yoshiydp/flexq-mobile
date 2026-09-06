@@ -14,6 +14,12 @@ import { verifyGoogleAccessToken } from './google-auth';
 //      - mode: 'register'（Register 画面）→ 新規作成（パスワードなし）
 //      - mode: 'login'（SignIn 画面・デフォルト）→ 404 を返し新規登録へ誘導
 // パスワード認証（post-auth-login）と同じ形式のレスポンス・JWT を返す。
+//
+// ②③ はメールアドレスを本人性の根拠に使うため、Google 側で所有確認が済んだ
+// メール（emailVerified）でなければ実行しない（TASK-101）。未検証メールの
+// Google アカウントは他人のアドレスを名乗れるため、既存アカウントへの自動連携
+// （＝乗っ取り）やアドレスの先取り登録を許してしまう。
+// ① は googleSub 一致＝過去に本人が連携した Google アカウントなので従来どおり許可する。
 
 // google 連携の socialAccounts エントリを isLinked: true で upsert する
 const upsertGoogleSocialAccount = (
@@ -59,11 +65,25 @@ export const handler = async (event: any) => {
   let isNewUser = false;
 
   if (!user) {
-    // ② メールアドレスで検索（Google のメールは検証済みのため email 一致での
-    //    自動ひも付けを許容する。一致したら googleSub を保存して次回以降は ① で照合）
+    // ② メールアドレスで検索（一致したら googleSub を保存して次回以降は ① で照合）
     const email = googleUser.email;
     if (!email) {
       return createResponse({ message: 'Google account has no email' }, 401);
+    }
+
+    // メールアドレスを本人性の根拠に使う ②③ の手前でメール検証状態を確認する。
+    // 未検証メールでは既存アカウントへの自動連携も新規作成も行わない（TASK-101）。
+    // 検索前に弾くことで、アカウントの有無が 401 / 404 の差として漏れることも防ぐ。
+    // リトライしても解消しない永続エラーのため、クライアントが
+    // 「時間をおいて再試行」ではなく専用の案内を出せるよう code を添える。
+    if (!googleUser.emailVerified) {
+      return createResponse(
+        {
+          code: 'email_not_verified',
+          message: 'Google account email is not verified',
+        },
+        401,
+      );
     }
 
     const emailResult = await docClient.send(
