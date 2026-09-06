@@ -2,6 +2,7 @@ import { UpdateCommand, GetCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from './db';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
+import { isOwnedS3Key } from './s3-key-validation';
 
 export const handler = async (event: any) => {
   const claims = verifyToken(event);
@@ -11,6 +12,13 @@ export const handler = async (event: any) => {
   if (!projectId) return createResponse({ message: 'id is required' }, 400);
 
   const { body, cueButtons, projectName, artworkKey, trackId, trackName } = JSON.parse(event.body || '{}');
+
+  // get-track-upload-url が発行する自ユーザーのキー以外は受け付けない
+  // （他ユーザーのオブジェクトを参照・削除させないため）。
+  // 部分更新のため、値が渡されたときだけ検証する
+  if (artworkKey !== undefined && !isOwnedS3Key(artworkKey, claims.userId, ['artworks'])) {
+    return createResponse({ message: 'Invalid artworkKey' }, 400);
+  }
 
   // 現在のプロジェクトを取得して旧 trackId を確認
   const currentProject = await docClient.send(new GetCommand({
@@ -23,6 +31,39 @@ export const handler = async (event: any) => {
   }
 
   const oldTrackId: string | undefined = currentProject.Item.trackId;
+
+  /**
+   * トラックの linkedProjects を更新する。
+   * attribute_exists がないと、削除済み・他端末で消えた trackId を送られたときに
+   * title も s3Key もない「幽霊トラック」行が作られ、トラック一覧が壊れる (TASK-102)。
+   * プロジェクト自体の更新は既に成功しているため、条件不成立は 500 にせず警告ログのみ残す
+   * （外側の catch が ConditionalCheckFailedException を「プロジェクト不在」の
+   *   404 として扱うため、ここで必ず握りつぶして外に投げないこと）。
+   */
+  const updateTrackLinkedProjects = async ({
+    trackId: targetTrackId,
+    updateExpression,
+    expressionValues,
+  }: {
+    trackId: string;
+    updateExpression: string;
+    expressionValues: Record<string, any>;
+  }) => {
+    try {
+      await docClient.send(new UpdateCommand({
+        TableName: process.env.TRACKS_TABLE!,
+        Key: { userId: claims.userId, trackId: targetTrackId },
+        UpdateExpression: updateExpression,
+        ConditionExpression: 'attribute_exists(trackId)',
+        ExpressionAttributeValues: expressionValues,
+      }));
+    } catch (err: any) {
+      if (err?.name !== 'ConditionalCheckFailedException') throw err;
+      console.warn(
+        `Skipped linkedProjects update for missing track (trackId=${targetTrackId}, projectId=${projectId})`,
+      );
+    }
+  };
 
   const now = new Date().toISOString();
 
@@ -77,26 +118,25 @@ export const handler = async (event: any) => {
         if (oldTrack.Item) {
           const filtered = ((oldTrack.Item.linkedProjects ?? []) as Array<string | { id: string }>)
             .filter((item) => (typeof item === 'string' ? item !== projectId : item.id !== projectId));
-          await docClient.send(new UpdateCommand({
-            TableName: process.env.TRACKS_TABLE!,
-            Key: { userId: claims.userId, trackId: oldTrackId },
-            UpdateExpression: 'SET linkedProjects = :filtered',
-            ExpressionAttributeValues: { ':filtered': filtered },
-          }));
+          await updateTrackLinkedProjects({
+            trackId: oldTrackId,
+            updateExpression: 'SET linkedProjects = :filtered',
+            expressionValues: { ':filtered': filtered },
+          });
         }
       }
 
       // 新トラックの linkedProjects にこのプロジェクトを追加
       if (trackId) {
-        await docClient.send(new UpdateCommand({
-          TableName: process.env.TRACKS_TABLE!,
-          Key: { userId: claims.userId, trackId },
-          UpdateExpression: 'SET linkedProjects = list_append(if_not_exists(linkedProjects, :empty), :newProject)',
-          ExpressionAttributeValues: {
+        await updateTrackLinkedProjects({
+          trackId,
+          updateExpression:
+            'SET linkedProjects = list_append(if_not_exists(linkedProjects, :empty), :newProject)',
+          expressionValues: {
             ':newProject': [{ id: projectId, name: projectName }],
             ':empty': [],
           },
-        }));
+        });
       }
     }
 

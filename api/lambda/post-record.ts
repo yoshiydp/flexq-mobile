@@ -6,6 +6,7 @@ import { docClient } from './db';
 import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
+import { isOwnedS3Key } from './s3-key-validation';
 
 export const handler = async (event: any) => {
   const claims = verifyToken(event);
@@ -16,6 +17,11 @@ export const handler = async (event: any) => {
 
   if (!s3Key) {
     return createResponse({ message: 's3Key is required' }, 400);
+  }
+  // get-record-upload-url が発行する自ユーザーのキー以外は受け付けない
+  // （他ユーザーのオブジェクトを参照・削除させないため）
+  if (!isOwnedS3Key(s3Key, claims.userId, ['records'])) {
+    return createResponse({ message: 'Invalid s3Key' }, 400);
   }
 
   const resolvedTitle = (title && title.trim()) ? title.trim() : 'No Title';
