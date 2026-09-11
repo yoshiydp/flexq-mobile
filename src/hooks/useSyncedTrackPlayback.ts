@@ -12,6 +12,8 @@ import {
 /**
  * enableSync の結果
  * - `'enabled'`: 同時再生を有効化できた
+ * - `'enabled-streaming'`: 有効化できたが、トラック音源のローカルキャッシュに失敗して
+ *   ストリーミング再生になった（呼び出し側で案内を出す / TASK-117）
  * - `'no-track'`: プロジェクトにトラック音源がない（削除・差し替え済み等）
  * - `'load-failed'`: トラック音源の読み込みに失敗した
  * - `'headphones-disconnected'`: ロード完了を待つ間にイヤホンの切断などで有効化条件を失った
@@ -19,6 +21,7 @@ import {
  */
 export type EnableSyncResult =
   | 'enabled'
+  | 'enabled-streaming'
   | 'no-track'
   | 'load-failed'
   | 'headphones-disconnected'
@@ -267,34 +270,60 @@ export function useSyncedTrackPlayback({
    * ストリーミング再生だと再生開始・シーク直後のバッファリングと同期補正のシークが
    * 重なり、トラックの出だしが引っかかる（滑らかに鳴り始めない）ため、同時再生の
    * 有効化時にダウンロード（2 回目以降はキャッシュ）してから再生する。
-   * ローカル URI（未保存のトラック差し替え等）はそのまま返し、ダウンロードに
-   * 失敗した場合は従来どおり URL のストリーミング再生にフォールバックする
-   * @param forceRefresh キャッシュを無視して再ダウンロードする（ロード失敗後のリトライ用）
+   * ローカル URI（未保存のトラック差し替え等）はそのまま返す。
+   * ダウンロードに失敗した場合は最新の Presigned URL を再取得してもう一度ダウンロードし、
+   * それでも失敗した場合だけ URL のストリーミング再生にフォールバックする (TASK-117)。
+   * 以前は初回の失敗で無通知のままストリーミングに落ちていたため、URL の期限切れや
+   * 一時的な通信エラーが「出だしの引っかかり・カクつき」としてテスターから報告された。
+   * @param forceRefresh キャッシュを無視して再ダウンロードする（ロード失敗後のリトライ用。
+   *   呼び出し側で URL を再取得済みのため、ここでの再取得は行わない）
+   * @returns 再生に使う URI と、実際に使った（再取得後の）ソース URL・取得元
    */
   const resolveTrackPlaybackUri = async (
     source: string,
     forceRefresh: boolean,
-  ): Promise<string> => {
+  ): Promise<{ uri: string; source: string; playbackSource: 'local' | 'remote' }> => {
     if (!isRemoteUri(source)) {
       setTrackPlaybackSource('local');
-      return source;
+      return { uri: source, source, playbackSource: 'local' };
     }
-    try {
-      const cached = await resolveCachedRecordAudio(
-        source,
-        cacheKeyForRemoteUri('track', source),
-        { forceRefresh },
-      );
-      setTrackPlaybackSource('local');
-      return cached.uri;
-    } catch (e) {
-      console.error(
-        'Failed to cache project track audio; falling back to streaming:',
-        e,
-      );
-      setTrackPlaybackSource('remote');
-      return source;
+    let candidate = source;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        const cached = await resolveCachedRecordAudio(
+          candidate,
+          cacheKeyForRemoteUri('track', candidate),
+          { forceRefresh: forceRefresh || attempt > 0 },
+        );
+        setTrackPlaybackSource('local');
+        return { uri: cached.uri, source: candidate, playbackSource: 'local' };
+      } catch (e) {
+        console.error('Failed to cache project track audio:', e);
+      }
+      if (forceRefresh || attempt > 0) break;
+      // Presigned URL の期限切れ・一時的な通信エラーに備えて最新 URL を取り直す。
+      // ProjectSettings で差し替えた未保存のトラック（initialTrackSource）はサーバー側の
+      // 保存済みトラックと別の音源のため、同じ S3 オブジェクトを指す URL のときだけ
+      // 採用し、別の音源なら選択中のソースのままストリーミングに落とす
+      try {
+        const fresh = await fetchTrackSource();
+        if (
+          !fresh ||
+          !isRemoteUri(fresh) ||
+          cacheKeyForRemoteUri('track', fresh) !==
+            cacheKeyForRemoteUri('track', candidate)
+        ) {
+          break;
+        }
+        candidate = fresh;
+      } catch (refetchErr) {
+        console.error('Failed to refetch project track source:', refetchErr);
+        break;
+      }
     }
+    console.error('Falling back to streaming playback for project track audio');
+    setTrackPlaybackSource('remote');
+    return { uri: candidate, source: candidate, playbackSource: 'remote' };
   };
 
   /**
@@ -305,7 +334,9 @@ export function useSyncedTrackPlayback({
    * ロードに失敗した場合は TASK-34 と同様に最新の URL を再取得し、キャッシュを
    * 作り直して 1 回だけリトライする。
    */
-  const loadTrackSound = async (): Promise<Audio.Sound | 'no-track' | null> => {
+  const loadTrackSound = async (): Promise<
+    { sound: Audio.Sound; playbackSource: 'local' | 'remote' } | 'no-track' | null
+  > => {
     let trackSource: string | null = initialTrackSource || null;
     if (!trackSource) {
       try {
@@ -318,17 +349,16 @@ export function useSyncedTrackPlayback({
     }
 
     for (let attempt = 0; attempt < 2; attempt++) {
-      const playbackUri = await resolveTrackPlaybackUri(
-        trackSource,
-        attempt > 0,
-      );
+      const resolved = await resolveTrackPlaybackUri(trackSource, attempt > 0);
+      // キャッシュ側で URL を再取得した場合は以降のリトライでもその URL を使う
+      trackSource = resolved.source;
       if (!isMountedRef.current) return null;
       try {
         const { sound } = await Audio.Sound.createAsync(
-          { uri: playbackUri },
+          { uri: resolved.uri },
           { shouldPlay: false, volume: trackVolumeRef.current },
         );
-        return sound;
+        return { sound, playbackSource: resolved.playbackSource };
       } catch (e) {
         console.error('Failed to load project track audio:', e);
         if (attempt === 0) {
@@ -352,6 +382,8 @@ export function useSyncedTrackPlayback({
   const enableSync = async (recordPositionMs: number): Promise<EnableSyncResult> => {
     if (!canSync) return 'load-failed';
 
+    // 今回のロードでトラック音源がストリーミング再生にフォールバックしたか (TASK-117)
+    let streamingFallback = false;
     setTrackLoading(true);
     try {
       if (!trackSoundRef.current) {
@@ -360,14 +392,15 @@ export function useSyncedTrackPlayback({
         // ロード完了を待つ間に画面を離れていた場合は適用しない（エラー扱いにもしない）
         if (!isMountedRef.current) {
           if (result && typeof result !== 'string') {
-            result.unloadAsync().catch(() => {});
+            result.sound.unloadAsync().catch(() => {});
           }
           return 'cancelled';
         }
 
         if (result === 'no-track') return 'no-track';
         if (!result) return 'load-failed';
-        trackSoundRef.current = result;
+        trackSoundRef.current = result.sound;
+        streamingFallback = result.playbackSource === 'remote';
       }
 
       // ロード完了を待つ間にイヤホンの切断などで有効化条件を失った場合は有効化しない
@@ -382,7 +415,7 @@ export function useSyncedTrackPlayback({
         // トラック尺を超える位置などへのシーク失敗は無視する（再生時に再同期される）
       }
       setSyncEnabled(true);
-      return 'enabled';
+      return streamingFallback ? 'enabled-streaming' : 'enabled';
     } finally {
       setTrackLoading(false);
     }
