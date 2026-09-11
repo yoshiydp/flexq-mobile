@@ -73,6 +73,17 @@ export const SYNC_PLAYBACK_LABELS = {
   headphonesRequired: 'イヤホン（有線 / Bluetooth）接続時に使用できます',
   noTrack: 'プロジェクトにトラック音源がないため同時再生できません。',
   loadFailed: 'トラック音源の読み込みに失敗しました。',
+  // ローカルキャッシュへのダウンロードに 2 回（最新 URL の再取得込み）失敗し、
+  // ストリーミング再生に切り替えたときの案内 (TASK-117)
+  streamingFallback:
+    'トラック音源のダウンロードに失敗したため、ストリーミングで再生します。出だしが引っかかる場合は、通信環境と端末の空き容量を確認して録音を開き直してください。',
+};
+
+export const RECORD_PLAYBACK_LABELS = {
+  // 元の録音 / 声のみ音源のローカルキャッシュへのダウンロードに 2 回
+  // （最新 URL の再取得込み）失敗し、ストリーミング再生に切り替えたときの案内 (TASK-117)
+  streamingFallback:
+    '音源のダウンロードに失敗したため、ストリーミングで再生します。冒頭が途切れる場合は、通信環境と端末の空き容量を確認して録音を開き直してください。',
 };
 
 export const FETCH_ERROR_MESSAGES = {
