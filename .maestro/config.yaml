@@ -18,5 +18,10 @@
 #     maestro test .maestro/flows/03-register/RG-07-invalid-verification-code.yaml
 flows:
   - "flows/[0-9]*/*.yaml"
+# tags: requires-ban — BAN 状態の前提が必要なフロー（25-account-suspension）。BAN の切り替えは
+#   API ではなく scripts/ban-user.ts（DynamoDB 直接更新）のためフロー単体では前提状態を作れず、
+#   既定で除外する。scripts/e2e-ban.sh が BAN → フロー実行 → 解除をまとめて行う
+#   （ディレクトリ直接指定で実行するためこの除外は効かない）
 excludeTags:
   - mock
+  - requires-ban
