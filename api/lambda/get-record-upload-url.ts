@@ -6,7 +6,7 @@ import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { randomUUID } from 'crypto';
 
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const { filename, contentType } = event.queryStringParameters || {};

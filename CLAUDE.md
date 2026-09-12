@@ -183,6 +183,41 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
+### アカウント停止（BAN）運用
+
+規約違反・迷惑行為ユーザーのアカウントを停止する手順（TASK-81）。**物理削除ではなく論理削除**（Users レコードの `status` を `suspended` に切り替え）で行うため、同じ email / Google アカウントでの再登録をブロックでき、誤判定時は完全に復旧できる。詳細な方針・保持期間は `docs/account-suspension-policy.md` を参照。
+
+**事前準備（初回のみ）:** `cd api && npm install`（スクリプトが `api/` 配下の AWS SDK を使うため）
+
+```bash
+# 1. Users テーブル名を取得（production の例。staging は flexq-stg-api、dev は lyrics-dev-api）
+AWS_PROFILE=flexq-ops aws cloudformation describe-stacks --stack-name flexq-prod-api \
+  --query "Stacks[0].Outputs[?OutputKey=='UsersTableName'].OutputValue" --output text
+
+# 2. BAN 実行（email / userId どちらでも指定可。実行前に対象の userId・email・現在の status が表示される）
+AWS_PROFILE=flexq-ops USERS_TABLE=<テーブル名> npx tsx scripts/ban-user.ts abuse-user@example.com
+
+# 3. 誤判定時の解除（データは保持されているため再ログインだけで完全復旧する）
+AWS_PROFILE=flexq-ops USERS_TABLE=<テーブル名> npx tsx scripts/ban-user.ts abuse-user@example.com --unban
+```
+
+> dev（開発者アカウント）で実行する場合は `AWS_PROFILE=flexq-ops` を外す。
+
+**BAN 後の挙動:**
+
+| 経路 | 挙動 |
+|------|------|
+| パスワードログイン / Google ログイン / トークンリフレッシュ | 403 で拒否 |
+| すでにログイン中の端末（発行済みトークン） | 401 で全 API 遮断。**反映は最大 60 秒**（`auth-middleware` の status キャッシュ TTL） |
+| 同じメールでの新規登録 | 409（レコードが残るため自然にブロック） |
+
+**運用ルール:**
+- BAN 実行は日時・対象 userId / email・理由を Notion に記録する
+- **BAN はアカウント単位**。同一人物が別メールで持つ別アカウント（同じ Google アカウントを連携している場合を含む）には影響しないため、必要に応じて個別に BAN する
+- データは `suspendedAt` から 1 年保持し、解除の見込みがなければ物理削除する（TASK-80 の削除処理を流用・当面は手動運用）
+
+**E2E 検証:** `scripts/e2e-ban.sh` が dev の専用アカウント `e2e-ban@example.com` を BAN → `.maestro/flows/25-account-suspension/`（AS-01: ログイン 403 Account suspended / 再登録 409 を API で検証 + 「Login Failed」の UI 確認）→ 解除、の順に実行する。Google ログイン・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は `docs/test-cases.md` の AS-02 / AS-03 / AS-05 で手動確認する
+
 ### AI クリーンアップ（Replicate 連携）
 
 #### 概要
@@ -512,6 +547,7 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 maestro test .maestro                    # 全フロー（config.yaml の glob で新旧構成とも実行）
 maestro test .maestro --include-tags=PE  # セクション単位（tags で絞り込み）
 maestro test .maestro/flows/login.yaml   # 単一フロー（ファイル指定）
+scripts/e2e-ban.sh                       # アカウント停止（AS）フロー。BAN 前提のため通常実行（config.yaml の excludeTags: requires-ban）から除外されている
 # デバイスが複数接続されている場合は明示指定（例: Android エミュレーター）
 maestro --device emulator-5554 test .maestro
 ```
@@ -519,6 +555,7 @@ maestro --device emulator-5554 test .maestro
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
 **テストアカウント（dev）:** `demo@example.com` / `password123`
+**BAN 検証用アカウント（dev）:** `e2e-ban@example.com` / `password123`（`25-account-suspension` のフロー専用。`scripts/e2e-ban.sh` が BAN → フロー実行 → 解除を行う。demo アカウントを BAN すると他の全 E2E が巻き添えになるため共用しない。アカウントが無い場合はアプリの新規登録（メール認証コードあり）で作成する）
 
 **前提データ:** `project-detail` / `project-edit-save` / `project-delete` は demo アカウントに 1 件以上のプロジェクト、`track-play` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
 
