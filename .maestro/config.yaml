@@ -12,3 +12,7 @@
 flows:
   - "flows/*.yaml"
   - "flows/[0-9]*/*.yaml"
+# BAN 状態の前提が必要なフロー（25-account-suspension）はデフォルト実行から除外する。
+# scripts/e2e-ban.sh が BAN → フロー実行 → 解除をまとめて行う（ディレクトリ直接指定のためこの除外は効かない）
+excludeTags:
+  - requires-ban

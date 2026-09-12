@@ -1,0 +1,54 @@
+# ID: AS-01
+# シナリオ名: 停止（BAN）中アカウントのログイン拒否
+# 前提条件: scripts/e2e-ban.sh 経由で実行すること（E2E 専用アカウント e2e-ban@example.com を
+#           BAN → このフロー → 解除、をラッパーが行う）。BAN の切り替えは API ではなく
+#           scripts/ban-user.ts（DynamoDB 直接更新）のため、フロー単体では前提状態を作れない。
+#           `maestro test .maestro` のデフォルト実行からは tags の requires-ban で除外している。
+# 操作手順: BAN されたアカウントの正しいメール・パスワードで SIGN IN
+# 期待結果: 「Login Failed」アラートが表示されログインされない（ログイン画面に留まる）。
+#           API レベルでは login が 403 Account suspended、同じ email での register が 409 になる
+# 備考: Google ログイン（ネイティブ UI）・発行済みトークンの遮断（反映に最大 60 秒）・解除後の復旧は
+#       docs/test-cases.md の AS-02 / AS-03 / AS-05 で手動確認する
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - AS
+  - AS-01
+  - requires-ban
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_BAN_EMAIL: 'e2e-ban@example.com'
+  E2E_BAN_PASSWORD: 'password123'
+---
+# API レベルの検証（login 403 Account suspended / register 409）
+# UI の「Login Failed」はパスワード誤りと区別できないため、BAN が効いていることはここで確認する
+- runScript: ../../scripts/as01-verify.js
+
+# アプリ起動（ログイン画面から開始）
+- runFlow: ../helpers/launch-app.yaml
+
+# BAN されたアカウントの正しい認証情報でサインイン
+# （起動直後の最初の入力はフォーカス競合で失われることがあるためリトライする）
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn: 'メールアドレスを入力してください'
+      - inputText: '${E2E_BAN_EMAIL}'
+      - assertVisible: '${E2E_BAN_EMAIL}'
+- tapOn: 'パスワードを入力してください'
+- inputText: '${E2E_BAN_PASSWORD}'
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn: 'SIGN IN'
+
+# ログイン失敗アラートが表示される
+- extendedWaitUntil:
+    visible: 'Login Failed'
+    timeout: 15000
+- assertVisible: 'Invalid email or password.'
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# ログイン画面に留まっている（ホームへ遷移していない）
+- assertVisible: 'SIGN IN'
+- assertNotVisible: 'PROJECT LIST'

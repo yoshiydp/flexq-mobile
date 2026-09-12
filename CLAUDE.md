@@ -216,6 +216,8 @@ AWS_PROFILE=flexq-ops USERS_TABLE=<テーブル名> npx tsx scripts/ban-user.ts 
 - **BAN はアカウント単位**。同一人物が別メールで持つ別アカウント（同じ Google アカウントを連携している場合を含む）には影響しないため、必要に応じて個別に BAN する
 - データは `suspendedAt` から 1 年保持し、解除の見込みがなければ物理削除する（TASK-80 の削除処理を流用・当面は手動運用）
 
+**E2E 検証:** `scripts/e2e-ban.sh` が dev の専用アカウント `e2e-ban@example.com` を BAN → `.maestro/flows/25-account-suspension/`（AS-01: ログイン 403 Account suspended / 再登録 409 を API で検証 + 「Login Failed」の UI 確認）→ 解除、の順に実行する。Google ログイン・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は `docs/test-cases.md` の AS-02 / AS-03 / AS-05 で手動確認する
+
 ### AI クリーンアップ（Replicate 連携）
 
 #### 概要
@@ -545,6 +547,7 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 maestro test .maestro                    # 全フロー（config.yaml の glob で新旧構成とも実行）
 maestro test .maestro --include-tags=PE  # セクション単位（tags で絞り込み）
 maestro test .maestro/flows/login.yaml   # 単一フロー（ファイル指定）
+scripts/e2e-ban.sh                       # アカウント停止（AS）フロー。BAN 前提のため通常実行（config.yaml の excludeTags: requires-ban）から除外されている
 # デバイスが複数接続されている場合は明示指定（例: Android エミュレーター）
 maestro --device emulator-5554 test .maestro
 ```
@@ -552,6 +555,7 @@ maestro --device emulator-5554 test .maestro
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
 **テストアカウント（dev）:** `demo@example.com` / `password123`
+**BAN 検証用アカウント（dev）:** `e2e-ban@example.com` / `password123`（`25-account-suspension` のフロー専用。`scripts/e2e-ban.sh` が BAN → フロー実行 → 解除を行う。demo アカウントを BAN すると他の全 E2E が巻き添えになるため共用しない。アカウントが無い場合はアプリの新規登録（メール認証コードあり）で作成する）
 
 **前提データ:** `project-detail` / `project-edit-save` / `project-delete` は demo アカウントに 1 件以上のプロジェクト、`track-play` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
 

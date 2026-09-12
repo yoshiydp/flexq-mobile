@@ -77,3 +77,12 @@ aws cloudformation describe-stacks --stack-name flexq-prod-api \
 - 誤判定が判明したら `--unban` で即時復旧できる（データ・トークン以外の
   状態は一切変更されないため副作用なし）
 - 解除後、ユーザーは再ログインすればそのまま利用を再開できる
+
+## E2E 検証
+
+- dev では `scripts/e2e-ban.sh` で自動確認できる（専用アカウント `e2e-ban@example.com` を BAN →
+  `.maestro/flows/25-account-suspension/` を実行 → 解除）。AS-01 がログインの 403
+  `Account suspended` と同じ email での再登録 409 を API で検証し、アプリ側の「Login Failed」
+  表示を確認する
+- Google ログインの拒否・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は
+  `docs/test-cases.md` の AS-02 / AS-03 / AS-05 として手動確認する
