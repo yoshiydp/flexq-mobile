@@ -1,6 +1,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
+import { withRequestTimeout } from '@/utils/requestTimeout';
 import type {
   RecordedWithHeadphones,
   SeparationStatus,
@@ -39,7 +40,9 @@ export function useFetchProjectRecords(projectId: string) {
     setError(null);
 
     try {
-      const res = await DefaultService.getDataProjectRecords(projectId);
+      const res = await withRequestTimeout(
+        DefaultService.getDataProjectRecords(projectId),
+      );
 
       const projectData = Array.isArray(res) ? res[0] : res;
       const recordList = projectData?.records || [];

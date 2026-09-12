@@ -3,6 +3,7 @@ import type { FC } from 'react';
 import type { SvgProps } from 'react-native-svg';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
+import { withRequestTimeout } from '@/utils/requestTimeout';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 
 export interface SocialAccount {
@@ -35,7 +36,7 @@ export function useFetchProfile(
     setLoading(true);
     setError(null);
     try {
-      const res = await DefaultService.getProfile();
+      const res = await withRequestTimeout(DefaultService.getProfile());
 
       const mappedAccounts: SocialAccount[] = (res.socialAccounts ?? []).map(
         (acc: { provider: keyof typeof SOCIAL_ICON_MAP; username: string; isLinked: boolean }) => ({

@@ -1,10 +1,12 @@
 import React, { useCallback, useState } from 'react';
-import { View, ScrollView, ActivityIndicator, Text, RefreshControl } from 'react-native';
+import { View, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import MemoItem from '@/components/features/drafts/MemoItem';
+import ErrorBanner from '@/components/ui/ErrorBanner';
+import ErrorRetryView from '@/components/ui/ErrorRetryView';
 import {
   HEADER_TOOLBAR_TEMPLATES,
   HeaderToolBarButton,
@@ -65,27 +67,14 @@ export default function MemoListScreen() {
   const items: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     { ...HEADER_TOOLBAR_TEMPLATES.headerTitle, headerTitle: 'MEMO LIST' },
-    {
-      ...HEADER_TOOLBAR_TEMPLATES.action,
-      menuItems: [{ label: '新規メモ', onPress: handleNewMemo }],
-    },
+    // 項目が「新規メモ」だけのため 3 点リーダーではなく新規作成アイコンで直接遷移する（TASK-92）
+    { ...HEADER_TOOLBAR_TEMPLATES.create, onPress: handleNewMemo },
   ];
 
   if (loading && memos.length === 0) {
     return (
       <View style={styles.container}>
         <ActivityIndicator size="large" />
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <HeaderToolBar items={items} />
-        <Text style={{ color: 'red', margin: 16 }}>
-          Failed to load memo data.
-        </Text>
       </View>
     );
   }
@@ -105,6 +94,14 @@ export default function MemoListScreen() {
           />
         }
       >
+        {/* 取得済みデータは残したまま通信エラーだけを上部バナーで知らせる（TASK-97 / CM-01） */}
+        {sortedMemos.length > 0 && (
+          <ErrorBanner error={error} onRetry={handleRefresh} />
+        )}
+        {sortedMemos.length === 0 && error && (
+          // 初回取得に失敗して表示できるデータが無い場合は再試行を促す（TASK-97 / CM-01）
+          <ErrorRetryView error={error} onRetry={handleRefresh} />
+        )}
         {sortedMemos.map((memo) => (
           <MemoItem
             key={memo.id}

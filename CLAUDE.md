@@ -179,7 +179,7 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 
 > **注意:** `api/samconfig.toml` のデフォルトスタック名は dev の `lyrics-dev-api`（`--stack-name` なしの `sam deploy` は dev に向く）。**staging / production へのデプロイでは `--stack-name` と `AWS_PROFILE=flexq-ops` を必ず明示する**。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
 
-- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、未指定でも CloudFormation が前回値を保持する
+- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（新規作成時はテンプレートの `Default` が入る。下記「Replicate トークン」の注意も参照）
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
@@ -276,6 +276,15 @@ cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-chang
 - Replicate のトークン・費用は**当面開発側負担**（運営者アカウントの stg / prod への設定も開発者が行う。`docs/aws-account-migration-guide.md` 第 III 部 7）
 - `ReplicateApiToken` は NoEcho（CloudFormation コンソールに表示されない）。**未設定の間は分離エンドポイントが 503 を返す**が、他機能には影響しない
 - 一度設定した値は以後の未指定デプロイでも保持される（CloudFormation の UsePreviousValue）。ただし確実を期すなら毎回明示指定する
+- **⚠️ UsePreviousValue が効くのは「既存スタックの更新」だけ。スタックを新規作成した場合は `Default` の空文字が入り、AI クリーンアップが 503 になる**（TASK-88: 運営者アカウントへの移行で新設した `lyrics-dev-api` / `flexq-stg-api` / `flexq-prod-api` の 3 スタックとも空のままで、TestFlight / Play 内部テストの AI クリーンアップが全滅していた）
+- デプロイ後は環境変数が空でないことを確認する（`/deploy-api-dev` / `/deploy-api-stg` の手順 5 のスモークチェック）:
+
+```bash
+FN=$(aws lambda list-functions --region ap-northeast-1 \
+  --query "Functions[?starts_with(FunctionName,'lyrics-dev-api-PostRecordSeparateFunction')].FunctionName" --output text)
+aws lambda get-function-configuration --function-name "$FN" --region ap-northeast-1 \
+  --query "Environment.Variables.REPLICATE_API_TOKEN" --output text | wc -c   # 1 なら空 = 未設定
+```
 - トークンをローテーションした場合は staging / production（利用していれば dev も）へ再デプロイで反映する
 
 #### コスト
@@ -283,11 +292,27 @@ cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-chang
 - 従量課金（プリペイドクレジットから消費）。demucs は GPU 実行数秒〜十数秒で **1 回あたり数円程度**（実測: 8.7 秒の音源で処理 17 秒）
 - アプリ側の課金ガード: 実行はユーザーのオプトインのみ・処理済みレコードの再実行はキャッシュ（`separatedS3Key`）を返して二重課金を防止
 
+#### クライアント側の再生（ローカルキャッシュ / TASK-89）
+
+- 分離音源（声のみ）は 16-bit PCM wav（約 1.4 Mbps・元録音 m4a の 5 倍超）のため、Presigned URL をそのまま `Audio.Sound` に渡す**ストリーミング再生では冒頭の再バッファリングで音が途切れ（カクつき）、その間に録音側の再生位置だけが止まってトラック同時再生が 0.2〜0.3 秒ズレる**（補正ウィンドウの外で起きるため残る）。ファイル自体は元録音と相互相関で 0.00 ms 一致しており、サーバー側の位置合わせ（TASK-44）の問題ではない
+- そのため `src/utils/recordAudioCache.ts` でキャッシュディレクトリ（`record-audio/`）へダウンロードしてからローカルファイルとして再生する（ダウンロード中はフルスクリーンローディング）。2 回目以降はキャッシュから即再生。鮮度は Presigned URL の ETag（`Range: bytes=0-0` の GET で取得。HEAD は署名不一致で 403）で判定し、再実行で上書きされた音源は作り直す。ダウンロード失敗時は従来のストリーミング再生にフォールバックする
+- **同時再生に使う全音源（元の録音・声のみ・トラック）をローカルに揃える**（保存済みレコードの元の録音（m4a）はキャッシュキー `<recordId>-original`）。ストリーミング再生は開始直後の再バッファリングで音が途切れ、再生位置とのズレの原因になる
+- **録音開始位置（`startPositionMs`）は負の値になり得る**（TASK-89）。REC 開始時、マイクは即座に録り始める一方、ProjectEdit のトラック（ストリーミング）は鳴り始めるまでモバイル回線で数百 ms〜数秒かかるため、実測値「トラック位置 − 録音経過時間」は負になる。以前は `Math.max(0, …)` で 0 に丸め、さらに実測が 2 秒で諦めて選択位置（0）にフォールバックしていたため、「はじめから」録音したテイクが起動遅延ぶんトラック先行（声が 0.4〜0.5 秒遅れて聞こえる）で保存されていた（staging の該当テイクは 4 本とも `startPositionMs` がぴったり 0 で、シミュレーターでも初回計測が −1 ms → 0 に丸められることを確認）。再生側がストリーミングだった頃はトラックも同じだけ遅れて鳴るため偶然相殺され、トラックをローカル化した時点で露出した。対応: 実測を丸めず負のまま保存（試行上限 10 秒）、`useSyncedTrackPlayback` は対応位置が負の間トラックを先頭で待機させて対応位置 0 で開始（`scheduleTrackStartIfEarly`）、ミックスは `adelay` でトラックを遅らせる（`MIX_PIPELINE_VERSION` v5）、`post-record` は負値を受け付ける。**丸められて保存された既存テイク（0）は復元できない**
+- 途中から録音したテイクの `startPositionMs` は、staging の実テイクをトラックと相互相関して −12 ms（有線）/ −72 ms（スピーカー）の精度で正確だと確認済み（相互相関の手順はトラブルシューティング参照）
+- **トラック音源も同時再生の有効化時に同じ仕組みでローカルキャッシュする**（`useSyncedTrackPlayback.resolveTrackPlaybackUri`、キー `track-<S3 オブジェクト名>`）。ストリーミングのままだと再生開始・シーク直後のバッファリングに同期補正のシークが重なり、トラックの出だしが引っかかる（iOS / Android 共通）。ダウンロード中はフルスクリーンローディングを表示する
+- **Bluetooth 録音のテイクは開始位置を出力遅延ぶん手前に補正する**（`src/utils/syncStartPosition.ts` の `getEffectiveStartPositionMs`、代表値 220ms）。録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、Bluetooth（A2DP）では耳に届くのが出力遅延ぶん後のため保存値が真の値より大きくなり、同時再生・ミックスで声が 0.2〜0.3 秒先行していた（有線は遅延ほぼ 0 のため無症状。無線で録ったテイクは有線で再生しても先行する）。サーバー側のミックス（`api/lambda/record-mix.ts` の `effectiveStartPositionMs`、`MIX_PIPELINE_VERSION` v4）も同じ値・同じ規則で補正する。**両方の定数は必ず同じ値に揃えること**。OS の実測値（iOS `AVAudioSession.outputLatency`）を保存する方式への置き換えは別タスク
+- 発音開始タイミング補正（`useSyncedTrackPlayback.correctSyncOffset`）は 2 フェーズ: 開始直後の補正ウィンドウ（150ms × 8 回 = 1.2 秒、許容 15ms iOS / 40ms Android）→ その後は再生が続く限り連続同期監視（1 秒間隔・60ms 超のズレを 2 回連続で実測した場合のみ補正）。連続監視は再生途中のドリフトへの保険で、**保存された startPositionMs の誤りは補正できない**（対応位置に正確に合わせるだけ）
+- 再生画面下部の可視化テキスト（`sync-offset-debug`・`source=… sync=… offset=… start=… track=…`）は Metro 接続の開発ビルド（`__DEV__`）に加え、`EXPO_PUBLIC_SYNC_DEBUG=1` でビルドされた OTA バンドルでも表示される（dev / staging の EAS Update ワークフローで設定済み。production では設定しない）。`track=` はトラック音源の取得元（local = キャッシュ / remote = ストリーミングフォールバック）で、実機でのキャッシュ失敗の切り分けに使う。`offset` はトラック位置 −（開始位置 + 録音位置）の実測値（正 = 声が遅れて聞こえる）。E2E `.maestro/flows/13-sync-playback/SY-05-separated-timing.yaml` はこの値が ±39ms 以内であることを検証する
+
 #### トラブルシューティング
 
 | 症状 | 原因 / 確認先 |
 |------|--------------|
 | 実行時に 503 | `ReplicateApiToken` 未設定（SAM パラメータを確認） |
+| 声のみの同時再生がズレる・冒頭がカクつく | 分離音源がローカルキャッシュではなくストリーミング再生されている（開発ビルドの `sync-offset-debug` が `separated:remote` になる = ダウンロード失敗。端末の空き容量・Presigned URL の期限切れを確認）。`separated:local` でズレる場合は `offset` の値と `useSyncedTrackPlayback` の補正ログを確認する |
+| 声が一定時間**先行**する（有線で再生しても同じ） | 録音時の Bluetooth 出力遅延が `startPositionMs` に焼き込まれている。`recordedWithHeadphones` が `bluetooth` なら `getEffectiveStartPositionMs` の補正が効いているか、代表値（220ms）と機種の実遅延の差を疑う |
+| 声が一定時間**遅れる**（トラックが先行） | 「はじめから」録音したテイクで `startPositionMs` が 0 ちょうどなら、負の実測値が丸められた旧テイク（TASK-89 以前）で復元不可。新規テイクでも起きる場合は録音時の実測ログ（開発ビルドの `[rec-start-measure]`）と再生画面の `start=` を確認。録音側の誤差を疑う場合は staging の S3（`flexq-stg-api-trackaudiobucket-*`）からテイクとトラックを取得し相互相関で `startPositionMs` を検証する（イヤホンなし・有線のテイクはかぶりで相関が取れる） |
+| トラックの出だしが引っかかる | トラック音源のローカルキャッシュに失敗してストリーミングにフォールバックしている（`Failed to cache project track audio` のログ）。空き容量・URL 期限切れを確認 |
 | 開始直後に 502 | `PostRecordSeparateFunction` の CloudWatch ログ（Replicate API エラーの詳細が出る） |
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
@@ -505,13 +530,14 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 ```
 
 - 新しいフローは**新構成**で作成し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
-- 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）
+- 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）。作成に外部 API の実行（Replicate 等）が必要なデータは demo アカウントの既存サンプルを読み取り専用で使い、`updatedAt` の更新やブックマークで一覧先頭に出す（例: `sy05-setup.js`）
+- リスト項目の `Pressable` は子テキストがグループ化され、ラベルが「タイトル, 日付 …」の連結になるため `'.*タイトル.*'` の部分一致で探す。表示領域の狭い内側の ScrollView では枠外の項目も階層上は「表示中」扱いになり `scrollUntilVisible` → `tapOn` が枠外をタップして失敗するため、対象を先頭に出す前提データにする
 - ネイティブ UI（DocumentPicker / ImagePicker など）を伴う操作は E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
 
 **実行前提:**
-- `yarn start` で開発サーバーを起動済み（dev 環境に接続）
+- `yarn start` で開発サーバーを起動済み（dev 環境に接続）。非対話で起動する場合は `CI=1 npx expo start`（ファイル監視なし。ソース変更後は再起動が必要）
 - iOS シミュレーターまたは Android エミュレーターに開発ビルド（expo-dev-client）をインストール済み（初回のみ `yarn ios` / `yarn android`）
-- **手動ログアウトは不要**（各フローが起動時に `clearState` + `clearKeychain` でアプリ状態を初期化し、ログイン画面から開始する。Expo Dev Client のランチャー画面・初回ダイアログも `helpers/launch-app.yaml` が自動処理する）
+- **手動ログアウトは不要**（各フローが起動時に `clearState` + `clearKeychain` でアプリ状態を初期化し、ログイン画面から開始する。Expo Dev Client のランチャー画面・初回ダイアログ・Continue 後に残る開発メニュー（iOS は `Close`、Android は back）、iOS のパスワード保存ダイアログ（`今はしない`）も `helpers/launch-app.yaml` / `helpers/login.yaml` が自動処理する）
 
 **実行方法:**
 
@@ -793,7 +819,7 @@ Claude Code から Notion MCP を経由してタスク管理を行う。GitHub �
 
 | プロパティ | 型 | 内容 |
 |-----------|-----|------|
-| リリース | チェックボックス | dev での動作確認 + develop マージ完了で ON（TestFlight / Play 配信対象の目印） |
+| リリース | チェックボックス | 未リリース分の目印。dev での動作確認 + develop マージ完了で ON、master へのリリース PR マージで OFF に戻す |
 | タイトル | テキスト | タスク名 |
 | 簡単な詳細 | テキスト | 概要（1行） |
 | デバイス | セレクト | Android / iPhone |
@@ -916,7 +942,16 @@ feature ブランチは dev へのマージだけでは develop に取り込ま�
 
 #### リリースフラグ
 
-Notion の「リリース」チェックボックスは **dev で正常に動作確認がとれ、develop へ反映した時点で ON** にする（`/task-done` が自動化）。TestFlight / Play 内部テスト配信時に、どのタスクが配信対象かをこのフラグで判別する。マージのみで動作確認が未了の場合は OFF のまま。
+Notion の「リリース」チェックボックスは「**まだ production に出していない未リリース分**」を示すフラグで、1 リリースサイクルごとに ON → OFF と往復させる。
+
+| タイミング | 操作 | 自動化 |
+|-----------|------|-------|
+| dev で動作確認がとれ、develop へ反映した時点 | **ON** | `/task-done` |
+| develop → master のリリース PR をマージした時点 | **OFF に戻す**（ステータスは Done のまま） | `/pr-master` の「マージ後の後処理」 |
+
+TestFlight / Play 内部テスト配信時に、どのタスクが配信対象かをこのフラグで判別する。マージのみで動作確認が未了の場合は ON にせず OFF のままにする。
+
+master に入ったあとも ON のまま残すと、次のリリース PR でどこまでが新規分か判別できなくなるため、**リリース PR のマージ後は必ず該当タスクのチェックを外す**。対象タスクの抽出方法は `.claude/commands/pr-master.md` を参照。
 
 #### ファイルアップロードの mime タイプ
 

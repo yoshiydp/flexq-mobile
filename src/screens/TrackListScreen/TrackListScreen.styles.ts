@@ -16,6 +16,11 @@ export default StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  // 一覧コンテナが left: 20 + width: 100% で画面右端まではみ出すため、
+  // エラー表示は右側に余白を確保して収める（TASK-97）
+  fetchError: {
+    paddingRight: 40,
+  },
   emptyState: {
     flex: 1,
     alignItems: 'center',
@@ -30,5 +35,14 @@ export default StyleSheet.create({
   },
   addButton: {
     width: '90%',
+  },
+  // ADD TRACK ボタン直下の形式の案内（mp3 推奨）
+  emptyHint: {
+    // rowGap（24）だとボタンから離れすぎるため、案内文だけ間隔を詰める
+    marginTop: -12,
+    paddingHorizontal: 40,
+    color: COLORS.font.label,
+    fontSize: 12,
+    textAlign: 'center',
   },
 });

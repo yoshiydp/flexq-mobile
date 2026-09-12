@@ -42,7 +42,21 @@ import type { SeparationStatus } from '@/types/separationType';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
+import { getSeparationStartErrorMessage } from '@/utils/separationErrorMessage';
+import { isRemoteUri, resolveCachedRecordAudio } from '@/utils/recordAudioCache';
+import { getEffectiveStartPositionMs } from '@/utils/syncStartPosition';
 import styles from './RecordPlayerScreen.styles';
+
+/**
+ * 同期状態の可視化（TASK-89）。
+ * 「再生対象とその取得元 / 同時再生の有効状態 / 実測ズレ / 開始位置 / トラック取得元」を
+ * 1 行で表示し、E2E（.maestro/flows/13-sync-playback）はこの表示でズレが許容値内かを検証する。
+ * Metro 接続の開発ビルド（__DEV__）に加え、EXPO_PUBLIC_SYNC_DEBUG=1 でビルドされた
+ * OTA バンドル（dev / staging チャンネル）でも表示され、TestFlight / Play 内部テストの
+ * 実機を計測器として使える（production では設定しないこと）
+ */
+const SYNC_DEBUG_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_SYNC_DEBUG === '1';
+const SYNC_DEBUG_INTERVAL_MS = 500;
 
 /**
  * 再生ボタンの表示・操作判定に使う「再生意図」。
@@ -106,6 +120,11 @@ export default function RecordPlayerScreen() {
   );
   // 音源再取得リトライ時に、切替直後でも最新の再生対象を参照するための ref
   const activeSourceRef = useRef<'original' | 'separated'>('original');
+  // 元の録音 / 声のみ音源のローカルキャッシュ URI（file://）。ストリーミングに
+  // フォールバックした場合は null（共有時のダウンロード省略と開発時の可視化に使う / TASK-89）
+  const [originalLocalUri, setOriginalLocalUri] = useState<string | null>(null);
+  const [separatedLocalUri, setSeparatedLocalUri] = useState<string | null>(null);
+  const [debugSyncOffsetMs, setDebugSyncOffsetMs] = useState<number | null>(null);
   const prevSeparationStatusRef = useRef<SeparationStatus>('none');
 
   // プロジェクト録音のみ、イヤホン装着時にトラック音源との同期同時再生を有効化できる (TASK-37)。
@@ -114,7 +133,8 @@ export default function RecordPlayerScreen() {
   const headphoneConnection = useHeadphonesConnected();
   const syncPlayback = useSyncedTrackPlayback({
     projectId: params?.projectId,
-    startPositionMs: params?.startPositionMs,
+    // Bluetooth 録音のテイクは録音時の出力遅延ぶん開始位置を手前に補正する (TASK-89)
+    startPositionMs: getEffectiveStartPositionMs(params),
     initialTrackSource: params?.trackSource,
     headphoneConnection,
     allowWithoutHeadphones: activeSource === 'separated',
@@ -135,6 +155,53 @@ export default function RecordPlayerScreen() {
   // 画面遷移などで既にアンマウント済みの場合、音源再取得リトライの継続処理
   // （Alert 表示や Audio.Sound の生成）を行わないようにするための参照 (TASK-34)
   const isMountedRef = useRef(true);
+
+  /**
+   * 録音音源（S3 Presigned URL）を再生用のローカルファイルに解決する (TASK-89)。
+   *
+   * ストリーミング再生は再生開始直後のバッファリングの間、報告される再生位置だけが
+   * 進んで音は遅れて出るため、位置ベースの同期補正では検出できないズレになる
+   * （声のみ wav は再バッファリングで音が途切れる問題も併発）。トラック音源が
+   * ローカル再生（即時に鳴る）になったことでこの遅れが露出したため、元の録音・
+   * 声のみとも保存済みレコードはダウンロード（2 回目以降はキャッシュ）してから再生し、
+   * 同時再生に使う全音源をローカルに揃える。
+   * ダウンロードに失敗した場合は従来どおり URL のストリーミング再生にフォールバックする。
+   * 未保存のテイク（file://）はそのまま返す。
+   * @param forceRefresh キャッシュを無視して再ダウンロードする（ロード失敗後のリトライ用）
+   */
+  const resolvePlaybackUri = async (
+    sourceUri: string,
+    variant: 'original' | 'separated',
+    forceRefresh = false,
+  ): Promise<string> => {
+    const setLocalUri =
+      variant === 'separated' ? setSeparatedLocalUri : setOriginalLocalUri;
+    if (!isRemoteUri(sourceUri)) {
+      // 録音直後の未保存テイクなどローカルファイルはそのまま再生する
+      if (isMountedRef.current) setLocalUri(sourceUri);
+      return sourceUri;
+    }
+    if (!params?.id) return sourceUri;
+    showLoading();
+    try {
+      const cached = await resolveCachedRecordAudio(
+        sourceUri,
+        `${params.id}-${variant}`,
+        { forceRefresh },
+      );
+      if (isMountedRef.current) setLocalUri(cached.uri);
+      return cached.uri;
+    } catch (error) {
+      console.error(
+        `Failed to cache ${variant} audio; falling back to streaming:`,
+        error,
+      );
+      if (isMountedRef.current) setLocalUri(null);
+      return sourceUri;
+    } finally {
+      hideLoading();
+    }
+  };
 
   const loadTrack = async (
     autoPlay = false,
@@ -249,11 +316,14 @@ export default function RecordPlayerScreen() {
           Alert.alert('エラー', '音源の再取得に失敗しました。');
           return;
         }
-        // 「声のみ」再生中に期限切れになった場合は分離済み音源の最新 URL でリトライする
+        // 「声のみ」再生中に期限切れになった場合は分離済み音源の最新 URL でリトライする。
+        // 声のみはローカルキャッシュ経由で再生するため、キャッシュファイルの破損等に
+        // 備えて作り直してからリトライする (TASK-89)
         const retryUri =
-          activeSourceRef.current === 'separated'
-            ? updated.separatedSource ?? updated.source
-            : updated.source;
+          activeSourceRef.current === 'separated' && updated.separatedSource
+            ? await resolvePlaybackUri(updated.separatedSource, 'separated', true)
+            : await resolvePlaybackUri(updated.source, 'original', true);
+        if (!isMountedRef.current) return;
         await loadTrack(autoPlay, retryUri, true);
       } catch (refetchErr) {
         console.error('Failed to refetch record:', refetchErr);
@@ -271,7 +341,14 @@ export default function RecordPlayerScreen() {
     );
     confirmModalMessageRef.current = { message, description };
 
-    loadTrack(false);
+    // 保存済みレコードの元の録音はローカルキャッシュへ解決してから読み込む (TASK-89)
+    (async () => {
+      const uri = recordedFile
+        ? await resolvePlaybackUri(recordedFile, 'original')
+        : undefined;
+      if (!isMountedRef.current) return;
+      await loadTrack(false, uri);
+    })();
 
     return () => {
       isMountedRef.current = false;
@@ -308,6 +385,14 @@ export default function RecordPlayerScreen() {
     return () => hideLoading();
   }, [shareDownloading, mixing]);
 
+  // 同時再生の有効化でトラック音源をローカルキャッシュへダウンロードしている間も
+  // フルスクリーンローディングを表示する（初回は数 MB のダウンロードになる / TASK-89）
+  useEffect(() => {
+    if (!syncPlayback.trackLoading) return;
+    showLoading();
+    return () => hideLoading();
+  }, [syncPlayback.trackLoading]);
+
   // ミックス版（声のみ + トラック音源）を共有できるか (TASK-49)。
   // 保存済みのプロジェクト録音で、位置合わせ済みの分離音源（声のみ）がある場合のみ
   const mixShareAvailable = Boolean(
@@ -338,10 +423,12 @@ export default function RecordPlayerScreen() {
   // iOS はファイルに保存（デバイス / iCloud Drive）や Google Drive 等への共有に
   // 共有シートのみで対応する (TASK-45)。Android は共有シート + SAF 保存 (TASK-55)
   const runForActiveSource = async (action: 'share' | 'save') => {
+    // 声のみは再生用にダウンロード済みのローカルキャッシュがあればそれを使う
+    // （再ダウンロードを省略。失敗時のリトライは最新 URL で行う / TASK-89）
     const uri =
       activeSource === 'separated' && separatedSource
-        ? separatedSource
-        : recordedFile;
+        ? separatedLocalUri ?? separatedSource
+        : originalLocalUri ?? recordedFile;
     if (!uri) return;
     try {
       await deliverRecord(action, uri, title);
@@ -551,23 +638,56 @@ export default function RecordPlayerScreen() {
       await startSeparation(params.id);
     } catch (error) {
       console.error('Failed to start AI cleanup:', error);
-      Alert.alert('エラー', SEPARATION_LABELS.startFailed);
+      // 503（サーバー側で機能が無効）は再試行しても回復しないため文言を分ける (TASK-88)
+      Alert.alert('エラー', getSeparationStartErrorMessage(error));
     }
   };
 
   // 「元の録音 / 声のみ」の再生対象を切り替える
   const handleSourceChange = async (target: 'original' | 'separated') => {
     if (target === activeSource) return;
-    const uri = target === 'separated' ? separatedSource : recordedFile;
-    if (!uri) return;
+    const sourceUri = target === 'separated' ? separatedSource : recordedFile;
+    if (!sourceUri) return;
     activeSourceRef.current = target;
     setActiveSource(target);
     setPosition(0);
-    // 切替後のレコードは停止状態で読み込まれるため、同時再生中のトラックも一時停止する
-    // （同時再生の有効/無効状態は useSyncedTrackPlayback 側の canSync に応じて維持・解除される）
+    // 切替後のレコードは停止状態で読み込まれるため、現在の録音と同時再生中のトラックを
+    // 先に一時停止する（声のみのダウンロード待ちの間に旧音源が鳴り続けないようにする。
+    // 同時再生の有効/無効状態は useSyncedTrackPlayback 側の canSync に応じて維持・解除される）
+    if (sound) {
+      try {
+        await sound.pauseAsync();
+      } catch {
+        // 既にアンロード済みなどの停止失敗は無視する（loadTrack 側で unload される）
+      }
+    }
+    setIsPlaying(false);
     await syncPlayback.syncPause();
+    // 声のみはローカルキャッシュ（ダウンロード）に解決してから読み込む (TASK-89)
+    const uri = await resolvePlaybackUri(sourceUri, target);
+    if (!isMountedRef.current) return;
     await loadTrack(false, uri);
   };
+
+  // デバッグ表示が有効なとき: 同時再生中の実測ズレを定期的に取得して表示する（TASK-89）
+  useEffect(() => {
+    if (!SYNC_DEBUG_ENABLED || !sound || !syncPlayback.syncEnabled || !isPlaying) {
+      setDebugSyncOffsetMs(null);
+      return;
+    }
+    let cancelled = false;
+    const timer = setInterval(async () => {
+      const offset = await syncPlaybackRef.current.measureSyncOffset(sound);
+      // 計測不能（バッファリング中・未発音）のときは古い値を残さず「--」に戻す
+      if (!cancelled) {
+        setDebugSyncOffsetMs(offset === null ? null : Math.round(offset));
+      }
+    }, SYNC_DEBUG_INTERVAL_MS);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [sound, syncPlayback.syncEnabled, isPlaying]);
 
   const handleSyncToggle = async (value: boolean) => {
     if (!value) {
@@ -626,6 +746,8 @@ export default function RecordPlayerScreen() {
             await startSeparation(record.id);
           } catch (error) {
             console.error('Failed to auto-start AI cleanup:', error);
+            // 自動実行の失敗も利用者へ通知する（保存自体は成功しているため保存処理は継続する）
+            Alert.alert('エラー', getSeparationStartErrorMessage(error));
           }
         }
       }
@@ -852,6 +974,25 @@ export default function RecordPlayerScreen() {
                   onVolumeChange={syncPlayback.setTrackVolume}
                 />
               </View>
+            )}
+            {SYNC_DEBUG_ENABLED && (
+              <Text style={styles.syncDebugText} testID="sync-offset-debug">
+                {`source=${
+                  activeSource === 'separated'
+                    ? separatedLocalUri
+                      ? 'separated:local'
+                      : 'separated:remote'
+                    : originalLocalUri
+                      ? 'original:local'
+                      : 'original:remote'
+                } sync=${syncPlayback.syncEnabled ? 'on' : 'off'} offset=${
+                  debugSyncOffsetMs === null
+                    ? '--'
+                    : `${debugSyncOffsetMs >= 0 ? '+' : ''}${debugSyncOffsetMs}ms`
+                } start=${getEffectiveStartPositionMs(params)}ms track=${
+                  syncPlayback.trackPlaybackSource ?? '--'
+                }`}
+              </Text>
             )}
           </View>
         ) : null}

@@ -37,8 +37,9 @@ export const handler = async (event: any) => {
   }
 
   // トラック同期再生用の録音開始位置（ミリ秒）。
+  // 録音がトラックの発音より先に始まった場合は負の値になる（TASK-89）。
   // 不正値は保存せず、取得側では未保存レコードを 0（トラック先頭）として扱う
-  if (typeof startPositionMs === 'number' && Number.isFinite(startPositionMs) && startPositionMs >= 0) {
+  if (typeof startPositionMs === 'number' && Number.isFinite(startPositionMs)) {
     item.startPositionMs = startPositionMs;
   }
 

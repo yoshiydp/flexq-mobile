@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { View, Alert, KeyboardAvoidingView, Platform, Keyboard, Pressable } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -31,7 +31,11 @@ import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useCreateMemo } from '@/hooks/useCreateMemo';
 import { useUpdateMemo } from '@/hooks/useUpdateMemo';
 import { useDeleteMemo } from '@/hooks/useDeleteMemo';
-import { useVoiceTranscription } from '@/hooks/useVoiceTranscription';
+import {
+  isInAppVoiceInputSupported,
+  useVoiceTranscription,
+} from '@/hooks/useVoiceTranscription';
+import { insertTranscript } from '@/utils/transcriptInsertion';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './QuickMemoScreen.styles';
 
@@ -79,18 +83,33 @@ export default function QuickMemoScreen() {
   const { updateMemo } = useUpdateMemo();
   const { deleteMemo } = useDeleteMemo();
 
-  const handleTranscriptionResult = (text: string) => {
-    editor.injectJS(`window.editor.commands.insertContent(${JSON.stringify(text)})`);
-  };
+  // 認識結果は WebView 内のエディターへアトミックに追記する。
+  // RN 側のミラー state（body）は非同期・デバウンスされた古いスナップショットなので、
+  // それを使って本文全体を差し替えると認識中の編集が消えてしまう（TASK-91）
+  const handleTranscriptionResult = useCallback(
+    (text: string) => {
+      void insertTranscript(editor, text);
+    },
+    [editor],
+  );
+
+  const handleTranscriptionError = useCallback((message: string) => {
+    Alert.alert('音声入力', message);
+  }, []);
+
   const { isListening, startListening, stopListening } = useVoiceTranscription(
     handleTranscriptionResult,
+    handleTranscriptionError,
   );
+
+  // iOS はマイクボタンを出さず、キーボード標準の音声入力（ディクテーション）に委ねる（TASK-100）
+  const isVoiceInputEnabled = isInAppVoiceInputSupported();
 
   const handleMicPress = () => {
     if (isListening) {
       stopListening();
     } else {
-      startListening();
+      void startListening();
     }
   };
 
@@ -243,7 +262,7 @@ export default function QuickMemoScreen() {
               isEditing={true}
               fillContainer
               isListening={isListening}
-              onMicPress={handleMicPress}
+              onMicPress={isVoiceInputEnabled ? handleMicPress : undefined}
             />
           </View>
         </View>

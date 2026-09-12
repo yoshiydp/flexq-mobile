@@ -1,8 +1,10 @@
 import React, { useCallback, useMemo, useState } from 'react';
-import { View, ScrollView, ActivityIndicator, Text, RefreshControl } from 'react-native';
+import { View, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import RecordItem from '@/components/features/drafts/RecordItem';
+import ErrorBanner from '@/components/ui/ErrorBanner';
+import ErrorRetryView from '@/components/ui/ErrorRetryView';
 import {
   HEADER_TOOLBAR_TEMPLATES,
   HeaderToolBarButton,
@@ -75,17 +77,6 @@ export default function RecordListScreen() {
     );
   }
 
-  if (error) {
-    return (
-      <View style={styles.container}>
-        <HeaderToolBar items={items} />
-        <Text style={{ color: 'red', margin: 16 }}>
-          Failed to load records.
-        </Text>
-      </View>
-    );
-  }
-
   return (
     <View style={styles.container}>
       <HeaderToolBar items={items} />
@@ -101,6 +92,14 @@ export default function RecordListScreen() {
           />
         }
       >
+        {/* 取得済みデータは残したまま通信エラーだけを上部バナーで知らせる（TASK-97 / CM-01） */}
+        {records.length > 0 && (
+          <ErrorBanner error={error} onRetry={handleRefresh} />
+        )}
+        {records.length === 0 && error && (
+          // 初回取得に失敗して表示できるデータが無い場合は再試行を促す（TASK-97 / CM-01）
+          <ErrorRetryView error={error} onRetry={handleRefresh} />
+        )}
         {records.map((record) => (
           <RecordItem
             key={record.id}

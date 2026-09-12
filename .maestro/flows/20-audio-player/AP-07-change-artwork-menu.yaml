@@ -1,0 +1,72 @@
+# ID: AP-07
+# シナリオ名: アートワーク変更メニューの表示（導線表示まで）
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）・
+#           demo アカウント（dev）に 1 件以上のトラックが存在する
+# 操作手順: ログイン → TRACK LIST → 先頭のトラックをタップ → 右上の 3 点メニューを開く → 閉じる → 戻る
+# 期待結果: メニューに Edit track name / Change artwork / Delete が表示される。
+#           もう一度 3 点メニューをタップすると閉じ、プレイヤー画面に戻れる
+# 備考: - 写真の選択・差し替えの実行は OS の ImagePicker 操作になるため E2E 対象外
+#         （手動確認: docs/test-cases.md AP-07 / AP-08）
+#       - メニューの並び順（Edit track name → Change artwork → Delete）は Maestro では
+#         直接アサートできないため、3 項目の表示のみ確認する。並び順は Jest
+#         （src/screens/AudioPlayerScreen/AudioPlayerScreen.changeArtwork.test.tsx）で検証している
+#       - AP-08（アートワーク未設定トラック）は E2E フローを作成していない。前提データの
+#         「アートワーク未設定トラック」を API セットアップで用意するには実音源ファイルを
+#         S3 へバイナリ PUT する必要があり Maestro の runScript では安定して行えないうえ、
+#         音源が無効だとプレイヤーで読み込みエラーの Alert が出てフローが不安定になる。
+#         E2E で観測できる範囲（メニューの表示）は AP-07 と同一のため、手動確認に残す
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - AP
+  - AP-07
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# トラックリスト画面へ遷移
+- tapOn:
+    id: 'nav-TrackList'
+- waitForAnimationToEnd:
+    timeout: 5000
+# 一覧の取得完了を待つ（トラック名は可変のため id でアサートする）
+- extendedWaitUntil:
+    visible:
+      id: 'track-item-0'
+    timeout: 15000
+
+# 先頭のトラックをタップしてオーディオプレイヤーを起動
+- tapOn:
+    id: 'track-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'audio-player-title'
+
+# 右上の 3 点メニューを開く
+- tapOn:
+    id: 'action-button-with-menu'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# メニュー項目が表示される（ラベルは英語固定のため可変データではない）
+- extendedWaitUntil:
+    visible: 'Change artwork'
+    timeout: 10000
+- assertVisible: 'Edit track name'
+- assertVisible: 'Delete'
+
+# もう一度タップしてメニューを閉じる
+- tapOn:
+    id: 'action-button-with-menu'
+- extendedWaitUntil:
+    notVisible: 'Change artwork'
+    timeout: 10000
+
+# プレイヤーからトラックリストへ戻れることを確認
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'TRACK'
+- assertVisible: 'LIST'
