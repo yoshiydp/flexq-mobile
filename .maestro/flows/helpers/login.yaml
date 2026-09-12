@@ -1,6 +1,6 @@
 # 共通ログインフロー（iOS / Android 対応）
 # 前提条件: なし（launch-app.yaml が起動時にアプリ状態を初期化し、ログイン画面から開始する）
-# 使い方: 各フローから `- runFlow: ./helpers/login.yaml` で呼び出す
+# 使い方: 各フローから `- runFlow: ../helpers/login.yaml` で呼び出す
 
 appId: com.yoshiydp.lyricsapp
 ---
@@ -17,9 +17,13 @@ appId: com.yoshiydp.lyricsapp
 - inputText: 'password123'
 # キーボードを閉じてから SIGN IN をタップ（iOS / Android で閉じ方が異なる）
 - runFlow: ./hide-keyboard.yaml
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる（SIGN IN を覆うため）
+- runFlow: ./dismiss-password-save.yaml
 - tapOn: 'SIGN IN'
 - waitForAnimationToEnd:
     timeout: 10000
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ./dismiss-password-save.yaml
 # ログインに成功しプロジェクトリストへ遷移したことを確認
 - extendedWaitUntil:
     visible: 'PROJECT'

@@ -1,13 +1,17 @@
-# ID: REC-01
-# シナリオ名: 録音リスト（DRAFTS）表示
+# ID: DR-01
+# シナリオ名: DRAFTS 画面のボタン表示
 # 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: ログイン → DRAFTS タブをタップ
 # 期待結果: DRAFTS タイトルと QUICK MEMO・QUICK RECORD ボタンが表示される
+# 備考: MEMO LIST / RECORD LIST の表示条件（メモ・録音が 1 件以上あるときだけ表示）は手動確認（docs/test-cases.md DR-01）
 
 appId: com.yoshiydp.lyricsapp
+tags:
+  - DR
+  - DR-01
 ---
 # ログイン
-- runFlow: ./helpers/login.yaml
+- runFlow: ../helpers/login.yaml
 
 # DRAFTS 画面へ遷移
 - tapOn:

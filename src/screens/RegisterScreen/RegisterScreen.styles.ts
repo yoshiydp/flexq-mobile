@@ -57,4 +57,24 @@ export default StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
+  verifyNotice: {
+    color: COLORS.font.default,
+    fontSize: 13,
+    lineHeight: 20,
+  },
+  resendButton: {
+    alignSelf: 'center',
+    marginTop: 24,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+  },
+  resendLabel: {
+    color: COLORS.font.default,
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+  resendLabelDisabled: {
+    color: COLORS.font.label,
+    textDecorationLine: 'none',
+  },
 });

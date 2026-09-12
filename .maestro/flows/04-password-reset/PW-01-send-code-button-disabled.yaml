@@ -1,0 +1,44 @@
+# ID: PW-01
+# シナリオ名: 未入力時のボタン（メール入力ステップ）
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: パスワードをリセットする → 未入力状態を確認 → メールアドレスを入力
+# 期待結果: メールが空の間は SEND CODE ボタンが非活性。入力すると活性化する
+# 備考: PW-01 のうちメール入力ステップ側。コード入力ステップ（コード・新パスワードの
+#       未入力時に PASSWORD RESET が非活性）は PW-04（モック）と手動テストで確認する
+# ※ SEND CODE を押さないため API 呼び出し・メール送信は発生しない（dev 環境で安全に実行できる）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PW
+  - PW-01
+---
+# 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
+- runFlow: ../helpers/launch-app.yaml
+
+# パスワードリセット画面へ遷移
+- tapOn: 'パスワードをリセットする'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'PASSWORD RESET'
+- assertVisible: 'SEND CODE'
+
+# 未入力の状態では SEND CODE が押せない
+- assertVisible:
+    id: 'submit-button'
+    enabled: false
+
+# メールアドレスを入力すると押せるようになる
+# ※ Android の Maestro は非 ASCII 文字の inputText をサポートしないため ASCII で入力する
+- tapOn: 'メールアドレスを入力してください'
+- inputText: 'e2e-pw01@example.com'
+- runFlow: ../helpers/hide-keyboard.yaml
+- assertVisible:
+    id: 'submit-button'
+    enabled: true
+
+# サインイン画面に戻る（SEND CODE は押さない）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Your Email'

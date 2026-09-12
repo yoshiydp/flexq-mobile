@@ -21,6 +21,7 @@ import { chunkForBatchWrite, userS3Prefixes } from './account-deletion';
  * - S3: tracks/ artworks/ waveforms/ records/（mixed / separated 含む）
  *   profiles/ 配下の該当ユーザー分
  * - DynamoDB: Projects / Tracks / Records / Memos の全レコード（PK=userId）
+ * - 発行済みメール認証コード（VerificationCodes。TTL の削除遅延を待たず即時削除）
  * - Users レコード（email / googleSub も消えるため同じメール・Google
  *   アカウントでの再登録が可能になる）
  *
@@ -155,7 +156,21 @@ export const handler = async (event: any) => {
     await deleteS3ObjectsByPrefix(bucket, prefix);
   }
 
-  // 3. 最後に Users レコードを削除（email / googleSub の GSI エントリも消える）
+  // 3. 発行済みのメール認証コードを削除（TASK-85）。TTL は削除が遅延する
+  //    ことがあるため、退会時は email に紐づく行を即時削除する
+  const email = userResult.Item.email;
+  if (email) {
+    for (const purpose of ['register', 'reset']) {
+      await docClient.send(
+        new DeleteCommand({
+          TableName: process.env.VERIFICATION_CODES_TABLE!,
+          Key: { email, purpose },
+        })
+      );
+    }
+  }
+
+  // 4. 最後に Users レコードを削除（email / googleSub の GSI エントリも消える）
   await docClient.send(
     new DeleteCommand({
       TableName: process.env.USERS_TABLE!,

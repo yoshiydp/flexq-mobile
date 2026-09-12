@@ -5,14 +5,15 @@ import { randomUUID } from 'crypto';
 import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
+import { verifyAndConsumeCode } from './verification-code-store';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
-  const { username, email, password } = body;
+  const { username, email, password, code } = body;
 
-  if (!username || !email || !password) {
+  if (!username || !email || !password || !code) {
     return createResponse(
-      { message: 'Username, email, and password are required' },
+      { message: 'Username, email, password, and code are required' },
       400,
     );
   }
@@ -29,6 +30,15 @@ export const handler = async (event: any) => {
 
   if (existing.Items?.length) {
     return createResponse({ message: 'Email already in use' }, 409);
+  }
+
+  // メール検証（ダブルオプトイン）: 事前に発行した 6 桁コードの一致を必須にする (TASK-85)
+  const verifyResult = await verifyAndConsumeCode(email, 'register', code);
+  if (verifyResult !== 'ok') {
+    return createResponse(
+      { message: 'Verification code check failed', reason: `code_${verifyResult}` },
+      400,
+    );
   }
 
   const passwordHash = await bcrypt.hash(password, 10);

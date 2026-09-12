@@ -26,6 +26,7 @@ import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
 import {
   MIX_LABELS,
   MODAL_MESSAGES,
+  RECORD_PLAYBACK_LABELS,
   SEPARATION_LABELS,
   SHARE_LABELS,
   SYNC_PLAYBACK_LABELS,
@@ -165,14 +166,21 @@ export default function RecordPlayerScreen() {
    * ローカル再生（即時に鳴る）になったことでこの遅れが露出したため、元の録音・
    * 声のみとも保存済みレコードはダウンロード（2 回目以降はキャッシュ）してから再生し、
    * 同時再生に使う全音源をローカルに揃える。
-   * ダウンロードに失敗した場合は従来どおり URL のストリーミング再生にフォールバックする。
+   * ダウンロードに失敗した場合は最新の Presigned URL を再取得してもう一度ダウンロードし、
+   * それでも失敗した場合だけ URL のストリーミング再生にフォールバックする (TASK-117)。
+   * 以前は初回の失敗で無通知のままストリーミングに落ちていたため、URL の期限切れや
+   * 一時的な通信エラーが「初回だけ冒頭がカクつき、開き直すと直る」症状として
+   * テスターから報告された（AI-03 / SY-05）。フォールバック時はその旨を案内する。
    * 未保存のテイク（file://）はそのまま返す。
    * @param forceRefresh キャッシュを無視して再ダウンロードする（ロード失敗後のリトライ用）
+   * @param allowRefetch 失敗時に最新 URL を再取得して再ダウンロードする
+   *   （呼び出し側で再取得済みの URL を渡す場合は false）
    */
   const resolvePlaybackUri = async (
     sourceUri: string,
     variant: 'original' | 'separated',
     forceRefresh = false,
+    allowRefetch = true,
   ): Promise<string> => {
     const setLocalUri =
       variant === 'separated' ? setSeparatedLocalUri : setOriginalLocalUri;
@@ -182,25 +190,55 @@ export default function RecordPlayerScreen() {
       return sourceUri;
     }
     if (!params?.id) return sourceUri;
+    const recordId = params.id;
+    const cacheKey = `${recordId}-${variant}`;
+    // ストリーミングに落とす場合に使う URL（再取得できた場合は最新のもの）
+    let streamingUri = sourceUri;
     showLoading();
     try {
-      const cached = await resolveCachedRecordAudio(
-        sourceUri,
-        `${params.id}-${variant}`,
-        { forceRefresh },
-      );
-      if (isMountedRef.current) setLocalUri(cached.uri);
-      return cached.uri;
-    } catch (error) {
-      console.error(
-        `Failed to cache ${variant} audio; falling back to streaming:`,
-        error,
-      );
-      if (isMountedRef.current) setLocalUri(null);
-      return sourceUri;
+      try {
+        const cached = await resolveCachedRecordAudio(sourceUri, cacheKey, {
+          forceRefresh,
+        });
+        if (isMountedRef.current) setLocalUri(cached.uri);
+        return cached.uri;
+      } catch (error) {
+        console.error(`Failed to cache ${variant} audio:`, error);
+      }
+
+      if (allowRefetch) {
+        // Presigned URL の期限切れ・一時的な通信エラーに備えて、最新 URL でもう一度
+        // ダウンロードする（1 回だけ）
+        try {
+          const latestRecords = await refreshRecord();
+          const updated = latestRecords?.find((r) => r.id === recordId);
+          const freshUri =
+            variant === 'separated' ? updated?.separatedSource : updated?.source;
+          if (freshUri && isRemoteUri(freshUri)) {
+            streamingUri = freshUri;
+            const cached = await resolveCachedRecordAudio(freshUri, cacheKey, {
+              forceRefresh: true,
+            });
+            if (isMountedRef.current) setLocalUri(cached.uri);
+            return cached.uri;
+          }
+        } catch (retryError) {
+          console.error(
+            `Failed to cache ${variant} audio after refetching the URL:`,
+            retryError,
+          );
+        }
+      }
     } finally {
       hideLoading();
     }
+
+    console.error(`Falling back to streaming playback for ${variant} audio`);
+    if (isMountedRef.current) {
+      setLocalUri(null);
+      Alert.alert('エラー', RECORD_PLAYBACK_LABELS.streamingFallback);
+    }
+    return streamingUri;
   };
 
   const loadTrack = async (
@@ -319,10 +357,16 @@ export default function RecordPlayerScreen() {
         // 「声のみ」再生中に期限切れになった場合は分離済み音源の最新 URL でリトライする。
         // 声のみはローカルキャッシュ経由で再生するため、キャッシュファイルの破損等に
         // 備えて作り直してからリトライする (TASK-89)
+        // URL は取得し直したばかりなので、キャッシュ側での再取得は行わない
         const retryUri =
           activeSourceRef.current === 'separated' && updated.separatedSource
-            ? await resolvePlaybackUri(updated.separatedSource, 'separated', true)
-            : await resolvePlaybackUri(updated.source, 'original', true);
+            ? await resolvePlaybackUri(
+                updated.separatedSource,
+                'separated',
+                true,
+                false,
+              )
+            : await resolvePlaybackUri(updated.source, 'original', true, false);
         if (!isMountedRef.current) return;
         await loadTrack(autoPlay, retryUri, true);
       } catch (refetchErr) {
@@ -712,6 +756,11 @@ export default function RecordPlayerScreen() {
     // ロード中にイヤホンが切断された場合はトグルが無効化されヒントが表示されるため何もしない。
     // ロード中に画面を離れた（cancelled）場合もエラー表示は行わない
     if (result === 'headphones-disconnected' || result === 'cancelled') return;
+    // トラック音源のローカルキャッシュに失敗してストリーミング再生になった場合は
+    // その旨を案内する（同時再生自体は有効化されている / TASK-117）
+    if (result === 'enabled-streaming') {
+      Alert.alert('エラー', SYNC_PLAYBACK_LABELS.streamingFallback);
+    }
 
     // 録音を再生中に有効化した場合はトラックも追従して再生を開始する。
     // ロード待ちの間に再生位置が進む（または一時停止される）ため、

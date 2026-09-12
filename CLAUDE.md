@@ -22,8 +22,9 @@ yarn test:ci              # Jest カバレッジ付き実行 (CI)
 yarn test src/components/ui/buttons/ArrowButton/ArrowButton.test.tsx
 
 # E2E テスト (Maestro) ※ yarn start (dev 環境) + iOS シミュレーター起動が前提
-maestro test .maestro/flows/login.yaml   # ログインフロー
-maestro test .maestro/flows/             # 全フロー実行
+maestro test .maestro                                       # 全フロー実行
+maestro test .maestro --include-tags=SI                     # セクション単位（tags で絞り込み）
+maestro test .maestro/flows/02-sign-in/SI-04-login.yaml     # 単一フロー（ログイン）
 
 # モック API サーバー (Swagger UI: http://localhost:3000)
 yarn mock:server
@@ -297,7 +298,7 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 #### クライアント側の再生（ローカルキャッシュ / TASK-89）
 
 - 分離音源（声のみ）は 16-bit PCM wav（約 1.4 Mbps・元録音 m4a の 5 倍超）のため、Presigned URL をそのまま `Audio.Sound` に渡す**ストリーミング再生では冒頭の再バッファリングで音が途切れ（カクつき）、その間に録音側の再生位置だけが止まってトラック同時再生が 0.2〜0.3 秒ズレる**（補正ウィンドウの外で起きるため残る）。ファイル自体は元録音と相互相関で 0.00 ms 一致しており、サーバー側の位置合わせ（TASK-44）の問題ではない
-- そのため `src/utils/recordAudioCache.ts` でキャッシュディレクトリ（`record-audio/`）へダウンロードしてからローカルファイルとして再生する（ダウンロード中はフルスクリーンローディング）。2 回目以降はキャッシュから即再生。鮮度は Presigned URL の ETag（`Range: bytes=0-0` の GET で取得。HEAD は署名不一致で 403）で判定し、再実行で上書きされた音源は作り直す。ダウンロード失敗時は従来のストリーミング再生にフォールバックする
+- そのため `src/utils/recordAudioCache.ts` でキャッシュディレクトリ（`record-audio/`）へダウンロードしてからローカルファイルとして再生する（ダウンロード中はフルスクリーンローディング）。2 回目以降はキャッシュから即再生。鮮度は Presigned URL の ETag（`Range: bytes=0-0` の GET で取得。HEAD は署名不一致で 403）で判定し、再実行で上書きされた音源は作り直す。ダウンロード失敗時は最新の Presigned URL を再取得してもう一度ダウンロードし、それでも失敗した場合だけアラートで案内してストリーミング再生にフォールバックする（TASK-117。初回の失敗で無通知にストリーミングへ落ちていたため「初回だけ冒頭がカクつき、開き直すと直る」症状がテスターから報告された。トラック音源も同じ扱いで、`enableSync` が `enabled-streaming` を返す）
 - **同時再生に使う全音源（元の録音・声のみ・トラック）をローカルに揃える**（保存済みレコードの元の録音（m4a）はキャッシュキー `<recordId>-original`）。ストリーミング再生は開始直後の再バッファリングで音が途切れ、再生位置とのズレの原因になる
 - **録音開始位置（`startPositionMs`）は負の値になり得る**（TASK-89）。REC 開始時、マイクは即座に録り始める一方、ProjectEdit のトラック（ストリーミング）は鳴り始めるまでモバイル回線で数百 ms〜数秒かかるため、実測値「トラック位置 − 録音経過時間」は負になる。以前は `Math.max(0, …)` で 0 に丸め、さらに実測が 2 秒で諦めて選択位置（0）にフォールバックしていたため、「はじめから」録音したテイクが起動遅延ぶんトラック先行（声が 0.4〜0.5 秒遅れて聞こえる）で保存されていた（staging の該当テイクは 4 本とも `startPositionMs` がぴったり 0 で、シミュレーターでも初回計測が −1 ms → 0 に丸められることを確認）。再生側がストリーミングだった頃はトラックも同じだけ遅れて鳴るため偶然相殺され、トラックをローカル化した時点で露出した。対応: 実測を丸めず負のまま保存（試行上限 10 秒）、`useSyncedTrackPlayback` は対応位置が負の間トラックを先頭で待機させて対応位置 0 で開始（`scheduleTrackStartIfEarly`）、ミックスは `adelay` でトラックを遅らせる（`MIX_PIPELINE_VERSION` v5）、`post-record` は負値を受け付ける。**丸められて保存された既存テイク（0）は復元できない**
 - 途中から録音したテイクの `startPositionMs` は、staging の実テイクをトラックと相互相関して −12 ms（有線）/ −72 ms（スピーカー）の精度で正確だと確認済み（相互相関の手順はトラブルシューティング参照）
@@ -314,7 +315,7 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 | 声のみの同時再生がズレる・冒頭がカクつく | 分離音源がローカルキャッシュではなくストリーミング再生されている（開発ビルドの `sync-offset-debug` が `separated:remote` になる = ダウンロード失敗。端末の空き容量・Presigned URL の期限切れを確認）。`separated:local` でズレる場合は `offset` の値と `useSyncedTrackPlayback` の補正ログを確認する |
 | 声が一定時間**先行**する（有線で再生しても同じ） | 録音時の Bluetooth 出力遅延が `startPositionMs` に焼き込まれている。`recordedWithHeadphones` が `bluetooth` なら `getEffectiveStartPositionMs` の補正が効いているか、代表値（220ms）と機種の実遅延の差を疑う |
 | 声が一定時間**遅れる**（トラックが先行） | 「はじめから」録音したテイクで `startPositionMs` が 0 ちょうどなら、負の実測値が丸められた旧テイク（TASK-89 以前）で復元不可。新規テイクでも起きる場合は録音時の実測ログ（開発ビルドの `[rec-start-measure]`）と再生画面の `start=` を確認。録音側の誤差を疑う場合は staging の S3（`flexq-stg-api-trackaudiobucket-*`）からテイクとトラックを取得し相互相関で `startPositionMs` を検証する（イヤホンなし・有線のテイクはかぶりで相関が取れる） |
-| トラックの出だしが引っかかる | トラック音源のローカルキャッシュに失敗してストリーミングにフォールバックしている（`Failed to cache project track audio` のログ）。空き容量・URL 期限切れを確認 |
+| トラックの出だしが引っかかる | トラック音源のローカルキャッシュに失敗してストリーミングにフォールバックしている（`Failed to cache project track audio` のログ。URL 再取得後も失敗した場合は「トラック音源のダウンロードに失敗したため…」のアラートが出る）。空き容量・URL 期限切れを確認。アラートなしで引っかかる場合はキャッシュ以外（同期補正のシーク等）を疑う |
 | 開始直後に 502 | `PostRecordSeparateFunction` の CloudWatch ログ（Replicate API エラーの詳細が出る） |
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
@@ -518,20 +519,19 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します。iOS シミュレーター・Android エミュレーターの両方で実行できます。
 
-**ディレクトリ構成（`docs/test-cases.md` ベースへ移行中）:**
+**ディレクトリ構成（`docs/test-cases.md` ベース）:**
 
 ```
 .maestro/
 ├── config.yaml            # ワークスペース設定（flows の glob）
 ├── scripts/               # runScript 用 JS（dev API を直叩きするデータ準備・後始末）
 └── flows/
-    ├── helpers/           # 共通ヘルパー（launch-app / login / hide-keyboard など）
-    ├── <セクション番号-slug>/   # 新構成: docs/test-cases.md のセクションに対応
-    │   └── <ケースID>-<slug>.yaml   # 例: 08-project-edit/PE-11-track-deleted-notice.yaml
-    └── *.yaml             # 旧構成（フラット）。順次新構成へ移行する
+    ├── helpers/           # 共通ヘルパー（launch-app / login / hide-keyboard など。glob 対象外）
+    └── <セクション番号-slug>/   # docs/test-cases.md のセクションに対応
+        └── <ケースID>-<slug>.yaml   # 例: 08-project-edit/PE-11-track-deleted-notice.yaml
 ```
 
-- 新しいフローは**新構成**で作成し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
+- 各フローは docs/test-cases.md のケース ID を代表 ID としてヘッダーコメント（ID / シナリオ名 / 前提条件 / 操作手順 / 期待結果 / 備考）に記載し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
 - 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）。作成に外部 API の実行（Replicate 等）が必要なデータは demo アカウントの既存サンプルを読み取り専用で使い、`updatedAt` の更新やブックマークで一覧先頭に出す（例: `sy05-setup.js`）
 - リスト項目の `Pressable` は子テキストがグループ化され、ラベルが「タイトル, 日付 …」の連結になるため `'.*タイトル.*'` の部分一致で探す。表示領域の狭い内側の ScrollView では枠外の項目も階層上は「表示中」扱いになり `scrollUntilVisible` → `tapOn` が枠外をタップして失敗するため、対象を先頭に出す前提データにする
 - ネイティブ UI（DocumentPicker / ImagePicker など）を伴う操作は E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
@@ -544,20 +544,34 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 **実行方法:**
 
 ```bash
-maestro test .maestro                    # 全フロー（config.yaml の glob で新旧構成とも実行）
+maestro test .maestro                    # 全フロー（config.yaml の glob で実行）
 maestro test .maestro --include-tags=PE  # セクション単位（tags で絞り込み）
-maestro test .maestro/flows/login.yaml   # 単一フロー（ファイル指定）
+maestro test .maestro/flows/02-sign-in/SI-04-login.yaml  # 単一フロー（ファイル指定）
 scripts/e2e-ban.sh                       # アカウント停止（AS）フロー。BAN 前提のため通常実行（config.yaml の excludeTags: requires-ban）から除外されている
 # デバイスが複数接続されている場合は明示指定（例: Android エミュレーター）
 maestro --device emulator-5554 test .maestro
 ```
+
+**モック API 前提のフロー（`tags: mock`）:** 認証コード入力ステップのように、dev（AWS）では実際のメール受信が必要で自動化できないケースはモック API サーバー前提のフローとして用意している（固定コード `123456`）。`config.yaml` の `excludeTags` により通常実行（`maestro test .maestro`）からは除外される。
+
+```bash
+yarn mock:server                             # 別ターミナルで起動（http://localhost:3000）
+# .env.local に EXPO_PUBLIC_API_BASE_URL=http://localhost:3000 を設定して yarn start
+# Android エミュレーターの場合は事前に adb reverse tcp:3000 tcp:3000 を実行する
+
+# 実行はファイル（またはセクションディレクトリ）を直接指定する
+maestro test .maestro/flows/03-register/RG-07-invalid-verification-code.yaml
+maestro test .maestro/flows/04-password-reset/PW-04-invalid-verification-code.yaml
+```
+
+> **`maestro test .maestro --include-tags=mock` は使えない**（ワークスペース指定では `config.yaml` の `excludeTags` が優先され 0 件になる）。ディレクトリ指定は非再帰のため `.maestro/flows` ではなく `.maestro/flows/<セクション>` を指定する（`maestro test .maestro/flows/03-register --include-tags=mock` は動作する）。
 
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
 **テストアカウント（dev）:** `demo@example.com` / `password123`
 **BAN 検証用アカウント（dev）:** `e2e-ban@example.com` / `password123`（`25-account-suspension` のフロー専用。`scripts/e2e-ban.sh` が BAN → フロー実行 → 解除を行う。demo アカウントを BAN すると他の全 E2E が巻き添えになるため共用しない。アカウントが無い場合はアプリの新規登録（メール認証コードあり）で作成する）
 
-**前提データ:** `project-detail` / `project-edit-save` / `project-delete` は demo アカウントに 1 件以上のプロジェクト、`track-play` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
+**前提データ:** `PL-05` / `PE-01` / `PS-03` / `PS-04` は demo アカウントに 1 件以上のプロジェクト、`AP-01` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。
 
 **フロー作成時のルール:**
 - アプリの起動・ログインは共通ヘルパーを使う（起動のみ: `helpers/launch-app.yaml` / ログインまで: `helpers/login.yaml`）
