@@ -1,0 +1,35 @@
+# ID: PL-05
+# シナリオ名: プロジェクトを開く
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）・dev 環境の demo アカウントに 1 件以上のプロジェクトが存在する
+# 操作手順: ログイン → プロジェクトをタップ → 編集画面を確認 → 戻る → 保存 → プロジェクトリストを確認
+# 期待結果: プロジェクト編集画面が表示される
+# 備考: 戻る時の保存確認モーダル → SAVE の動線は PE-01 でも確認する
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PL
+  - PL-05
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# 先頭のプロジェクトをタップ
+- tapOn:
+    id: 'project-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# プロジェクト編集画面のアサーション（プロジェクト名は dev 環境のデータに依存するため固定 UI の id で確認する）
+- assertVisible:
+    id: 'toolbar-hamburger'
+
+# プロジェクトリストに戻る（保存確認モーダルが表示されるのでSAVE）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？'
+- tapOn: 'SAVE'
+- waitForAnimationToEnd:
+    timeout: 10000
+- assertVisible: 'PROJECT'

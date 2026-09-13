@@ -15,7 +15,7 @@ import { isMixStuck } from './record-mix';
  * アプリから再実行できるようにする
  */
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const recordId = event.pathParameters?.id;

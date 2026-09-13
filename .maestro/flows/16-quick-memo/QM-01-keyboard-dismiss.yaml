@@ -1,13 +1,17 @@
-# ID: TASK-13
-# シナリオ名: QuickMemo - タイトル入力中にボディエリアタップでキーボードが閉じ改行が挿入されない
+# ID: QM-01
+# シナリオ名: QUICK MEMO - タイトル入力中にボディエリアタップでキーボードが閉じ改行が挿入されない
 # 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: ログイン → DRAFTS → QUICK MEMO → タイトル入力 → ボディエリアタップ
 # 期待結果: キーボードが閉じる。ボディエリアに改行が挿入されない（SAVEボタンが非活性のまま）
+# 備考: TASK-13 のリグレッションテスト。ボディが空のままなら SAVE が非活性（QM-01: 保存ボタンの条件）であることを代替指標とする
 
 appId: com.yoshiydp.lyricsapp
+tags:
+  - QM
+  - QM-01
 ---
 # ログイン（共通ヘルパー。iOS / Android 対応）
-- runFlow: ./helpers/login.yaml
+- runFlow: ../helpers/login.yaml
 
 # DRAFTS 画面へ遷移
 - tapOn:
