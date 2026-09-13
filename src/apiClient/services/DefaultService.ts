@@ -878,7 +878,7 @@ export class DefaultService {
             mediaType: 'application/json',
             errors: {
                 400: `Bad Request`,
-                401: `Invalid Google access token`,
+                401: `Invalid Google access token, or the Google account email is not verified (body code: email_not_verified)`,
                 404: `Account not found (mode=login and no matching user)`,
             },
         });

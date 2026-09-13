@@ -82,7 +82,14 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         return true;
       } catch (err: any) {
         console.error('Google login failed:', err);
-        if (mode === 'login' && err?.status === 404) {
+        if (err?.body?.code === 'email_not_verified') {
+          // Google 側でメールの所有確認が済んでいないアカウント。
+          // 再試行しても解消しないため、確認を促す案内を出す（TASK-101）
+          Alert.alert(
+            'メールアドレスが未確認です',
+            'この Google アカウントはメールアドレスの確認が完了していません。Google 側で確認を済ませてから、もう一度お試しください。'
+          );
+        } else if (mode === 'login' && err?.status === 404) {
           Alert.alert(
             'アカウントが見つかりません',
             'この Google アカウントで登録されたアカウントがありません。新規登録画面の「Google で登録」からアカウントを作成してください。'
