@@ -4,6 +4,7 @@ import { docClient } from './db';
 import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
+import { isOwnedS3Key, ownedS3Prefix } from './s3-key-validation';
 
 /**
  * 指定した artworkKey を参照しているプロジェクトが 1 つでも存在するか確認する。
@@ -28,7 +29,7 @@ const isArtworkUsedByProject = async (userId: string, artworkKey: string) => {
 };
 
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const trackId = event.pathParameters?.id;
@@ -48,8 +49,8 @@ export const handler = async (event: any) => {
   }
   // get-track-upload-url が発行する自ユーザーのキー以外は受け付けない
   // （他ユーザーのオブジェクトを参照・削除させないため）
-  const artworkPrefix = `artworks/${claims.userId}/`;
-  if (artworkKey !== undefined && !artworkKey.startsWith(artworkPrefix)) {
+  const artworkPrefix = ownedS3Prefix('artworks', claims.userId);
+  if (artworkKey !== undefined && !isOwnedS3Key(artworkKey, claims.userId, ['artworks'])) {
     return createResponse({ message: 'Invalid artworkKey' }, 400);
   }
 

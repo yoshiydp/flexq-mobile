@@ -11,7 +11,7 @@ import { verifyGoogleAccessToken } from './google-auth';
 // クライアントから sub を直接受け取ると他人の sub を詐称できてしまうため、
 // 必ずアクセストークンをサーバー側で検証してから保存する。
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const { accessToken } = JSON.parse(event.body || '{}');

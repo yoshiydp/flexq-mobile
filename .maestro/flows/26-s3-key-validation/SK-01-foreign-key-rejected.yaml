@@ -1,0 +1,23 @@
+# ID: SK-01
+# シナリオ名: 他ユーザーの S3 キーの拒否（API 入力検証）
+# 前提条件: dev API に接続できること（UI 操作は伴わず、runScript で API を直接検証する）
+# 操作手順: 他ユーザーのプレフィックス・パストラバーサル・カテゴリ違いの S3 キーを
+#           post-track / post-record / post-project / put-project / put-profile に送る
+#           → 存在しない trackId でプロジェクトを作成し、トラック一覧を取得する（SK-02）
+# 期待結果: すべて 400 "Invalid ..." で拒否される。存在しない trackId でプロジェクトを作成しても
+#           トラック一覧に title も s3Key もない壊れた項目が作られない（作成したプロジェクトは削除する）
+# 備考: TASK-102。自ユーザーのキーで登録できること（正常系）は QR-01（録音保存）・PE-11
+#       （upload-url で払い出したキーでのトラック作成）が兼ねる。SK-02 はこのフロー内で確認する
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - SK
+  - SK-01
+  - SK-02
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+---
+# API レベルの検証（他ユーザーのキー 400 / 壊れたトラック行なし）
+- runScript: ../../scripts/sk01-verify.js
