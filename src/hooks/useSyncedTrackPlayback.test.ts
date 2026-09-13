@@ -514,21 +514,121 @@ describe('useSyncedTrackPlayback', () => {
       expect(result.current.trackPlaybackSource).toBe('local');
     });
 
-    it('キャッシュへの解決に失敗した場合は URL のストリーミング再生にフォールバックする', async () => {
+    it('ダウンロードに失敗したら最新 URL を取り直してもう一度ダウンロードしてから読み込む (TASK-117)', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      mockedService.getDataProject
+        .mockResolvedValueOnce({
+          id: 'project-1',
+          trackSource: 'https://example.com/track.mp3?sig=expired',
+        } as any)
+        .mockResolvedValueOnce({
+          id: 'project-1',
+          trackSource: 'https://example.com/track.mp3?sig=fresh',
+        } as any);
+      mockResolveCachedRecordAudio
+        .mockRejectedValueOnce(new Error('HTTP status 403'))
+        .mockResolvedValueOnce({
+          uri: 'file:///cache/record-audio/track-track--etag.mp3',
+          source: 'download',
+        });
+      const { result } = renderSyncHook({ projectId: 'project-1' });
+
+      let enableResult: string | undefined;
+      await act(async () => {
+        enableResult = await result.current.enableSync(0);
+      });
+
+      expect(mockedService.getDataProject).toHaveBeenCalledTimes(2);
+      expect(mockResolveCachedRecordAudio).toHaveBeenNthCalledWith(
+        2,
+        'https://example.com/track.mp3?sig=fresh',
+        'track-track',
+        { forceRefresh: true },
+      );
+      expect(mockedCreateAsync).toHaveBeenCalledTimes(1);
+      expect(mockedCreateAsync).toHaveBeenCalledWith(
+        { uri: 'file:///cache/record-audio/track-track--etag.mp3' },
+        { shouldPlay: false, volume: 1 },
+      );
+      expect(enableResult).toBe('enabled');
+      expect(result.current.trackPlaybackSource).toBe('local');
+    });
+
+    it('URL 再取得後のダウンロードにも失敗した場合はストリーミング再生にフォールバックし enabled-streaming を返す (TASK-117)', async () => {
       const trackSound = makeTrackSound();
       mockedCreateAsync.mockResolvedValue({ sound: trackSound });
       mockResolveCachedRecordAudio.mockRejectedValue(new Error('disk full'));
       const { result } = renderSyncHook({ projectId: 'project-1' });
 
+      let enableResult: string | undefined;
       await act(async () => {
-        await result.current.enableSync(0);
+        enableResult = await result.current.enableSync(0);
       });
 
+      // 初回ロード + URL 再取得で 2 回、ダウンロードも 2 回試みる
+      expect(mockedService.getDataProject).toHaveBeenCalledTimes(2);
+      expect(mockResolveCachedRecordAudio).toHaveBeenCalledTimes(2);
       expect(mockedCreateAsync).toHaveBeenCalledWith(
         { uri: 'https://example.com/track.mp3' },
         { shouldPlay: false, volume: 1 },
       );
+      expect(enableResult).toBe('enabled-streaming');
       expect(result.current.syncEnabled).toBe(true);
+      expect(result.current.trackPlaybackSource).toBe('remote');
+    });
+
+    it('再取得した URL が別の音源（未保存のトラック差し替え）を指す場合は差し替えず、選択中の URL でストリーミングにフォールバックする (TASK-117)', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      mockResolveCachedRecordAudio.mockRejectedValue(new Error('disk full'));
+      // サーバー側の保存済みトラックは別の音源
+      mockedService.getDataProject.mockResolvedValue({
+        id: 'project-1',
+        trackSource: 'https://example.com/other-track.mp3?sig=fresh',
+      } as any);
+      const { result } = renderSyncHook({
+        projectId: 'project-1',
+        initialTrackSource: 'https://example.com/selected-track.mp3?sig=1',
+      });
+
+      let enableResult: string | undefined;
+      await act(async () => {
+        enableResult = await result.current.enableSync(0);
+      });
+
+      expect(mockResolveCachedRecordAudio).toHaveBeenCalledTimes(1);
+      expect(mockedCreateAsync).toHaveBeenCalledWith(
+        { uri: 'https://example.com/selected-track.mp3?sig=1' },
+        { shouldPlay: false, volume: 1 },
+      );
+      expect(enableResult).toBe('enabled-streaming');
+      expect(result.current.trackPlaybackSource).toBe('remote');
+    });
+
+    it('URL の再取得に失敗した場合は元の URL でストリーミング再生にフォールバックする (TASK-117)', async () => {
+      const trackSound = makeTrackSound();
+      mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+      mockResolveCachedRecordAudio.mockRejectedValue(new Error('disk full'));
+      mockedService.getDataProject
+        .mockResolvedValueOnce({
+          id: 'project-1',
+          trackSource: 'https://example.com/track.mp3',
+        } as any)
+        .mockRejectedValueOnce(new Error('network error'));
+      const { result } = renderSyncHook({ projectId: 'project-1' });
+
+      let enableResult: string | undefined;
+      await act(async () => {
+        enableResult = await result.current.enableSync(0);
+      });
+
+      expect(mockResolveCachedRecordAudio).toHaveBeenCalledTimes(1);
+      expect(mockedCreateAsync).toHaveBeenCalledWith(
+        { uri: 'https://example.com/track.mp3' },
+        { shouldPlay: false, volume: 1 },
+      );
+      expect(enableResult).toBe('enabled-streaming');
       expect(result.current.trackPlaybackSource).toBe('remote');
     });
 

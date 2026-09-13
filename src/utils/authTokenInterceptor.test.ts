@@ -24,6 +24,7 @@ const BASE = 'https://api.example.com/v1';
 const API_URL = `${BASE}/data/project`;
 const REFRESH_URL = `${BASE}/data/auth/refresh`;
 const LOGIN_URL = `${BASE}/data/auth/login`;
+const GOOGLE_LOGIN_URL = `${BASE}/data/auth/google`;
 
 const jsonResponse = (body: unknown, status = 200) =>
   ({
@@ -182,6 +183,19 @@ describe('authTokenInterceptor', () => {
       const authFetch = createAuthFetch(originalFetch);
 
       const res = await authFetch(LOGIN_URL, { method: 'POST' });
+
+      expect(res.status).toBe(401);
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      expect(onSessionExpired).not.toHaveBeenCalled();
+    });
+
+    it('Google ログインの 401 ではリフレッシュしない', async () => {
+      // メール未検証などで Google ログインが 401 になっても、
+      // 既存セッションのリフレッシュを走らせない（TASK-101）
+      const originalFetch = jest.fn().mockResolvedValue(jsonResponse({}, 401));
+      const authFetch = createAuthFetch(originalFetch);
+
+      const res = await authFetch(GOOGLE_LOGIN_URL, { method: 'POST' });
 
       expect(res.status).toBe(401);
       expect(originalFetch).toHaveBeenCalledTimes(1);
