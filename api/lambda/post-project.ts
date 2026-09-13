@@ -6,7 +6,7 @@ import { isOwnedS3Key } from './s3-key-validation';
 import { randomUUID } from 'crypto';
 
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const { projectName, trackName, trackId, artworkKey, waveformJsonKey } = JSON.parse(event.body || '{}');

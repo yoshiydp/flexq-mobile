@@ -9,7 +9,7 @@ import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isOwnedS3Key } from './s3-key-validation';
 
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const body = JSON.parse(event.body || '{}');

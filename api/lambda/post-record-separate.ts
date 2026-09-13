@@ -21,7 +21,7 @@ import { isStaleSeparation } from './separation-status';
  * - Replicate API トークン未設定時は 503 を返す
  */
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const recordId = event.pathParameters?.id;

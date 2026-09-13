@@ -29,7 +29,7 @@ const isArtworkUsedByProject = async (userId: string, artworkKey: string) => {
 };
 
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const trackId = event.pathParameters?.id;

@@ -1,13 +1,16 @@
-# ID: PROF-03
-# シナリオ名: ユーザー名編集・保存
+# ID: PD-01
+# シナリオ名: ユーザー名の変更・保存
 # 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: ログイン → PROFILE → 編集ボタン → ユーザー名変更 → SAVE
 # 期待結果: 変更後のユーザー名がプロフィール画面に反映される
 
 appId: com.yoshiydp.lyricsapp
+tags:
+  - PD
+  - PD-01
 ---
 # ログイン
-- runFlow: ./helpers/login.yaml
+- runFlow: ../helpers/login.yaml
 
 # プロフィール画面へ遷移
 - tapOn:
@@ -25,7 +28,7 @@ appId: com.yoshiydp.lyricsapp
 - tapOn: 'ユーザー名を入力してください'
 - eraseText: 50
 - inputText: 'Demo User Updated'
-- runFlow: ./helpers/hide-keyboard.yaml
+- runFlow: ../helpers/hide-keyboard.yaml
 
 # 保存
 - tapOn: 'SAVE'

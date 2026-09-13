@@ -39,7 +39,7 @@ import {
  *   ただし連続失敗回数（separationRetryCount）が上限を超えたら failed に落とす
  */
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const recordId = event.pathParameters?.id;
