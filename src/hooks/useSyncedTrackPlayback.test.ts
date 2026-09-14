@@ -864,7 +864,8 @@ describe('useSyncedTrackPlayback', () => {
 
     it('実測ズレが許容値を超えていたらトラックをシークして対応位置に合わせる', async () => {
       const { result, trackSound } = await setup(500);
-      // トラックが対応位置（500 + 1000）より 80ms 進んでいる → 1500 へ補正
+      // トラックが対応位置（500 + 1000）より 80ms 進んでいる
+      // → 1500 + iOS のシークストール見込み（110ms）へ補正 (TASK-118)
       trackSound.getStatusAsync
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1580 })
         .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1505 });
@@ -873,7 +874,40 @@ describe('useSyncedTrackPlayback', () => {
       await runCorrection(result.current.correctSyncOffset(recordSound as any));
 
       expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
-      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1500);
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1610);
+    });
+
+    it('iOS でも 20ms 程度のズレは補正しない（シークのストールのほうが大きい / TASK-118）', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync.mockResolvedValue({
+        isLoaded: true,
+        isPlaying: true,
+        positionMillis: 980, // 録音 1000 に対し −20ms（許容値 25ms 以内）
+      });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it('iOS の補正シーク後に残ったズレからストール量を学習し、次の補正に反映する (TASK-118)', async () => {
+      const { result, trackSound } = await setup(0);
+      // 1 回目: −100ms → 対応位置 1000 + 見込み 110 = 1110 へシーク。
+      // 2 回目: シーク後も −100ms 残った（実ストールが見込みより 100ms 大きい）
+      //   → 見込みを残差の半分（50ms）ぶん増やして 160 とし、1000 + 160 = 1160 へシーク。
+      // 3 回目以降: 収束
+      trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(2);
+      expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(1, 1110);
+      expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(2, 1160);
     });
 
     it('許容値以内のズレは補正しない', async () => {
@@ -933,9 +967,9 @@ describe('useSyncedTrackPlayback', () => {
 
       await runCorrection(result.current.correctSyncOffset(recordSound as any));
 
-      // 6 回目の実測（900ms 後）で 80ms 進んでいる → 1000 へ補正
+      // 6 回目の実測（900ms 後）で 80ms 進んでいる → 1000 + ストール見込み 110 へ補正
       expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
-      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1000);
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1110);
     });
 
     it('ループ頭出し時（handleRecordFinish）にも補正がかかる', async () => {
@@ -952,8 +986,8 @@ describe('useSyncedTrackPlayback', () => {
       expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(500);
       await runCorrection(finishPromise!);
 
-      // トラック 580 に対し対応位置は 500 + 0 → 80ms 進んでいる → 500 へ補正
-      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(500);
+      // トラック 580 に対し対応位置は 500 + 0 → 80ms 進んでいる → 500 + ストール見込み 110 へ補正
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(610);
     });
   });
 
@@ -1004,9 +1038,9 @@ describe('useSyncedTrackPlayback', () => {
 
       await runWatch(result.current.correctSyncOffset(recordSound as any));
 
-      // iOS はストール補償 0 → 対応位置 1000 へ補正
+      // 対応位置 1000 + iOS のシークストール見込み（110ms）へ補正 (TASK-118)
       expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
-      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1000);
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1110);
     });
 
     it('一時的な超過（次の実測で収まる）は補正しない', async () => {
