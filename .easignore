@@ -19,9 +19,11 @@ __tests__/
 # `yarn android` would switch EAS to bare mode and break the build — never upload it)
 android/
 
-# iOS native build artifacts (reinstalled by pod install on EAS servers)
-ios/Pods
-ios/build
+# iOS native project (CNG: EAS prebuilds from app.json. A local ios/ dir from
+# `yarn ios` would switch EAS to bare mode and build the stale Xcode project
+# (app name "mobile", old icon, English permission strings) — never upload it.
+# TestFlight builds 20/21/23/24 were affected; build 22 was built from a worktree without ios/)
+ios/
 
 # Build artifacts
 dist/
