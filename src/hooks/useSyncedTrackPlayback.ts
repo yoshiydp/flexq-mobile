@@ -28,10 +28,12 @@ export type EnableSyncResult =
   | 'cancelled';
 
 /**
- * 開始タイミング補正の許容誤差（ms）。
- * これ以下のズレはフラム/エコーとして知覚されにくい
+ * 開始タイミング補正の許容誤差（ms / iOS）。
+ * これ以下のズレはフラム/エコーとして知覚されにくい。補正シークは iOS でも
+ * 約 110ms のストール（トラックの音切れ）を伴うため、聴感上ほぼ分からない
+ * 20ms 前後のズレで高コストなシークを起こさないよう 15ms から広げた (TASK-118)
  */
-const SYNC_OFFSET_TOLERANCE_MS = 15;
+const SYNC_OFFSET_TOLERANCE_MS = 25;
 /** 開始タイミング補正の実測サンプリング間隔（ms） */
 const SYNC_OFFSET_CHECK_INTERVAL_MS = 150;
 /**
@@ -59,6 +61,16 @@ const SYNC_OFFSET_TOLERANCE_MS_ANDROID = 40;
  * 補正がそっくり相殺される。実測残差から学習して更新する (TASK-61)
  */
 const SYNC_SEEK_STALL_INITIAL_MS_ANDROID = 150;
+/**
+ * iOS のシークストール初期見積もり (TASK-118)。
+ * iOS（AVPlayer）でもローカルファイルの再生中シークで約 106〜116ms 再生が止まる
+ * （iPhone 17 シミュレーターで実測。距離 20ms のシークでも 110ms のシークでも同じ）。
+ * 以前は iOS を「ストールなし（0）・学習なし」として扱っていたため、補正シークの
+ * たびにシーク量とほぼ同じだけ再びズレて −110ms 前後に固定され、補正ウィンドウ 8 回 +
+ * 監視フェーズ 2 秒ごとのシークが延々と繰り返されていた（テスターの「同時再生が大きく
+ * ズレる・途切れる」の正体。初回オフセットが許容値内だった回だけ偶然正常だった）
+ */
+const SYNC_SEEK_STALL_INITIAL_MS_IOS = 110;
 const SYNC_SEEK_STALL_MAX_MS = 400;
 /**
  * ストール学習のダンピング係数。シークごとの実ストールには揺らぎがあるため、
@@ -105,6 +117,16 @@ const SYNC_WATCH_TOLERANCE_MS = 60;
 const SYNC_WATCH_CONFIRM_COUNT = 2;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * 同期補正の実測ログ（TASK-118）。RecordPlayerScreen の sync-offset-debug と同じ条件
+ * （Metro 接続の開発ビルド / EXPO_PUBLIC_SYNC_DEBUG=1 の OTA バンドル）でのみ出力する
+ */
+const SYNC_DEBUG_LOG_ENABLED =
+  __DEV__ || process.env.EXPO_PUBLIC_SYNC_DEBUG === '1';
+const syncDebugLog = (message: string, ...args: unknown[]) => {
+  if (SYNC_DEBUG_LOG_ENABLED) console.log(`[sync-correct] ${message}`, ...args);
+};
 
 type UseSyncedTrackPlaybackOptions = {
   /** レコードが紐づくプロジェクト ID。未指定（QuickRecord 由来）の場合は同時再生不可 */
@@ -171,17 +193,18 @@ export function useSyncedTrackPlayback({
   canSyncRef.current = canSync;
 
   /**
-   * Android のシークストール（シーク実行中に再生が停止する時間）の学習値。
+   * シークストール（シーク実行中に再生が停止する時間）の学習値。
    * 補正・合流のどの経路で学習した値もセッション内で共有し、以降のシークの
-   * 先読み補償に使う (TASK-61)。iOS では常に 0（ストール補償なし = 従来挙動）
+   * 先読み補償に使う (TASK-61)。iOS も実測に基づく初期値から学習する (TASK-118)
    */
   const seekStallEstimateRef = useRef(
-    Platform.OS === 'android' ? SYNC_SEEK_STALL_INITIAL_MS_ANDROID : 0,
+    Platform.OS === 'android'
+      ? SYNC_SEEK_STALL_INITIAL_MS_ANDROID
+      : SYNC_SEEK_STALL_INITIAL_MS_IOS,
   );
 
-  /** 実測残差からストール学習値を更新する（Android のみ・ダンピング付き） */
+  /** 実測残差からストール学習値を更新する（ダンピング付き） */
   const learnSeekStall = (residualOffsetMs: number) => {
-    if (Platform.OS !== 'android') return;
     seekStallEstimateRef.current = Math.min(
       Math.max(
         0,
@@ -749,7 +772,11 @@ export function useSyncedTrackPlayback({
       },
     );
     if (scheduled) return;
+    const playStartedAt = Date.now();
     await track.playFromPositionAsync(startPositionMs + recordPositionMs);
+    syncDebugLog(
+      `track play from ${startPositionMs + recordPositionMs}ms resolved in ${Date.now() - playStartedAt}ms`,
+    );
     void correctSyncOffset(recordSound);
   };
 
@@ -858,8 +885,9 @@ export function useSyncedTrackPlayback({
       : SYNC_OFFSET_TOLERANCE_MS;
     // シーク実行中にも録音側の再生は進むため、ストール（シークによる再生停止）
     // ぶん先の位置へ合わせないと補正が無効化される。Android は 1 回のシークで
-    // 約 150〜200ms 停止し、補正量とほぼ同じだけ再びズレることを実測で確認済み。
-    // 補正後の残差からストール量を学習（セッション共有）し、次の補正で先読みする (TASK-61)
+    // 約 150〜200ms、iOS も約 110ms 停止し、補正量とほぼ同じだけ再びズレることを
+    // 実測で確認済み (TASK-61 / TASK-118)。
+    // 補正後の残差からストール量を学習（セッション共有）し、次の補正で先読みする
     let hasCorrected = false;
 
     const isStale = () =>
@@ -916,11 +944,15 @@ export function useSyncedTrackPlayback({
       // いることがある。古い位置に基づくシークで巻き戻さないよう適用直前にも確認する
       if (isStale() || !track) return false;
       try {
+        const seekStartedAt = Date.now();
         await track.setPositionAsync(
           Math.max(
             0,
             trackPositionMillis - offsetMs + seekStallEstimateRef.current,
           ),
+        );
+        syncDebugLog(
+          `gen=${generation} corrected by ${Math.round(-offsetMs)}ms (seek took ${Date.now() - seekStartedAt}ms)`,
         );
         hasCorrected = true;
         return true;
@@ -930,10 +962,17 @@ export function useSyncedTrackPlayback({
     };
 
     // フェーズ 1: 発音開始直後の補正ウィンドウ
+    const startedAt = Date.now();
     for (let attempt = 0; attempt < maxChecks; attempt++) {
       await delay(SYNC_OFFSET_CHECK_INTERVAL_MS);
       const sampled = await sample();
       if (sampled === 'stop') return;
+      syncDebugLog(
+        `gen=${generation} attempt=${attempt} t=+${Date.now() - startedAt}ms`,
+        sampled === 'not-playing'
+          ? 'not-playing'
+          : `offset=${Math.round(sampled.offsetMs)}ms track=${sampled.trackPositionMillis}ms stall=${seekStallEstimateRef.current}`,
+      );
       if (sampled === 'not-playing') continue;
       if (Math.abs(sampled.offsetMs) <= toleranceMs) break; // 収束 → 監視フェーズへ
       if (hasCorrected) {
@@ -964,6 +1003,9 @@ export function useSyncedTrackPlayback({
         continue;
       }
       outOfSyncStreak += 1;
+      syncDebugLog(
+        `gen=${generation} watch offset=${Math.round(sampled.offsetMs)}ms streak=${outOfSyncStreak}`,
+      );
       if (outOfSyncStreak < SYNC_WATCH_CONFIRM_COUNT) continue;
       outOfSyncStreak = 0;
       // 監視フェーズの補正は間隔が空くため、残差をストール学習には使わない
