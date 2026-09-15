@@ -115,6 +115,26 @@ const SYNC_WATCH_TOLERANCE_MS = 60;
  * 連続して超過を実測した場合のみ補正する
  */
 const SYNC_WATCH_CONFIRM_COUNT = 2;
+/**
+ * iOS でトラックを再生開始する位置の先行量（ms / TASK-119）。
+ * 録音（声）とトラックを同時に再生開始しても、トラック側（AVPlayer・mp3）は録音側（wav）
+ * より発音が一貫して遅れ、実測オフセットは iPhone 17 シミュレーター −9〜−20ms・
+ * iPhone 実機 −11〜−20ms（平均 −15ms・常に負 = トラックが遅れる）に寄っていた。
+ * 許容値（25ms）内のためシーク補正は入らず残差として残るので、開始位置を先行量ぶん
+ * 進めて相殺する。レート微調整（setRateAsync）で詰める案は expo-av のレート変更 1 回に
+ * つき 15〜30ms（アルゴリズム切替時は約 70ms）のストールが実測され、ピッチ補正の事前設定も
+ * 開始遅延を −32〜−42ms に悪化させたため不採用
+ */
+const SYNC_TRACK_START_LEAD_MS_IOS = 15;
+/**
+ * 補正ウィンドウ内の補正シークに必要な連続実測回数（TASK-119）。
+ * 1 回の実測だけで許容値超えと判定すると、ブリッジ越しの 2 つのステータス取得が
+ * ずれたときの一時的な計測誤差でも約 110ms のストールを伴うシークが入り、かえって
+ * ズレと音切れを生む。連続 2 回（150ms 間隔）で同じ向きに許容値を超えたときだけ補正する
+ */
+const SYNC_OFFSET_CONFIRM_COUNT = 2;
+/** 可視化用に保持する直近の補正イベント数 */
+const SYNC_EVENT_LOG_SIZE = 6;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -182,6 +202,23 @@ export function useSyncedTrackPlayback({
   const [trackPlaybackSource, setTrackPlaybackSource] = useState<
     'local' | 'remote' | null
   >(null);
+  /**
+   * 同期補正の実行状況（可視化用 / TASK-119）。補正シークの回数と学習済みのシークストール
+   * 見込みを sync-offset-debug に表示し、実機（TestFlight）でストール見込みが合っているか
+   * （補正のたびに同じ量だけ戻る場合は見込み違い）を確認できるようにする
+   */
+  const [syncStats, setSyncStats] = useState({ corrections: 0, stallMs: 0 });
+  /**
+   * 直近の補正イベント（可視化用 / TASK-119）。Metro に接続できない TestFlight でも
+   * 「いつ・どの経路で・どれだけの実測ズレに対して補正が入ったか」をスクリーンショットで
+   * 確認できるよう、sync-offset-debug の下に表示する。形式:
+   *   <経路>@<録音位置 s> #<実測回> <経過 ms> off=<ズレ> [seek <量>(st<見込み>) | ok | wait]
+   */
+  const [syncEvents, setSyncEvents] = useState<string[]>([]);
+  const pushSyncEvent = (line: string) => {
+    if (!SYNC_DEBUG_LOG_ENABLED || !isMountedRef.current) return;
+    setSyncEvents((prev) => [...prev, line].slice(-SYNC_EVENT_LOG_SIZE));
+  };
 
   const headphonesConnected =
     headphoneConnection === 'wired' || headphoneConnection === 'bluetooth';
@@ -213,7 +250,26 @@ export function useSyncedTrackPlayback({
       ),
       SYNC_SEEK_STALL_MAX_MS,
     );
+    publishSyncStats(0);
   };
+
+  /** 可視化用の補正状況を更新する（ストール見込みは常に最新の学習値を反映する） */
+  const publishSyncStats = (correctionsDelta: number) => {
+    if (!isMountedRef.current) return;
+    setSyncStats((prev) => ({
+      corrections: prev.corrections + correctionsDelta,
+      stallMs: Math.round(seekStallEstimateRef.current),
+    }));
+  };
+
+  /**
+   * トラックの再生開始位置（対応位置）に iOS の先行量を加える (TASK-119)。
+   * 負の対応位置（先頭待機）から開始する場合も先頭 + 先行量から始める
+   */
+  const withStartLead = (positionMs: number) =>
+    Platform.OS === 'android'
+      ? positionMs
+      : positionMs + SYNC_TRACK_START_LEAD_MS_IOS;
 
   /**
    * 対応位置が負（録音がトラックの発音より先に始まったテイク / TASK-89）のとき、
@@ -487,7 +543,7 @@ export function useSyncedTrackPlayback({
       await track.setPositionAsync(positionMs);
       await track.playAsync();
     } else {
-      await track.playFromPositionAsync(positionMs);
+      await track.playFromPositionAsync(withStartLead(positionMs));
     }
   };
 
@@ -739,7 +795,12 @@ export function useSyncedTrackPlayback({
       }
       const recordStatus = await recordSound.getStatusAsync();
       if (!recordStatus.isLoaded || !recordStatus.isPlaying) return;
-      await startTrackForRecord(track, recordSound, recordStatus.positionMillis ?? 0);
+      await startTrackForRecord(
+        track,
+        recordSound,
+        recordStatus.positionMillis ?? 0,
+        'join',
+      );
     } catch (e) {
       console.error('Failed to join project track to playing record:', e);
     }
@@ -754,6 +815,7 @@ export function useSyncedTrackPlayback({
     track: Audio.Sound,
     recordSound: Audio.Sound,
     recordPositionMs: number,
+    reason: 'resume' | 'join' | 'seek' = 'resume',
   ) => {
     cancelPendingTrackStart();
     const scheduled = await scheduleTrackStartIfEarly(
@@ -766,18 +828,20 @@ export function useSyncedTrackPlayback({
         const current = trackSoundRef.current;
         if (!current) return;
         await current.playFromPositionAsync(
-          Math.max(0, startPositionMs + (latest.positionMillis ?? 0)),
+          withStartLead(Math.max(0, startPositionMs + (latest.positionMillis ?? 0))),
         );
-        void correctSyncOffset(recordSound);
+        void correctSyncOffset(recordSound, reason);
       },
     );
     if (scheduled) return;
     const playStartedAt = Date.now();
-    await track.playFromPositionAsync(startPositionMs + recordPositionMs);
+    await track.playFromPositionAsync(
+      withStartLead(startPositionMs + recordPositionMs),
+    );
     syncDebugLog(
       `track play from ${startPositionMs + recordPositionMs}ms resolved in ${Date.now() - playStartedAt}ms`,
     );
-    void correctSyncOffset(recordSound);
+    void correctSyncOffset(recordSound, reason);
   };
 
   /**
@@ -817,7 +881,7 @@ export function useSyncedTrackPlayback({
         await realignTrackForRecordAndroid(track, recordSound);
         return;
       }
-      await startTrackForRecord(track, recordSound, recordPositionMs);
+      await startTrackForRecord(track, recordSound, recordPositionMs, 'resume');
     } catch (e) {
       console.error('Failed to resume project track in sync:', e);
     }
@@ -848,10 +912,15 @@ export function useSyncedTrackPlayback({
         (startPositionMs + (status.positionMillis ?? 0) < 0 ||
           (trackStatus.isLoaded && !trackStatus.isPlaying))
       ) {
-        await startTrackForRecord(track, recordSound, status.positionMillis ?? 0);
+        await startTrackForRecord(
+          track,
+          recordSound,
+          status.positionMillis ?? 0,
+          'seek',
+        );
         return;
       }
-      void correctSyncOffset(recordSound);
+      void correctSyncOffset(recordSound, 'seek');
     } catch (e) {
       console.error('Failed to reconcile project track sync:', e);
     }
@@ -874,7 +943,10 @@ export function useSyncedTrackPlayback({
    * await せず投げ放しで呼んでよい（内部でガードし、後から呼ばれた補正が
    * 実行中の古いループを止める）
    */
-  const correctSyncOffset = async (recordSound: Audio.Sound) => {
+  const correctSyncOffset = async (
+    recordSound: Audio.Sound,
+    reason: 'play' | 'resume' | 'join' | 'seek' | 'loop' = 'play',
+  ) => {
     const generation = ++syncCorrectionGenerationRef.current;
     const isAndroid = Platform.OS === 'android';
     const maxChecks = isAndroid
@@ -889,6 +961,9 @@ export function useSyncedTrackPlayback({
     // 実測で確認済み (TASK-61 / TASK-118)。
     // 補正後の残差からストール量を学習（セッション共有）し、次の補正で先読みする
     let hasCorrected = false;
+    // イベント表示用: 補正の起点（経路と、最初の実測時の録音位置）
+    let eventTag = `${reason} g${generation}`;
+    let eventTagged = false;
 
     const isStale = () =>
       !isMountedRef.current ||
@@ -898,7 +973,9 @@ export function useSyncedTrackPlayback({
 
     /** 両プレイヤーの実測ズレを 1 回サンプリングする */
     const sample = async (): Promise<
-      { offsetMs: number; trackPositionMillis: number } | 'stop' | 'not-playing'
+      | { offsetMs: number; trackPositionMillis: number; recordPositionMillis: number }
+      | 'stop'
+      | 'not-playing'
     > => {
       const track = trackSoundRef.current;
       if (isStale() || !track) return 'stop';
@@ -926,11 +1003,15 @@ export function useSyncedTrackPlayback({
         return 'not-playing';
       }
       const trackPositionMillis = trackStatus.positionMillis ?? 0;
+      const recordPositionMillis = recordStatus.positionMillis ?? 0;
+      if (!eventTagged) {
+        eventTagged = true;
+        eventTag = `${reason}@${(recordPositionMillis / 1000).toFixed(1)}s`;
+      }
       return {
-        offsetMs:
-          trackPositionMillis -
-          (startPositionMs + (recordStatus.positionMillis ?? 0)),
+        offsetMs: trackPositionMillis - (startPositionMs + recordPositionMillis),
         trackPositionMillis,
+        recordPositionMillis,
       };
     };
 
@@ -955,6 +1036,10 @@ export function useSyncedTrackPlayback({
           `gen=${generation} corrected by ${Math.round(-offsetMs)}ms (seek took ${Date.now() - seekStartedAt}ms)`,
         );
         hasCorrected = true;
+        publishSyncStats(1);
+        pushSyncEvent(
+          `${eventTag} off=${Math.round(offsetMs)} seek ${Math.round(-offsetMs)} (st${Math.round(seekStallEstimateRef.current)})`,
+        );
         return true;
       } catch {
         return false;
@@ -963,18 +1048,49 @@ export function useSyncedTrackPlayback({
 
     // フェーズ 1: 発音開始直後の補正ウィンドウ
     const startedAt = Date.now();
-    for (let attempt = 0; attempt < maxChecks; attempt++) {
+    // 許容値超えの連続回数（同じ向き）。一時的な計測誤差での誤補正を防ぐ (TASK-119)。
+    // ウィンドウの最後の実測で初めて許容値を超えた場合は、確定のための実測ぶんだけ
+    // ウィンドウを延長する（監視フェーズは 60ms 超しか補正しないため、26〜60ms の
+    // 開始ズレを取りこぼさないようにする）
+    let overStreak = 0;
+    let overSign = 0;
+    const maxAttempts = maxChecks + SYNC_OFFSET_CONFIRM_COUNT - 1;
+    for (
+      let attempt = 0;
+      attempt < maxChecks || (overStreak > 0 && attempt < maxAttempts);
+      attempt++
+    ) {
       await delay(SYNC_OFFSET_CHECK_INTERVAL_MS);
       const sampled = await sample();
       if (sampled === 'stop') return;
+      const elapsed = Date.now() - startedAt;
       syncDebugLog(
-        `gen=${generation} attempt=${attempt} t=+${Date.now() - startedAt}ms`,
+        `gen=${generation} attempt=${attempt} t=+${elapsed}ms`,
         sampled === 'not-playing'
           ? 'not-playing'
           : `offset=${Math.round(sampled.offsetMs)}ms track=${sampled.trackPositionMillis}ms stall=${seekStallEstimateRef.current}`,
       );
-      if (sampled === 'not-playing') continue;
-      if (Math.abs(sampled.offsetMs) <= toleranceMs) break; // 収束 → 監視フェーズへ
+      if (sampled === 'not-playing') {
+        pushSyncEvent(`${eventTag} #${attempt} +${elapsed} wait`);
+        continue;
+      }
+      if (Math.abs(sampled.offsetMs) <= toleranceMs) {
+        pushSyncEvent(
+          `${eventTag} #${attempt} +${elapsed} off=${Math.round(sampled.offsetMs)} ok`,
+        );
+        break; // 収束 → 監視フェーズへ
+      }
+      const sign = sampled.offsetMs < 0 ? -1 : 1;
+      overStreak = sign === overSign ? overStreak + 1 : 1;
+      overSign = sign;
+      if (overStreak < SYNC_OFFSET_CONFIRM_COUNT) {
+        pushSyncEvent(
+          `${eventTag} #${attempt} +${elapsed} off=${Math.round(sampled.offsetMs)} confirm?`,
+        );
+        continue;
+      }
+      overStreak = 0;
+      overSign = 0;
       if (hasCorrected) {
         // 直前の補正後も残るズレ = ストール見積もりの誤差。学習して次の補正に反映する
         learnSeekStall(sampled.offsetMs);
@@ -1005,6 +1121,9 @@ export function useSyncedTrackPlayback({
       outOfSyncStreak += 1;
       syncDebugLog(
         `gen=${generation} watch offset=${Math.round(sampled.offsetMs)}ms streak=${outOfSyncStreak}`,
+      );
+      pushSyncEvent(
+        `${eventTag} watch off=${Math.round(sampled.offsetMs)} x${outOfSyncStreak}`,
       );
       if (outOfSyncStreak < SYNC_WATCH_CONFIRM_COUNT) continue;
       outOfSyncStreak = 0;
@@ -1101,13 +1220,13 @@ export function useSyncedTrackPlayback({
         if (
           await scheduleTrackStartIfEarly(track, 0, async () => {
             await playTrackFromPosition(track, 0);
-            if (recordSound) void correctSyncOffset(recordSound);
+            if (recordSound) void correctSyncOffset(recordSound, 'loop');
           })
         ) {
           return;
         }
         await playTrackFromPosition(track, startPositionMs);
-        if (recordSound) void correctSyncOffset(recordSound);
+        if (recordSound) void correctSyncOffset(recordSound, 'loop');
       } else {
         await track.pauseAsync();
         await track.setPositionAsync(Math.max(0, startPositionMs));
@@ -1147,6 +1266,7 @@ export function useSyncedTrackPlayback({
 
   useEffect(() => {
     isMountedRef.current = true;
+    publishSyncStats(0);
     return () => {
       isMountedRef.current = false;
       cancelPendingTrackStart();
@@ -1166,6 +1286,10 @@ export function useSyncedTrackPlayback({
     trackLoading,
     /** トラック音源の取得元（可視化用）: local = キャッシュ / remote = ストリーミング */
     trackPlaybackSource,
+    /** 補正シーク回数と学習済みシークストール見込み（可視化用 / TASK-119） */
+    syncStats,
+    /** 直近の補正イベント（可視化用 / TASK-119） */
+    syncEvents,
     trackVolume,
     enableSync,
     disableSync,
