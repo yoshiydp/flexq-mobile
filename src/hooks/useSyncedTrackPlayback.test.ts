@@ -331,6 +331,8 @@ describe('useSyncedTrackPlayback', () => {
     });
   });
 
+  // iOS はトラックの発音が録音より一貫して約 15ms 遅れるため、再生開始位置に先行量 15ms を
+  // 加える（TASK-119）。以下の playFromPositionAsync の期待値は「対応位置 + 15」
   describe('同期制御（再生 / 一時停止 / シーク / 再生終了）', () => {
     const setup = async (startPositionMs = 5000) => {
       const trackSound = makeTrackSound();
@@ -349,7 +351,30 @@ describe('useSyncedTrackPlayback', () => {
         await result.current.syncPlay(3000);
       });
 
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(8000);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(8015);
+    });
+
+    it('Android では開始位置に先行量を加えない (TASK-119)', async () => {
+      const platformReplacement = jest.replaceProperty(Platform, 'OS', 'android');
+      try {
+        const trackSound = {
+          ...makeTrackSound(),
+          getStatusAsync: jest.fn().mockResolvedValue({ isLoaded: true, positionMillis: 0 }),
+        };
+        mockedCreateAsync.mockResolvedValue({ sound: trackSound });
+        const { result } = renderSyncHook({ projectId: 'project-1', startPositionMs: 5000 });
+        await act(async () => {
+          await result.current.enableSync(0);
+        });
+        await act(async () => {
+          await result.current.syncPlay(3000);
+        });
+        // Android はシーク → 再生の 2 段階（TASK-61）で、位置は対応位置そのもの
+        expect(trackSound.setPositionAsync).toHaveBeenLastCalledWith(8000);
+        expect(trackSound.playAsync).toHaveBeenCalled();
+      } finally {
+        platformReplacement.restore();
+      }
     });
 
     it('syncPause はトラックを一時停止する', async () => {
@@ -407,7 +432,7 @@ describe('useSyncedTrackPlayback', () => {
         await result.current.syncJoinPlaying(recordSound as any);
       });
 
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(7000);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(7015);
     });
 
     it('syncJoinPlaying は録音側が一時停止済みなら合流しない', async () => {
@@ -442,7 +467,7 @@ describe('useSyncedTrackPlayback', () => {
         await result.current.syncResume(recordSound as any, 3000);
       });
 
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(8000);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(8015);
     });
 
     it('録音（声）の再生終了時、通常再生ならトラックを停止して録音開始位置へ戻す', async () => {
@@ -463,7 +488,7 @@ describe('useSyncedTrackPlayback', () => {
         await result.current.handleRecordFinish(true);
       });
 
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(5000);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(5015);
       expect(trackSound.pauseAsync).not.toHaveBeenCalled();
     });
 
@@ -740,7 +765,7 @@ describe('useSyncedTrackPlayback', () => {
       await act(async () => {
         await jest.advanceTimersByTimeAsync(360);
       });
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(0);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(15);
     });
 
     it('待機中に一時停止されたら予約をキャンセルしてトラックを再生しない', async () => {
@@ -786,7 +811,7 @@ describe('useSyncedTrackPlayback', () => {
         await result.current.syncSeek(2000);
         await result.current.syncReconcile(recordSound as any);
       });
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(1550);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(1565);
       // 取り消された予約が後から発火してトラックを先頭から鳴らさないこと
       await act(async () => {
         await jest.advanceTimersByTimeAsync(600);
@@ -817,7 +842,7 @@ describe('useSyncedTrackPlayback', () => {
       await act(async () => {
         await result.current.syncResume(recordSound as any, 1000);
       });
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(550);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(565);
     });
   });
 
@@ -983,7 +1008,7 @@ describe('useSyncedTrackPlayback', () => {
       await act(async () => {
         finishPromise = result.current.handleRecordFinish(true, recordSound as any);
       });
-      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(500);
+      expect(trackSound.playFromPositionAsync).toHaveBeenCalledWith(515);
       await runCorrection(finishPromise!);
 
       // トラック 580 に対し対応位置は 500 + 0 → 80ms 進んでいる → 500 + ストール見込み 110 へ補正

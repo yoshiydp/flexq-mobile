@@ -115,6 +115,17 @@ const SYNC_WATCH_TOLERANCE_MS = 60;
  * 連続して超過を実測した場合のみ補正する
  */
 const SYNC_WATCH_CONFIRM_COUNT = 2;
+/**
+ * iOS でトラックを再生開始する位置の先行量（ms / TASK-119）。
+ * 録音（声）とトラックを同時に再生開始しても、トラック側（AVPlayer・mp3）は録音側（wav）
+ * より発音が一貫して遅れ、実測オフセットは iPhone 17 シミュレーター −9〜−20ms・
+ * iPhone 実機 −11〜−20ms（平均 −15ms・常に負 = トラックが遅れる）に寄っていた。
+ * 許容値（25ms）内のためシーク補正は入らず残差として残るので、開始位置を先行量ぶん
+ * 進めて相殺する。レート微調整（setRateAsync）で詰める案は expo-av のレート変更 1 回に
+ * つき 15〜30ms（アルゴリズム切替時は約 70ms）のストールが実測され、ピッチ補正の事前設定も
+ * 開始遅延を −32〜−42ms に悪化させたため不採用
+ */
+const SYNC_TRACK_START_LEAD_MS_IOS = 15;
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -182,6 +193,12 @@ export function useSyncedTrackPlayback({
   const [trackPlaybackSource, setTrackPlaybackSource] = useState<
     'local' | 'remote' | null
   >(null);
+  /**
+   * 同期補正の実行状況（可視化用 / TASK-119）。補正シークの回数と学習済みのシークストール
+   * 見込みを sync-offset-debug に表示し、実機（TestFlight）でストール見込みが合っているか
+   * （補正のたびに同じ量だけ戻る場合は見込み違い）を確認できるようにする
+   */
+  const [syncStats, setSyncStats] = useState({ corrections: 0, stallMs: 0 });
 
   const headphonesConnected =
     headphoneConnection === 'wired' || headphoneConnection === 'bluetooth';
@@ -213,7 +230,26 @@ export function useSyncedTrackPlayback({
       ),
       SYNC_SEEK_STALL_MAX_MS,
     );
+    publishSyncStats(0);
   };
+
+  /** 可視化用の補正状況を更新する（ストール見込みは常に最新の学習値を反映する） */
+  const publishSyncStats = (correctionsDelta: number) => {
+    if (!isMountedRef.current) return;
+    setSyncStats((prev) => ({
+      corrections: prev.corrections + correctionsDelta,
+      stallMs: Math.round(seekStallEstimateRef.current),
+    }));
+  };
+
+  /**
+   * トラックの再生開始位置（対応位置）に iOS の先行量を加える (TASK-119)。
+   * 負の対応位置（先頭待機）から開始する場合も先頭 + 先行量から始める
+   */
+  const withStartLead = (positionMs: number) =>
+    Platform.OS === 'android'
+      ? positionMs
+      : positionMs + SYNC_TRACK_START_LEAD_MS_IOS;
 
   /**
    * 対応位置が負（録音がトラックの発音より先に始まったテイク / TASK-89）のとき、
@@ -487,7 +523,7 @@ export function useSyncedTrackPlayback({
       await track.setPositionAsync(positionMs);
       await track.playAsync();
     } else {
-      await track.playFromPositionAsync(positionMs);
+      await track.playFromPositionAsync(withStartLead(positionMs));
     }
   };
 
@@ -766,14 +802,16 @@ export function useSyncedTrackPlayback({
         const current = trackSoundRef.current;
         if (!current) return;
         await current.playFromPositionAsync(
-          Math.max(0, startPositionMs + (latest.positionMillis ?? 0)),
+          withStartLead(Math.max(0, startPositionMs + (latest.positionMillis ?? 0))),
         );
         void correctSyncOffset(recordSound);
       },
     );
     if (scheduled) return;
     const playStartedAt = Date.now();
-    await track.playFromPositionAsync(startPositionMs + recordPositionMs);
+    await track.playFromPositionAsync(
+      withStartLead(startPositionMs + recordPositionMs),
+    );
     syncDebugLog(
       `track play from ${startPositionMs + recordPositionMs}ms resolved in ${Date.now() - playStartedAt}ms`,
     );
@@ -955,6 +993,7 @@ export function useSyncedTrackPlayback({
           `gen=${generation} corrected by ${Math.round(-offsetMs)}ms (seek took ${Date.now() - seekStartedAt}ms)`,
         );
         hasCorrected = true;
+        publishSyncStats(1);
         return true;
       } catch {
         return false;
@@ -1147,6 +1186,7 @@ export function useSyncedTrackPlayback({
 
   useEffect(() => {
     isMountedRef.current = true;
+    publishSyncStats(0);
     return () => {
       isMountedRef.current = false;
       cancelPendingTrackStart();
@@ -1166,6 +1206,8 @@ export function useSyncedTrackPlayback({
     trackLoading,
     /** トラック音源の取得元（可視化用）: local = キャッシュ / remote = ストリーミング */
     trackPlaybackSource,
+    /** 補正シーク回数と学習済みシークストール見込み（可視化用 / TASK-119） */
+    syncStats,
     trackVolume,
     enableSync,
     disableSync,
