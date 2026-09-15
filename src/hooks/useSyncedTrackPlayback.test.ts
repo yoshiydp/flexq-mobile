@@ -889,9 +889,10 @@ describe('useSyncedTrackPlayback', () => {
 
     it('実測ズレが許容値を超えていたらトラックをシークして対応位置に合わせる', async () => {
       const { result, trackSound } = await setup(500);
-      // トラックが対応位置（500 + 1000）より 80ms 進んでいる
+      // トラックが対応位置（500 + 1000）より 80ms 進んでいる（連続 2 回で確定 / TASK-119）
       // → 1500 + iOS のシークストール見込み（110ms）へ補正 (TASK-118)
       trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1580 })
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1580 })
         .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1505 });
       const recordSound = makeRecordSound(1000);
@@ -918,11 +919,13 @@ describe('useSyncedTrackPlayback', () => {
 
     it('iOS の補正シーク後に残ったズレからストール量を学習し、次の補正に反映する (TASK-118)', async () => {
       const { result, trackSound } = await setup(0);
-      // 1 回目: −100ms → 対応位置 1000 + 見込み 110 = 1110 へシーク。
-      // 2 回目: シーク後も −100ms 残った（実ストールが見込みより 100ms 大きい）
+      // 1 回目（連続 2 回の実測で確定）: −100ms → 対応位置 1000 + 見込み 110 = 1110 へシーク。
+      // 2 回目（同じく 2 回で確定）: シーク後も −100ms 残った（実ストールが見込みより 100ms 大きい）
       //   → 見込みを残差の半分（50ms）ぶん増やして 160 とし、1000 + 160 = 1160 へシーク。
-      // 3 回目以降: 収束
+      // 以降: 収束
       trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
         .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
@@ -933,6 +936,43 @@ describe('useSyncedTrackPlayback', () => {
       expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(2);
       expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(1, 1110);
       expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(2, 1160);
+    });
+
+    it('1 回だけの許容値超え（計測ジッター）は補正せず、連続 2 回で確定したときだけシークする (TASK-119)', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync
+        // 1 回目: +80ms（一時的な計測誤差）→ 2 回目: +5ms → 補正しない
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it('ウィンドウ最後の実測で初めて許容値を超えた場合は、確定のために 1 回だけ延長して補正する (TASK-119)', async () => {
+      const { result, trackSound } = await setup(0);
+      const notPlaying = { isLoaded: true, isPlaying: false, positionMillis: 0 };
+      trackSound.getStatusAsync
+        // 1〜7 回目: まだ発音していない
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        .mockResolvedValueOnce(notPlaying)
+        // 8 回目（ウィンドウ最後）で +40ms → 9 回目（延長）でも +40ms → 補正
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1040 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1040 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any), 150 * 9 + 100);
+
+      expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1110);
     });
 
     it('許容値以内のズレは補正しない', async () => {
@@ -987,12 +1027,14 @@ describe('useSyncedTrackPlayback', () => {
         .mockResolvedValueOnce(notPlaying)
         .mockResolvedValueOnce(notPlaying)
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
         .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
       const recordSound = makeRecordSound(1000);
 
       await runCorrection(result.current.correctSyncOffset(recordSound as any));
 
-      // 6 回目の実測（900ms 後）で 80ms 進んでいる → 1000 + ストール見込み 110 へ補正
+      // 6〜7 回目の実測（900〜1050ms 後）で 80ms 進んでいる（2 回連続で確定）
+      // → 1000 + ストール見込み 110 へ補正
       expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
       expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1110);
     });
@@ -1000,6 +1042,7 @@ describe('useSyncedTrackPlayback', () => {
     it('ループ頭出し時（handleRecordFinish）にも補正がかかる', async () => {
       const { result, trackSound } = await setup(500);
       trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 580 })
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 580 })
         .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 510 });
       const recordSound = makeRecordSound(0);
@@ -1678,7 +1721,13 @@ describe('useSyncedTrackPlayback', () => {
             isBuffering: true,
             positionMillis: 1000,
           })
-          // バッファリング解消後: 実際は 80ms 進んでいる → 補正対象
+          // バッファリング解消後: 実際は 80ms 進んでいる → 補正対象（連続 2 回で確定 / TASK-119）
+          .mockResolvedValueOnce({
+            isLoaded: true,
+            isPlaying: true,
+            isBuffering: false,
+            positionMillis: 1380,
+          })
           .mockResolvedValueOnce({
             isLoaded: true,
             isPlaying: true,
@@ -1706,6 +1755,12 @@ describe('useSyncedTrackPlayback', () => {
               isBuffering: false,
               positionMillis: 1300,
             })
+            .mockResolvedValueOnce({
+              isLoaded: true,
+              isPlaying: true,
+              isBuffering: false,
+              positionMillis: 1300,
+            })
             .mockResolvedValue({
               isLoaded: true,
               isPlaying: true,
@@ -1720,7 +1775,7 @@ describe('useSyncedTrackPlayback', () => {
           await jest.advanceTimersByTimeAsync(150 * 8 + 100);
         });
 
-        // バッファリング中の 1 回目では補正されず、2 回目の実測（+80ms）で補正される。
+        // バッファリング中の 1 回目では補正されず、2〜3 回目の実測（+80ms・連続 2 回）で補正される。
         // Android はシークストール見込み（150ms）ぶん先の位置へシークする
         expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
         expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1450);

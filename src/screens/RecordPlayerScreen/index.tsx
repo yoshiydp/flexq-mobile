@@ -1046,6 +1046,13 @@ export default function RecordPlayerScreen() {
                 }`}
               </Text>
             )}
+            {SYNC_DEBUG_ENABLED && (syncPlayback.syncEvents?.length ?? 0) > 0 && (
+              // 直近の補正イベント（TASK-119）。TestFlight のスクリーンショットから
+              // 「どの経路で・どの実測ズレに対して・いくつ補正が入ったか」を追えるようにする
+              <Text style={styles.syncDebugText} testID="sync-events-debug">
+                {syncPlayback.syncEvents!.join('\n')}
+              </Text>
+            )}
           </View>
         ) : null}
       </View>
