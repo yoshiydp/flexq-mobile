@@ -50,7 +50,8 @@ import styles from './RecordPlayerScreen.styles';
 
 /**
  * 同期状態の可視化（TASK-89）。
- * 「再生対象とその取得元 / 同時再生の有効状態 / 実測ズレ / 開始位置 / トラック取得元」を
+ * 「再生対象とその取得元 / 同時再生の有効状態 / 実測ズレ / 開始位置 / トラック取得元 /
+ * 補正シーク回数 / 学習済みシークストール見込み（TASK-119）」を
  * 1 行で表示し、E2E（.maestro/flows/13-sync-playback）はこの表示でズレが許容値内かを検証する。
  * Metro 接続の開発ビルド（__DEV__）に加え、EXPO_PUBLIC_SYNC_DEBUG=1 でビルドされた
  * OTA バンドル（dev / staging チャンネル）でも表示され、TestFlight / Play 内部テストの
@@ -1040,6 +1041,8 @@ export default function RecordPlayerScreen() {
                     : `${debugSyncOffsetMs >= 0 ? '+' : ''}${debugSyncOffsetMs}ms`
                 } start=${getEffectiveStartPositionMs(params)}ms track=${
                   syncPlayback.trackPlaybackSource ?? '--'
+                } corr=${syncPlayback.syncStats?.corrections ?? 0} stall=${
+                  syncPlayback.syncStats?.stallMs ?? 0
                 }`}
               </Text>
             )}
