@@ -920,11 +920,10 @@ describe('useSyncedTrackPlayback', () => {
     it('iOS の補正シーク後に残ったズレからストール量を学習し、次の補正に反映する (TASK-118)', async () => {
       const { result, trackSound } = await setup(0);
       // 1 回目（連続 2 回の実測で確定）: −100ms → 対応位置 1000 + 見込み 110 = 1110 へシーク。
-      // 2 回目（同じく 2 回で確定）: シーク後も −100ms 残った（実ストールが見込みより 100ms 大きい）
-      //   → 見込みを残差の半分（50ms）ぶん増やして 160 とし、1000 + 160 = 1160 へシーク。
-      // 以降: 収束
+      // 2 回目（補正後の残差は確定を待たず即時 / TASK-120）: シーク後も −100ms 残った
+      //   （実ストールが見込みより 100ms 大きい）→ 見込みを残差の半分（50ms）ぶん増やして
+      //   160 とし、1000 + 160 = 1160 へシーク。以降: 収束
       trackSound.getStatusAsync
-        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
         .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
@@ -1124,6 +1123,45 @@ describe('useSyncedTrackPlayback', () => {
       await runWatch(result.current.correctSyncOffset(recordSound as any));
 
       expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it('監視フェーズの補正後に残ったズレからストール見込みを学習し、次の補正に反映する (TASK-120)', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync
+        // ウィンドウ 1 回目: +5ms → 監視フェーズへ
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1005 })
+        // 監視 1〜2 回目: +100ms → 1000 + 見込み 110 = 1110 へシーク
+        // 監視 3 回目（シーク後）: まだ +100ms（実ストールが見込みより 100ms 小さい）
+        //   → 見込みを 110 − 50 = 60 に学習。連続超過 1 回目
+        // 監視 4 回目: +100ms（2 回目）→ 1000 + 60 = 1060 へシーク
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1100 });
+      const recordSound = makeRecordSound(1000);
+
+      await runWatch(result.current.correctSyncOffset(recordSound as any), 150 + 1000 * 4 + 200);
+
+      expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(2);
+      expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(1, 1110);
+      expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(2, 1060);
+    });
+
+    it('監視補正の直後がバッファリング中でも、発音再開後の最初の実測で学習する (TASK-120)', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1005 })
+        // 監視 1〜2 回目: +100ms → 1110 へシーク
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1100 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1100 })
+        // 監視 3 回目: シーク後のバッファリング中（学習は保留）
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, isBuffering: true, positionMillis: 1100 })
+        // 監視 4 回目以降: +100ms → 学習（110 → 60）→ 連続超過 2 回で 1060 へシーク
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1100 });
+      const recordSound = makeRecordSound(1000);
+
+      await runWatch(result.current.correctSyncOffset(recordSound as any), 150 + 1000 * 5 + 200);
+
+      expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(2);
+      expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(1, 1110);
+      expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(2, 1060);
     });
 
     it('同時再生を無効化したら監視は止まり補正しない', async () => {
