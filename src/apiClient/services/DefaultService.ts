@@ -787,6 +787,10 @@ export class DefaultService {
             username: string;
             email: string;
             password: string;
+            /**
+             * 6-digit verification code sent to the email via POST /data/auth/verification-code (purpose: register)
+             */
+            code: string;
         },
     ): CancelablePromise<{
         userId?: string;
@@ -884,6 +888,44 @@ export class DefaultService {
         });
     }
     /**
+     * Send a 6-digit email verification code
+     * Generates a 6-digit verification code and sends it to the given email via SES. purpose "register" verifies email ownership before signup (double opt-in), purpose "reset" verifies identity before a password reset. The code expires in 10 minutes, resend is rate-limited to once per 60 seconds, and the code is invalidated after 5 failed attempts.
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataAuthVerificationCode(
+        requestBody: {
+            email: string;
+            purpose: 'register' | 'reset';
+        },
+    ): CancelablePromise<{
+        message?: string;
+        /**
+         * Code lifetime in seconds
+         */
+        expiresIn?: number;
+        /**
+         * Seconds to wait before a resend is allowed
+         */
+        resendIn?: number;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/verification-code',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                404: `User not found (purpose reset only)`,
+                409: `Email already in use (purpose register only)`,
+                429: `Resend requested too soon`,
+                502: `Failed to send verification email`,
+                503: `Verification email is not configured`,
+            },
+        });
+    }
+    /**
      * Reset user password
      * @param requestBody
      * @returns any OK
@@ -893,6 +935,10 @@ export class DefaultService {
         requestBody: {
             email: string;
             newPassword: string;
+            /**
+             * 6-digit verification code sent to the email via POST /data/auth/verification-code (purpose: reset)
+             */
+            code: string;
         },
     ): CancelablePromise<{
         message?: string;
@@ -903,7 +949,7 @@ export class DefaultService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                400: `Bad Request`,
+                400: `Bad Request (including invalid / expired code)`,
                 404: `User not found`,
             },
         });
