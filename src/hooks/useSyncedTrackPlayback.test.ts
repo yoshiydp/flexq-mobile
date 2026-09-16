@@ -16,6 +16,7 @@
 import { renderHook, act, waitFor } from '@testing-library/react-native';
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useSyncedTrackPlayback } from './useSyncedTrackPlayback';
 import type { HeadphoneConnection } from './useHeadphonesConnected';
 import { DefaultService } from '@/apiClient/services/DefaultService';
@@ -98,6 +99,11 @@ const renderSyncHook = (
   );
 
 describe('useSyncedTrackPlayback', () => {
+  // 学習済みストール見込みの保存値（TASK-120）がテスト間で漏れないようにする
+  beforeEach(async () => {
+    await AsyncStorage.clear();
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -948,6 +954,68 @@ describe('useSyncedTrackPlayback', () => {
       await runCorrection(result.current.correctSyncOffset(recordSound as any));
 
       expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+    });
+
+    it('端末に保存された学習済みストール見込みを初期値として使う (TASK-120)', async () => {
+      await AsyncStorage.setItem('syncSeekStallMs:ios', '250');
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      // 対応位置 1000 + 保存値 250
+      expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1250);
+    });
+
+    it('保存値の読み込みより先に補正シークが走った場合は、遅れて届いた保存値で上書きしない (TASK-120)', async () => {
+      // getItem を補正シーク後まで遅延させる（spyOn の restore はモックの実装を失うため手動で差し替える）
+      let resolveStored: (value: string | null) => void = () => {};
+      const originalGetItem = AsyncStorage.getItem;
+      AsyncStorage.getItem = jest.fn(
+        () => new Promise<string | null>((resolve) => { resolveStored = resolve; }),
+      ) as typeof AsyncStorage.getItem;
+      try {
+        const { result, trackSound } = await setup(0);
+        trackSound.getStatusAsync
+          .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+          .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+          // シーク後も +80 残る → 学習（110 − 40 = 70）して再シーク
+          .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 1080 })
+          .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
+        const recordSound = makeRecordSound(1000);
+
+        const promise = result.current.correctSyncOffset(recordSound as any);
+        void promise;
+        await act(async () => {
+          await jest.advanceTimersByTimeAsync(300 + 50); // 1 回目のシーク（初期値 110）
+          resolveStored('300'); // 保存値が遅れて届く（無視される）
+          await jest.advanceTimersByTimeAsync(1000);
+        });
+
+        expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(1, 1110);
+        expect(trackSound.setPositionAsync).toHaveBeenNthCalledWith(2, 1070);
+      } finally {
+        AsyncStorage.getItem = originalGetItem;
+      }
+    });
+
+    it('学習したストール見込みを端末に保存する (TASK-120)', async () => {
+      const { result, trackSound } = await setup(0);
+      trackSound.getStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 900 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1005 });
+      const recordSound = makeRecordSound(1000);
+
+      await runCorrection(result.current.correctSyncOffset(recordSound as any));
+
+      // 残差 −100 → 110 + 50 = 160 を保存
+      expect(await AsyncStorage.getItem('syncSeekStallMs:ios')).toBe('160');
     });
 
     it('ウィンドウ最後の実測で初めて許容値を超えた場合は、確定のために 1 回だけ延長して補正する (TASK-119)', async () => {
@@ -1817,6 +1885,45 @@ describe('useSyncedTrackPlayback', () => {
         // Android はシークストール見込み（150ms）ぶん先の位置へシークする
         expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
         expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1450);
+      });
+
+      it('補正シークのあとは 1 秒待ってから次の実測をする（ExoPlayer の楽観的な位置報告対策 / TASK-120）', async () => {
+        const { result, trackSound } = await setup(0);
+        // 常に +80ms（Android 許容値 40ms 超）
+        trackSound.getStatusAsync.mockResolvedValue({
+          isLoaded: true,
+          isPlaying: true,
+          isBuffering: false,
+          positionMillis: 1080,
+        });
+        const recordSound = {
+          getStatusAsync: jest.fn().mockResolvedValue({
+            isLoaded: true,
+            isPlaying: true,
+            isBuffering: false,
+            positionMillis: 1000,
+          }),
+        };
+
+        await act(async () => {
+          void result.current.correctSyncOffset(recordSound as any);
+          // 150ms: 1 回目（confirm?）→ 300ms: 2 回目で確定 → シーク #1
+          await jest.advanceTimersByTimeAsync(300 + 50);
+        });
+        expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
+
+        // シーク後 1 秒（1300ms）までは実測も再シークもしない
+        await act(async () => {
+          await jest.advanceTimersByTimeAsync(800);
+        });
+        expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
+
+        // 1300ms: 残差 +80 を学習（150 → 110）して再シーク
+        await act(async () => {
+          await jest.advanceTimersByTimeAsync(250);
+        });
+        expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(2);
+        expect(trackSound.setPositionAsync).toHaveBeenLastCalledWith(1080 - 80 + 110);
       });
 
       it('録音側がバッファリング中も補正しない', async () => {
