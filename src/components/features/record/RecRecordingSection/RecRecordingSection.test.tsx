@@ -104,8 +104,13 @@ describe('RecRecordingSection コンポーネント', () => {
   };
 
   it('コンポーネントが正しくレンダリングされる', () => {
-    const { getByText } = render(<RecRecordingSection {...mockProps} />);
+    const { getByText, getByTestId, queryByTestId } = render(
+      <RecRecordingSection {...mockProps} />,
+    );
     getByText('5');
+    // カウントダウン中は数字（E2E 判定用の testID 付き）のみが表示される
+    getByTestId('rec-countdown-text');
+    expect(queryByTestId('rec-recording-timer')).toBeNull();
   });
 
   it('trackSource なしでレンダリングされる', () => {
@@ -528,6 +533,101 @@ describe('RecRecordingSection コンポーネント', () => {
     // タイマーは起動しない
     await advanceTimers(1000);
     getByText('00:00:00');
+  });
+
+  describe('countdownSeconds=0（クイック録音の即録音 / TASK-93）', () => {
+    const quickProps = { ...mockProps, countdownSeconds: 0 };
+
+    it('カウントダウンの数字を表示せず、マイク許可の取得後すぐに録音が開始される', async () => {
+      const { getByText, getByTestId, queryByText, queryByTestId } = render(
+        <RecRecordingSection {...quickProps} trackSource={null} />,
+      );
+
+      // カウントダウンの数字は一瞬も表示されない（E2E QR-01 と同じ判定）
+      expect(queryByTestId('rec-countdown-text')).toBeNull();
+      expect(queryByText('5')).toBeNull();
+      expect(queryByText('0')).toBeNull();
+      // 録音中の UI（タイマー・停止ボタン）が即座に表示される
+      getByTestId('rec-recording-timer');
+      getByTestId('rec-recording-section-pressable');
+      getByText('00:00:00');
+
+      // カウントダウンぶんの時間を進めずに録音が開始される
+      await flushAsync();
+      await flushAsync();
+      expect(mockPrepareToRecordAsync).toHaveBeenCalledTimes(1);
+      expect(mockStartAsync).toHaveBeenCalledTimes(1);
+      expect(mockCreateAsync).not.toHaveBeenCalled();
+
+      // タイマーが起動している
+      await advanceTimers(1000);
+      getByText('00:01:00');
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(mockOnAbort).not.toHaveBeenCalled();
+    });
+
+    it('マイク許可（ダイアログ応答）の完了前は録音を開始しない', async () => {
+      let resolvePermission: (value: { granted: boolean }) => void = () => {};
+      mockRequestPermissionsAsync.mockReturnValue(
+        new Promise((resolve) => {
+          resolvePermission = resolve;
+        }),
+      );
+
+      const { getByText } = render(
+        <RecRecordingSection {...quickProps} trackSource={null} />,
+      );
+
+      // 応答待ちの間は録音セッションを初期化しない
+      await advanceTimers(3000);
+      expect(mockSetAudioModeAsync).not.toHaveBeenCalled();
+      expect(mockPrepareToRecordAsync).not.toHaveBeenCalled();
+      getByText('00:00:00');
+
+      // 許可後に録音が開始される
+      await act(async () => {
+        resolvePermission({ granted: true });
+      });
+      await flushAsync();
+      expect(mockStartAsync).toHaveBeenCalledTimes(1);
+    });
+
+    it('許可が拒否された場合は Alert が表示され、録音が開始されない', async () => {
+      mockRequestPermissionsAsync.mockResolvedValue({
+        granted: false,
+        canAskAgain: false,
+      });
+
+      render(<RecRecordingSection {...quickProps} trackSource={null} />);
+      await flushAsync();
+      await flushAsync();
+
+      expect(alertSpy).toHaveBeenCalledWith(
+        'エラー',
+        REC_PERMISSION_MESSAGES.micPermissionDenied,
+      );
+      expect(mockOnAbort).toHaveBeenCalledTimes(1);
+      expect(mockPrepareToRecordAsync).not.toHaveBeenCalled();
+    });
+
+    it('停止するとトラックなしのテイク（実測値 undefined）として onStop が呼ばれる', async () => {
+      const { getByTestId } = render(
+        <RecRecordingSection {...quickProps} trackSource={null} />,
+      );
+
+      await flushAsync();
+      await flushAsync();
+      await advanceTimers(1000);
+
+      fireEvent.press(getByTestId('rec-recording-section-pressable'));
+      await flushAsync();
+
+      expect(mockOnStop).toHaveBeenCalledWith(
+        expect.any(Number),
+        'mock-recording-uri',
+        undefined,
+      );
+    });
   });
 
   it('trackSource なし（QuickRecord）の場合は実測なしで録音が開始される', async () => {

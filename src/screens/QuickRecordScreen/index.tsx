@@ -83,6 +83,9 @@ export default function QuickRecordScreen() {
         visible={recordingModalVisible}
         onClose={() => setRecordingModalVisible(false)}
         onStop={handleStopRecording}
+        // クイック録音はトラックと合わせる必要がないため、カウントダウンなしで
+        // REC タップ直後に録音を開始する（TASK-93）
+        countdownSeconds={0}
       />
     </View>
   );

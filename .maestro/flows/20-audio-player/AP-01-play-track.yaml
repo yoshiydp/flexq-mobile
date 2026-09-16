@@ -1,0 +1,38 @@
+# ID: AP-01
+# シナリオ名: オーディオプレイヤー起動（トラック再生画面）
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）・dev 環境の demo アカウントに 1 件以上のトラックが存在する
+# 操作手順: ログイン → TRACK LIST → 先頭のトラックをタップ
+# 期待結果: オーディオプレイヤーが起動しトラックタイトルが表示される
+# 備考: 実際の再生・シーク・音量調整は手動確認（docs/test-cases.md AP-01）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - AP
+  - AP-01
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# トラックリスト画面へ遷移
+- tapOn:
+    id: 'nav-TrackList'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 先頭のトラックをタップしてオーディオプレイヤーを起動
+- tapOn:
+    id: 'track-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# オーディオプレイヤー画面のアサーション
+- assertVisible:
+    id: 'audio-player-title'
+
+# 戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'TRACK'
+- assertVisible: 'LIST'

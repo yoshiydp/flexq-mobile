@@ -5,6 +5,7 @@ import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
 import { verifyGoogleAccessToken } from './google-auth';
+import { isSuspendedUser, suspendedResponse } from './account-suspension';
 
 // Google OAuth のアクセストークンを検証してログインする。
 // ユーザーの照合は一般的なサービスと同じ 3 段階:
@@ -14,6 +15,12 @@ import { verifyGoogleAccessToken } from './google-auth';
 //      - mode: 'register'（Register 画面）→ 新規作成（パスワードなし）
 //      - mode: 'login'（SignIn 画面・デフォルト）→ 404 を返し新規登録へ誘導
 // パスワード認証（post-auth-login）と同じ形式のレスポンス・JWT を返す。
+//
+// ②③ はメールアドレスを本人性の根拠に使うため、Google 側で所有確認が済んだ
+// メール（emailVerified）でなければ実行しない（TASK-101）。未検証メールの
+// Google アカウントは他人のアドレスを名乗れるため、既存アカウントへの自動連携
+// （＝乗っ取り）やアドレスの先取り登録を許してしまう。
+// ① は googleSub 一致＝過去に本人が連携した Google アカウントなので従来どおり許可する。
 
 // google 連携の socialAccounts エントリを isLinked: true で upsert する
 const upsertGoogleSocialAccount = (
@@ -59,11 +66,25 @@ export const handler = async (event: any) => {
   let isNewUser = false;
 
   if (!user) {
-    // ② メールアドレスで検索（Google のメールは検証済みのため email 一致での
-    //    自動ひも付けを許容する。一致したら googleSub を保存して次回以降は ① で照合）
+    // ② メールアドレスで検索（一致したら googleSub を保存して次回以降は ① で照合）
     const email = googleUser.email;
     if (!email) {
       return createResponse({ message: 'Google account has no email' }, 401);
+    }
+
+    // メールアドレスを本人性の根拠に使う ②③ の手前でメール検証状態を確認する。
+    // 未検証メールでは既存アカウントへの自動連携も新規作成も行わない（TASK-101）。
+    // 検索前に弾くことで、アカウントの有無が 401 / 404 の差として漏れることも防ぐ。
+    // リトライしても解消しない永続エラーのため、クライアントが
+    // 「時間をおいて再試行」ではなく専用の案内を出せるよう code を添える。
+    if (!googleUser.emailVerified) {
+      return createResponse(
+        {
+          code: 'email_not_verified',
+          message: 'Google account email is not verified',
+        },
+        401,
+      );
     }
 
     const emailResult = await docClient.send(
@@ -77,6 +98,11 @@ export const handler = async (event: any) => {
     user = emailResult.Items?.[0];
 
     if (user) {
+      // 停止（BAN）中のアカウントには googleSub をひも付けず、
+      // レコードを変更しないまま拒否する (TASK-81)
+      if (isSuspendedUser(user)) {
+        return suspendedResponse();
+      }
       const socialAccounts = upsertGoogleSocialAccount(
         user.socialAccounts,
         googleUser.name ?? '',
@@ -141,6 +167,14 @@ export const handler = async (event: any) => {
         console.warn('Registration email failed to send:', err);
       }
     }
+  }
+
+  // 停止（BAN）中のアカウントは Google ログイン・再登録とも不可 (TASK-81)。
+  // ②（email 照合）は上で遮断済みのため、ここでは ①（googleSub 照合）を遮断する。
+  // Users レコードが論理削除で残るため、mode: 'register' でも新規作成には
+  // 進まず（①/② でヒットする）BAN の回避はできない
+  if (isSuspendedUser(user)) {
+    return suspendedResponse();
   }
 
   const payload = { userId: user.userId, email: user.email };

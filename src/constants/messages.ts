@@ -7,6 +7,17 @@ export const REC_LABELS = {
   currentPosition: '現在位置',
 };
 
+export const TRACK_UPLOAD_LABELS = {
+  // wav も引き続きサポートするが、ファイルサイズが大きくアップロードに時間がかかるため
+  // 追加シート・空状態で mp3 を推奨する旨を案内する (TASK-94)
+  formatHint:
+    'mp3 推奨（wav はファイルサイズが大きくアップロードに時間がかかります）',
+  formatHintShort: 'mp3 推奨（wav は時間がかかります）',
+  uploading: '音源データをアップロード中…',
+  uploadingProgress: (percent: number) =>
+    `音源データをアップロード中… ${percent}%`,
+};
+
 export const SEPARATION_LABELS = {
   button: 'AI クリーンアップ',
   processing: '処理中…',
@@ -16,6 +27,9 @@ export const SEPARATION_LABELS = {
   toggleLabel: 'AI クリーンアップ',
   startFailed: 'AI クリーンアップの開始に失敗しました。',
   failed: 'AI クリーンアップに失敗しました。時間をおいて再度お試しください。',
+  // サーバー側で AI クリーンアップが未設定のとき（503）。再試行しても回復しないため
+  // 「開始に失敗」ではなく利用不可の案内を出す (TASK-88)
+  unavailable: 'AI クリーンアップは現在ご利用いただけません。復旧までしばらくお待ちください。',
 };
 
 export const SHARE_LABELS = {
@@ -59,6 +73,28 @@ export const SYNC_PLAYBACK_LABELS = {
   headphonesRequired: 'イヤホン（有線 / Bluetooth）接続時に使用できます',
   noTrack: 'プロジェクトにトラック音源がないため同時再生できません。',
   loadFailed: 'トラック音源の読み込みに失敗しました。',
+  // ローカルキャッシュへのダウンロードに 2 回（最新 URL の再取得込み）失敗し、
+  // ストリーミング再生に切り替えたときの案内 (TASK-117)
+  streamingFallback:
+    'トラック音源のダウンロードに失敗したため、ストリーミングで再生します。出だしが引っかかる場合は、通信環境と端末の空き容量を確認して録音を開き直してください。',
+};
+
+export const RECORD_PLAYBACK_LABELS = {
+  // 元の録音 / 声のみ音源のローカルキャッシュへのダウンロードに 2 回
+  // （最新 URL の再取得込み）失敗し、ストリーミング再生に切り替えたときの案内 (TASK-117)
+  streamingFallback:
+    '音源のダウンロードに失敗したため、ストリーミングで再生します。冒頭が途切れる場合は、通信環境と端末の空き容量を確認して録音を開き直してください。',
+};
+
+export const FETCH_ERROR_MESSAGES = {
+  // 一覧取得の失敗時に表示する文言（TASK-97 / CM-01）。
+  // 現状このアプリは日本語固定で、文言はこのファイルに集約する方針のため
+  // i18n ライブラリは導入せずここに追加する
+  offline: '通信できません。接続を確認してください',
+  offlineDescription: '機内モードや電波状況を確認して、再度お試しください。',
+  failed: 'データを取得できませんでした',
+  failedDescription: '時間をおいて再度お試しください。',
+  retry: '再試行',
 };
 
 export const MODAL_MESSAGES = {

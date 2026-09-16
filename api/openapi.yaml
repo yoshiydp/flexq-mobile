@@ -476,7 +476,10 @@ paths:
           description: Unauthorized
   /data/track/{id}:
     put:
-      summary: Update a track title
+      summary: Update a track (title / artwork)
+      description: |
+        title と artworkKey のどちらか一方、または両方を指定して更新する。
+        artworkKey を差し替えた場合、旧アートワークの S3 オブジェクトは削除される。
       operationId: updateTrack
       parameters:
         - name: id
@@ -490,10 +493,10 @@ paths:
           application/json:
             schema:
               type: object
-              required:
-                - title
               properties:
                 title:
+                  type: string
+                artworkKey:
                   type: string
       responses:
         '200':
@@ -507,8 +510,12 @@ paths:
                     type: string
                   title:
                     type: string
+                  artworkKey:
+                    type: string
                   updatedAt:
                     type: string
+        '400':
+          description: Bad Request
         '401':
           description: Unauthorized
         '404':
@@ -1144,7 +1151,9 @@ paths:
         '400':
           description: Bad Request
         '401':
-          description: Invalid Google access token
+          description: >-
+            Invalid Google access token, or the Google account email is not
+            verified (body code: email_not_verified)
         '404':
           description: Account not found (mode=login and no matching user)
   /data/auth/verification-code:

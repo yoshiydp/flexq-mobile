@@ -11,7 +11,7 @@ import { verifyGoogleAccessToken } from './google-auth';
 // クライアントから sub を直接受け取ると他人の sub を詐称できてしまうため、
 // 必ずアクセストークンをサーバー側で検証してから保存する。
 export const handler = async (event: any) => {
-  const claims = verifyToken(event);
+  const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const { accessToken } = JSON.parse(event.body || '{}');
@@ -19,6 +19,9 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Google access token is required' }, 400);
   }
 
+  // ここでの照合は googleSub のみでメールアドレスを本人性の根拠に使わないため、
+  // googleUser.emailVerified は判定に使わない（未検証メールでも連携可）。
+  // メール一致で既存アカウントにひも付く post-auth-google 側のみ検証状態を要求する（TASK-101）。
   const googleUser = await verifyGoogleAccessToken(accessToken);
   if (!googleUser) {
     return createResponse({ message: 'Invalid Google access token' }, 401);

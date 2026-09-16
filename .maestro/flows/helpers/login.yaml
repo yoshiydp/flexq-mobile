@@ -1,6 +1,6 @@
 # 共通ログインフロー（iOS / Android 対応）
 # 前提条件: なし（launch-app.yaml が起動時にアプリ状態を初期化し、ログイン画面から開始する）
-# 使い方: 各フローから `- runFlow: ./helpers/login.yaml` で呼び出す
+# 使い方: 各フローから `- runFlow: ../helpers/login.yaml` で呼び出す
 
 appId: com.yoshiydp.lyricsapp
 ---

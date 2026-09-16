@@ -3,8 +3,10 @@
 // 「削除済みトラックを参照するプロジェクト」という UI 操作では作りにくい状態を
 // API で再現する:
 //   1. 過去の実行で残った e2e-PE11 プレフィックスのプロジェクトを削除（再実行を冪等にする）
-//   2. ダミー s3Key のトラックを作成（S3 実体は不要。削除時の DeleteObject は
-//      存在しないキーでも成功する）
+//   2. アップロード URL 発行 API から自ユーザーの s3Key を払い出してトラックを作成
+//      （S3 実体はアップロードしない。削除時の DeleteObject は存在しないキーでも成功する。
+//        post-track は自ユーザーのプレフィックス配下のキーしか受け付けないため、
+//        キーの決め打ちはできない / TASK-102）
 //   3. そのトラックを紐づけたプロジェクトを作成
 //   4. トラックを API で削除 → プロジェクト側に trackId が残り PE-11 の前提状態になる
 //
@@ -38,12 +40,23 @@ if (listRes.ok) {
   }
 }
 
-// 2. ダミートラック作成
+// 2. ダミートラック作成（s3Key はアップロード URL 発行 API から払い出す）
+const uploadUrlRes = http.get(
+  API_BASE_URL + '/data/track/upload-url?filename=e2e-pe11-dummy.mp3&contentType=audio/mpeg',
+  { headers: authHeaders },
+);
+if (!uploadUrlRes.ok) {
+  throw new Error(
+    'PE-11 setup: get upload url failed (' + uploadUrlRes.status + '): ' + uploadUrlRes.body,
+  );
+}
+const dummyS3Key = json(uploadUrlRes.body).key;
+
 const trackRes = http.post(API_BASE_URL + '/data/track', {
   headers: authHeaders,
   body: JSON.stringify({
     title: 'e2e-PE11-track',
-    s3Key: 'tracks/e2e-pe11-dummy.mp3',
+    s3Key: dummyS3Key,
     extention: 'mp3',
   }),
 });

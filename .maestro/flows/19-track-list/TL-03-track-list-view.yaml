@@ -1,0 +1,24 @@
+# ID: TL-03
+# シナリオ名: トラックリスト表示
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: ログイン → TRACK LIST タブをタップ
+# 期待結果: TRACK LIST タイトルとトラック一覧が表示される
+# 備考: 一覧行の内容（アートワーク・形式・使用中リンクの目印）は可変データのため手動確認（docs/test-cases.md TL-03）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - TL
+  - TL-03
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# トラックリスト画面へ遷移
+- tapOn:
+    id: 'nav-TrackList'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# トラックリスト画面のアサーション
+- assertVisible: 'TRACK'
+- assertVisible: 'LIST'

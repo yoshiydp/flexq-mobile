@@ -2,9 +2,11 @@
  * record-mix.ts（ミックス処理の純粋ロジック）のユニットテスト (TASK-49)
  */
 import {
+  BLUETOOTH_RECORDING_LATENCY_MS,
   MIX_PIPELINE_VERSION,
   MIX_STUCK_TIMEOUT_MS,
   buildMixFfmpegArgs,
+  effectiveStartPositionMs,
   isMixCacheValid,
   isMixStuck,
   mixedS3KeyFor,
@@ -106,6 +108,49 @@ describe('isMixCacheValid', () => {
   });
 });
 
+describe('effectiveStartPositionMs（Bluetooth 録音の開始位置補正 / TASK-89）', () => {
+  it('Bluetooth 録音は出力遅延の代表値を差し引く', () => {
+    expect(
+      effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'bluetooth' }),
+    ).toBe(10000 - BLUETOOTH_RECORDING_LATENCY_MS);
+  });
+
+  it('有線・イヤホンなし・未設定は補正しない（未定義は 0）', () => {
+    expect(effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'wired' })).toBe(10000);
+    expect(effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'none' })).toBe(10000);
+    expect(effectiveStartPositionMs({ startPositionMs: 10000 })).toBe(10000);
+    expect(effectiveStartPositionMs({})).toBe(0);
+    // 開始位置のない旧レコードは Bluetooth でも補正しない
+    expect(effectiveStartPositionMs({ recordedWithHeadphones: 'bluetooth' })).toBe(0);
+  });
+
+  it('負の開始位置（録音がトラックより先に始まったテイク）はそのまま返す', () => {
+    expect(effectiveStartPositionMs({ startPositionMs: -450 })).toBe(-450);
+    expect(effectiveStartPositionMs({ startPositionMs: 100, recordedWithHeadphones: 'bluetooth' })).toBe(
+      100 - BLUETOOTH_RECORDING_LATENCY_MS,
+    );
+  });
+
+  it('Bluetooth 録音のキャッシュは補正後の実効値で判定する', () => {
+    const base = {
+      mixStatus: 'done',
+      mixedS3Key: 'records/mixed/u/r-token.m4a',
+      mixTrackRef: 'tracks/t.mp3',
+      mixVersion: MIX_PIPELINE_VERSION,
+      startPositionMs: 10000,
+      recordedWithHeadphones: 'bluetooth',
+    };
+    // 補正前の値で生成したキャッシュは無効（作り直す）
+    expect(isMixCacheValid({ ...base, mixStartPositionMs: 10000 }, 'tracks/t.mp3')).toBe(false);
+    expect(
+      isMixCacheValid(
+        { ...base, mixStartPositionMs: 10000 - BLUETOOTH_RECORDING_LATENCY_MS },
+        'tracks/t.mp3',
+      ),
+    ).toBe(true);
+  });
+});
+
 describe('mixedS3KeyFor', () => {
   it('ジョブトークンを含む一意なキーを生成する（記号は取り除く）', () => {
     expect(
@@ -164,7 +209,20 @@ describe('buildMixFfmpegArgs', () => {
     expect(args[args.length - 1]).toBe('/tmp/mixed.m4a');
   });
 
-  it('startPositionMs 未指定・負値は 0 秒として扱う', () => {
+  it('startPositionMs が負のときはトラックを頭出しせず adelay で遅らせる（TASK-89）', () => {
+    const args = buildMixFfmpegArgs({
+      vocalsPath: '/tmp/vocals.wav',
+      trackPath: '/tmp/track-input',
+      outPath: '/tmp/mixed.m4a',
+      startPositionMs: -450,
+      trackHeadTrimSec: 0.022,
+    });
+    const filter = args[args.indexOf('-filter_complex') + 1];
+    expect(filter).toContain('atrim=start=0.022000,asetpts=PTS-STARTPTS,adelay=450:all=1[trk]');
+    expect(filter).not.toContain('atrim=start=-');
+  });
+
+  it('startPositionMs 未指定は 0 秒として扱う', () => {
     const defaultArgs = buildMixFfmpegArgs({
       vocalsPath: '/tmp/vocals.wav',
       trackPath: '/tmp/track-input',

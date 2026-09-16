@@ -56,6 +56,36 @@ describe('ActionButtonWithMenu コンポーネントのテスト', () => {
     });
   });
 
+  it('メニューと各項目にラベル非依存の testID が付与される (TASK-92)', async () => {
+    // E2E（CM-05）でメニューの開閉をラベル文言に依存せず検証するための testID
+    const { getByTestId, getAllByTestId } = render(
+      <ActionButtonWithMenu
+        isOpen={true}
+        onToggle={mockOnToggle}
+        menuItems={menuItems}
+      />,
+    );
+
+    await waitFor(() => {
+      expect(getByTestId('action-menu')).toBeTruthy();
+    });
+    expect(getAllByTestId(/^action-menu-item-/)).toHaveLength(menuItems.length);
+    expect(getByTestId('action-menu-item-0')).toBeTruthy();
+  });
+
+  it('メニューが閉じているときは menu の testID が存在しない (TASK-92)', () => {
+    const { queryByTestId } = render(
+      <ActionButtonWithMenu
+        isOpen={false}
+        onToggle={mockOnToggle}
+        menuItems={menuItems}
+      />,
+    );
+
+    expect(queryByTestId('action-menu')).toBeNull();
+    expect(queryByTestId('action-menu-item-0')).toBeNull();
+  });
+
   it('各メニュー項目を押下すると対応する関数とonToggleが呼ばれる', async () => {
     const { getByText } = render(
       <ActionButtonWithMenu

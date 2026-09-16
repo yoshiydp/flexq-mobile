@@ -75,6 +75,16 @@ jest.mock('@/hooks/useUploadRecord', () => ({
 jest.mock('@/hooks/useFetchRecord', () => ({
   useFetchRecord: () => ({ refreshRecord: jest.fn() }),
 }));
+// 声のみ音源のローカルキャッシュ（TASK-89）は URL をそのまま返す
+// （キャッシュ動作自体は RecordPlayerScreen.separatedCache.test.tsx で検証する）
+jest.mock('@/utils/recordAudioCache', () => ({
+  isRemoteUri: (uri: string) => /^https?:/i.test(uri),
+  resolveCachedRecordAudio: jest.fn(async (uri: string) => ({
+    uri,
+    source: 'cache',
+  })),
+}));
+
 jest.mock('@/hooks/useHeadphonesConnected', () => ({
   useHeadphonesConnected: jest.fn(() => 'bluetooth'),
 }));
@@ -211,6 +221,14 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
         initialTrackSource: 'https://example.com/track.mp3',
         headphoneConnection: 'bluetooth',
       }),
+    );
+  });
+
+  it('Bluetooth 録音のテイクは出力遅延ぶん手前の開始位置を useSyncedTrackPlayback に渡す（TASK-89）', async () => {
+    mockParams = { ...mockParams, recordedWithHeadphones: 'bluetooth' };
+    await renderScreen();
+    expect(mockedUseSyncedTrackPlayback).toHaveBeenCalledWith(
+      expect.objectContaining({ startPositionMs: 5000 - 220 }),
     );
   });
 

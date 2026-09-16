@@ -1,0 +1,106 @@
+# ID: SY-05
+# シナリオ名: 声のみのタイミング（AI クリーンアップ済み音源のトラック同時再生）
+# 前提条件: dev API に接続できること。dev の demo アカウントに AI クリーンアップ済みの
+#           サンプルレコード（SY05_RECORD_ID）を持つプロジェクト（SY05_PROJECT_ID）が
+#           存在すること（フロー内の API セットアップでプロジェクトを一覧の先頭に、
+#           レコードをブックマーク済みにして REC MODE の一覧先頭に表示させる）
+# 操作手順: ログイン → 対象プロジェクトを開く → REC MODE → サンプルレコードを開く
+#           → 「声のみ」を選択（ローカルキャッシュへのダウンロード完了を待つ）
+#           → トラック同時再生を ON → 再生
+# 期待結果: 声のみ音源がローカルキャッシュ（source=separated:local）から再生され、
+#           同時再生中の実測ズレ（トラック位置 − 対応する録音位置）が ±39ms 以内に収まる。
+#           ※ 実測値は開発ビルド（Metro 接続・__DEV__）のみ表示される sync-offset-debug で確認する。
+#           ※ 聴感上のズレ・カクつきの最終確認は docs/test-cases.md の SY-05 を実機で行う
+# 備考: 声のみ音源は Presigned URL の wav をそのままストリーミングすると冒頭の再バッファリングで
+#       ズレ・カクつきが出るため、再生前にダウンロードしてから再生する (TASK-89)
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - SY
+  - SY-05
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+  # 「Test pj 20260718 test2テストですよ」: AI クリーンアップ済みサンプルを複数持つプロジェクト
+  SY05_PROJECT_ID: 'd1702b64-7af4-42c7-91e3-9abbe59132ce'
+  # イヤホンなし録音 → separate（トラックかぶり分離）済み・startPositionMs = 0 のサンプル。
+  # ブックマーク済み + 作成日が新しいため、REC MODE のレコード一覧の先頭に表示される
+  SY05_RECORD_ID: '6219f577-7dc7-4dd3-afde-2e9e1581216b'
+  SY05_RECORD_TITLE: 'テスト録音 Android'
+---
+# データ準備（対象プロジェクトの updatedAt を更新して一覧の先頭に表示させる）
+- runScript: ../../scripts/sy05-setup.js
+
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# 対象プロジェクトを開く（更新日降順のリスト先頭）
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn:
+    id: 'project-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'toolbar-hamburger'
+
+# REC MODE へ切り替え（フェードアニメーション後にレコード一覧が表示される）
+- tapOn:
+    id: 'rec-mode-button'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# サンプルレコードを開く（セットアップでブックマーク済みにしているため一覧の先頭にある。
+# リスト項目は Pressable で子テキストがグループ化され、ラベルが
+# 「タイトル, 日付 RECORDED, …」の連結になるため部分一致（正規表現）で探す）
+- extendedWaitUntil:
+    visible: '.*${SY05_RECORD_TITLE}.*'
+    timeout: 15000
+- tapOn: '.*${SY05_RECORD_TITLE}.*'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 「元の録音 / 声のみ」の切替が表示される（AI クリーンアップ済み）。
+# 元の録音もローカルキャッシュへのダウンロード完了（original:local）を待つ
+- extendedWaitUntil:
+    visible:
+      id: 'source-segment-separated'
+    timeout: 15000
+- extendedWaitUntil:
+    visible: 'source=original:local sync=off offset=-- start=.*'
+    timeout: 60000
+
+# 「声のみ」を選択 → ローカルキャッシュへのダウンロード完了（ローディング終了）を待つ
+- tapOn:
+    id: 'source-segment-separated'
+- extendedWaitUntil:
+    visible: 'source=separated:local sync=off offset=-- start=.*'
+    timeout: 60000
+
+# トラック同時再生を ON（声のみはイヤホンなしでも有効化できる / SY-04）
+- tapOn:
+    id: 'sync-playback-switch'
+- extendedWaitUntil:
+    visible: 'source=separated:local sync=on offset=-- start=.*'
+    timeout: 30000
+
+# 再生 → 実測ズレが ±39ms 以内で報告されること
+- tapOn:
+    id: 'player-play-button'
+- extendedWaitUntil:
+    visible: 'source=separated:local sync=on offset=[+-]?([0-9]|[1-3][0-9])ms start=.*'
+    timeout: 15000
+
+# 少し再生を続けても許容値内に収まっていること（3 秒後に再確認）
+- waitForAnimationToEnd:
+    timeout: 3000
+- extendedWaitUntil:
+    visible: 'source=separated:local sync=on offset=[+-]?([0-9]|[1-3][0-9])ms start=.*'
+    timeout: 10000
+
+# 一時停止
+- tapOn:
+    id: 'player-play-button'
+- waitForAnimationToEnd:
+    timeout: 2000

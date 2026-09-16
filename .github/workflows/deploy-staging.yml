@@ -80,3 +80,5 @@ jobs:
         env:
           EXPO_TOKEN: ${{ secrets.EXPO_TOKEN_2 }}
           EXPO_PUBLIC_API_BASE_URL: ${{ secrets.EXPO_PUBLIC_API_BASE_URL }}
+          # 同期デバッグ表示（sync-offset-debug）を OTA ビルドでも有効化（TASK-89 の実機計測用）
+          EXPO_PUBLIC_SYNC_DEBUG: '1'

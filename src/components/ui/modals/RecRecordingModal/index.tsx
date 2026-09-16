@@ -38,6 +38,11 @@ interface RecRecordingModalProps {
   trackSource?: string | null;
   startPositionMs?: number;
   lyrics?: string;
+  /**
+   * 録音開始までのカウントダウン秒数（デフォルト 5 秒）。
+   * 0 を指定するとカウントダウンなしで即録音を開始する（クイック録音 / TASK-93）
+   */
+  countdownSeconds?: number;
 }
 
 export default function RecRecordingModal({
@@ -47,6 +52,7 @@ export default function RecRecordingModal({
   trackSource,
   startPositionMs = 0,
   lyrics,
+  countdownSeconds = 5,
 }: RecRecordingModalProps) {
   useEffect(() => {
     const backHandler = BackHandler.addEventListener(
@@ -113,6 +119,7 @@ export default function RecRecordingModal({
             onAbort={onClose}
             trackSource={trackSource}
             startPositionMs={startPositionMs}
+            countdownSeconds={countdownSeconds}
           />
         </Animated.View>
       </Animated.View>

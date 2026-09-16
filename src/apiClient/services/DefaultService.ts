@@ -388,7 +388,10 @@ export class DefaultService {
         });
     }
     /**
-     * Update a track title
+     * Update a track (title / artwork)
+     * title と artworkKey のどちらか一方、または両方を指定して更新する。
+     * artworkKey を差し替えた場合、旧アートワークの S3 オブジェクトは削除される。
+     *
      * @param id
      * @param requestBody
      * @returns any OK
@@ -397,11 +400,13 @@ export class DefaultService {
     public static updateTrack(
         id: string,
         requestBody: {
-            title: string;
+            title?: string;
+            artworkKey?: string;
         },
     ): CancelablePromise<{
         id?: string;
         title?: string;
+        artworkKey?: string;
         updatedAt?: string;
     }> {
         return __request(OpenAPI, {
@@ -413,6 +418,7 @@ export class DefaultService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
+                400: `Bad Request`,
                 401: `Unauthorized`,
                 404: `Not Found`,
             },
@@ -876,7 +882,7 @@ export class DefaultService {
             mediaType: 'application/json',
             errors: {
                 400: `Bad Request`,
-                401: `Invalid Google access token`,
+                401: `Invalid Google access token, or the Google account email is not verified (body code: email_not_verified)`,
                 404: `Account not found (mode=login and no matching user)`,
             },
         });

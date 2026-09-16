@@ -131,7 +131,8 @@ describe('useSeparateRecord', () => {
     expect(mockedService.getRecordSeparateStatus).toHaveBeenCalledTimes(1);
   });
 
-  it('開始 API が失敗した場合は failed になり error がセットされる', async () => {
+  it('開始 API が失敗した場合は none に戻り error がセットされる', async () => {
+    // 開始失敗は failed で固定しない（画面側の failed 監視と二重にアラートが出るため。TASK-88）
     const apiError = new Error('Service unavailable');
     mockedService.separateRecord.mockRejectedValue(apiError);
 
@@ -147,7 +148,7 @@ describe('useSeparateRecord', () => {
     });
 
     expect(thrown).toBe(apiError);
-    expect(result.current.status).toBe('failed');
+    expect(result.current.status).toBe('none');
     expect(result.current.error).toBe(apiError);
   });
 

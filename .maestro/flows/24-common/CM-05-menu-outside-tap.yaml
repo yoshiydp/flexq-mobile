@@ -1,0 +1,81 @@
+# ID: CM-05
+# シナリオ名: 3 点リーダーのメニューを画面外タップで閉じる
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）。
+#           dev 環境の demo アカウントにトラックが 1 件以上存在すること（track-play と同じ前提）
+# 操作手順: ログイン → TRACK LIST → 先頭のトラックをタップしてオーディオプレイヤーを開く
+#           → ヘッダー右上の 3 点リーダーでメニューを開く → アートワーク（何もないところ）をタップ
+# 期待結果: メニューの外をタップするとメニューが閉じる。3 点リーダーの再タップでも従来どおり閉じ、
+#           メニュー表示中でもヘッダー内のボタンはタップできる
+# 備考: TASK-92。オーディオプレイヤーはヘッダーの「後」に ScrollView が描画される構造のため、
+#       ヘッダー側の重ね順（zIndex / elevation）が失われると画面外タップ用オーバーレイが
+#       ScrollView の下に潜ってこのフローが落ちる = 今回の修正本体の回帰検知になる。
+#       メニュー項目のラベルは画面ごとに異なり変更もされうるため、ラベルではなく
+#       action-menu / action-menu-item-0 の testID でアサートする
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - CM
+  - CM-05
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# トラックリスト → 先頭のトラックでオーディオプレイヤーを開く
+- tapOn:
+    id: 'nav-TrackList'
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: 'track-item-0'
+    timeout: 15000
+- tapOn:
+    id: 'track-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'audio-player-title'
+
+# 3 点リーダーでメニューを開く（メニューと項目が表示される）
+- tapOn:
+    id: 'action-button-with-menu'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'action-menu'
+- assertVisible:
+    id: 'action-menu-item-0'
+
+# 画面の何もないところ（アートワーク）をタップするとメニューが閉じる
+# ※ アートワークは 260x260 の Image で操作を持たず、メニュー（右上）とも重ならない
+- tapOn:
+    id: 'audio-player-artwork'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'action-menu'
+- assertNotVisible:
+    id: 'action-menu-item-0'
+
+# 従来どおり 3 点リーダーの再タップでも開閉できる
+# （メニュー表示中もヘッダー内のボタンがオーバーレイより手前に残っていることの確認を兼ねる）
+- tapOn:
+    id: 'action-button-with-menu'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'action-menu'
+- tapOn:
+    id: 'action-button-with-menu'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'action-menu'
+
+# トラックリストへ戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'TRACK'
+- assertVisible: 'LIST'

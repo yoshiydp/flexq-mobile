@@ -1,0 +1,27 @@
+# ID: PF-03
+# シナリオ名: ログアウト
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: ログイン → PROFILE → LOGOUT → OK をタップ
+# 期待結果: ログイン画面が表示される
+# 備考: 再ログイン後にデータが残っていることの確認は手動（docs/test-cases.md PF-03）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PF
+  - PF-03
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# プロフィール画面へ遷移してログアウト
+- tapOn:
+    id: 'nav-Profile'
+- waitForAnimationToEnd:
+    timeout: 5000
+- tapOn: 'LOGOUT'
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# ログイン画面に戻ったことを確認
+- assertVisible: 'Your Email'

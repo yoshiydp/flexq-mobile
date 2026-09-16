@@ -2,14 +2,36 @@
 # iOS シミュレーター: localhost:8081 がそのまま表示される
 # Android エミュレーター: adb reverse tcp:8081 により localhost:8081 で接続できる
 #   （`expo start` からの起動で自動設定。10.0.2.2:8081 表記のフォールバックも許容）
+# 一覧に出ないことがある（mDNS のディスカバリが間に合わない / No development servers found）ため、
+# その場合は「Enter URL manually」から手動で接続する
 
 appId: com.yoshiydp.lyricsapp
 ---
-- tapOn: '.*(localhost|10\.0\.2\.2):8081.*'
+# 一覧に開発サーバーが出ている場合はそれを選ぶ
+- runFlow:
+    when:
+      visible: '.*(localhost|10\.0\.2\.2):8081.*'
+    commands:
+      - tapOn: '.*(localhost|10\.0\.2\.2):8081.*'
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# 一覧に出ていない場合は手動入力の画面を開く
+# （URL 入力欄には localhost:8081 がプリセットされるため、そのまま Connect でよい）
+- runFlow:
+    when:
+      visible: 'Enter URL manually'
+    commands:
+      - tapOn: 'Enter URL manually'
+      - waitForAnimationToEnd:
+          timeout: 3000
+
 # サーバー一覧が未表示（discovery 前）の場合は URL 入力欄（localhost:8081 がプリセット）+
-# Connect ボタンの画面になっており、上のタップは入力欄のフォーカスになるため Connect をタップする
+# Connect ボタンの画面になっているため Connect をタップする
 - runFlow:
     when:
       visible: 'Connect'
     commands:
       - tapOn: 'Connect'
+      - waitForAnimationToEnd:
+          timeout: 3000
