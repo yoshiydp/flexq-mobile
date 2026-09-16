@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Platform } from 'react-native';
 import { Audio } from 'expo-av';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import type { HeadphoneConnection } from '@/hooks/useHeadphonesConnected';
 import {
@@ -72,6 +73,21 @@ const SYNC_SEEK_STALL_INITIAL_MS_ANDROID = 150;
  */
 const SYNC_SEEK_STALL_INITIAL_MS_IOS = 110;
 const SYNC_SEEK_STALL_MAX_MS = 400;
+/**
+ * 学習済みのシークストール見込みを端末に保存するキー（TASK-120）。
+ * 実ストールは端末ごとに大きく違い（iPhone 実機 130〜170ms・Android 実機 180〜280ms・
+ * 初期値は 110 / 150ms）、セッションごとに初期値から学習し直すと最初の数回の補正シークが
+ * 毎回ズレたまま残るため、学習値を保存して次回起動時の初期値にする
+ */
+const SYNC_SEEK_STALL_STORAGE_KEY = `syncSeekStallMs:${Platform.OS}`;
+/**
+ * Android で補正シークのあと次の実測まで待つ時間（ms / TASK-120）。
+ * ExoPlayer はシーク直後、実際の音声が再開する前から再生位置を進めて報告するため、
+ * シーク後 150ms の実測は見かけ上「収束」し（例: off=18 ok）、約 1 秒後に本当のズレ
+ * （−70〜−130ms）が現れて再びシークする、を繰り返していた（実機で 15 秒に 19 回・
+ * 1 回 200〜270ms の音切れ = 「トラックがかくつく」）。シーク後は 1 秒待ってから実測する
+ */
+const SYNC_POST_SEEK_SETTLE_MS_ANDROID = 1000;
 /**
  * ストール学習のダンピング係数。シークごとの実ストールには揺らぎがあるため、
  * 残差を全量反映すると過大・過小をピンポンして収束しない。半分ずつ反映して
@@ -240,7 +256,7 @@ export function useSyncedTrackPlayback({
       : SYNC_SEEK_STALL_INITIAL_MS_IOS,
   );
 
-  /** 実測残差からストール学習値を更新する（ダンピング付き） */
+  /** 実測残差からストール学習値を更新する（ダンピング付き）。学習値は端末に保存する */
   const learnSeekStall = (residualOffsetMs: number) => {
     seekStallEstimateRef.current = Math.min(
       Math.max(
@@ -250,7 +266,35 @@ export function useSyncedTrackPlayback({
       ),
       SYNC_SEEK_STALL_MAX_MS,
     );
+    stallLearnedRef.current = true;
     publishSyncStats(0);
+    AsyncStorage.setItem(
+      SYNC_SEEK_STALL_STORAGE_KEY,
+      String(Math.round(seekStallEstimateRef.current)),
+    ).catch(() => {
+      // 保存失敗はセッション内の学習値で続行する
+    });
+  };
+
+  /**
+   * このセッションでストール見込みを学習または補正シークに使ったか。
+   * 保存値の読み込みが遅れた場合に、既にシークの根拠にした見込みを上書きして
+   * 次の残差学習の基準を狂わせないようにする（読み込みはその時点で諦める）
+   */
+  const stallLearnedRef = useRef(false);
+
+  /** 端末に保存された学習済みストール見込みを初期値として読み込む (TASK-120) */
+  const loadStoredSeekStall = async () => {
+    try {
+      const stored = await AsyncStorage.getItem(SYNC_SEEK_STALL_STORAGE_KEY);
+      if (stored === null || !isMountedRef.current || stallLearnedRef.current) return;
+      const value = Number(stored);
+      if (!Number.isFinite(value) || value < 0 || value > SYNC_SEEK_STALL_MAX_MS) return;
+      seekStallEstimateRef.current = value;
+      publishSyncStats(0);
+    } catch {
+      // 読み込み失敗は初期値で続行する
+    }
   };
 
   /** 可視化用の補正状況を更新する（ストール見込みは常に最新の学習値を反映する） */
@@ -671,6 +715,7 @@ export function useSyncedTrackPlayback({
     // ぶん先の位置へシークする。さらにミュートを解除する前に同期を実測検証し、
     // ズレが残っていればミュートのまま合わせ直す。これにより
     // 「鳴り始めた瞬間から同期している」状態を保証する (TASK-61)
+    stallLearnedRef.current = true;
     await track.setPositionAsync(
       Math.max(
         0,
@@ -1024,6 +1069,8 @@ export function useSyncedTrackPlayback({
       // 実測（sample）の await 中にシーク・ループ頭出し等で新しい補正が始まって
       // いることがある。古い位置に基づくシークで巻き戻さないよう適用直前にも確認する
       if (isStale() || !track) return false;
+      // 見込みをシークの根拠にした時点で、遅れて届く保存値による上書きを止める
+      stallLearnedRef.current = true;
       try {
         const seekStartedAt = Date.now();
         await track.setPositionAsync(
@@ -1104,6 +1151,12 @@ export function useSyncedTrackPlayback({
         !(await applyCorrection(sampled.offsetMs, sampled.trackPositionMillis))
       ) {
         return;
+      }
+      if (isAndroid) {
+        // ExoPlayer のシーク直後の楽観的な位置報告で「収束」と誤判定しないよう、
+        // 次の実測（ループ先頭の 150ms 待ち）まで合計 1 秒空ける
+        await delay(SYNC_POST_SEEK_SETTLE_MS_ANDROID - SYNC_OFFSET_CHECK_INTERVAL_MS);
+        if (isStale()) return;
       }
     }
 
@@ -1286,6 +1339,8 @@ export function useSyncedTrackPlayback({
   useEffect(() => {
     isMountedRef.current = true;
     publishSyncStats(0);
+    // 保存値の読み込みはマウント時のみ（loadStoredSeekStall は ref しか触らない）
+    void loadStoredSeekStall();
     return () => {
       isMountedRef.current = false;
       cancelPendingTrackStart();
@@ -1296,6 +1351,7 @@ export function useSyncedTrackPlayback({
       }
       trackSoundRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return {
