@@ -1080,18 +1080,23 @@ export function useSyncedTrackPlayback({
         );
         break; // 収束 → 監視フェーズへ
       }
-      const sign = sampled.offsetMs < 0 ? -1 : 1;
-      overStreak = sign === overSign ? overStreak + 1 : 1;
-      overSign = sign;
-      if (overStreak < SYNC_OFFSET_CONFIRM_COUNT) {
-        pushSyncEvent(
-          `${eventTag} #${attempt} +${elapsed} off=${Math.round(sampled.offsetMs)} confirm?`,
-        );
-        continue;
-      }
-      overStreak = 0;
-      overSign = 0;
-      if (hasCorrected) {
+      if (!hasCorrected) {
+        // ウィンドウ内の最初の補正だけ連続 2 回で確定する。補正後に残るズレは
+        // ストール見込みの誤差（系統的）なので、確定を待たずに毎回学習・補正して
+        // ウィンドウ内で収束させる（Android は 1 回のシークが 150〜280ms 止まるため、
+        // 学習の機会を減らすと収束前にウィンドウが終わる / TASK-120）
+        const sign = sampled.offsetMs < 0 ? -1 : 1;
+        overStreak = sign === overSign ? overStreak + 1 : 1;
+        overSign = sign;
+        if (overStreak < SYNC_OFFSET_CONFIRM_COUNT) {
+          pushSyncEvent(
+            `${eventTag} #${attempt} +${elapsed} off=${Math.round(sampled.offsetMs)} confirm?`,
+          );
+          continue;
+        }
+        overStreak = 0;
+        overSign = 0;
+      } else {
         // 直前の補正後も残るズレ = ストール見積もりの誤差。学習して次の補正に反映する
         learnSeekStall(sampled.offsetMs);
       }
@@ -1106,13 +1111,28 @@ export function useSyncedTrackPlayback({
     // 一時停止・バッファリング中はカウントを戻して待つだけで、ループは
     // isStale()（無効化・アンマウント・新しい補正の開始）で終了する
     let outOfSyncStreak = 0;
+    // 直前の監視補正の残差からストール見込みを学習するためのフラグ (TASK-120)
+    let learnFromNextSample = false;
     for (;;) {
       await delay(SYNC_WATCH_INTERVAL_MS);
       const sampled = await sample();
       if (sampled === 'stop') return;
       if (sampled === 'not-playing') {
+        // シーク直後のバッファリング中は学習を保留し、発音再開後の最初の実測で学習する
         outOfSyncStreak = 0;
         continue;
+      }
+      if (learnFromNextSample) {
+        // 監視補正の直後（1 秒後）の残差は、1 秒間のドリフトよりストール見込みの誤差が
+        // 支配的なので学習に使う。以前は「間隔が空くため学習しない」としていたが、
+        // 端末の実ストールが見込みより大きいと（Android 実機で約 250〜280ms 対 150ms）
+        // 「シーク → 同じ量だけ戻る」を 2 秒ごとに繰り返し、大きなズレと音切れが
+        // 続いていた（TASK-120。TASK-118 で iOS に起きたものと同じ構造）
+        learnFromNextSample = false;
+        learnSeekStall(sampled.offsetMs);
+        pushSyncEvent(
+          `${eventTag} after seek off=${Math.round(sampled.offsetMs)} st->${Math.round(seekStallEstimateRef.current)}`,
+        );
       }
       if (Math.abs(sampled.offsetMs) <= SYNC_WATCH_TOLERANCE_MS) {
         outOfSyncStreak = 0;
@@ -1127,13 +1147,12 @@ export function useSyncedTrackPlayback({
       );
       if (outOfSyncStreak < SYNC_WATCH_CONFIRM_COUNT) continue;
       outOfSyncStreak = 0;
-      // 監視フェーズの補正は間隔が空くため、残差をストール学習には使わない
-      // （学習は連続実測できる補正ウィンドウ内でのみ行う）
       if (
         !(await applyCorrection(sampled.offsetMs, sampled.trackPositionMillis))
       ) {
         return;
       }
+      learnFromNextSample = true;
     }
   };
 
