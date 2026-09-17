@@ -97,6 +97,26 @@ const SYNC_POST_SEEK_SETTLE_MS_ANDROID = 1000;
 const SYNC_NUDGE_RATE_DELTA_ANDROID = 0.05;
 const SYNC_NUDGE_MAX_OFFSET_MS_ANDROID = 150;
 const SYNC_NUDGE_MAX_DURATION_MS = 3000;
+/**
+ * レート微調整の最小対象（ms / Android）。これ以下は触らない。ミュート解除後に残る
+ * 20〜40ms（Android の許容値内）を放置すると「少しズレて聞こえる」ため、微調整は
+ * 安価なので許容値より細かく詰める (TASK-120)
+ */
+const SYNC_NUDGE_MIN_OFFSET_MS_ANDROID = 15;
+/**
+ * ミュート合流中のレート微調整（Android）。無音なので ±20% の速い調整で 150ms 以下の
+ * ズレを最長 0.75 秒で詰める。再シーク（1 回 200〜300ms 停止 + 1 秒待ち）より速い
+ */
+const SYNC_NUDGE_RATE_DELTA_MUTED_ANDROID = 0.2;
+const MUTED_NUDGE_MAX_DURATION_MS = 750;
+const MUTED_VERIFY_MAX_NUDGES = 3;
+/**
+ * 再生開始直後（トラックが止まった状態から play した直後）のシークのストール見込み
+ * （Android / TASK-120）。再生中のシーク（260〜300ms）と違い 50〜170ms しか止まらず、
+ * 再生中の見込みで先行させると +80〜+210ms 行き過ぎて合わせ直しが 2〜3 回必要になっていた
+ */
+const SYNC_START_SEEK_STALL_INITIAL_MS_ANDROID = 100;
+const SYNC_START_SEEK_STALL_STORAGE_KEY = `syncStartSeekStallMs:${Platform.OS}`;
 /** ミュート合流の検証で「同期 OK」と判定するために必要な連続実測回数 */
 const MUTED_VERIFY_CONFIRM_COUNT = 2;
 /** ミュート合流での合わせ直し（再シーク）の上限。1 回ごとに 1 秒の待機を挟む */
@@ -236,7 +256,11 @@ export function useSyncedTrackPlayback({
    * 見込みを sync-offset-debug に表示し、実機（TestFlight）でストール見込みが合っているか
    * （補正のたびに同じ量だけ戻る場合は見込み違い）を確認できるようにする
    */
-  const [syncStats, setSyncStats] = useState({ corrections: 0, stallMs: 0 });
+  const [syncStats, setSyncStats] = useState({
+    corrections: 0,
+    stallMs: 0,
+    startStallMs: 0,
+  });
   /**
    * 直近の補正イベント（可視化用 / TASK-119）。Metro に接続できない TestFlight でも
    * 「いつ・どの経路で・どれだけの実測ズレに対して補正が入ったか」をスクリーンショットで
@@ -289,22 +313,55 @@ export function useSyncedTrackPlayback({
     });
   };
 
+  /** 再生開始直後のシーク用のストール見込み（Android / TASK-120）。学習値は端末に保存する */
+  const startSeekStallEstimateRef = useRef(SYNC_START_SEEK_STALL_INITIAL_MS_ANDROID);
+  const learnStartSeekStall = (residualOffsetMs: number) => {
+    startSeekStallEstimateRef.current = Math.min(
+      Math.max(
+        0,
+        startSeekStallEstimateRef.current -
+          residualOffsetMs * SYNC_SEEK_STALL_LEARN_RATE,
+      ),
+      SYNC_SEEK_STALL_MAX_MS,
+    );
+    startStallLearnedRef.current = true;
+    publishSyncStats(0);
+    AsyncStorage.setItem(
+      SYNC_START_SEEK_STALL_STORAGE_KEY,
+      String(Math.round(startSeekStallEstimateRef.current)),
+    ).catch(() => {});
+  };
+
   /**
    * このセッションでストール見込みを学習または補正シークに使ったか。
    * 保存値の読み込みが遅れた場合に、既にシークの根拠にした見込みを上書きして
    * 次の残差学習の基準を狂わせないようにする（読み込みはその時点で諦める）
    */
   const stallLearnedRef = useRef(false);
+  /** 開始直後用の見込みについて同じ（見込みごとに独立に判定する） */
+  const startStallLearnedRef = useRef(false);
 
   /** 端末に保存された学習済みストール見込みを初期値として読み込む (TASK-120) */
   const loadStoredSeekStall = async () => {
     try {
-      const stored = await AsyncStorage.getItem(SYNC_SEEK_STALL_STORAGE_KEY);
-      if (stored === null || !isMountedRef.current || stallLearnedRef.current) return;
-      const value = Number(stored);
-      if (!Number.isFinite(value) || value < 0 || value > SYNC_SEEK_STALL_MAX_MS) return;
-      seekStallEstimateRef.current = value;
-      publishSyncStats(0);
+      const [stored, storedStart] = await Promise.all([
+        AsyncStorage.getItem(SYNC_SEEK_STALL_STORAGE_KEY),
+        AsyncStorage.getItem(SYNC_START_SEEK_STALL_STORAGE_KEY),
+      ]);
+      if (!isMountedRef.current) return;
+      const parse = (raw: string | null) => {
+        if (raw === null) return null;
+        const value = Number(raw);
+        return Number.isFinite(value) && value >= 0 && value <= SYNC_SEEK_STALL_MAX_MS
+          ? value
+          : null;
+      };
+      // 読み込みより先に学習・使用した見込みは上書きしない（見込みごとに独立に判定）
+      const value = stallLearnedRef.current ? null : parse(stored);
+      const startValue = startStallLearnedRef.current ? null : parse(storedStart);
+      if (value !== null) seekStallEstimateRef.current = value;
+      if (startValue !== null) startSeekStallEstimateRef.current = startValue;
+      if (value !== null || startValue !== null) publishSyncStats(0);
     } catch {
       // 読み込み失敗は初期値で続行する
     }
@@ -316,6 +373,7 @@ export function useSyncedTrackPlayback({
     setSyncStats((prev) => ({
       corrections: prev.corrections + correctionsDelta,
       stallMs: Math.round(seekStallEstimateRef.current),
+      startStallMs: Math.round(startSeekStallEstimateRef.current),
     }));
   };
 
@@ -725,6 +783,14 @@ export function useSyncedTrackPlayback({
       await track.setVolumeAsync(trackVolumeRef.current).catch(() => {});
     };
 
+    // 止まった状態からの再生開始か（再生中のシークとはストール量が違う / TASK-120）
+    let freshStart = true;
+    try {
+      const before = await track.getStatusAsync();
+      freshStart = !(before.isLoaded && before.isPlaying);
+    } catch {
+      // ステータス取得に失敗した場合は再生開始扱い
+    }
     await track.playAsync();
     await waitForTrackPlaybackStable(track);
     if (isStale()) return;
@@ -760,32 +826,94 @@ export function useSyncedTrackPlayback({
     // ぶん先の位置へシークする。さらにミュートを解除する前に同期を実測検証し、
     // ズレが残っていればミュートのまま合わせ直す。これにより
     // 「鳴り始めた瞬間から同期している」状態を保証する (TASK-61)
-    stallLearnedRef.current = true;
+    if (freshStart) startStallLearnedRef.current = true;
+    else stallLearnedRef.current = true;
+    const firstSeekStallMs = freshStart
+      ? startSeekStallEstimateRef.current
+      : seekStallEstimateRef.current;
     await track.setPositionAsync(
       Math.max(
         0,
-        startPositionMs +
-          (recordStatus.positionMillis ?? 0) +
-          seekStallEstimateRef.current,
+        startPositionMs + (recordStatus.positionMillis ?? 0) + firstSeekStallMs,
       ),
     );
     pushSyncEvent(
-      `realign seek -> +${Math.round(seekStallEstimateRef.current)} (st)`,
+      `realign ${freshStart ? 'start' : 'seek'} -> +${Math.round(firstSeekStallMs)} (st)`,
     );
-    // ExoPlayer はシーク直後、実際の音声が再開する前から再生位置を進めて報告する
-    // ため、直後の検証は偽の「同期 OK」になる（ミュート解除後に本当のズレが現れ、
-    // 可聴のシークで直すことになっていた）。1 秒待ってから検証する (TASK-120)
-    await delay(SYNC_POST_SEEK_SETTLE_MS_ANDROID);
-    if (isStale()) return;
-    if (!isMountedRef.current || !syncEnabledRef.current) {
-      await abortIfActive();
-      return;
-    }
+    // 直前のシークの残差をどちらの見込みに学習するか
+    let pendingLearn: 'start' | 'seek' | null = freshStart ? 'start' : 'seek';
+
+    /**
+     * ExoPlayer はシーク直後、実際の音声が再開する前から再生位置を進めて報告する
+     * ため、直後の検証は偽の「同期 OK」になる（ミュート解除後に本当のズレが現れ、
+     * 可聴のシークで直すことになっていた）。1 秒待ってから検証する (TASK-120)。
+     * 待機中は 200ms ごとの実測をイベント行に残し、待機時間を短縮できるかの判断材料にする
+     */
+    const settleAfterSeek = async (): Promise<boolean> => {
+      const trajectory: string[] = [];
+      const steps = Math.round(SYNC_POST_SEEK_SETTLE_MS_ANDROID / 200);
+      for (let step = 1; step <= steps; step++) {
+        await delay(200);
+        if (isStale()) return false;
+        if (!isMountedRef.current || !syncEnabledRef.current) {
+          await abortIfActive();
+          return false;
+        }
+        try {
+          const [r, t] = await Promise.all([
+            recordSound.getStatusAsync(),
+            track.getStatusAsync(),
+          ]);
+          const valid =
+            r.isLoaded && t.isLoaded && r.isPlaying && t.isPlaying && !r.isBuffering && !t.isBuffering;
+          trajectory.push(
+            valid
+              ? `${Math.round((t.positionMillis ?? 0) - (startPositionMs + (r.positionMillis ?? 0)))}`
+              : '-',
+          );
+        } catch {
+          trajectory.push('-');
+        }
+      }
+      pushSyncEvent(`settle ${trajectory.join(' ')}`);
+      return !isStale();
+    };
+    if (!(await settleAfterSeek())) return;
+
+    /** ミュート中のレート微調整（±20%）。シークと違い停止も待機も要らない */
+    const mutedNudge = async (offsetMs: number): Promise<boolean> => {
+      const rate =
+        offsetMs < 0
+          ? 1 + SYNC_NUDGE_RATE_DELTA_MUTED_ANDROID
+          : 1 - SYNC_NUDGE_RATE_DELTA_MUTED_ANDROID;
+      const durationMs = Math.min(
+        Math.round(Math.abs(offsetMs) / SYNC_NUDGE_RATE_DELTA_MUTED_ANDROID),
+        MUTED_NUDGE_MAX_DURATION_MS,
+      );
+      const token = ++activeNudgeRef.current;
+      try {
+        await track.setRateAsync(rate, true);
+      } catch {
+        return false;
+      }
+      pushSyncEvent(
+        `realign off=${Math.round(offsetMs)} nudge ${rate > 1 ? '+' : '-'}20% ${durationMs}ms`,
+      );
+      await delay(durationMs);
+      if (activeNudgeRef.current !== token) return false;
+      try {
+        await track.setRateAsync(1, true);
+      } catch {
+        return false;
+      }
+      return !isStale();
+    };
 
     let confirmedInSync = false;
     let recordSeenPlaying = false;
     let measuredAttempts = 0;
     let reseeks = 0;
+    let nudges = 0;
     let inSyncStreak = 0;
     // 声側の発音開始待ちで検証機会が消費されないよう、全体の時間上限
     // （MUTED_VERIFY_MAX_ITERATIONS）と実測回数の上限を分けて管理する
@@ -831,6 +959,23 @@ export function useSyncedTrackPlayback({
           ? MUTED_VERIFY_RELAXED_TOLERANCE_MS
           : SYNC_OFFSET_TOLERANCE_MS_ANDROID;
       if (Math.abs(offsetMs) <= verifyToleranceMs) {
+        // 許容値内でも 15ms 超の残差はミュート中に詰めてから解除する（解除後に
+        // 「少しズレて聞こえる」20〜40ms を残さない / TASK-120）
+        if (
+          Math.abs(offsetMs) > SYNC_NUDGE_MIN_OFFSET_MS_ANDROID &&
+          nudges < MUTED_VERIFY_MAX_NUDGES
+        ) {
+          if (pendingLearn === 'start') learnStartSeekStall(offsetMs);
+          else if (pendingLearn === 'seek') learnSeekStall(offsetMs);
+          pendingLearn = null;
+          nudges += 1;
+          inSyncStreak = 0;
+          if (!(await mutedNudge(offsetMs))) {
+            if (isStale()) return;
+            break;
+          }
+          continue;
+        }
         // 連続 2 回の実測で同期を確認してから解除する（1 回だけの一致は楽観的な
         // 位置報告の可能性がある / TASK-120）
         inSyncStreak += 1;
@@ -842,10 +987,26 @@ export function useSyncedTrackPlayback({
         continue;
       }
       inSyncStreak = 0;
+      // 直前のシークの残差 = そのシーク種別のストール見込みの誤差。学習する
+      if (pendingLearn === 'start') learnStartSeekStall(offsetMs);
+      else if (pendingLearn === 'seek') learnSeekStall(offsetMs);
+      pendingLearn = null;
+
+      // 150ms 以下の残差はミュート中のレート微調整で詰める（停止も 1 秒待ちも不要）
+      if (
+        Math.abs(offsetMs) <= SYNC_NUDGE_MAX_OFFSET_MS_ANDROID &&
+        nudges < MUTED_VERIFY_MAX_NUDGES
+      ) {
+        nudges += 1;
+        if (!(await mutedNudge(offsetMs))) {
+          if (isStale()) return;
+          break;
+        }
+        continue;
+      }
+
       if (reseeks >= MUTED_VERIFY_MAX_RESEEKS) break;
       reseeks += 1;
-
-      learnSeekStall(offsetMs);
       pushSyncEvent(
         `realign off=${Math.round(offsetMs)} reseek (st${Math.round(seekStallEstimateRef.current)})`,
       );
@@ -861,13 +1022,9 @@ export function useSyncedTrackPlayback({
       } catch {
         break;
       }
+      pendingLearn = 'seek';
       // 合わせ直しのシーク後も 1 秒待ってから検証する
-      await delay(SYNC_POST_SEEK_SETTLE_MS_ANDROID);
-      if (isStale()) return;
-      if (!isMountedRef.current || !syncEnabledRef.current) {
-        await abortIfActive();
-        return;
-      }
+      if (!(await settleAfterSeek())) return;
     }
 
     if (isStale()) return;
@@ -1232,6 +1389,7 @@ export function useSyncedTrackPlayback({
     // 開始ズレを取りこぼさないようにする）
     let overStreak = 0;
     let overSign = 0;
+    let smallNudges = 0;
     const maxAttempts = maxChecks + SYNC_OFFSET_CONFIRM_COUNT - 1;
     for (
       let attempt = 0;
@@ -1253,6 +1411,16 @@ export function useSyncedTrackPlayback({
         continue;
       }
       if (Math.abs(sampled.offsetMs) <= toleranceMs) {
+        // Android は許容値内でも 15ms 超の残差をレート微調整で詰めてから収束とする (TASK-120)
+        if (
+          isAndroid &&
+          Math.abs(sampled.offsetMs) > SYNC_NUDGE_MIN_OFFSET_MS_ANDROID &&
+          smallNudges < 2
+        ) {
+          smallNudges += 1;
+          if (!(await applyNudgeAndroid(sampled.offsetMs))) return;
+          continue;
+        }
         pushSyncEvent(
           `${eventTag} #${attempt} +${elapsed} off=${Math.round(sampled.offsetMs)} ok`,
         );
@@ -1293,6 +1461,7 @@ export function useSyncedTrackPlayback({
     // 一時停止・バッファリング中はカウントを戻して待つだけで、ループは
     // isStale()（無効化・アンマウント・新しい補正の開始）で終了する
     let outOfSyncStreak = 0;
+    let driftStreak = 0;
     // 直前の監視補正の残差からストール見込みを学習するためのフラグ (TASK-120)
     let learnFromNextSample = false;
     for (;;) {
@@ -1318,8 +1487,20 @@ export function useSyncedTrackPlayback({
       }
       if (Math.abs(sampled.offsetMs) <= SYNC_WATCH_TOLERANCE_MS) {
         outOfSyncStreak = 0;
+        // Android: シーク補正しない範囲の緩やかなドリフト（15ms 超）は、連続 2 回の
+        // 実測で確認してからレート微調整で詰める（一時的な位置の飛びで無駄に速度を変えない）
+        if (isAndroid && Math.abs(sampled.offsetMs) > SYNC_NUDGE_MIN_OFFSET_MS_ANDROID) {
+          driftStreak += 1;
+          if (driftStreak >= SYNC_WATCH_CONFIRM_COUNT) {
+            driftStreak = 0;
+            if (!(await applyNudgeAndroid(sampled.offsetMs))) return;
+          }
+        } else {
+          driftStreak = 0;
+        }
         continue;
       }
+      driftStreak = 0;
       outOfSyncStreak += 1;
       syncDebugLog(
         `gen=${generation} watch offset=${Math.round(sampled.offsetMs)}ms streak=${outOfSyncStreak}`,

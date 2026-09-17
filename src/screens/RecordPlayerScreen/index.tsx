@@ -1043,7 +1043,7 @@ export default function RecordPlayerScreen() {
                   syncPlayback.trackPlaybackSource ?? '--'
                 } corr=${syncPlayback.syncStats?.corrections ?? 0} stall=${
                   syncPlayback.syncStats?.stallMs ?? 0
-                }`}
+                }/${syncPlayback.syncStats?.startStallMs ?? 0}`}
               </Text>
             )}
             {SYNC_DEBUG_ENABLED && (syncPlayback.syncEvents?.length ?? 0) > 0 && (
