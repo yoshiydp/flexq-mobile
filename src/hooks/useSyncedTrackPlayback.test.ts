@@ -1690,6 +1690,104 @@ describe('useSyncedTrackPlayback', () => {
         expect(trackSound.setVolumeAsync).toHaveBeenLastCalledWith(1);
       });
 
+      it('シーク後の待機中に連続 2 回の実測が揃えば 0.8 秒を待ち切らず、許容値内ならそのまま解除する (TASK-120)', async () => {
+        const { result, trackSound } = await setup(500);
+        const playing = (positionMillis: number) => ({
+          isLoaded: true,
+          isPlaying: true,
+          isBuffering: false,
+          positionMillis,
+        });
+        trackSound.getStatusAsync = jest
+          .fn()
+          .mockResolvedValueOnce({ isLoaded: true, isPlaying: false, positionMillis: 1500 }) // 合流前
+          .mockResolvedValueOnce(playing(1500)) // 発音安定
+          .mockResolvedValueOnce(playing(1722)) // 待機中 200ms: +22
+          .mockResolvedValue(playing(1720)); // 400ms: +20（差 2ms → 揃った）
+        const recordSound = {
+          getStatusAsync: jest.fn().mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1200 }),
+        };
+        trackSound.setVolumeAsync.mockClear();
+
+        await act(async () => {
+          const promise = result.current.syncJoinPlaying(recordSound as any);
+          // 待機 0.4 秒 + フェードイン 0.25 秒で完了する（従来は待機 0.8 秒 + 一致 2 回 0.3 秒）
+          await jest.advanceTimersByTimeAsync(900);
+          await promise;
+        });
+
+        expect(trackSound.setVolumeAsync).toHaveBeenLastCalledWith(1);
+        // 許容値内の +20ms はミュート中の速度調整（±20%）で詰めない（無音が延びる）。
+        // 解除後の可聴微調整（±5%）に任せる
+        expect(trackSound.setRateAsync).not.toHaveBeenCalledWith(expect.closeTo(1.2, 5), true);
+        expect(trackSound.setRateAsync).not.toHaveBeenCalledWith(expect.closeTo(0.8, 5), true);
+        expect(trackSound.setRateAsync).toHaveBeenCalledWith(expect.closeTo(0.95, 5), true);
+        expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
+        expect(result.current.syncEvents).toEqual(
+          expect.arrayContaining(['settle 22 20', 'realign ok off=20']),
+        );
+      });
+
+      it('シーク後の待機中に録音側が一時停止されたら、揃った実測があっても解除しない (TASK-120)', async () => {
+        const { result, trackSound } = await setup(500);
+        trackSound.getStatusAsync = jest.fn().mockResolvedValue({
+          isLoaded: true,
+          isPlaying: true,
+          isBuffering: false,
+          positionMillis: 1710,
+        });
+        const playingRecord = { isLoaded: true, isPlaying: true, shouldPlay: true, positionMillis: 1200 };
+        const recordSound = {
+          getStatusAsync: jest
+            .fn()
+            .mockResolvedValueOnce(playingRecord) // 合流前
+            .mockResolvedValueOnce(playingRecord) // 位置合わせ
+            .mockResolvedValueOnce(playingRecord) // 待機中 200ms
+            // 400ms: 一時停止直後（shouldPlay=false だが isPlaying はまだ true）
+            .mockResolvedValue({ ...playingRecord, shouldPlay: false }),
+        };
+        trackSound.setVolumeAsync.mockClear();
+
+        await act(async () => {
+          const promise = result.current.syncJoinPlaying(recordSound as any);
+          await jest.advanceTimersByTimeAsync(3000);
+          await promise;
+        });
+
+        expect(trackSound.pauseAsync).toHaveBeenCalled();
+        // ミュート（0）→ 中断時の音量復帰（1）のみで、フェードインは行われない
+        const levels = trackSound.setVolumeAsync.mock.calls.map(([v]: [number]) => v);
+        expect(levels).toEqual([0, 1]);
+        expect(result.current.syncEvents).not.toEqual(
+          expect.arrayContaining([expect.stringContaining('realign ok')]),
+        );
+      });
+
+      it('ミュート解除は 5 段 × 50ms のフェードインで行う (TASK-120)', async () => {
+        const { result, trackSound } = await setup(500);
+        trackSound.getStatusAsync = jest.fn().mockResolvedValue({
+          isLoaded: true,
+          isPlaying: true,
+          isBuffering: false,
+          positionMillis: 1710,
+        });
+        const recordSound = {
+          getStatusAsync: jest.fn().mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1200 }),
+        };
+        trackSound.setVolumeAsync.mockClear();
+
+        await act(async () => {
+          const promise = result.current.syncJoinPlaying(recordSound as any);
+          await jest.advanceTimersByTimeAsync(2000);
+          await promise;
+        });
+
+        const levels = trackSound.setVolumeAsync.mock.calls.map(([v]: [number]) => v);
+        expect(levels).toEqual(
+          [0, 0.2, 0.4, 0.6, 0.8, 1].map((v) => expect.closeTo(v, 5)),
+        );
+      });
+
       it('合流の検証で 150ms 以下の残差はミュート中の速度調整（±20%）で詰め、再シークしない (TASK-120)', async () => {
         const { result, trackSound } = await setup(500);
         const playing = (positionMillis: number) => ({
@@ -1703,10 +1801,7 @@ describe('useSyncedTrackPlayback', () => {
           .mockResolvedValueOnce({ isLoaded: true, isPlaying: false, positionMillis: 1500 }) // 合流前
           .mockResolvedValueOnce(playing(1500)) // 発音安定
           .mockResolvedValueOnce(playing(1600)) // 待機中 200ms
-          .mockResolvedValueOnce(playing(1600)) // 400ms
-          .mockResolvedValueOnce(playing(1600)) // 600ms
-          .mockResolvedValueOnce(playing(1600)) // 800ms
-          .mockResolvedValueOnce(playing(1600)) // 1000ms
+          .mockResolvedValueOnce(playing(1600)) // 400ms: 2 回揃ったので待ち切らずに検証へ（−100 = 許容値外）
           .mockResolvedValueOnce(playing(1600)) // 検証 1 回目: −100ms → 速度調整（+20%・500ms）
           .mockResolvedValue(playing(1700)); // 調整後: 一致 × 2 → 解除
         const recordSound = {
@@ -1843,11 +1938,14 @@ describe('useSyncedTrackPlayback', () => {
           await promise;
         });
 
-        // ミュート（0）→ 合流完了時に最新のスライダー値（0.5）が適用される。
+        // ミュート（0）→ 合流完了時に最新のスライダー値（0.5）までフェードインする。
         // 合流中に 0.5 が直接適用されてミュートが解除されることはない
         expect(trackSound.setVolumeAsync).toHaveBeenNthCalledWith(1, 0);
         expect(trackSound.setVolumeAsync).toHaveBeenLastCalledWith(0.5);
-        expect(trackSound.setVolumeAsync).toHaveBeenCalledTimes(2);
+        // ミュート 1 回 + フェードイン 5 段（0.1 → 0.5）
+        expect(trackSound.setVolumeAsync).toHaveBeenCalledTimes(6);
+        const levels = trackSound.setVolumeAsync.mock.calls.slice(1).map(([v]: [number]) => v);
+        expect(levels).toEqual([0.1, 0.2, 0.3, 0.4, 0.5].map((v) => expect.closeTo(v, 5)));
       });
 
       it('プレロール中に録音側が一時停止された場合は合流せず、トラックを止めて音量を戻す', async () => {
