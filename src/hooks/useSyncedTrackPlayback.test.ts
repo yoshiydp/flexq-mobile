@@ -1648,7 +1648,7 @@ describe('useSyncedTrackPlayback', () => {
 
         await act(async () => {
           const promise = result.current.syncJoinPlaying(recordSound as any);
-          await jest.advanceTimersByTimeAsync(100 * 15 + 100);
+          await jest.advanceTimersByTimeAsync(5000); // 合流: 安定待ち + シーク後 1 秒 + 速度調整 + 一致 2 回
           await promise;
         });
 
@@ -1665,6 +1665,65 @@ describe('useSyncedTrackPlayback', () => {
         expect(
           trackSound.setPositionAsync.mock.invocationCallOrder[0],
         ).toBeLessThan(trackSound.setVolumeAsync.mock.invocationCallOrder[1]);
+      });
+
+      it('止まった状態からの合流は開始直後用のストール見込み（100ms）で最初のシークをする (TASK-120)', async () => {
+        const { result, trackSound } = await setup(500);
+        trackSound.getStatusAsync = jest
+          .fn()
+          // 合流前: 停止中 → 再生開始直後のシークとして扱う
+          .mockResolvedValueOnce({ isLoaded: true, isPlaying: false, positionMillis: 1500 })
+          .mockResolvedValue({ isLoaded: true, isPlaying: true, isBuffering: false, positionMillis: 1710 });
+        const recordSound = {
+          getStatusAsync: jest.fn().mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1200 }),
+        };
+
+        await act(async () => {
+          const promise = result.current.syncJoinPlaying(recordSound as any);
+          await jest.advanceTimersByTimeAsync(3000);
+          await promise;
+        });
+
+        // 対応位置（500 + 1200）+ 開始直後用の見込み 100 = 1800（再生中用の 150 ではない）
+        expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
+        expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1800);
+        expect(trackSound.setVolumeAsync).toHaveBeenLastCalledWith(1);
+      });
+
+      it('合流の検証で 150ms 以下の残差はミュート中の速度調整（±20%）で詰め、再シークしない (TASK-120)', async () => {
+        const { result, trackSound } = await setup(500);
+        const playing = (positionMillis: number) => ({
+          isLoaded: true,
+          isPlaying: true,
+          isBuffering: false,
+          positionMillis,
+        });
+        trackSound.getStatusAsync = jest
+          .fn()
+          .mockResolvedValueOnce({ isLoaded: true, isPlaying: false, positionMillis: 1500 }) // 合流前
+          .mockResolvedValueOnce(playing(1500)) // 発音安定
+          .mockResolvedValueOnce(playing(1600)) // 待機中 200ms
+          .mockResolvedValueOnce(playing(1600)) // 400ms
+          .mockResolvedValueOnce(playing(1600)) // 600ms
+          .mockResolvedValueOnce(playing(1600)) // 800ms
+          .mockResolvedValueOnce(playing(1600)) // 1000ms
+          .mockResolvedValueOnce(playing(1600)) // 検証 1 回目: −100ms → 速度調整（+20%・500ms）
+          .mockResolvedValue(playing(1700)); // 調整後: 一致 × 2 → 解除
+        const recordSound = {
+          getStatusAsync: jest.fn().mockResolvedValue({ isLoaded: true, isPlaying: true, positionMillis: 1200 }),
+        };
+
+        await act(async () => {
+          const promise = result.current.syncJoinPlaying(recordSound as any);
+          await jest.advanceTimersByTimeAsync(4000);
+          await promise;
+        });
+
+        expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1); // 最初の位置合わせだけ
+        // 1 回目は合流開始時の等速復帰（resetTrackRate）。2〜3 回目が速度調整と復帰
+        expect(trackSound.setRateAsync).toHaveBeenNthCalledWith(2, expect.closeTo(1.2, 5), true);
+        expect(trackSound.setRateAsync).toHaveBeenNthCalledWith(3, 1, true);
+        expect(trackSound.setVolumeAsync).toHaveBeenLastCalledWith(1);
       });
 
       it('syncResume（一時停止からの再開）もミュート合流方式で同期する', async () => {
@@ -1687,7 +1746,7 @@ describe('useSyncedTrackPlayback', () => {
 
         await act(async () => {
           const promise = result.current.syncResume(recordSound as any, 5000);
-          await jest.advanceTimersByTimeAsync(100 * 15 + 100);
+          await jest.advanceTimersByTimeAsync(5000); // 合流: 安定待ち + シーク後 1 秒 + 速度調整 + 一致 2 回
           await promise;
         });
 
@@ -1718,7 +1777,7 @@ describe('useSyncedTrackPlayback', () => {
 
         await act(async () => {
           const promise = result.current.syncReconcile(recordSound as any);
-          await jest.advanceTimersByTimeAsync(100 * 15 + 100);
+          await jest.advanceTimersByTimeAsync(5000); // 合流: 安定待ち + シーク後 1 秒 + 速度調整 + 一致 2 回
           await promise;
         });
 
@@ -1780,7 +1839,7 @@ describe('useSyncedTrackPlayback', () => {
           // プレロールの待機中に音量を変更する
           await jest.advanceTimersByTimeAsync(50);
           await result.current.setTrackVolume(0.5);
-          await jest.advanceTimersByTimeAsync(100 * 15 + 100);
+          await jest.advanceTimersByTimeAsync(5000); // 合流: 安定待ち + シーク後 1 秒 + 速度調整 + 一致 2 回
           await promise;
         });
 
@@ -1821,7 +1880,7 @@ describe('useSyncedTrackPlayback', () => {
 
         await act(async () => {
           const promise = result.current.syncJoinPlaying(recordSound as any);
-          await jest.advanceTimersByTimeAsync(100 * 15 + 100);
+          await jest.advanceTimersByTimeAsync(5000); // 合流: 安定待ち + シーク後 1 秒 + 速度調整 + 一致 2 回
           await promise;
         });
 
@@ -1968,6 +2027,31 @@ describe('useSyncedTrackPlayback', () => {
         await act(async () => {
           void result.current.correctSyncOffset(recordSound as any);
           await jest.advanceTimersByTimeAsync(300 + 2000 + 300);
+        });
+
+        expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
+        expect(trackSound.setRateAsync).toHaveBeenNthCalledWith(1, expect.closeTo(1.05, 5), true);
+        expect(trackSound.setRateAsync).toHaveBeenNthCalledWith(2, 1, true);
+      });
+
+      it('許容値（40ms）内でも 15ms 超の残差は速度微調整で詰めてから収束する (TASK-120)', async () => {
+        const { result, trackSound } = await setup(0);
+        trackSound.getStatusAsync
+          // −30ms（許容値内・15ms 超）→ 5% 速く 600ms → −3ms（収束）
+          .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, isBuffering: false, positionMillis: 970 })
+          .mockResolvedValue({ isLoaded: true, isPlaying: true, isBuffering: false, positionMillis: 997 });
+        const recordSound = {
+          getStatusAsync: jest.fn().mockResolvedValue({
+            isLoaded: true,
+            isPlaying: true,
+            isBuffering: false,
+            positionMillis: 1000,
+          }),
+        };
+
+        await act(async () => {
+          void result.current.correctSyncOffset(recordSound as any);
+          await jest.advanceTimersByTimeAsync(150 + 600 + 300);
         });
 
         expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
