@@ -1,5 +1,7 @@
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 
+const SENDER_DISPLAY_NAME = 'FlexQ';
+
 const sesClient = new SESClient({ region: process.env.AWS_REGION ?? 'ap-northeast-1' });
 
 export async function sendEmail({
@@ -19,7 +21,8 @@ export async function sendEmail({
 
   await sesClient.send(
     new SendEmailCommand({
-      Source: sender,
+      // 差出人名を付けて受信トレイに「FlexQ」と表示させる（アドレスのみだと「noreply」表示になる）
+      Source: `${SENDER_DISPLAY_NAME} <${sender}>`,
       Destination: { ToAddresses: [to] },
       Message: {
         Subject: { Data: subject, Charset: 'UTF-8' },

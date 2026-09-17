@@ -14,14 +14,38 @@ app.use(express.json());
 const mockUsers: Array<{ email: string; password: string; username: string; thumbnail: string | null }> =
   AUTH_DATA.map((u) => ({ email: u.email, password: u.password, username: u.username, thumbnail: u.thumbnail ?? null }));
 
+// メール認証コードのモック (TASK-85)。実メールは送らず固定コード 123456 を受け付ける
+const MOCK_VERIFICATION_CODE = '123456';
+
+// POST /data/auth/verification-code
+app.post('/data/auth/verification-code', (req, res) => {
+  const { email, purpose } = req.body;
+  if (!email || (purpose !== 'register' && purpose !== 'reset')) {
+    return res.status(400).json({ message: 'Email and purpose (register | reset) are required' });
+  }
+  const exists = !!mockUsers.find((u) => u.email === email);
+  if (purpose === 'register' && exists) {
+    return res.status(409).json({ message: 'Email already in use' });
+  }
+  if (purpose === 'reset' && !exists) {
+    return res.status(404).json({ message: 'User not found' });
+  }
+  console.log(`Mock verification code for ${email} (${purpose}): ${MOCK_VERIFICATION_CODE}`);
+  return res.json({ message: 'Verification code sent', expiresIn: 600, resendIn: 60 });
+});
+console.log('Mock endpoint ready: POST /data/auth/verification-code');
+
 // POST /data/auth/register
 app.post('/data/auth/register', (req, res) => {
-  const { username, email, password } = req.body;
-  if (!username || !email || !password) {
-    return res.status(400).json({ message: 'Username, email, and password are required' });
+  const { username, email, password, code } = req.body;
+  if (!username || !email || !password || !code) {
+    return res.status(400).json({ message: 'Username, email, password, and code are required' });
   }
   if (mockUsers.find((u) => u.email === email)) {
     return res.status(409).json({ message: 'Email already in use' });
+  }
+  if (code !== MOCK_VERIFICATION_CODE) {
+    return res.status(400).json({ message: 'Verification code check failed', reason: 'code_invalid' });
   }
   mockUsers.push({ email, password, username, thumbnail: null });
   return res.status(201).json({
@@ -63,13 +87,16 @@ console.log('Mock endpoint ready: POST /data/profile/link-google');
 
 // POST /data/auth/reset-password
 app.post('/data/auth/reset-password', (req, res) => {
-  const { email, newPassword } = req.body;
-  if (!email || !newPassword) {
-    return res.status(400).json({ message: 'Email and new password are required' });
+  const { email, newPassword, code } = req.body;
+  if (!email || !newPassword || !code) {
+    return res.status(400).json({ message: 'Email, new password, and code are required' });
   }
   const user = mockUsers.find((u) => u.email === email);
   if (!user) {
     return res.status(404).json({ message: 'User not found' });
+  }
+  if (code !== MOCK_VERIFICATION_CODE) {
+    return res.status(400).json({ message: 'Verification code check failed', reason: 'code_invalid' });
   }
   user.password = newPassword;
   return res.json({ message: 'Password reset successfully' });

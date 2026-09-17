@@ -1,0 +1,93 @@
+# ID: RG-07
+# シナリオ名: 誤った認証コード（+ 再送ボタンのカウントダウン・戻るでステップ復帰）
+# 前提条件: **モック API サーバー接続が前提**（tags: mock）
+#   1. `yarn mock:server` を起動（http://localhost:3000・固定コード 123456）
+#   2. `.env.local` に `EXPO_PUBLIC_API_BASE_URL=http://localhost:3000` を設定して `yarn start`
+#   ※ dev（AWS）に接続した状態では実行しないこと。実際の認証コードはメールでしか受け取れず、
+#     コード入力ステップまで到達できないため（正常系 RG-03 は手動テストで確認する）
+# 操作手順: 新規登録へ → 3 項目入力 → CREATE → 誤った 6 桁を入力 → CREATE
+#           → 再送ボタンの状態を確認 → 戻るで入力フォームへ復帰
+# 期待結果: コード入力画面に切り替わり、誤コードでは「認証コードが正しくありません。」が表示される。
+#           再送ボタンは送信直後のためカウントダウン表示で押せない。戻るで入力フォームに復帰する
+# 備考: モックサーバーはコードを保存せず 123456 との一致のみを見るため、このフローは
+#       状態を残さず何度でも再実行できる（登録は成立しないため mockUsers も変化しない）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - RG
+  - RG-07
+  - mock
+---
+# 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
+- runFlow: ../helpers/launch-app.yaml
+
+# 新規登録画面へ遷移
+- tapOn: '新規登録へ'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'REGISTER'
+
+# 3 項目を入力（モックでは未登録のメールなら何でもよい）
+# ※ Android の Maestro は非 ASCII 文字の inputText をサポートしないため ASCII で入力する
+- tapOn: 'ユーザー名を入力してください'
+- inputText: 'E2E Tester'
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn: 'メールアドレスを入力してください'
+- inputText: 'e2e-rg07@example.com'
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn: 'パスワードを入力してください'
+- inputText: 'password123'
+- runFlow: ../helpers/hide-keyboard.yaml
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+
+# CREATE でコードを送信 → 認証コード入力ステップへ
+- tapOn:
+    id: 'submit-button'
+# iOS の「パスワードを保存しますか？」が出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+- extendedWaitUntil:
+    visible: 'Verification Code'
+    timeout: 30000
+
+# 6 桁そろうまで CREATE は押せない
+- assertVisible:
+    id: 'submit-button'
+    enabled: false
+
+# 誤った 6 桁を入力（モックの正解は 123456）
+# ※ 認証コード欄は keyboardType: number-pad で Return キーがないため、
+#   hide-keyboard（iOS は pressKey: Enter）を使うと入力が確定せず空になる。
+#   CREATE ボタンはキーボードに隠れない位置にあるためそのままタップする
+- tapOn: '6桁の認証コードを入力してください'
+- inputText: '000000'
+- assertVisible:
+    id: 'submit-button'
+    enabled: true
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible: '.*認証コードが正しくありません.*'
+    timeout: 30000
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# 認証コード入力画面に留まる（登録は成立していない）
+- assertVisible: 'Verification Code'
+
+# 再送ボタンは送信直後のためカウントダウン表示で押せない（RG-08 の前半）
+- assertVisible: '.*認証コードを再送する.*秒後.*'
+- assertVisible:
+    id: 'resend-code-button'
+    enabled: false
+
+# 戻るで入力フォームに復帰する（画面は閉じない・RG-05 の後半）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 3000
+# iOS の「パスワードを保存しますか？」が遷移後に出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+- assertVisible: 'User Name'
+- assertNotVisible: 'Verification Code'

@@ -10,6 +10,7 @@ import EditableFormControl from '@/components/ui/form/EditableFormControl';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
+import { useResendCountdown } from '@/hooks/useResendCountdown';
 import { useModal } from '@/contexts/ModalContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
@@ -18,6 +19,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { PLACEHOLDERS } from '@/constants/placeholders';
+import { verificationCodeFailureMessage } from '@/utils/verificationCode';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './RegisterScreen.styles';
@@ -37,8 +39,24 @@ export default function RegisterScreen() {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  // メール検証ステップ（TASK-85）: form で入力 → verify で認証コードを入力して登録
+  const [step, setStep] = useState<'form' | 'verify'>('form');
+  const [code, setCode] = useState('');
+  // EditableFormControl は内部 state を持つため、再送時は key を変えて
+  // 再マウントし、表示中の古いコードをクリアする
+  const [codeFieldKey, setCodeFieldKey] = useState(0);
+  const { secondsLeft, canResend, start: startResendCountdown } =
+    useResendCountdown();
 
-  const handleGoBack = () => navigation.goBack();
+  const handleGoBack = () => {
+    // 認証コード入力中の戻るは入力フォームへ戻す（画面は離脱しない）
+    if (step === 'verify') {
+      setStep('form');
+      setCode('');
+      return;
+    }
+    navigation.goBack();
+  };
 
   const handlePickThumbnail = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({
@@ -52,7 +70,8 @@ export default function RegisterScreen() {
     }
   };
 
-  const handleCreate = async () => {
+  // メールアドレス宛に 6 桁の認証コードを送信して検証ステップへ進む
+  const handleSendCode = async () => {
     Keyboard.dismiss();
     if (!username || !email || !password) {
       Alert.alert('Error', '全ての項目を入力してください。');
@@ -61,7 +80,53 @@ export default function RegisterScreen() {
 
     showLoading();
     try {
-      await DefaultService.postDataAuthRegister({ username, email, password });
+      const res = await DefaultService.postDataAuthVerificationCode({
+        email,
+        purpose: 'register',
+      });
+      startResendCountdown(res?.resendIn ?? 60);
+      setCode('');
+      setCodeFieldKey((prev) => prev + 1);
+      if (step !== 'verify') {
+        setStep('verify');
+      } else {
+        Alert.alert('認証コードを再送しました', 'メールをご確認ください。');
+      }
+    } catch (err: any) {
+      const status = err?.status;
+      if (status === 409) {
+        Alert.alert('エラー', 'このメールアドレスはすでに登録されています。');
+      } else if (status === 429) {
+        Alert.alert(
+          'エラー',
+          '認証コードを再送できるまで少しお待ちください。',
+        );
+      } else {
+        Alert.alert(
+          'エラー',
+          '認証コードの送信に失敗しました。メールアドレスをご確認のうえ、時間をおいて再度お試しください。',
+        );
+      }
+    } finally {
+      hideLoading();
+    }
+  };
+
+  const handleCreate = async () => {
+    Keyboard.dismiss();
+    if (code.length !== 6) {
+      Alert.alert('Error', '6桁の認証コードを入力してください。');
+      return;
+    }
+
+    showLoading();
+    try {
+      await DefaultService.postDataAuthRegister({
+        username,
+        email,
+        password,
+        code,
+      });
       await login(email, password);
 
       // ログイン後、サムネイルを S3 アップロード → プロフィール更新
@@ -73,8 +138,10 @@ export default function RegisterScreen() {
       // 全処理完了後に遷移
       navigation.navigate('HomeTabs');
     } catch (err: any) {
-      const status = err?.status;
-      if (status === 409) {
+      const codeMessage = verificationCodeFailureMessage(err?.body?.reason);
+      if (codeMessage) {
+        Alert.alert('エラー', codeMessage);
+      } else if (err?.status === 409) {
         Alert.alert('エラー', 'このメールアドレスはすでに登録されています。');
       } else {
         Alert.alert('エラー', '登録に失敗しました。');
@@ -84,7 +151,8 @@ export default function RegisterScreen() {
     }
   };
 
-  // Google アカウントで登録（未登録ならサーバー側で自動作成してそのままログイン）
+  // Google アカウントで登録（未登録ならサーバー側で自動作成してそのままログイン）。
+  // メール所有は Google 側で検証済みのため認証コードは不要
   const handleGoogleRegister = async () => {
     try {
       // キャンセル（null）は無通知で画面に留まる
@@ -118,57 +186,100 @@ export default function RegisterScreen() {
   return (
     <View style={styles.container}>
       <HeaderToolBar items={headerItems} />
-      <ScrollView contentContainerStyle={styles.scrollContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
-        <ProfileIcon
-          thumbnail={thumbnail}
-          editable
-          onPressUpload={handlePickThumbnail}
-        />
-        <View style={styles.formContainer}>
-          <EditableFormControl
-            label="User Name"
-            darkMode
-            formValue={username}
-            onChangeText={setUsername}
-            placeholder={PLACEHOLDERS.register.usernameInput}
+      {step === 'form' ? (
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+          <ProfileIcon
+            thumbnail={thumbnail}
+            editable
+            onPressUpload={handlePickThumbnail}
           />
-          <EditableFormControl
-            label="Email"
-            darkMode
-            formValue={email}
-            onChangeText={setEmail}
-            placeholder={PLACEHOLDERS.register.emailInput}
+          <View style={styles.formContainer}>
+            <EditableFormControl
+              label="User Name"
+              darkMode
+              formValue={username}
+              onChangeText={setUsername}
+              placeholder={PLACEHOLDERS.register.usernameInput}
+            />
+            <EditableFormControl
+              label="Email"
+              darkMode
+              formValue={email}
+              onChangeText={setEmail}
+              placeholder={PLACEHOLDERS.register.emailInput}
+            />
+            <EditableFormControl
+              label="Password"
+              darkMode
+              secureTextEntry
+              formValue={password}
+              onChangeText={setPassword}
+              placeholder={PLACEHOLDERS.register.passwordInput}
+            />
+          </View>
+          <SubmitButton
+            containerClassName={styles.submitButton}
+            label="CREATE"
+            onPress={handleSendCode}
+            disabled={!username || !email || !password}
           />
-          <EditableFormControl
-            label="Password"
-            darkMode
-            secureTextEntry
-            formValue={password}
-            onChangeText={setPassword}
-            placeholder={PLACEHOLDERS.register.passwordInput}
+          <View style={styles.dividerContainer}>
+            <View style={styles.dividerLine} />
+            <Text style={styles.dividerText}>OR</Text>
+            <View style={styles.dividerLine} />
+          </View>
+          <Pressable
+            style={styles.googleButton}
+            onPress={handleGoogleRegister}
+            disabled={!googleReady}
+            testID="google-register-button"
+          >
+            <GoogleIcon width={20} height={20} />
+            <Text style={styles.googleButtonLabel}>Google で登録</Text>
+          </Pressable>
+        </ScrollView>
+      ) : (
+        <ScrollView contentContainerStyle={styles.scrollContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
+          <View style={styles.formContainer}>
+            <Text style={styles.verifyNotice}>
+              {`${email} 宛に 6 桁の認証コードを送信しました。\nメールに記載されたコードを入力してください。`}
+            </Text>
+            <EditableFormControl
+              key={`code-${codeFieldKey}`}
+              label="Verification Code"
+              darkMode
+              formValue={code}
+              onChangeText={setCode}
+              placeholder={PLACEHOLDERS.register.codeInput}
+              keyboardType="number-pad"
+              maxLength={6}
+            />
+          </View>
+          <SubmitButton
+            containerClassName={styles.submitButton}
+            label="CREATE"
+            onPress={handleCreate}
+            disabled={code.length !== 6}
           />
-        </View>
-        <SubmitButton
-          containerClassName={styles.submitButton}
-          label="CREATE"
-          onPress={handleCreate}
-          disabled={!username || !email || !password}
-        />
-        <View style={styles.dividerContainer}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>OR</Text>
-          <View style={styles.dividerLine} />
-        </View>
-        <Pressable
-          style={styles.googleButton}
-          onPress={handleGoogleRegister}
-          disabled={!googleReady}
-          testID="google-register-button"
-        >
-          <GoogleIcon width={20} height={20} />
-          <Text style={styles.googleButtonLabel}>Google で登録</Text>
-        </Pressable>
-      </ScrollView>
+          <Pressable
+            style={styles.resendButton}
+            onPress={handleSendCode}
+            disabled={!canResend}
+            testID="resend-code-button"
+          >
+            <Text
+              style={[
+                styles.resendLabel,
+                !canResend && styles.resendLabelDisabled,
+              ]}
+            >
+              {canResend
+                ? '認証コードを再送する'
+                : `認証コードを再送する（${secondsLeft} 秒後）`}
+            </Text>
+          </Pressable>
+        </ScrollView>
+      )}
     </View>
   );
 }
