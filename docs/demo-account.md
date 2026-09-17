@@ -74,6 +74,12 @@ node scripts/seed-demo-account.mjs --env stg --email <mail> --password <pass>
 node scripts/seed-demo-account.mjs --env prod --email <mail> --password <pass>
 ```
 
+> **新規登録には認証コードが必要（TASK-85 以降）。** 指定したメールが未登録の環境では、
+> スクリプトが認証コードを送信してから入力を求めるので、**受信できるメールアドレスを使う**こと
+> （SES は本番アクセス承認済みで任意の宛先に届く）。届いたコードを `--code 123456` で渡して
+> 非対話的に実行することもできる。有効期限内の再送は拒否されるため、届いたコードをそのまま使う。
+> 登録済みの環境（ログインが通る場合）はコード不要。
+
 [scripts/seed-demo-account.mjs](../scripts/seed-demo-account.mjs) は**再実行できるよう、投入前に既存の
 トラック / プロジェクト / メモ / レコードを全削除する**。デモアカウント以外を指定しないこと。
 
