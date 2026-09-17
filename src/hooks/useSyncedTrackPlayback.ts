@@ -126,6 +126,18 @@ const SYNC_START_SEEK_STALL_INITIAL_MS_ANDROID = 100;
 const SYNC_START_SEEK_STALL_STORAGE_KEY = `syncStartSeekStallMs:${Platform.OS}`;
 /** ミュート合流の検証で「同期 OK」と判定するために必要な連続実測回数 */
 const MUTED_VERIFY_CONFIRM_COUNT = 2;
+/**
+ * ミュート合流のシーク後の待機中、連続 2 回（200ms 間隔）の実測がこの差以内なら
+ * 位置報告が落ち着いたとみなして 0.8 秒を待ち切らずに次へ進む（ms / TASK-120）。
+ * 実機の settle 行では 2 回目（0.4 秒）で揃うことが多く、無音時間を短くできる
+ */
+const MUTED_SETTLE_STABLE_DELTA_MS = 10;
+/**
+ * ミュート解除のフェードイン（Android / TASK-120）。無音から突然鳴るのを和らげる。
+ * 5 段 × 50ms = 0.25 秒で設定音量まで上げる
+ */
+const MUTED_UNMUTE_FADE_STEPS = 5;
+const MUTED_UNMUTE_FADE_STEP_MS = 50;
 /** ミュート合流での合わせ直し（再シーク）の上限。1 回ごとに 1 秒の待機を挟む */
 const MUTED_VERIFY_MAX_RESEEKS = 4;
 /**
@@ -853,39 +865,85 @@ export function useSyncedTrackPlayback({
     /**
      * ExoPlayer はシーク直後、実際の音声が再開する前から再生位置を進めて報告する
      * ため、直後の検証は偽の「同期 OK」になる（ミュート解除後に本当のズレが現れ、
-     * 可聴のシークで直すことになっていた）。0.8 秒待ってから検証する (TASK-120。実機の
-     * settle 行では 0.6〜0.8 秒で安定していた)。待機中は 200ms ごとの実測をイベント行に残す
+     * 可聴のシークで直すことになっていた）。最長 0.8 秒待ってから検証する (TASK-120。
+     * 実機の settle 行では 0.6〜0.8 秒で安定していた)。待機中は 200ms ごとの実測を
+     * イベント行に残し、連続 2 回の実測が揃った時点で待ち切らずに抜ける（無音短縮）。
+     * 戻り値の settledOffsetMs は揃った時点のズレ（揃わずに待ち切った場合は null）
      */
-    const settleAfterSeek = async (): Promise<boolean> => {
+    const settleAfterSeek = async (): Promise<{
+      ok: boolean;
+      settledOffsetMs: number | null;
+    }> => {
       const trajectory: string[] = [];
       const steps = Math.round(SYNC_POST_SEEK_SETTLE_MS_ANDROID / 200);
+      let previousOffsetMs: number | null = null;
+      let settledOffsetMs: number | null = null;
       for (let step = 1; step <= steps; step++) {
         await delay(200);
-        if (isStale()) return false;
+        if (isStale()) return { ok: false, settledOffsetMs: null };
         if (!isMountedRef.current || !syncEnabledRef.current) {
           await abortIfActive();
-          return false;
+          return { ok: false, settledOffsetMs: null };
         }
+        let offsetMs: number | null = null;
         try {
           const [r, t] = await Promise.all([
             recordSound.getStatusAsync(),
             track.getStatusAsync(),
           ]);
+          if (isStale()) return { ok: false, settledOffsetMs: null };
+          // 待機中にユーザーが一時停止した場合は合流せず、トラックを止めて音量を戻す
+          // （揃った実測で解除する早期パスは検証ループの一時停止ガードを通らないため）
+          if (r.isLoaded && r.shouldPlay === false) {
+            await abortIfActive();
+            return { ok: false, settledOffsetMs: null };
+          }
           const valid =
             r.isLoaded && t.isLoaded && r.isPlaying && t.isPlaying && !r.isBuffering && !t.isBuffering;
-          trajectory.push(
-            valid
-              ? `${Math.round((t.positionMillis ?? 0) - (startPositionMs + (r.positionMillis ?? 0)))}`
-              : '-',
-          );
+          if (valid) {
+            offsetMs = Math.round(
+              (t.positionMillis ?? 0) - (startPositionMs + (r.positionMillis ?? 0)),
+            );
+          }
         } catch {
-          trajectory.push('-');
+          offsetMs = null;
         }
+        trajectory.push(offsetMs === null ? '-' : `${offsetMs}`);
+        if (
+          offsetMs !== null &&
+          previousOffsetMs !== null &&
+          Math.abs(offsetMs - previousOffsetMs) <= MUTED_SETTLE_STABLE_DELTA_MS
+        ) {
+          settledOffsetMs = offsetMs;
+          break;
+        }
+        previousOffsetMs = offsetMs;
       }
       pushSyncEvent(`settle ${trajectory.join(' ')}`);
-      return !isStale();
+      return { ok: !isStale(), settledOffsetMs };
     };
-    if (!(await settleAfterSeek())) return;
+
+    let confirmedInSync = false;
+    /**
+     * 待機中に位置報告が落ち着き、そのズレが許容値内なら検証ループを待たずに解除する
+     * （連続 2 回の一致はすでに待機中に得ている）。許容値外なら残差を学習して検証
+     * ループ（速度調整・再シーク）へ進む
+     */
+    const acceptSettled = (settledOffsetMs: number | null) => {
+      if (settledOffsetMs === null) return;
+      if (pendingLearn === 'start') learnStartSeekStall(settledOffsetMs);
+      else if (pendingLearn === 'seek') learnSeekStall(settledOffsetMs);
+      pendingLearn = null;
+      if (Math.abs(settledOffsetMs) <= SYNC_OFFSET_TOLERANCE_MS_ANDROID) {
+        pushSyncEvent(`realign ok off=${settledOffsetMs}`);
+        confirmedInSync = true;
+      }
+    };
+    {
+      const settled = await settleAfterSeek();
+      if (!settled.ok) return;
+      acceptSettled(settled.settledOffsetMs);
+    }
 
     /** ミュート中のレート微調整（±20%）。シークと違い停止も待機も要らない */
     const mutedNudge = async (offsetMs: number): Promise<boolean> => {
@@ -918,8 +976,7 @@ export function useSyncedTrackPlayback({
       return !isStale();
     };
 
-    let confirmedInSync = false;
-    let recordSeenPlaying = false;
+    let recordSeenPlaying = confirmedInSync;
     let measuredAttempts = 0;
     let reseeks = 0;
     let nudges = 0;
@@ -928,7 +985,9 @@ export function useSyncedTrackPlayback({
     // （MUTED_VERIFY_MAX_ITERATIONS）と実測回数の上限を分けて管理する
     for (
       let iteration = 0;
-      iteration < MUTED_VERIFY_MAX_ITERATIONS && measuredAttempts < 12;
+      !confirmedInSync &&
+      iteration < MUTED_VERIFY_MAX_ITERATIONS &&
+      measuredAttempts < 12;
       iteration++
     ) {
       await delay(SYNC_OFFSET_CHECK_INTERVAL_MS);
@@ -968,23 +1027,11 @@ export function useSyncedTrackPlayback({
           ? MUTED_VERIFY_RELAXED_TOLERANCE_MS
           : SYNC_OFFSET_TOLERANCE_MS_ANDROID;
       if (Math.abs(offsetMs) <= verifyToleranceMs) {
-        // 許容値内でも 15ms 超の残差はミュート中に詰めてから解除する（解除後に
-        // 「少しズレて聞こえる」20〜40ms を残さない / TASK-120）
-        if (
-          Math.abs(offsetMs) > SYNC_NUDGE_MIN_OFFSET_MS_ANDROID &&
-          nudges < MUTED_VERIFY_MAX_NUDGES
-        ) {
-          if (pendingLearn === 'start') learnStartSeekStall(offsetMs);
-          else if (pendingLearn === 'seek') learnSeekStall(offsetMs);
-          pendingLearn = null;
-          nudges += 1;
-          inSyncStreak = 0;
-          if (!(await mutedNudge(offsetMs))) {
-            if (isStale()) return;
-            break;
-          }
-          continue;
-        }
+        // 許容値内の 15ms 超の残差はミュート中には詰めず（無音が 1.3 秒延びる）、
+        // 解除後の可聴の速度微調整（±5%）に任せる (TASK-120)
+        if (pendingLearn === 'start') learnStartSeekStall(offsetMs);
+        else if (pendingLearn === 'seek') learnSeekStall(offsetMs);
+        pendingLearn = null;
         // 連続 2 回の実測で同期を確認してから解除する（1 回だけの一致は楽観的な
         // 位置報告の可能性がある / TASK-120）
         inSyncStreak += 1;
@@ -1032,8 +1079,10 @@ export function useSyncedTrackPlayback({
         break;
       }
       pendingLearn = 'seek';
-      // 合わせ直しのシーク後も待ってから検証する
-      if (!(await settleAfterSeek())) return;
+      // 合わせ直しのシーク後も待ってから検証する（揃えば待ち切らずに解除）
+      const settled = await settleAfterSeek();
+      if (!settled.ok) return;
+      acceptSettled(settled.settledOffsetMs);
     }
 
     if (isStale()) return;
@@ -1066,9 +1115,18 @@ export function useSyncedTrackPlayback({
       );
       pushSyncEvent('realign unmute (unconfirmed)');
     }
-    await track.setVolumeAsync(trackVolumeRef.current);
-    // ミュート解除後の残差は通常の実測補正で追い込む（収束済みなら何もしない）
+    // ミュート解除後の残差は通常の実測補正で追い込む（収束済みなら何もしない）。
+    // フェードインと並行して始める
     void correctSyncOffset(recordSound);
+    // 無音から突然鳴るのを和らげるため段階的に音量を戻す。各段の前に世代を確認し、
+    // 新しい合流が始まっていればそのミュートを解除してしまわないよう中断する
+    for (let step = 1; step <= MUTED_UNMUTE_FADE_STEPS; step++) {
+      if (isStale()) return;
+      await track.setVolumeAsync(
+        trackVolumeRef.current * (step / MUTED_UNMUTE_FADE_STEPS),
+      );
+      if (step < MUTED_UNMUTE_FADE_STEPS) await delay(MUTED_UNMUTE_FADE_STEP_MS);
+    }
   };
 
   const syncJoinPlaying = async (recordSound: Audio.Sound) => {
