@@ -14,7 +14,6 @@ import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '@/navigation/types';
 import { Asset } from 'expo-asset';
-import { Audio, InterruptionModeAndroid } from 'expo-av';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import TitleInput from '@/components/features/inputs/TitleInput';
 import SeekBar from '@/components/features/audioPlayer/SeekBar';
@@ -42,6 +41,7 @@ import { useMixRecord, MixCancelledError } from '@/hooks/useMixRecord';
 import type { SeparationStatus } from '@/types/separationType';
 import { useHeadphonesConnected } from '@/hooks/useHeadphonesConnected';
 import { useSyncedTrackPlayback } from '@/hooks/useSyncedTrackPlayback';
+import { useRecordPlayer } from '@/hooks/useRecordPlayer';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { getSeparationStartErrorMessage } from '@/utils/separationErrorMessage';
 import { isRemoteUri, resolveCachedRecordAudio } from '@/utils/recordAudioCache';
@@ -59,20 +59,6 @@ import styles from './RecordPlayerScreen.styles';
  */
 const SYNC_DEBUG_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_SYNC_DEBUG === '1';
 const SYNC_DEBUG_INTERVAL_MS = 500;
-
-/**
- * 再生ボタンの表示・操作判定に使う「再生意図」。
- * Android は再バッファリング中に isPlaying=false になるため shouldPlay を正とする
- * (TASK-61/65)。web は shouldPlay が autoplay 由来で実態と一致しないため
- * isPlaying にフォールバックする
- */
-const isPlayIntended = (status: {
-  shouldPlay?: boolean;
-  isPlaying: boolean;
-}): boolean =>
-  Platform.OS === 'web'
-    ? status.isPlaying
-    : (status.shouldPlay ?? status.isPlaying);
 
 export default function RecordPlayerScreen() {
   // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
@@ -102,10 +88,13 @@ export default function RecordPlayerScreen() {
   } = useShareRecord();
   const { mixRecord, mixing } = useMixRecord();
 
-  const [sound, setSound] = useState<Audio.Sound | null>(null);
-  const [isPlaying, setIsPlaying] = useState(false);
-  const [position, setPosition] = useState(0);
-  const [duration, setDuration] = useState(recordedDuration || 1);
+  // 声（録音）とトラックを同じ時計で同時再生する音声エンジン (TASK-121)。
+  // 再生位置・尺・再生中かどうかはエンジンの通知から取る
+  const { player, positionMs: position, durationMs, isPlaying } = useRecordPlayer();
+  // デコード前は録音時の尺で表示する
+  const duration = durationMs || recordedDuration || 1;
+  // 声の音源がデコード済みか（再生・シーク操作の可否）
+  const [voiceLoaded, setVoiceLoaded] = useState(false);
   const [volume, setVolume] = useState(1);
   const [isLooping, setIsLooping] = useState(false);
 
@@ -134,6 +123,7 @@ export default function RecordPlayerScreen() {
   // イヤホン未接続でも同時再生を許可する (TASK-38)
   const headphoneConnection = useHeadphonesConnected();
   const syncPlayback = useSyncedTrackPlayback({
+    player,
     projectId: params?.projectId,
     // Bluetooth 録音のテイクは録音時の出力遅延ぶん開始位置を手前に補正する (TASK-89)
     startPositionMs: getEffectiveStartPositionMs(params),
@@ -141,8 +131,6 @@ export default function RecordPlayerScreen() {
     headphoneConnection,
     allowWithoutHeadphones: activeSource === 'separated',
   });
-  const syncPlaybackRef = useRef(syncPlayback);
-  syncPlaybackRef.current = syncPlayback;
 
   const confirmModalMessageRef = useRef<{
     message: string;
@@ -155,7 +143,7 @@ export default function RecordPlayerScreen() {
   const { showConfirmModal, closeModal, showLoading, hideLoading } = useModal();
 
   // 画面遷移などで既にアンマウント済みの場合、音源再取得リトライの継続処理
-  // （Alert 表示や Audio.Sound の生成）を行わないようにするための参照 (TASK-34)
+  // （Alert 表示や音源のデコード結果の適用）を行わないようにするための参照 (TASK-34)
   const isMountedRef = useRef(true);
 
   /**
@@ -250,89 +238,35 @@ export default function RecordPlayerScreen() {
     const fileToLoad = fileOverride ?? recordedFile;
     if (!fileToLoad) return;
 
-    await Audio.setAudioModeAsync({
-      allowsRecordingIOS: false,
-      playsInSilentModeIOS: true,
-      shouldDuckAndroid: true,
-      // Android の音声フォーカス挙動を明示する（他アプリの音を下げて再生する）
-      interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
-    });
-
-    if (sound) {
-      try {
-        await sound.stopAsync();
-        await sound.unloadAsync();
-      } catch {
-        // リトライ時など既にアンロード済みの場合があるため無視する
-      }
-    }
-
-    let source: any;
-
+    let sourceUri: string;
     if (typeof fileToLoad === 'string') {
-      source = { uri: fileToLoad };
+      sourceUri = fileToLoad;
     } else {
       const asset = Asset.fromModule(fileToLoad);
       await asset.downloadAsync();
-      source = { uri: asset.uri };
+      sourceUri = asset.uri;
     }
 
     try {
-      const { sound: newSound } = await Audio.Sound.createAsync(source, {
-        shouldPlay: autoPlay,
-      });
+      setVoiceLoaded(false);
+      // 声の音源を PCM に展開する。再生中なら停止し、位置は先頭に戻る (TASK-121)
+      await player.loadVoice(sourceUri);
 
-      // ロード完了を待つ間に画面を離れていた場合、
-      // この（リトライ含む）読み込み結果は適用しない
-      if (!isMountedRef.current) {
-        try {
-          await newSound.unloadAsync();
-        } catch {
-          // ignore
-        }
-        return;
-      }
+      // ロード完了を待つ間に画面を離れていた場合、この（リトライ含む）読み込み結果は
+      // 適用しない（プレイヤーはアンマウント時に解放済み）
+      if (!isMountedRef.current) return;
 
-      setSound(newSound);
-      setIsPlaying(autoPlay);
-
-      newSound.setOnPlaybackStatusUpdate((status) => {
-        if (!status.isLoaded) return;
-        setPosition(status.positionMillis || 0);
-        setDuration(status.durationMillis || recordedDuration || 1);
-        // 再生ボタンの表示と操作判定はステータスの「再生意図」を正として同期する。
-        // 操作時の楽観的更新だけだと、プレイヤー側の想定外の状態変化
-        // （Android の自動再開など）で表示が実態とズレたままになり (TASK-65)、
-        // isPlaying を使うと Android の再バッファリング中（shouldPlay=true のまま
-        // isPlaying=false）のシークが一時停止扱いになって同期回復（syncReconcile）が
-        // スキップされる (TASK-61)
-        setIsPlaying(isPlayIntended(status));
-
-        if (status.didJustFinish) {
-          // 録音（声）の再生終了に合わせてトラック側も停止/巻き戻しする（録音尺をマスター）
-          syncPlaybackRef.current.handleRecordFinish(status.isLooping, newSound);
-          if (!status.isLooping) {
-            setIsPlaying(false);
-            // 終了状態（ended）のプレイヤーに setPositionAsync だけを呼ぶと
-            // Android（ExoPlayer）では再生が再開されてしまうため、
-            // 停止と巻き戻しをまとめて適用する (TASK-65)
-            newSound
-              .setStatusAsync({ shouldPlay: false, positionMillis: 0 })
-              .catch(() => {});
-          }
-        }
-      });
-
-      await newSound.setVolumeAsync(volume);
-      await newSound.setIsLoopingAsync(isLooping);
+      setVoiceLoaded(true);
+      player.setVolume(volume);
+      player.setLooping(isLooping);
+      if (autoPlay) await player.play();
     } catch (e) {
       console.error('Failed to load audio:', e);
 
       // 既に画面を離れている場合、状態更新や Alert 表示は行わない
       if (!isMountedRef.current) return;
 
-      setSound(null);
-      setIsPlaying(false);
+      setVoiceLoaded(false);
 
       // S3 Presigned URL の期限切れ等でロードに失敗した場合、
       // 保存済みレコード（id あり）に限り最新情報を再取得して 1 回だけリトライする
@@ -347,7 +281,7 @@ export default function RecordPlayerScreen() {
         const latestRecords = await refreshRecord();
 
         // 再取得中に画面を離れた場合、取得できた URL の適用や
-        // Audio.Sound の生成は行わない
+        // 音源の読み込みは行わない
         if (!isMountedRef.current) return;
 
         const updated = latestRecords?.find((r) => r.id === params.id);
@@ -397,8 +331,7 @@ export default function RecordPlayerScreen() {
 
     return () => {
       isMountedRef.current = false;
-      sound?.stopAsync();
-      sound?.unloadAsync();
+      player.pause();
     };
   }, [recordedFile]);
 
@@ -590,8 +523,7 @@ export default function RecordPlayerScreen() {
       submitButton: {
         label: modalMessage.submitButtonLabel,
         onPress: async () => {
-          if (sound) await sound.stopAsync();
-          await syncPlayback.syncPause();
+          player.pause();
           closeModal();
           navigation.goBack();
         },
@@ -606,8 +538,7 @@ export default function RecordPlayerScreen() {
     showLoading();
     try {
       if (params?.id) await deleteRecord(params.id);
-      if (sound) await sound.stopAsync();
-      await syncPlayback.syncPause();
+      player.pause();
       navigation.goBack();
     } catch (error) {
       console.error(error);
@@ -629,51 +560,29 @@ export default function RecordPlayerScreen() {
   };
 
   const handlePlayPause = async () => {
-    if (!sound) return;
-    const status = await sound.getStatusAsync();
-    if (status.isLoaded) {
-      // ボタン表示と同じ「再生意図」基準で分岐する。
-      // Android の再バッファリング中（shouldPlay=true / isPlaying=false）に
-      // isPlaying で分岐すると、一時停止のつもりのタップが再生扱いになる (TASK-61)
-      if (isPlayIntended(status)) {
-        await Promise.all([sound.pauseAsync(), syncPlayback.syncPause()]);
-        setIsPlaying(false);
-      } else {
-        // 録音位置 t ⇔ トラック位置 startPositionMs + t で両音源を同時に再生開始する。
-        // iOS はトラックも録音と並行して開始し実測補正する（従来の Promise.all 相当）。
-        // Android のミュート合流（TASK-61）は数秒かかることがあるため await せず、
-        // ボタン表示は楽観的更新のみ行う（実際の状態はステータス更新が正 / TASK-65）
-        const playPromise = sound.playAsync();
-        void syncPlayback.syncResume(sound, status.positionMillis || 0);
-        await playPromise;
-        setIsPlaying(true);
-      }
+    if (!voiceLoaded) return;
+    // 声とトラックは同じ時計で予約再生されるため、トラック側の個別操作は不要 (TASK-121)
+    if (isPlaying) {
+      player.pause();
+    } else {
+      await player.play();
     }
   };
 
   const handleSeek = async (value: number) => {
-    if (sound) {
-      await Promise.all([
-        sound.setPositionAsync(value),
-        syncPlayback.syncSeek(value),
-      ]);
-      // 再生中のシークは両プレイヤーのシーク遅延差でズレが出るため同期を回復する
-      if (isPlaying) void syncPlayback.syncReconcile(sound);
-      if (!isPlaying) setIsPlaying(false);
-    }
+    if (!voiceLoaded) return;
+    player.seek(value);
   };
 
   const handleVolumeChange = async (value: number) => {
     setVolume(value);
-    if (sound) await sound.setVolumeAsync(value);
+    player.setVolume(value);
   };
 
   const handleLoopToggle = async () => {
-    if (sound) {
-      const newLoop = !isLooping;
-      setIsLooping(newLoop);
-      await sound.setIsLoopingAsync(newLoop);
-    }
+    const newLoop = !isLooping;
+    setIsLooping(newLoop);
+    player.setLooping(newLoop);
   };
 
   // AI クリーンアップを開始する（保存済みレコードのみ実行可能）
@@ -695,19 +604,10 @@ export default function RecordPlayerScreen() {
     if (!sourceUri) return;
     activeSourceRef.current = target;
     setActiveSource(target);
-    setPosition(0);
-    // 切替後のレコードは停止状態で読み込まれるため、現在の録音と同時再生中のトラックを
-    // 先に一時停止する（声のみのダウンロード待ちの間に旧音源が鳴り続けないようにする。
-    // 同時再生の有効/無効状態は useSyncedTrackPlayback 側の canSync に応じて維持・解除される）
-    if (sound) {
-      try {
-        await sound.pauseAsync();
-      } catch {
-        // 既にアンロード済みなどの停止失敗は無視する（loadTrack 側で unload される）
-      }
-    }
-    setIsPlaying(false);
-    await syncPlayback.syncPause();
+    // 切替後のレコードは停止状態・先頭から読み込まれるため、声のみのダウンロード待ちの
+    // 間に旧音源が鳴り続けないよう先に一時停止する（同時再生の有効/無効状態は
+    // useSyncedTrackPlayback 側の canSync に応じて維持・解除される）
+    player.pause();
     // 声のみはローカルキャッシュ（ダウンロード）に解決してから読み込む (TASK-89)
     const uri = await resolvePlaybackUri(sourceUri, target);
     if (!isMountedRef.current) return;
@@ -716,23 +616,17 @@ export default function RecordPlayerScreen() {
 
   // デバッグ表示が有効なとき: 同時再生中の実測ズレを定期的に取得して表示する（TASK-89）
   useEffect(() => {
-    if (!SYNC_DEBUG_ENABLED || !sound || !syncPlayback.syncEnabled || !isPlaying) {
+    if (!SYNC_DEBUG_ENABLED || !voiceLoaded || !syncPlayback.syncEnabled || !isPlaying) {
       setDebugSyncOffsetMs(null);
       return;
     }
-    let cancelled = false;
-    const timer = setInterval(async () => {
-      const offset = await syncPlaybackRef.current.measureSyncOffset(sound);
-      // 計測不能（バッファリング中・未発音）のときは古い値を残さず「--」に戻す
-      if (!cancelled) {
-        setDebugSyncOffsetMs(offset === null ? null : Math.round(offset));
-      }
+    const timer = setInterval(() => {
+      const offset = player.measureOffsetMs();
+      // 計測不能（位置報告が届く前・トラック未開始）のときは古い値を残さず「--」に戻す
+      setDebugSyncOffsetMs(offset === null ? null : Math.round(offset));
     }, SYNC_DEBUG_INTERVAL_MS);
-    return () => {
-      cancelled = true;
-      clearInterval(timer);
-    };
-  }, [sound, syncPlayback.syncEnabled, isPlaying]);
+    return () => clearInterval(timer);
+  }, [player, voiceLoaded, syncPlayback.syncEnabled, isPlaying]);
 
   const handleSyncToggle = async (value: boolean) => {
     if (!value) {
@@ -740,11 +634,8 @@ export default function RecordPlayerScreen() {
       return;
     }
 
-    const status = sound ? await sound.getStatusAsync() : null;
-    const recordPositionMs =
-      status?.isLoaded ? status.positionMillis || 0 : 0;
-
-    const result = await syncPlayback.enableSync(recordPositionMs);
+    // 再生中に有効化した場合はプレイヤーがその時点の対応位置から即座に合流させる (TASK-121)
+    const result = await syncPlayback.enableSync();
     if (result === 'no-track') {
       // トラック削除・差し替え済みの場合は同時再生を無効化し録音単体再生にフォールバック
       Alert.alert('エラー', SYNC_PLAYBACK_LABELS.noTrack);
@@ -762,11 +653,6 @@ export default function RecordPlayerScreen() {
     if (result === 'enabled-streaming') {
       Alert.alert('エラー', SYNC_PLAYBACK_LABELS.streamingFallback);
     }
-
-    // 録音を再生中に有効化した場合はトラックも追従して再生を開始する。
-    // ロード待ちの間に再生位置が進む（または一時停止される）ため、
-    // 合流処理側でバッファリング解消を待ち、最新の状態を取り直してから開始する (TASK-61)
-    if (sound) await syncPlayback.syncJoinPlaying(sound);
   };
 
   const handleSave = async () => {
@@ -801,8 +687,7 @@ export default function RecordPlayerScreen() {
           }
         }
       }
-      if (sound) await sound.stopAsync();
-      await syncPlayback.syncPause();
+      player.pause();
       navigation.goBack();
     } catch (error) {
       console.error(error);
@@ -1041,16 +926,7 @@ export default function RecordPlayerScreen() {
                     : `${debugSyncOffsetMs >= 0 ? '+' : ''}${debugSyncOffsetMs}ms`
                 } start=${getEffectiveStartPositionMs(params)}ms track=${
                   syncPlayback.trackPlaybackSource ?? '--'
-                } corr=${syncPlayback.syncStats?.corrections ?? 0} stall=${
-                  syncPlayback.syncStats?.stallMs ?? 0
-                }/${syncPlayback.syncStats?.startStallMs ?? 0}`}
-              </Text>
-            )}
-            {SYNC_DEBUG_ENABLED && (syncPlayback.syncEvents?.length ?? 0) > 0 && (
-              // 直近の補正イベント（TASK-119）。TestFlight のスクリーンショットから
-              // 「どの経路で・どの実測ズレに対して・いくつ補正が入ったか」を追えるようにする
-              <Text style={styles.syncDebugText} testID="sync-events-debug">
-                {syncPlayback.syncEvents!.join('\n')}
+                } engine=audio-api`}
               </Text>
             )}
           </View>
