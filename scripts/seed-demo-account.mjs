@@ -10,11 +10,18 @@
  *   node scripts/seed-demo-account.mjs --env stg --email <mail> --password <pass>
  *
  * --dry-run を付けると API を呼ばずに投入予定の内容だけを表示する。
+ *
+ * 未登録のメールアドレスを指定した場合は新規登録になる。新規登録には
+ * メールで届く 6 桁の認証コードが必要（TASK-85）なため、スクリプトが
+ * 認証コードを送信したあと入力を求める（--code <6桁> で非対話的にも渡せる。
+ * 有効期限内に同じメールへ再送はできないので、届いたコードをそのまま入力する）。
  */
 
 import { spawn } from 'node:child_process';
 import { readFile, readdir } from 'node:fs/promises';
 import path from 'node:path';
+import { createInterface } from 'node:readline/promises';
+import { stdin, stdout } from 'node:process';
 
 const API_BASE = {
   dev: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1',
@@ -88,6 +95,7 @@ const env = opt('env', 'stg');
 const email = opt('email', process.env.DEMO_EMAIL);
 const password = opt('password', process.env.DEMO_PASSWORD);
 const username = opt('username', 'FlexQ Demo');
+const presetCode = opt('code', process.env.DEMO_VERIFICATION_CODE);
 const dryRun = args.includes('--dry-run');
 
 const base = API_BASE[env];
@@ -186,6 +194,30 @@ async function listFiles(dir, exts) {
   }
 }
 
+/**
+ * 新規登録用の認証コードを用意する。--code で渡されていればそれを使い、
+ * なければ API に送信を依頼してメールに届いた 6 桁の入力を待つ (TASK-85)。
+ */
+async function obtainRegistrationCode() {
+  if (presetCode) return presetCode;
+  try {
+    await api('POST', '/data/auth/verification-code', { email, purpose: 'register' });
+    console.log(`${email} に認証コードを送信しました`);
+  } catch (e) {
+    // 有効期限内の再送は 429 で拒否される。届いているコードをそのまま入力してもらう
+    if (!String(e.message).includes('-> 429')) throw e;
+    console.log('有効な認証コードが送信済みです（再送の待ち時間中）。届いているコードを入力してください');
+  }
+  const rl = createInterface({ input: stdin, output: stdout });
+  try {
+    const answer = (await rl.question('メールに届いた 6 桁の認証コード: ')).trim();
+    if (!/^\d{6}$/.test(answer)) throw new Error('認証コードは 6 桁の数字で入力してください');
+    return answer;
+  } finally {
+    rl.close();
+  }
+}
+
 /** 再実行できるよう、既存データを全部消してから投入する。 */
 async function wipe() {
   const [tracks, projects, memos, records] = await Promise.all([
@@ -228,13 +260,14 @@ async function main() {
     return;
   }
 
-  // 1. ログイン（未登録なら登録してそのままトークンを受け取る）
+  // 1. ログイン（未登録なら認証コード付きで登録してそのままトークンを受け取る）
   try {
     const auth = await api('POST', '/data/auth/login', { email, password });
     token = auth.token.accessToken;
     console.log('既存のデモアカウントにログインしました');
   } catch {
-    const auth = await api('POST', '/data/auth/register', { username, email, password });
+    const code = await obtainRegistrationCode();
+    const auth = await api('POST', '/data/auth/register', { username, email, password, code });
     token = auth.token.accessToken;
     console.log('デモアカウントを新規登録しました');
   }
