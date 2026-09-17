@@ -22,26 +22,24 @@ jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
 }));
 
-const mockRecordSound = {
-  stopAsync: jest.fn(),
-  unloadAsync: jest.fn(),
-  pauseAsync: jest.fn(),
-  playAsync: jest.fn(),
-  setPositionAsync: jest.fn(),
-  setVolumeAsync: jest.fn(),
-  setIsLoopingAsync: jest.fn(),
-  getStatusAsync: jest.fn(),
-  setOnPlaybackStatusUpdate: jest.fn(),
+const mockPlayer = {
+  loadVoice: jest.fn(async () => {}),
+  play: jest.fn(async () => {}),
+  pause: jest.fn(),
+  seek: jest.fn(),
+  setVolume: jest.fn(),
+  setTrackVolume: jest.fn(),
+  setLooping: jest.fn(),
+  setTrack: jest.fn(),
+  decode: jest.fn(),
+  measureOffsetMs: jest.fn(() => null),
+  release: jest.fn(),
 };
+const mockPlayerState = { positionMs: 0, durationMs: 0, isPlaying: false };
 
-jest.mock('expo-av', () => ({
-  InterruptionModeAndroid: { DoNotMix: 1, DuckOthers: 2 },
-  Audio: {
-    setAudioModeAsync: jest.fn().mockResolvedValue({}),
-    Sound: {
-      createAsync: jest.fn(async () => ({ sound: mockRecordSound })),
-    },
-  },
+// 声とトラックの音声エンジン（TASK-121）。画面のテストではモックに置き換える
+jest.mock('@/hooks/useRecordPlayer', () => ({
+  useRecordPlayer: () => ({ player: mockPlayer, ...mockPlayerState }),
 }));
 
 jest.mock('expo-asset', () => ({
