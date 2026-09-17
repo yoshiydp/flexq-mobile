@@ -87,7 +87,14 @@ const SYNC_SEEK_STALL_STORAGE_KEY = `syncSeekStallMs:${Platform.OS}`;
  * （−70〜−130ms）が現れて再びシークする、を繰り返していた（実機で 15 秒に 19 回・
  * 1 回 200〜270ms の音切れ = 「トラックがかくつく」）。シーク後は 1 秒待ってから実測する
  */
-const SYNC_POST_SEEK_SETTLE_MS_ANDROID = 1000;
+const SYNC_POST_SEEK_SETTLE_MS_ANDROID = 800;
+/**
+ * Android でレート微調整のあと次の実測まで待つ時間（ms / TASK-120）。
+ * ExoPlayer は速度変更の効果が数百 ms 遅れて再生位置に反映されるため、直後に実測すると
+ * 「まだズレている」と判断して微調整を重ねがけし、行き過ぎて符号が往復していた
+ * （実機: +28 → +27 → −15 → −51 → +22 → −18）。効果が現れてから実測する
+ */
+const SYNC_POST_NUDGE_SETTLE_MS_ANDROID = 600;
 /**
  * Android のレート微調整（TASK-120）。ミュート解除後に残る 150ms 以下のズレは、
  * 約 200〜300ms 止まる補正シーク（= かくつき）ではなく、トラックの再生速度を
@@ -846,8 +853,8 @@ export function useSyncedTrackPlayback({
     /**
      * ExoPlayer はシーク直後、実際の音声が再開する前から再生位置を進めて報告する
      * ため、直後の検証は偽の「同期 OK」になる（ミュート解除後に本当のズレが現れ、
-     * 可聴のシークで直すことになっていた）。1 秒待ってから検証する (TASK-120)。
-     * 待機中は 200ms ごとの実測をイベント行に残し、待機時間を短縮できるかの判断材料にする
+     * 可聴のシークで直すことになっていた）。0.8 秒待ってから検証する (TASK-120。実機の
+     * settle 行では 0.6〜0.8 秒で安定していた)。待機中は 200ms ごとの実測をイベント行に残す
      */
     const settleAfterSeek = async (): Promise<boolean> => {
       const trajectory: string[] = [];
@@ -906,6 +913,8 @@ export function useSyncedTrackPlayback({
       } catch {
         return false;
       }
+      // 速度変更の効果が位置に反映されるまで待ってから次の実測に進む
+      await delay(SYNC_POST_NUDGE_SETTLE_MS_ANDROID);
       return !isStale();
     };
 
@@ -1023,7 +1032,7 @@ export function useSyncedTrackPlayback({
         break;
       }
       pendingLearn = 'seek';
-      // 合わせ直しのシーク後も 1 秒待ってから検証する
+      // 合わせ直しのシーク後も待ってから検証する
       if (!(await settleAfterSeek())) return;
     }
 
@@ -1372,6 +1381,8 @@ export function useSyncedTrackPlayback({
       } catch {
         return false;
       }
+      // 速度変更の効果が位置に反映されるまで待ってから次の実測に進む
+      await delay(SYNC_POST_NUDGE_SETTLE_MS_ANDROID);
       return !isStale();
     };
 
@@ -1451,7 +1462,7 @@ export function useSyncedTrackPlayback({
       }
       if (isAndroid && lastCorrectionWasSeek) {
         // ExoPlayer のシーク直後の楽観的な位置報告で「収束」と誤判定しないよう、
-        // 次の実測（ループ先頭の 150ms 待ち）まで合計 1 秒空ける
+        // 次の実測（ループ先頭の 150ms 待ち）まで合計 0.8 秒空ける
         await delay(SYNC_POST_SEEK_SETTLE_MS_ANDROID - SYNC_OFFSET_CHECK_INTERVAL_MS);
         if (isStale()) return;
       }

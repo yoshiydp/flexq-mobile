@@ -1969,7 +1969,7 @@ describe('useSyncedTrackPlayback', () => {
         expect(trackSound.setPositionAsync).toHaveBeenCalledWith(1450);
       });
 
-      it('補正シークのあとは 1 秒待ってから次の実測をする（ExoPlayer の楽観的な位置報告対策 / TASK-120）', async () => {
+      it('補正シークのあとは 0.8 秒待ってから次の実測をする（ExoPlayer の楽観的な位置報告対策 / TASK-120）', async () => {
         const { result, trackSound } = await setup(0);
         // 常に +200ms（レート微調整の上限 150ms 超 → シーク対象）
         trackSound.getStatusAsync.mockResolvedValue({
@@ -1994,15 +1994,15 @@ describe('useSyncedTrackPlayback', () => {
         });
         expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
 
-        // シーク後 1 秒（1300ms）までは実測も再シークもしない
+        // シーク後 0.8 秒（1100ms）までは実測も再シークもしない
         await act(async () => {
-          await jest.advanceTimersByTimeAsync(800);
+          await jest.advanceTimersByTimeAsync(500);
         });
         expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(1);
 
-        // 1300ms: 残差 +200 を学習（150 → 50）して再シーク
+        // 1100ms: 残差 +200 を学習（150 → 50）して再シーク
         await act(async () => {
-          await jest.advanceTimersByTimeAsync(250);
+          await jest.advanceTimersByTimeAsync(300);
         });
         expect(trackSound.setPositionAsync).toHaveBeenCalledTimes(2);
         expect(trackSound.setPositionAsync).toHaveBeenLastCalledWith(1200 - 200 + 50);
@@ -2026,7 +2026,7 @@ describe('useSyncedTrackPlayback', () => {
 
         await act(async () => {
           void result.current.correctSyncOffset(recordSound as any);
-          await jest.advanceTimersByTimeAsync(300 + 2000 + 300);
+          await jest.advanceTimersByTimeAsync(300 + 2000 + 600 + 300);
         });
 
         expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
@@ -2051,7 +2051,7 @@ describe('useSyncedTrackPlayback', () => {
 
         await act(async () => {
           void result.current.correctSyncOffset(recordSound as any);
-          await jest.advanceTimersByTimeAsync(150 + 600 + 300);
+          await jest.advanceTimersByTimeAsync(150 + 600 + 600 + 300);
         });
 
         expect(trackSound.setPositionAsync).not.toHaveBeenCalled();
