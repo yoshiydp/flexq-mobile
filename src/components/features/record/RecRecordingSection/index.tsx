@@ -1,5 +1,5 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
-import { Pressable, View, Text, Animated, Alert, AppState } from 'react-native';
+import { Pressable, View, Text, Animated, Alert, AppState, Platform } from 'react-native';
 import { Audio, InterruptionModeAndroid } from 'expo-av';
 import { runBounce } from '@/utils/animations';
 import { RECORDING_OPTIONS_HIGH_QUALITY } from '@/utils/recordingOptions';
@@ -14,6 +14,13 @@ const MEASURE_START_POSITION_INTERVAL_MS = 100;
  * フォールバックして起動遅延ぶんズレたテイクが保存される (TASK-89)
  */
 const MEASURE_START_POSITION_MAX_ATTEMPTS = 100;
+/**
+ * Android（ExoPlayer）は再生開始直後、実際の音声が出る前から再生位置を進めて報告する
+ * ため、最初の実測は真の開始位置より 70〜115ms 大きくなる（staging の Android テイクを
+ * トラックと相互相関して確認 / TASK-121。TASK-120 のシーク直後の楽観的な位置報告と同じ性質）。
+ * 位置報告が落ち着くまで待ってから取り直し、両者が動作中ならその値を採用する
+ */
+const MEASURE_START_POSITION_SETTLE_MS_ANDROID = 800;
 
 interface RecRecordingSectionProps {
   /**
@@ -199,6 +206,45 @@ export default function RecRecordingSection({
     };
 
     /**
+     * Android: 最初の実測から少し待って取り直す。ExoPlayer の再生開始直後の位置報告は
+     * 実際の音声より先行しているため、落ち着いた後の「トラック位置 − 録音経過時間」の
+     * ほうが真の開始位置に近い。取り直し時にトラックが再バッファリング中・停止中なら
+     * 最初の値を残す (TASK-121)
+     */
+    const remeasureAfterSettle = async (
+      recording: Audio.Recording,
+      track: Audio.Sound,
+    ) => {
+      await new Promise((resolve) =>
+        setTimeout(resolve, MEASURE_START_POSITION_SETTLE_MS_ANDROID),
+      );
+      if (!isMountedRef.current || startCancelledRef.current) return;
+      try {
+        const [recStatus, trackStatus] = await Promise.all([
+          recording.getStatusAsync(),
+          track.getStatusAsync(),
+        ]);
+        if (
+          trackStatus.isLoaded &&
+          trackStatus.isPlaying &&
+          !trackStatus.isBuffering &&
+          recStatus.isRecording
+        ) {
+          measuredStartPositionMsRef.current = Math.round(
+            (trackStatus.positionMillis ?? 0) - (recStatus.durationMillis ?? 0),
+          );
+          if (__DEV__) {
+            console.log(
+              `[rec-start-measure] settled startPositionMs=${measuredStartPositionMsRef.current} (track=${trackStatus.positionMillis} rec=${recStatus.durationMillis})`,
+            );
+          }
+        }
+      } catch (err) {
+        console.error('Failed to re-measure recording start position', err);
+      }
+    };
+
+    /**
      * トラック同期用の録音開始位置を実測する（TASK-44）。
      * トラックの起動（ネットワークロード込み）と録音の開始は正確には同時に
      * ならないため、選択位置（startPositionMs prop）をそのまま保存すると
@@ -237,6 +283,9 @@ export default function RecRecordingSection({
               console.log(
                 `[rec-start-measure] startPositionMs=${measuredStartPositionMsRef.current} (track=${trackStatus.positionMillis} rec=${recStatus.durationMillis}, attempt=${attempt})`,
               );
+            }
+            if (Platform.OS === 'android') {
+              await remeasureAfterSettle(recording, track);
             }
             return;
           }
