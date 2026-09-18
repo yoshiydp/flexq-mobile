@@ -237,6 +237,76 @@ describe('RecRecordingSection コンポーネント', () => {
     );
   });
 
+  it('Android では位置報告が落ち着いた 0.8 秒後に取り直した値を採用する (TASK-121)', async () => {
+    const platform = jest.requireActual('react-native').Platform;
+    const originalOS = platform.OS;
+    platform.OS = 'android';
+    try {
+      // 1 回目: ExoPlayer の先走った位置（2683） / 取り直し: 落ち着いた位置（2583 → 真の値は 100ms 小さい）
+      mockSoundGetStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 2683 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, isBuffering: false, positionMillis: 3383 });
+      mockRecordingGetStatusAsync
+        .mockResolvedValueOnce({ canRecord: true, isRecording: true, durationMillis: 83 })
+        .mockResolvedValue({ canRecord: true, isRecording: true, durationMillis: 883 });
+
+      const { getByTestId } = render(
+        <RecRecordingSection
+          {...mockProps}
+          trackSource="https://example.com/track.mp3"
+          startPositionMs={2000}
+        />,
+      );
+
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+      // 取り直しの待機（0.8 秒）を消化する
+      await advanceTimers(800);
+      await flushAsync();
+
+      fireEvent.press(getByTestId('rec-recording-section-pressable'));
+      await flushAsync();
+
+      // 1 回目の 2683 − 83 = 2600 ではなく、取り直した 3383 − 883 = 2500 を採用する
+      expect(mockOnStop).toHaveBeenCalledWith(expect.any(Number), 'mock-recording-uri', 2500);
+    } finally {
+      platform.OS = originalOS;
+    }
+  });
+
+  it('Android の取り直し時にトラックが再バッファリング中なら最初の実測値を残す (TASK-121)', async () => {
+    const platform = jest.requireActual('react-native').Platform;
+    const originalOS = platform.OS;
+    platform.OS = 'android';
+    try {
+      mockSoundGetStatusAsync
+        .mockResolvedValueOnce({ isLoaded: true, isPlaying: true, positionMillis: 2683 })
+        .mockResolvedValue({ isLoaded: true, isPlaying: true, isBuffering: true, positionMillis: 3000 });
+
+      const { getByTestId } = render(
+        <RecRecordingSection
+          {...mockProps}
+          trackSource="https://example.com/track.mp3"
+          startPositionMs={2000}
+        />,
+      );
+
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+      await advanceTimers(800);
+      await flushAsync();
+
+      fireEvent.press(getByTestId('rec-recording-section-pressable'));
+      await flushAsync();
+
+      expect(mockOnStop).toHaveBeenCalledWith(expect.any(Number), 'mock-recording-uri', 2600);
+    } finally {
+      platform.OS = originalOS;
+    }
+  });
+
   it('実測できなかった場合（トラックが再生状態にならない）は onStop の実測値が undefined になる', async () => {
     mockSoundGetStatusAsync.mockResolvedValue({
       isLoaded: true,
