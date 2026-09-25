@@ -27,27 +27,24 @@ jest.mock('@react-navigation/native', () => ({
   useFocusEffect: jest.fn(),
 }));
 
-const mockRecordSound = {
-  stopAsync: jest.fn(),
-  unloadAsync: jest.fn(),
-  pauseAsync: jest.fn(),
-  playAsync: jest.fn(),
-  setPositionAsync: jest.fn(),
-  setStatusAsync: jest.fn().mockResolvedValue({}),
-  setVolumeAsync: jest.fn(),
-  setIsLoopingAsync: jest.fn(),
-  getStatusAsync: jest.fn(),
-  setOnPlaybackStatusUpdate: jest.fn(),
+const mockPlayer = {
+  loadVoice: jest.fn(async () => {}),
+  play: jest.fn(async () => {}),
+  pause: jest.fn(),
+  seek: jest.fn(),
+  setVolume: jest.fn(),
+  setTrackVolume: jest.fn(),
+  setLooping: jest.fn(),
+  setTrack: jest.fn(),
+  decode: jest.fn(),
+  measureOffsetMs: jest.fn(() => null),
+  release: jest.fn(),
 };
+const mockPlayerState = { positionMs: 0, durationMs: 0, isPlaying: false };
 
-jest.mock('expo-av', () => ({
-  InterruptionModeAndroid: { DoNotMix: 1, DuckOthers: 2 },
-  Audio: {
-    setAudioModeAsync: jest.fn().mockResolvedValue({}),
-    Sound: {
-      createAsync: jest.fn(async () => ({ sound: mockRecordSound })),
-    },
-  },
+// 声とトラックの音声エンジン（TASK-121）。画面のテストではモックに置き換える
+jest.mock('@/hooks/useRecordPlayer', () => ({
+  useRecordPlayer: () => ({ player: mockPlayer, ...mockPlayerState }),
 }));
 
 jest.mock('expo-asset', () => ({
@@ -114,14 +111,6 @@ const mockSyncPlayback = {
   trackVolume: 1,
   enableSync: jest.fn().mockResolvedValue('enabled'),
   disableSync: jest.fn().mockResolvedValue(undefined),
-  syncPlay: jest.fn().mockResolvedValue(undefined),
-  syncResume: jest.fn().mockResolvedValue(undefined),
-  syncReconcile: jest.fn().mockResolvedValue(undefined),
-  syncPause: jest.fn().mockResolvedValue(undefined),
-  syncSeek: jest.fn().mockResolvedValue(undefined),
-  correctSyncOffset: jest.fn().mockResolvedValue(undefined),
-  syncJoinPlaying: jest.fn().mockResolvedValue(undefined),
-  handleRecordFinish: jest.fn().mockResolvedValue(undefined),
   setTrackVolume: jest.fn().mockResolvedValue(undefined),
 };
 
@@ -167,18 +156,8 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     jest.spyOn(Alert, 'alert').mockImplementation(() => {});
-    mockRecordSound.stopAsync.mockResolvedValue({});
-    mockRecordSound.unloadAsync.mockResolvedValue({});
-    mockRecordSound.pauseAsync.mockResolvedValue({});
-    mockRecordSound.playAsync.mockResolvedValue({});
-    mockRecordSound.setPositionAsync.mockResolvedValue({});
-    mockRecordSound.setVolumeAsync.mockResolvedValue({});
-    mockRecordSound.setIsLoopingAsync.mockResolvedValue({});
-    mockRecordSound.getStatusAsync.mockResolvedValue({
-      isLoaded: true,
-      isPlaying: false,
-      positionMillis: 0,
-    });
+    mockPlayer.loadVoice.mockImplementation(async () => {});
+    Object.assign(mockPlayerState, { positionMs: 0, durationMs: 0, isPlaying: false });
     mockedUseSyncedTrackPlayback.mockImplementation(() => mockSyncPlayback);
     Object.assign(mockSyncPlayback, {
       canSync: true,
@@ -254,7 +233,7 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
     await act(async () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
-    expect(mockSyncPlayback.enableSync).toHaveBeenCalledWith(0);
+    expect(mockSyncPlayback.enableSync).toHaveBeenCalledTimes(1);
     expect(Alert.alert).not.toHaveBeenCalled();
   });
 
@@ -286,24 +265,15 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
     expect(Alert.alert).toHaveBeenCalledWith('エラー', SYNC_PLAYBACK_LABELS.loadFailed);
   });
 
-  it('再生中にトグル ON した場合、合流処理（syncJoinPlaying）で追従再生を開始する', async () => {
-    // トグル ON 直後のスナップショット位置で enableSync し、
-    // 最新位置の取り直しは合流処理側（syncJoinPlaying）が行う (TASK-61)
-    mockRecordSound.getStatusAsync.mockResolvedValue({
-      isLoaded: true,
-      isPlaying: true,
-      positionMillis: 1000,
-    });
+  it('再生中にトグル ON した場合も enableSync を呼ぶだけでよい（合流はプレイヤー側が行う / TASK-121）', async () => {
+    Object.assign(mockPlayerState, { positionMs: 1000, durationMs: 5000, isPlaying: true });
 
     const { getByTestId } = await renderScreen();
     await act(async () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
 
-    expect(mockSyncPlayback.enableSync).toHaveBeenCalledWith(1000);
-    expect(mockSyncPlayback.syncJoinPlaying).toHaveBeenCalledWith(
-      mockRecordSound,
-    );
+    expect(mockSyncPlayback.enableSync).toHaveBeenCalledTimes(1);
   });
 
   it('ロード中にイヤホンが切断された（headphones-disconnected）場合、Alert なしで何もしない', async () => {
@@ -313,7 +283,6 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(mockSyncPlayback.syncJoinPlaying).not.toHaveBeenCalled();
   });
 
   it('ロード中に画面を離れた（cancelled）場合、Alert なしで何もしない', async () => {
@@ -323,7 +292,6 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       fireEvent(getByTestId('sync-playback-switch'), 'valueChange', true);
     });
     expect(Alert.alert).not.toHaveBeenCalled();
-    expect(mockSyncPlayback.syncJoinPlaying).not.toHaveBeenCalled();
   });
 
   it('同時再生が有効なとき、トラック音量用の VolumeSlider が追加表示される', async () => {
@@ -388,68 +356,13 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       expect(queryByText(SYNC_PLAYBACK_LABELS.headphonesRequired)).toBeNull();
     });
 
-    it('音源を切り替えると同時再生中のトラックを一時停止する', async () => {
+    it('音源を切り替えると再生中の声とトラックを一時停止する', async () => {
       setupSeparated();
       const { getByTestId } = await renderScreen();
       await act(async () => {
         fireEvent.press(getByTestId('source-segment-separated'));
       });
-      expect(mockSyncPlayback.syncPause).toHaveBeenCalled();
-    });
-  });
-
-  describe('再生終了時の巻き戻し (TASK-65)', () => {
-    const getStatusCallback = () => {
-      const call =
-        mockRecordSound.setOnPlaybackStatusUpdate.mock.calls.at(-1);
-      expect(call).toBeDefined();
-      return call![0] as (status: Record<string, unknown>) => void;
-    };
-
-    it('リピート OFF の再生終了では停止と巻き戻しをまとめて適用する（Android の自動再開を防ぐ）', async () => {
-      await renderScreen();
-      const onStatus = getStatusCallback();
-
-      await act(async () => {
-        onStatus({
-          isLoaded: true,
-          isPlaying: false,
-          positionMillis: 5000,
-          durationMillis: 5000,
-          didJustFinish: true,
-          isLooping: false,
-        });
-      });
-
-      // 終了状態のプレイヤーへの setPositionAsync 単独呼び出しは
-      // Android で再生を再開させるため行わない
-      expect(mockRecordSound.setStatusAsync).toHaveBeenCalledWith({
-        shouldPlay: false,
-        positionMillis: 0,
-      });
-      expect(mockRecordSound.setPositionAsync).not.toHaveBeenCalledWith(0);
-    });
-
-    it('リピート ON の再生終了では巻き戻さずループを継続する', async () => {
-      await renderScreen();
-      const onStatus = getStatusCallback();
-
-      await act(async () => {
-        onStatus({
-          isLoaded: true,
-          isPlaying: true,
-          positionMillis: 0,
-          durationMillis: 5000,
-          didJustFinish: true,
-          isLooping: true,
-        });
-      });
-
-      expect(mockRecordSound.setStatusAsync).not.toHaveBeenCalled();
-      expect(mockSyncPlayback.handleRecordFinish).toHaveBeenCalledWith(
-        true,
-        mockRecordSound,
-      );
+      expect(mockPlayer.pause).toHaveBeenCalled();
     });
   });
 });
