@@ -69,7 +69,8 @@
           "microphonePermission": "音声文字起こしのためにマイクへのアクセスを許可してください。",
           "speechRecognitionPermission": "音声をテキストに変換するために音声認識の使用を許可してください。"
         }
-      ]
+      ],
+      "react-native-audio-api"
     ],
     "experiments": {
       "typedRoutes": true
@@ -80,7 +81,7 @@
         "projectId": "216ca5f0-4ffc-4067-bfbf-5f56aba4924b"
       }
     },
-    "runtimeVersion": "1.0.0",
+    "runtimeVersion": "1.1.0",
     "updates": {
       "url": "https://u.expo.dev/216ca5f0-4ffc-4067-bfbf-5f56aba4924b"
     }
