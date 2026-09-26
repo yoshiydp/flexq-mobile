@@ -818,6 +818,7 @@ cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-chang
 | `/deploy-api-stg` | `.claude/commands/deploy-api-stg.md` | develop ブランチから `flexq-stg-api`（運営者アカウント）への SAM デプロイ |
 | `/testflight` | `.claude/commands/testflight.md` | EAS Build → TestFlight 配信 |
 | `/playstore` | `.claude/commands/playstore.md` | EAS Build → Google Play 内部テスト配信（Android） |
+| `/handoff` | `.claude/commands/handoff.md` | Mac Mini ⇄ MacBook Air のセッション・メモリ引き継ぎ（`out` / `in` / `clean`。詳細は `docs/claude-code-session-handoff.md`） |
 
 ---
 
