@@ -8,8 +8,11 @@ servers:
 paths:
   /data:
     get:
-      summary: Get all data
-      description: Returns all mock data defined in /src/data directory.
+      summary: Get all data (local mock server only)
+      description: >-
+        Returns all mock data defined in /src/data directory. Served only by
+        the local mock server (yarn mock:server); the unauthenticated
+        GetDataFunction was removed from AWS API Gateway (TASK-106).
       responses:
         '200':
           description: OK
