@@ -1,13 +1,24 @@
-export type RootStackParamList = {
-  SignIn: undefined;
-  PasswordReset: undefined;
-  Register: undefined;
-  HomeTabs: undefined;
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { SerializedTrackType } from '@/types/trackType';
+
+/** HomeTabsNavigator（ボトムタブ）のスクリーン */
+export type HomeTabsParamList = {
   ProjectList: undefined;
   TrackList: undefined;
   Profile: undefined;
   Drafts: undefined;
-  AudioPlayer: { trackIndex: number; tracks: Track[] };
+};
+
+export type RootStackParamList = {
+  SignIn: undefined;
+  PasswordReset: undefined;
+  Register: undefined;
+  HomeTabs: NavigatorScreenParams<HomeTabsParamList> | undefined;
+  ProjectList: undefined;
+  TrackList: undefined;
+  Profile: undefined;
+  Drafts: undefined;
+  AudioPlayer: { trackIndex: number; tracks: SerializedTrackType[] };
   ProjectEdit:
     | {
         id?: string;
@@ -66,6 +77,6 @@ export type RootStackParamList = {
         separatedSource?: string;
       }
     | undefined;
-  RecordList?: undefined;
+  RecordList: { source?: 'Drafts' | undefined } | undefined;
   NewProject: undefined;
 };

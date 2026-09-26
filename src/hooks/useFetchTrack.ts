@@ -2,23 +2,10 @@ import { useEffect, useState, useCallback, useRef } from 'react';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { useForegroundRefresh } from '@/contexts/ForegroundRefreshContext';
 import { withRequestTimeout } from '@/utils/requestTimeout';
+import type { TrackType } from '@/types/trackType';
 
-export interface LinkedProject {
-  id: string;
-  name: string;
-}
-
-export interface TrackType {
-  id: string;
-  title: string;
-  source: string;
-  artwork: string;
-  linkedProjects: LinkedProject[];
-  extention: string;
-  /** 作成日時。createdAt 導入前の既存データは updatedAt でフォールバック（TASK-51） */
-  createdAt: Date;
-  updatedAt: Date;
-}
+// 既存の import 互換のため、共有型（@/types/trackType）をこのモジュールからも再公開する
+export type { LinkedProject, TrackType } from '@/types/trackType';
 
 export function useFetchTrack() {
   const [tracks, setTracks] = useState<TrackType[]>([]);

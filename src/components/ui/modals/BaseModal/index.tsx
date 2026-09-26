@@ -7,7 +7,8 @@ import { containsJapaneseText } from '@/utils/containsJapaneseText';
 import styles from './BaseModal.styles';
 
 interface SubmitButtonProps {
-  label: string;
+  /** 省略時は SubmitButton 側の既定ラベル（SAVE）を使う */
+  label?: string;
   onPress: () => void | Promise<void>;
   disabled?: boolean;
 }
@@ -54,7 +55,7 @@ export default function BaseModal({
   // 日本語ラベルは BebasNeue（Latin 専用）だとフォールバック表示で
   // 位置ずれするため、NotoSansJP ボールド + 上下中央配置に切り替える
   const closeIsJapanese = containsJapaneseText(closeLabel);
-  const submitIsJapanese = submitButton
+  const submitIsJapanese = submitButton?.label
     ? containsJapaneseText(submitButton.label)
     : false;
 

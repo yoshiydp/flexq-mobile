@@ -14,6 +14,9 @@ yarn android              # Android エミュレーター
 # Lint & フォーマット
 yarn lint                 # expo lint (CI では --max-warnings=0)
 
+# 型チェック
+yarn typecheck            # tsc --noEmit (CI でも実行。エラー 0 が前提)
+
 # テスト (Jest)
 yarn test                 # Jest ウォッチモード
 yarn test:ci              # Jest カバレッジ付き実行 (CI)
@@ -452,7 +455,9 @@ corepack prepare yarn@4.12.0 --activate
 
 ### デプロイフロー
 
-ブランチへのマージをトリガーに、GitHub Actions（ESLint → Jest → EAS Update）が各チャンネルへ OTA 配信します。lint または test が失敗した場合は配信が中止されます。
+ブランチへのマージをトリガーに、GitHub Actions（ESLint + `tsc --noEmit` → Jest → EAS Update）が各チャンネルへ OTA 配信します。lint・型チェック・test のいずれかが失敗した場合は配信が中止されます。
+
+> 型チェック（`yarn typecheck`）は PR / push の CI（`ci.yml`）と各デプロイワークフローの lint ジョブで実行されるため、ローカルでも `yarn lint` / `yarn test:ci` とあわせて通してからコミットする（TASK-109）。
 
 > **ネイティブ依存を追加・更新したら `app.json` の `runtimeVersion` を必ず上げる**（固定文字列方式。例: TASK-121 の react-native-audio-api 追加で `1.0.0` → `1.1.0`）。上げずにマージすると、そのネイティブモジュールを持たない既存ビルド（TestFlight / Play 内部テスト / 開発ビルド）にも OTA が届き、起動時にモジュール未検出でクラッシュする。上げたあとは新しい runtimeVersion のビルド（`/testflight` / `/playstore`・開発ビルドは `yarn ios` / `yarn android`）を作るまで OTA は誰にも届かない。誤って配信した場合は `eas update:republish --branch <dev|staging|production> --group <直前の正常な group ID>` で旧 runtimeVersion 向けに戻す
 

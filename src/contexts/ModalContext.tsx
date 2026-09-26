@@ -132,10 +132,11 @@ export function ModalProvider({ children }: { children: ReactNode }) {
       )}
 
       {recordingOptions && (
-        <RecRecordingModal visible onClose={closeModal}>
-          {/* Implement recording UI here */}
-          <></>
-        </RecRecordingModal>
+        <RecRecordingModal
+          visible
+          onClose={closeModal}
+          onStop={recordingOptions.onStop}
+        />
       )}
 
       {loading && <LoadingOverlay visible message={loadingState.message} />}

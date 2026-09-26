@@ -5,18 +5,9 @@ import Icon from '@/components/ui/Icon';
 import RippleButton from '@/components/ui/buttons/RippleButton';
 import styles from './PlayerControls.styles';
 
-interface Track {
-  id: string;
-  title: string;
-  source: any;
-  artwork?: any;
-  linkedProjects: string[];
-  extention: string;
-  updatedAt: Date;
-}
-
 interface PlayerControlsProps {
-  tracks?: Track[];
+  /** 前後ボタンの活性判定に件数だけを使うため、トラックの詳細な型には依存しない */
+  tracks?: readonly unknown[];
   currentIndex?: number;
   onPrev?: () => void;
   onNext?: () => void;

@@ -14,7 +14,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
-import type { LinkedProject } from '@/hooks/useFetchTrack';
+import type { SerializedTrackType } from '@/types/trackType';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUpdateTrack } from '@/hooks/useUpdateTrack';
@@ -22,16 +22,6 @@ import { useDeleteTrack } from '@/hooks/useDeleteTrack';
 import { formatDate } from '@/utils/formatDate';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './AudioPlayerScreen.styles';
-
-interface Track {
-  id: string;
-  title: string;
-  source: string;
-  artwork?: string;
-  linkedProjects: LinkedProject[];
-  extention: string;
-  updatedAt: Date;
-}
 
 export default function AudioPlayerScreen() {
   // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
@@ -41,7 +31,7 @@ export default function AudioPlayerScreen() {
   const navigation = useNavigation();
   const { trackIndex, tracks } = route.params as {
     trackIndex: number;
-    tracks: Track[];
+    tracks: SerializedTrackType[];
   };
 
   const [localTracks, setLocalTracks] = useState(tracks);

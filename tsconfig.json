@@ -6,7 +6,7 @@
     "paths": {
       "@/*": ["*"]
     },
-    "types": ["jest"],
+    "types": ["jest", "node"],
     "jsx": "react",
     "esModuleInterop": true,
     "skipLibCheck": true
