@@ -501,6 +501,31 @@ describe('RecRecordingSection コンポーネント', () => {
     expect(mockOnStop).toHaveBeenCalledWith(1000, 'mock-recording-uri', undefined);
   });
 
+  it('停止処理が失敗した場合も onAbort でモーダルを閉じる (TASK-112)', async () => {
+    const { getByTestId } = render(
+      <RecRecordingSection {...mockProps} trackSource={null} />,
+    );
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+    await advanceTimers(1000);
+
+    // 停止の解放処理が失敗するケース。stopHandledRef を立てているため STOP の
+    // 再押下では回復できず、中止として閉じないとモーダルが残り操作不能になる
+    mockStopAndUnloadAsync.mockRejectedValueOnce(new Error('stop failed'));
+
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+
+    expect(mockOnStop).not.toHaveBeenCalled();
+    expect(mockOnAbort).toHaveBeenCalledTimes(1);
+
+    // 再押下しても二重に通知しない（stopHandledRef のガード）
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+    expect(mockOnAbort).toHaveBeenCalledTimes(1);
+  });
+
   it('Android では位置報告が落ち着いた 0.8 秒後に取り直した値を採用する (TASK-121)', async () => {
     const platform = jest.requireActual('react-native').Platform;
     const originalOS = platform.OS;

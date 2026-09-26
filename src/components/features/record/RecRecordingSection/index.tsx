@@ -588,6 +588,15 @@ export default function RecRecordingSection({
       return 'saved';
     } catch (err) {
       console.error('Recording stop failed', err);
+      // 停止処理が失敗しても stopHandledRef は立っているため STOP の再押下は
+      // 効かない。onStop / onAbort のどちらも呼ばないとモーダルが閉じず
+      // 操作不能になるため、中止として閉じる。あわせてマイクを掴んだままに
+      // しないよう録音を解放する (TASK-112)
+      recordingRef.current?.stopAndUnloadAsync().catch(() => {});
+      recordingRef.current = null;
+      preparedRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
+      preparedRecordingRef.current = null;
+      onAbortRef.current?.();
       return 'aborted';
     }
   };
