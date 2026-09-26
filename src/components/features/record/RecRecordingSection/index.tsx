@@ -4,7 +4,10 @@ import { Audio, InterruptionModeAndroid } from 'expo-av';
 import { useKeepAwake } from 'expo-keep-awake';
 import { runBounce } from '@/utils/animations';
 import { RECORDING_OPTIONS_HIGH_QUALITY } from '@/utils/recordingOptions';
-import { REC_PERMISSION_MESSAGES } from '@/constants/messages';
+import {
+  REC_BACKGROUND_MESSAGES,
+  REC_PERMISSION_MESSAGES,
+} from '@/constants/messages';
 import styles from './RecRecordingSection.styles';
 
 /** 実測 startPositionMs のサンプリング間隔（ms）と最大試行回数（合計 2 秒待つ） */
@@ -22,6 +25,31 @@ const MEASURE_START_POSITION_MAX_ATTEMPTS = 100;
  * 位置報告が落ち着くまで待ってから取り直し、両者が動作中ならその値を採用する
  */
 const MEASURE_START_POSITION_SETTLE_MS_ANDROID = 800;
+
+/**
+ * バックグラウンド遷移で録音を終了したことを、フォアグラウンド復帰時に 1 回だけ
+ * `Alert` で案内する。バックグラウンド中の `Alert` は表示されないため復帰を待つ
+ * 必要があるが、その時点で `RecRecordingSection` は既にアンマウントされている
+ * （停止と同時にモーダルが閉じて録音再生画面へ遷移する）ため、コンポーネントの
+ * 寿命から切り離して購読する (TASK-112)
+ *
+ * @returns 案内が表示される前に文言を差し替える関数（停止結果の確定が復帰より
+ *          遅れることがあるため、購読は先に登録して文言だけ後から直せるようにする）
+ */
+const scheduleForegroundNotice = (message: string) => {
+  let pendingMessage = message;
+  let shown = false;
+  const subscription = AppState.addEventListener('change', (state) => {
+    if (state !== 'active' || shown) return;
+    shown = true;
+    subscription.remove();
+    Alert.alert(REC_BACKGROUND_MESSAGES.noticeTitle, pendingMessage);
+  });
+  return (nextMessage: string) => {
+    if (shown) return;
+    pendingMessage = nextMessage;
+  };
+};
 
 interface RecRecordingSectionProps {
   /**
@@ -74,9 +102,19 @@ export default function RecRecordingSection({
   const startCancelledRef = useRef(false);
   const isMountedRef = useRef(true);
   const appStateSubscriptionRef = useRef<{ remove: () => void } | null>(null);
+  // 停止処理を 1 回だけに制限するフラグ。STOP ボタンと Android の
+  // バックグラウンド遷移 (TASK-112) の両方から停止が走るため、二重に
+  // stopAndUnloadAsync / onStop が呼ばれるのを防ぐ
+  const stopHandledRef = useRef(false);
 
   const onAbortRef = useRef(onAbort);
   onAbortRef.current = onAbort;
+
+  // AppState リスナー（登録時の値を掴まないよう ref 経由で参照する）から見る録音の進行状況
+  const isRunningRef = useRef(isRunning);
+  isRunningRef.current = isRunning;
+  const permissionGrantedRef = useRef(permissionGranted);
+  permissionGrantedRef.current = permissionGranted;
 
   // 録音中（カウントダウン〜停止）は画面の自動ロックを抑止する。自動ロックが入ると
   // アプリがバックグラウンドへ移り、長いテイクの途中で録音の継続条件が OS 任せになる
@@ -175,6 +213,43 @@ export default function RecRecordingSection({
     return () => subscription.remove();
   }, [isRunning]);
 
+  /**
+   * Android: バックグラウンドへ移ったら録音を停止して、そこまでの録音を保存経路へ渡す
+   * (TASK-112)。Android 14 以降はバックグラウンドでのマイクアクセスに microphone 型の
+   * フォアグラウンドサービスが必要で（react-native-audio-api の設定プラグインが追加する
+   * サービスは mediaPlayback 型・audio-api の再生時のみ起動するため expo-av の録音は
+   * 守られない）、そのまま続けても無音を録り続けるだけになる。さらに expo-av は
+   * `staysActiveInBackground: false` のままバックグラウンドへ入るとトラック再生を止めて
+   * 音声フォーカスを手放すため、同期の前提も崩れる。無音の続きより「ここまで」を残す。
+   * 録音開始前（カウントダウン中）は保存できる録音がないため中止に落とす。
+   * iOS はバックグラウンドでも録音を継続する (TASK-111) ため何もしない
+   */
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'background') return;
+      // Android のマイク許可ダイアログは呼び出し元のアクティビティを一時停止させ
+      // 'background' として通知されるため、許可の取得完了前は反応しない
+      // （初回録音がダイアログ応答だけで中止されてしまう）
+      if (!permissionGrantedRef.current) return;
+      // STOP ボタンや直前の background で既に停止済みなら案内も出さない
+      if (stopHandledRef.current) return;
+      // 停止処理の完了より復帰が先になることがあるため、案内の購読は先に登録し、
+      // 文言は停止結果で必要に応じて差し替える
+      const updateNotice = scheduleForegroundNotice(
+        isRunningRef.current
+          ? REC_BACKGROUND_MESSAGES.stoppedAndSaved
+          : REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+      );
+      void stopRecordingRef.current().then((result) => {
+        if (result === 'saved') return;
+        // 保存できる録音がなかった場合（カウントダウン中・開始直後）は中止の案内にする
+        updateNotice(REC_BACKGROUND_MESSAGES.cancelledBeforeStart);
+      });
+    });
+    return () => subscription.remove();
+  }, []);
+
   const startRecording = useCallback(async () => {
     // アプリがフォアグラウンド（active）になるまで待つ。
     // マイク許可ダイアログの応答直後は inactive → active の遷移中で
@@ -220,7 +295,10 @@ export default function RecRecordingSection({
         // 全録音・全再生を止める。前提の Info.plist `UIBackgroundModes: ["audio"]` は
         // react-native-audio-api の設定プラグインが追加済み。playsInSilentModeIOS: true
         // との組み合わせが必須（false との同時指定は expo-av が拒否する）。
-        // Android のバックグラウンド挙動は TASK-112 で扱うため false のまま
+        // Android は true にしない: Android 14 以降はバックグラウンドでのマイク
+        // アクセスに microphone 型のフォアグラウンドサービスが必要で、音声セッションを
+        // 維持しても録音は無音になる。代わりにバックグラウンド遷移で録音を停止して
+        // そこまでを保存する (TASK-112)
         staysActiveInBackground: Platform.OS === 'ios',
         shouldDuckAndroid: false,
         // 録音中は他アプリと音声をミックスせず、音声フォーカスを専有する
@@ -331,6 +409,10 @@ export default function RecRecordingSection({
         );
       }
     };
+
+    // 停止・中止済み（Android のバックグラウンド遷移で中止された場合を含む）なら
+    // マイクを掴まずに終了する (TASK-112)
+    if (!shouldContinueStartup()) return;
 
     let recording: Audio.Recording;
     try {
@@ -445,7 +527,16 @@ export default function RecRecordingSection({
     setIsRunning(true);
   }, [trackSource, startPositionMs]);
 
-  const stopRecording = async () => {
+  /**
+   * 録音を停止して保存経路（onStop）へ渡す。保存できる録音がない場合は
+   * 中止（onAbort）に落とす。STOP ボタンと Android のバックグラウンド遷移
+   * (TASK-112) の両方から呼ばれるため、停止済みなら何もしない
+   *
+   * @returns 録音を onStop へ渡せた場合は 'saved'、中止・失敗した場合は 'aborted'
+   */
+  const stopRecording = async (): Promise<'saved' | 'aborted'> => {
+    if (stopHandledRef.current) return 'aborted';
+    stopHandledRef.current = true;
     try {
       // 起動シーケンス（トラックロード〜録音開始）がまだ進行中の場合は
       // 中断させ、遅れて録音が開始されるのを防ぐ
@@ -467,7 +558,7 @@ export default function RecRecordingSection({
         preparedRecordingRef.current?.stopAndUnloadAsync().catch(() => {});
         preparedRecordingRef.current = null;
         onAbortRef.current?.();
-        return;
+        return 'aborted';
       }
 
       // 保存する長さは表示用タイマー（バックグラウンド中に間引かれ得る JS の
@@ -475,21 +566,35 @@ export default function RecRecordingSection({
       // ステータスで durationMillis が 0 に戻るため、停止前に取得する (TASK-111)
       const status = await recording.getStatusAsync().catch(() => null);
       await recording.stopAndUnloadAsync();
+      recordingRef.current = null;
       const uri = recording.getURI() || '';
       const durationMs =
         status?.isRecording && status.durationMillis > 0
           ? status.durationMillis
           : timer;
+      if (!uri || durationMs <= 0) {
+        // 保存できる長さがない（開始直後の停止・バックグラウンド遷移）。呼び出し元の
+        // onStop は長さ 0 のテイクを無視するため、モーダルが閉じず操作不能になる。
+        // 中止として扱って閉じる (TASK-112)
+        onAbortRef.current?.();
+        return 'aborted';
+      }
       onStop(durationMs, uri, measuredStartPositionMsRef.current ?? undefined);
 
       Animated.parallel([
         runBounce(outerScale),
         runBounce(innerScale, 50),
       ]).start();
+      return 'saved';
     } catch (err) {
       console.error('Recording stop failed', err);
+      return 'aborted';
     }
   };
+
+  // AppState リスナー（登録時点の stopRecording を掴まないよう ref 経由で呼ぶ）
+  const stopRecordingRef = useRef(stopRecording);
+  stopRecordingRef.current = stopRecording;
 
   const formatTime = (ms: number) => {
     const totalSeconds = Math.floor(ms / 1000);

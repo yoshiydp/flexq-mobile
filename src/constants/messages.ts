@@ -63,6 +63,20 @@ export const REC_PERMISSION_MESSAGES = {
     'トラックの再生を開始できませんでした。もう一度お試しください。',
 };
 
+/**
+ * Android はバックグラウンドでのマイクアクセスが OS に制限される（Android 14 以降は
+ * microphone 型のフォアグラウンドサービスが必須）ため、録音中にバックグラウンドへ
+ * 移ったら録音を停止して、そこまでの録音を保存経路へ渡す。バックグラウンド中の
+ * Alert は表示されないため、フォアグラウンド復帰時に案内する (TASK-112)
+ */
+export const REC_BACKGROUND_MESSAGES = {
+  noticeTitle: 'お知らせ',
+  stoppedAndSaved:
+    'バックグラウンドに移動したため録音を停止しました。ここまでの録音は保存されています。',
+  cancelledBeforeStart:
+    'バックグラウンドに移動したため録音を中止しました。もう一度 REC ボタンから録音してください。',
+};
+
 export const HEADPHONE_LABELS = {
   wired: '有線イヤホン接続中',
   bluetooth: 'Bluetoothイヤホン接続中',
