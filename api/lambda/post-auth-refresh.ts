@@ -3,11 +3,14 @@ import * as jwt from 'jsonwebtoken';
 import { docClient } from './db';
 import { createResponse } from './utils';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
+import { isTokenVersionCurrent, issueTokens } from './auth-tokens';
 
 interface RefreshTokenPayload {
   userId?: string;
   email?: string;
   type?: string;
+  /** 発行時点の tokenVersion（TASK-105。旧仕様のトークンは未設定 = 0 扱い） */
+  tv?: number;
 }
 
 export const handler = async (event: any) => {
@@ -51,22 +54,18 @@ export const handler = async (event: any) => {
     return suspendedResponse();
   }
 
-  const accessToken = jwt.sign(
-    { userId: user.userId, email: user.email },
-    process.env.JWT_SECRET!,
-    { expiresIn: '7d' }
-  );
-  const newRefreshToken = jwt.sign(
-    { userId: user.userId, type: 'refresh' },
-    process.env.JWT_SECRET!,
-    { expiresIn: '30d' }
-  );
+  // ログアウト・パスワードリセットで tokenVersion が進んだ後の refreshToken は
+  // 失効済みとして拒否する (TASK-105)。tv なしの旧トークンは tokenVersion が
+  // 0 の間だけ有効
+  if (!isTokenVersionCurrent(payload, user)) {
+    return createResponse({ message: 'Invalid refresh token' }, 401);
+  }
 
   return createResponse({
-    token: {
-      accessToken,
-      refreshToken: newRefreshToken,
-      expiresIn: 604800,
-    },
+    token: issueTokens({
+      userId: user.userId,
+      email: user.email,
+      tokenVersion: user.tokenVersion,
+    }),
   });
 };

@@ -39,9 +39,11 @@ jest.mock(
   { virtual: true },
 );
 
+const mockSign = jest.fn(() => 'signed-jwt');
+
 jest.mock(
   'jsonwebtoken',
-  () => ({ sign: jest.fn(() => 'signed-jwt') }),
+  () => ({ sign: (...args: unknown[]) => mockSign(...args) }),
   { virtual: true },
 );
 
@@ -194,5 +196,61 @@ describe('post-auth-google のメール検証ゲート', () => {
     const res = await invoke('login');
 
     expect(res.statusCode).toBe(404);
+  });
+});
+
+describe('post-auth-google の tokenVersion 引き継ぎ (TASK-105)', () => {
+  const originalFetch = global.fetch;
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSign.mockImplementation(() => 'signed-jwt');
+    process.env.USERS_TABLE = 'users';
+    process.env.JWT_SECRET = 'secret';
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
+  it('連携済みユーザーの tokenVersion を両トークンの tv に含める', async () => {
+    setQueryResults({
+      bySub: [
+        {
+          userId: 'linked-user',
+          email: EMAIL,
+          username: 'Linked',
+          googleSub: GOOGLE_SUB,
+          tokenVersion: 2,
+        },
+      ],
+    });
+    mockGoogleFetch(true);
+
+    const res = await invoke('login');
+
+    expect(res.statusCode).toBe(200);
+    expect(mockSign.mock.calls[0][0]).toMatchObject({
+      userId: 'linked-user',
+      tv: 2,
+    });
+    expect(mockSign.mock.calls[1][0]).toMatchObject({
+      type: 'refresh',
+      tv: 2,
+    });
+  });
+
+  it('新規作成する Google ユーザーには tokenVersion: 0 を保存する', async () => {
+    setQueryResults({});
+    mockGoogleFetch(true);
+
+    const res = await invoke('register');
+
+    expect(res.statusCode).toBe(201);
+    const putCall = mockSend.mock.calls.find(
+      ([command]: any) => command.type === 'Put',
+    );
+    expect(putCall?.[0].input.Item.tokenVersion).toBe(0);
+    expect(mockSign.mock.calls[0][0]).toMatchObject({ tv: 0 });
   });
 });

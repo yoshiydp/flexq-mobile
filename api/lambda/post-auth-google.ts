@@ -1,11 +1,11 @@
 import { QueryCommand, PutCommand, UpdateCommand } from '@aws-sdk/lib-dynamodb';
-import * as jwt from 'jsonwebtoken';
 import { randomUUID } from 'crypto';
 import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
 import { verifyGoogleAccessToken } from './google-auth';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
+import { issueTokens } from './auth-tokens';
 
 // Google OAuth のアクセストークンを検証してログインする。
 // ユーザーの照合は一般的なサービスと同じ 3 段階:
@@ -137,6 +137,7 @@ export const handler = async (event: any) => {
         thumbnail: null,
         googleSub: googleUser.sub,
         socialAccounts: upsertGoogleSocialAccount([], googleUser.name ?? ''),
+        tokenVersion: 0,
         createdAt: new Date().toISOString(),
       };
       await docClient.send(
@@ -177,16 +178,6 @@ export const handler = async (event: any) => {
     return suspendedResponse();
   }
 
-  const payload = { userId: user.userId, email: user.email };
-  const jwtAccessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: '7d',
-  });
-  const refreshToken = jwt.sign(
-    { userId: user.userId, type: 'refresh' },
-    process.env.JWT_SECRET!,
-    { expiresIn: '30d' },
-  );
-
   return createResponse(
     {
       userId: user.userId,
@@ -194,11 +185,11 @@ export const handler = async (event: any) => {
       email: user.email,
       thumbnail: user.thumbnail ?? null,
       socialAccounts: user.socialAccounts ?? [],
-      token: {
-        accessToken: jwtAccessToken,
-        refreshToken,
-        expiresIn: 604800,
-      },
+      token: issueTokens({
+        userId: user.userId,
+        email: user.email,
+        tokenVersion: user.tokenVersion,
+      }),
     },
     isNewUser ? 201 : 200,
   );
