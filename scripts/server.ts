@@ -23,14 +23,17 @@ app.post('/data/auth/verification-code', (req, res) => {
   if (!email || (purpose !== 'register' && purpose !== 'reset')) {
     return res.status(400).json({ message: 'Email and purpose (register | reset) are required' });
   }
+  // 登録の有無で応答を変えない (TASK-104・アカウント列挙対策)。本番 Lambda と同じく
+  // 登録済み register は案内メール（コードなし）、未登録 reset はメールなしで、どちらも 200
   const exists = !!mockUsers.find((u) => u.email === email);
-  if (purpose === 'register' && exists) {
-    return res.status(409).json({ message: 'Email already in use' });
+  const sendsCode = purpose === 'register' ? !exists : exists;
+  if (sendsCode) {
+    console.log(`Mock verification code for ${email} (${purpose}): ${MOCK_VERIFICATION_CODE}`);
+  } else if (purpose === 'register') {
+    console.log(`Mock: ${email} is already registered -> "already registered" notice email (no code)`);
+  } else {
+    console.log(`Mock: ${email} is not registered -> no email sent (same 200 response)`);
   }
-  if (purpose === 'reset' && !exists) {
-    return res.status(404).json({ message: 'User not found' });
-  }
-  console.log(`Mock verification code for ${email} (${purpose}): ${MOCK_VERIFICATION_CODE}`);
   return res.json({ message: 'Verification code sent', expiresIn: 600, resendIn: 60 });
 });
 console.log('Mock endpoint ready: POST /data/auth/verification-code');
@@ -41,11 +44,13 @@ app.post('/data/auth/register', (req, res) => {
   if (!username || !email || !password || !code) {
     return res.status(400).json({ message: 'Username, email, password, and code are required' });
   }
-  if (mockUsers.find((u) => u.email === email)) {
-    return res.status(409).json({ message: 'Email already in use' });
-  }
+  // コード検証を重複チェックより先に行う (TASK-104)。本番ではコードなしに 409 へ到達できない
+  // （モックは固定コードのため、登録済みメール + 123456 では 409 になる）
   if (code !== MOCK_VERIFICATION_CODE) {
     return res.status(400).json({ message: 'Verification code check failed', reason: 'code_invalid' });
+  }
+  if (mockUsers.find((u) => u.email === email)) {
+    return res.status(409).json({ message: 'Email already in use' });
   }
   mockUsers.push({ email, password, username, thumbnail: null });
   return res.status(201).json({
@@ -91,12 +96,13 @@ app.post('/data/auth/reset-password', (req, res) => {
   if (!email || !newPassword || !code) {
     return res.status(400).json({ message: 'Email, new password, and code are required' });
   }
-  const user = mockUsers.find((u) => u.email === email);
-  if (!user) {
-    return res.status(404).json({ message: 'User not found' });
-  }
+  // コード検証をユーザー検索より先に行い、未登録でも 404 は返さない (TASK-104)
   if (code !== MOCK_VERIFICATION_CODE) {
     return res.status(400).json({ message: 'Verification code check failed', reason: 'code_invalid' });
+  }
+  const user = mockUsers.find((u) => u.email === email);
+  if (!user) {
+    return res.status(400).json({ message: 'Password reset failed' });
   }
   user.password = newPassword;
   return res.json({ message: 'Password reset successfully' });

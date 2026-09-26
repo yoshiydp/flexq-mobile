@@ -20,7 +20,10 @@ import {
 } from '@/constants/headerToolBarButtons';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { DefaultService } from '@/apiClient/services/DefaultService';
-import { verificationCodeFailureMessage } from '@/utils/verificationCode';
+import {
+  verificationCodeFailureMessage,
+  verificationSentNotice,
+} from '@/utils/verificationCode';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './PasswordResetScreen.styles';
@@ -77,10 +80,10 @@ export default function PasswordResetScreen() {
         Alert.alert('認証コードを再送しました', 'メールをご確認ください。');
       }
     } catch (err: any) {
+      // 未登録メールでも API は同じ 200 を返す（TASK-104・アカウント列挙対策）ため
+      // 404 の分岐はない（未登録の場合はメールが届かないだけ）
       const status = err?.status;
-      if (status === 404) {
-        Alert.alert('エラー', '該当のメールアドレスが見つかりません。');
-      } else if (status === 429) {
+      if (status === 429) {
         Alert.alert(
           'エラー',
           '認証コードを再送できるまで少しお待ちください。',
@@ -114,9 +117,8 @@ export default function PasswordResetScreen() {
       const codeMessage = verificationCodeFailureMessage(err?.body?.reason);
       if (codeMessage) {
         Alert.alert('エラー', codeMessage);
-      } else if (err?.status === 404) {
-        Alert.alert('エラー', '該当のメールアドレスが見つかりません。');
       } else {
+        // 未登録メールは 404 ではなく汎用の 400 になる（TASK-104）ので一般エラーに含める
         Alert.alert('エラー', 'パスワードのリセットに失敗しました。');
       }
       return;
@@ -168,7 +170,7 @@ export default function PasswordResetScreen() {
           <>
             <View style={styles.formContainer}>
               <Text style={styles.notice}>
-                {`${email} 宛に 6 桁の認証コードを送信しました。\nコードと新しいパスワードを入力してください。`}
+                {verificationSentNotice('reset', email)}
               </Text>
               <EditableFormControl
                 key={`code-${codeFieldKey}`}

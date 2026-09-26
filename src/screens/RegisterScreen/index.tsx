@@ -19,7 +19,10 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { PLACEHOLDERS } from '@/constants/placeholders';
-import { verificationCodeFailureMessage } from '@/utils/verificationCode';
+import {
+  verificationCodeFailureMessage,
+  verificationSentNotice,
+} from '@/utils/verificationCode';
 import type { RootStackParamList } from '@/navigation/types';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './RegisterScreen.styles';
@@ -93,10 +96,10 @@ export default function RegisterScreen() {
         Alert.alert('認証コードを再送しました', 'メールをご確認ください。');
       }
     } catch (err: any) {
+      // 登録済みメールでも API は同じ 200 を返す（TASK-104・アカウント列挙対策）ため
+      // 409 の分岐はない。本人には「登録済み」の案内メールが届く
       const status = err?.status;
-      if (status === 409) {
-        Alert.alert('エラー', 'このメールアドレスはすでに登録されています。');
-      } else if (status === 429) {
+      if (status === 429) {
         Alert.alert(
           'エラー',
           '認証コードを再送できるまで少しお待ちください。',
@@ -242,7 +245,7 @@ export default function RegisterScreen() {
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
           <View style={styles.formContainer}>
             <Text style={styles.verifyNotice}>
-              {`${email} 宛に 6 桁の認証コードを送信しました。\nメールに記載されたコードを入力してください。`}
+              {verificationSentNotice('register', email)}
             </Text>
             <EditableFormControl
               key={`code-${codeFieldKey}`}
