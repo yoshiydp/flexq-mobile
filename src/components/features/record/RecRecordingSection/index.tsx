@@ -1,6 +1,7 @@
 import React, { useRef, useState, useEffect, useCallback } from 'react';
 import { Pressable, View, Text, Animated, Alert, AppState, Platform } from 'react-native';
 import { Audio, InterruptionModeAndroid } from 'expo-av';
+import { useKeepAwake } from 'expo-keep-awake';
 import { runBounce } from '@/utils/animations';
 import { RECORDING_OPTIONS_HIGH_QUALITY } from '@/utils/recordingOptions';
 import { REC_PERMISSION_MESSAGES } from '@/constants/messages';
@@ -77,6 +78,11 @@ export default function RecRecordingSection({
   const onAbortRef = useRef(onAbort);
   onAbortRef.current = onAbort;
 
+  // 録音中（カウントダウン〜停止）は画面の自動ロックを抑止する。自動ロックが入ると
+  // アプリがバックグラウンドへ移り、長いテイクの途中で録音の継続条件が OS 任せになる
+  // ため、まず自動ロック自体を起こさない (TASK-111)
+  useKeepAwake();
+
   // アンマウント時に音源とフォアグラウンド復帰待ちを必ずクリーンアップ
   useEffect(() => {
     return () => {
@@ -95,6 +101,8 @@ export default function RecRecordingSection({
       Audio.setAudioModeAsync({
         allowsRecordingIOS: false,
         playsInSilentModeIOS: true,
+        // 録音中だけ有効にしたバックグラウンド継続も解除する (TASK-111)
+        staysActiveInBackground: false,
         shouldDuckAndroid: true,
         interruptionModeAndroid: InterruptionModeAndroid.DuckOthers,
       }).catch(() => {});
@@ -149,6 +157,24 @@ export default function RecRecordingSection({
     return () => clearInterval(interval);
   }, [isRunning]);
 
+  // バックグラウンド（画面ロック・ホーム遷移）中は JS のタイマーが間引かれ、表示の
+  // 経過時間が実時間より遅れる。録音自体は続いているため、フォアグラウンド復帰時に
+  // 録音側が報告する経過時間で表示を合わせ直す (TASK-111)
+  useEffect(() => {
+    if (!isRunning) return;
+    const subscription = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      recordingRef.current
+        ?.getStatusAsync()
+        .then((status) => {
+          if (!isMountedRef.current || !status.isRecording) return;
+          setTimer(status.durationMillis);
+        })
+        .catch(() => {});
+    });
+    return () => subscription.remove();
+  }, [isRunning]);
+
   const startRecording = useCallback(async () => {
     // アプリがフォアグラウンド（active）になるまで待つ。
     // マイク許可ダイアログの応答直後は inactive → active の遷移中で
@@ -189,6 +215,13 @@ export default function RecRecordingSection({
       await Audio.setAudioModeAsync({
         allowsRecordingIOS: true,
         playsInSilentModeIOS: true,
+        // iOS: 画面ロック・ホーム遷移でも録音とトラック再生を継続する (TASK-111)。
+        // expo-av は false のままバックグラウンドへ入ると音声セッションを停止して
+        // 全録音・全再生を止める。前提の Info.plist `UIBackgroundModes: ["audio"]` は
+        // react-native-audio-api の設定プラグインが追加済み。playsInSilentModeIOS: true
+        // との組み合わせが必須（false との同時指定は expo-av が拒否する）。
+        // Android のバックグラウンド挙動は TASK-112 で扱うため false のまま
+        staysActiveInBackground: Platform.OS === 'ios',
         shouldDuckAndroid: false,
         // 録音中は他アプリと音声をミックスせず、音声フォーカスを専有する
         interruptionModeAndroid: InterruptionModeAndroid.DoNotMix,
@@ -437,9 +470,17 @@ export default function RecRecordingSection({
         return;
       }
 
+      // 保存する長さは表示用タイマー（バックグラウンド中に間引かれ得る JS の
+      // setInterval）ではなく録音側が報告する経過時間を優先する。iOS は停止後の
+      // ステータスで durationMillis が 0 に戻るため、停止前に取得する (TASK-111)
+      const status = await recording.getStatusAsync().catch(() => null);
       await recording.stopAndUnloadAsync();
       const uri = recording.getURI() || '';
-      onStop(timer, uri, measuredStartPositionMsRef.current ?? undefined);
+      const durationMs =
+        status?.isRecording && status.durationMillis > 0
+          ? status.durationMillis
+          : timer;
+      onStop(durationMs, uri, measuredStartPositionMsRef.current ?? undefined);
 
       Animated.parallel([
         runBounce(outerScale),

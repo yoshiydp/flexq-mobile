@@ -250,6 +250,7 @@ RecordPlayer「AI クリーンアップ」
 - **出力形式は wav 固定 + Lambda 側で位置合わせ（TASK-44。変更しないこと）**: demucs は入力 m4a の AAC priming（先頭無音 2112 サンプル ≈48ms）を含めてデコードするため、mp3/flac/wav のどれを選んでも出力の頭に無音が残り、トラックとの同時再生で声が一定時間遅れる。wav で受けて保存時に `audio-align.ts` が「出力の長さ − 元録音の長さ」を先頭からトリムし、16-bit PCM 化（サイズは 24-bit flac と同程度）して保存する。位置合わせ済みレコードには `separationAligned: true` が付き、フラグのない古い分離音源（mp3 / flac 移行期）は API が未処理（none）として返すので「AI クリーンアップ」ボタンから再生成できる（完了時に旧ファイルは削除される）
 - 本来の denoise 候補だった `resemble-enhance` は **m4a コンテナ自体を読めない**（wav / mp3 / flac のみ）ため demucs で代用中。専用モデルに戻す場合は `ReplicateDenoiseModel` を差し替える（`inputFor` がモデル名で入力スキーマを切り替える）
 - **iOS 録音は AAC 必須**: `src/utils/recordingOptions.ts` の `outputFormat: Audio.IOSOutputFormat.MPEG4AAC` を削除しないこと。未指定だと PCM-in-M4A という特殊形式になり全モデルが読めず、ファイルサイズも約 5 倍になる（TASK-42 で修正）。**AAC 化以前の録音は AI クリーンアップ不可**（failed 遷移 → 再実行可能）
+- **iOS の録音は画面ロック・バックグラウンドでも継続する（TASK-111）**: `RecRecordingSection` の録音モード（`Audio.setAudioModeAsync`）で `staysActiveInBackground: true`（iOS のみ）を指定し、アンマウント時に false へ戻す。expo-av は false のままバックグラウンドへ入ると音声セッションを停止して全録音・全再生を止める。前提の Info.plist `UIBackgroundModes: ["audio"]` は react-native-audio-api の設定プラグイン（既定 `iosBackgroundMode: true`）が追加している（runtimeVersion 1.1.0 以降のビルドに含まれる）ため専用のネイティブ変更は不要。録音中は `expo-keep-awake` の `useKeepAwake()` で自動ロックを抑止し、復帰時・停止時の長さは録音側の `durationMillis` で合わせる（JS タイマーはバックグラウンドで間引かれる）。Android のバックグラウンド録音は TASK-112 で扱う（`staysActiveInBackground` は false のまま）
 
 #### Replicate アカウント・トークンのセットアップ
 
