@@ -66,6 +66,19 @@ export const REC_PERMISSION_MESSAGES = {
 export const HEADPHONE_LABELS = {
   wired: '有線イヤホン接続中',
   bluetooth: 'Bluetoothイヤホン接続中',
+  // Android 12+ で「付近のデバイス」が未許可のときの表示（TASK-115）
+  bluetoothDetectionOff: 'Bluetooth 検知オフ',
+  bluetoothDetectionOffHint:
+    '端末の設定で「付近のデバイス」を許可すると Bluetooth イヤホンを検知できます',
+};
+
+// Android 12+ の BLUETOOTH_CONNECT 権限ダイアログの前に出す事前説明（TASK-115）
+export const BLUETOOTH_PERMISSION_MESSAGES = {
+  rationaleTitle: 'Bluetooth イヤホンの検知',
+  rationaleBody:
+    'Bluetooth イヤホンの接続を検知して録音の同期補正に使います。次の画面で「付近のデバイス」へのアクセスを許可してください。',
+  allow: '許可する',
+  notNow: '今はしない',
 };
 
 export const SYNC_PLAYBACK_LABELS = {

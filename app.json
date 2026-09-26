@@ -30,6 +30,7 @@
         "backgroundColor": "#6C3483"
       },
       "edgeToEdgeEnabled": true,
+      "allowBackup": false,
       "package": "com.yoshiydp.lyricsapp",
       "scheme": "com.yoshiydp.lyricsapp",
       "permissions": [
