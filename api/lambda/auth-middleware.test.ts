@@ -174,14 +174,18 @@ describe('verifyToken の tokenVersion 照合', () => {
     expect(mockSend).toHaveBeenCalledTimes(2);
   });
 
-  it('DB を引き直しても tv が保存値より新しいまま（偽装など）なら拒否する', async () => {
+  it('DB を引き直しても tv が保存値より新しいままなら許可する（結果整合の読み取り遅れ）', async () => {
+    // tv は署名済み JWT の中身なので攻撃者が水増しできず、値を決めるのは
+    // トークンを発行したサーバーだけ。保存値が小さいのは GetItem（既定で
+    // 結果整合）や login / google の GSI 経由の読み取りが遅れている場合で、
+    // ここで拒否すると発行したばかりのトークンを 401 にしてしまう
     const userId = nextUserId();
     setUserItem({ tokenVersion: 1 });
     await verifyToken(eventFor({ userId, email: 'a@b', tv: 1 }));
 
     const result = await verifyToken(eventFor({ userId, email: 'a@b', tv: 5 }));
 
-    expect(result).toBeNull();
+    expect(result).toMatchObject({ userId, tv: 5 });
     expect(mockSend).toHaveBeenCalledTimes(2);
   });
 

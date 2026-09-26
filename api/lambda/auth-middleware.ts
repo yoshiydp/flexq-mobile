@@ -2,7 +2,7 @@ import * as jwt from 'jsonwebtoken';
 import { GetCommand } from '@aws-sdk/lib-dynamodb';
 import { docClient } from './db';
 import { createTtlCache, isSuspendedUser } from './account-suspension';
-import { getTokenVersion, isTokenVersionCurrent } from './auth-tokens';
+import { getTokenVersion, isTokenVersionRevoked } from './auth-tokens';
 
 export interface TokenPayload {
   userId: string;
@@ -103,7 +103,7 @@ export async function verifyToken(event: any): Promise<TokenPayload | null> {
       userStateCache.set(payload.userId, state);
     }
     if (state.suspended) return null;
-    if (state.exists && !isTokenVersionCurrent(payload, state)) return null;
+    if (state.exists && isTokenVersionRevoked(payload, state)) return null;
   } catch (err) {
     console.warn('User status check failed (fail-open):', err);
   }

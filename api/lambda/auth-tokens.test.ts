@@ -5,8 +5,9 @@
  * 差し替え、sign に渡された payload / オプションを検証する。
  */
 import {
+  getClaimedTokenVersion,
   getTokenVersion,
-  isTokenVersionCurrent,
+  isTokenVersionRevoked,
   issueTokens,
 } from './auth-tokens';
 
@@ -33,26 +34,42 @@ describe('getTokenVersion', () => {
   });
 });
 
-describe('isTokenVersionCurrent', () => {
-  it('tv とユーザーの tokenVersion が一致すれば有効', () => {
-    expect(isTokenVersionCurrent({ tv: 2 }, { tokenVersion: 2 })).toBe(true);
+describe('getClaimedTokenVersion', () => {
+  it('数値の tv をそのまま返す', () => {
+    expect(getClaimedTokenVersion({ tv: 3 })).toBe(3);
+    expect(getClaimedTokenVersion({ tv: 0 })).toBe(0);
   });
 
-  it('tv とユーザーの tokenVersion が不一致なら失効', () => {
-    expect(isTokenVersionCurrent({ tv: 1 }, { tokenVersion: 2 })).toBe(false);
-    expect(isTokenVersionCurrent({ tv: 2 }, { tokenVersion: 1 })).toBe(false);
+  it('tv なし・payload なし・数値以外は 0 扱い（旧仕様のトークン互換）', () => {
+    expect(getClaimedTokenVersion({})).toBe(0);
+    expect(getClaimedTokenVersion(null)).toBe(0);
+    expect(getClaimedTokenVersion(undefined)).toBe(0);
+    expect(getClaimedTokenVersion({ tv: '2' })).toBe(0);
+    expect(getClaimedTokenVersion({ tv: NaN })).toBe(0);
+  });
+});
+
+describe('isTokenVersionRevoked', () => {
+  it('tv とユーザーの tokenVersion が一致すれば失効していない', () => {
+    expect(isTokenVersionRevoked({ tv: 2 }, { tokenVersion: 2 })).toBe(false);
+  });
+
+  it('tv が保存値より古ければ失効（ログアウト・パスワードリセット後の旧トークン）', () => {
+    expect(isTokenVersionRevoked({ tv: 1 }, { tokenVersion: 2 })).toBe(true);
+  });
+
+  it('tv が保存値より新しい場合は失効扱いにしない（読み取った保存値が古いだけ）', () => {
+    // tv は署名済み JWT の中身なので水増しできず、値を決めるのは発行した
+    // サーバーだけ。保存値が小さいのは結果整合の読み取り遅れを意味する
+    expect(isTokenVersionRevoked({ tv: 2 }, { tokenVersion: 1 })).toBe(false);
+    expect(isTokenVersionRevoked({ tv: 1 }, {})).toBe(false);
   });
 
   it('tv なしの旧トークンは tokenVersion が 0（属性なし含む）の間だけ有効', () => {
-    expect(isTokenVersionCurrent({}, {})).toBe(true);
-    expect(isTokenVersionCurrent({}, { tokenVersion: 0 })).toBe(true);
-    expect(isTokenVersionCurrent(null, {})).toBe(true);
-    expect(isTokenVersionCurrent({}, { tokenVersion: 1 })).toBe(false);
-  });
-
-  it('tv ありのトークンは tokenVersion 属性なし（0）のユーザーでは 0 のときだけ有効', () => {
-    expect(isTokenVersionCurrent({ tv: 0 }, {})).toBe(true);
-    expect(isTokenVersionCurrent({ tv: 1 }, {})).toBe(false);
+    expect(isTokenVersionRevoked({}, {})).toBe(false);
+    expect(isTokenVersionRevoked({}, { tokenVersion: 0 })).toBe(false);
+    expect(isTokenVersionRevoked(null, {})).toBe(false);
+    expect(isTokenVersionRevoked({}, { tokenVersion: 1 })).toBe(true);
   });
 });
 

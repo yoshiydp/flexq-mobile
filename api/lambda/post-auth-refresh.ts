@@ -3,7 +3,7 @@ import * as jwt from 'jsonwebtoken';
 import { docClient } from './db';
 import { createResponse } from './utils';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
-import { isTokenVersionCurrent, issueTokens } from './auth-tokens';
+import { isTokenVersionRevoked, issueTokens } from './auth-tokens';
 
 interface RefreshTokenPayload {
   userId?: string;
@@ -57,7 +57,7 @@ export const handler = async (event: any) => {
   // ログアウト・パスワードリセットで tokenVersion が進んだ後の refreshToken は
   // 失効済みとして拒否する (TASK-105)。tv なしの旧トークンは tokenVersion が
   // 0 の間だけ有効
-  if (!isTokenVersionCurrent(payload, user)) {
+  if (isTokenVersionRevoked(payload, user)) {
     return createResponse({ message: 'Invalid refresh token' }, 401);
   }
 

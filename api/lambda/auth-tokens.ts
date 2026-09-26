@@ -43,16 +43,30 @@ export function getTokenVersion(
   return typeof value === 'number' && Number.isFinite(value) ? value : 0;
 }
 
-/** トークンの tv クレームがユーザーの現在の tokenVersion と一致するか。tv なしは 0 扱い */
-export function isTokenVersionCurrent(
+/** トークンの tv クレーム。未設定・数値以外（旧仕様のトークン）は 0 扱い */
+export function getClaimedTokenVersion(
+  payload: TokenVersionClaim | null | undefined,
+): number {
+  const value = payload?.tv;
+  return typeof value === 'number' && Number.isFinite(value) ? value : 0;
+}
+
+/**
+ * トークンが失効済みか（tv クレームが保存値より古いか）。
+ *
+ * 完全一致ではなく「保存値より古いか」で判定する。`tv` は署名済み JWT の
+ * 中身なので攻撃者が水増しできず、値を決めるのはトークンを発行したサーバー
+ * だけなので、`claimed > stored` は「読み取った保存値が古い」ことしか意味
+ * しない。DynamoDB の GetItem は既定で結果整合で、login / google は GSI
+ * （強整合読み取り不可）経由で tokenVersion を読むため、失効操作の直後は
+ * 発行側が新しい値・検証側が古い値を読む窓がある。ここで完全一致を求めると
+ * 発行したばかりのトークンを 401 にしてしまうため、その向きは許容する。
+ */
+export function isTokenVersionRevoked(
   payload: TokenVersionClaim | null | undefined,
   user: TokenVersionRecord | null | undefined,
 ): boolean {
-  const claimed =
-    typeof payload?.tv === 'number' && Number.isFinite(payload.tv)
-      ? payload.tv
-      : 0;
-  return claimed === getTokenVersion(user);
+  return getClaimedTokenVersion(payload) < getTokenVersion(user);
 }
 
 /**
