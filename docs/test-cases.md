@@ -372,12 +372,12 @@ PROFILE タブの右上にある編集(鉛筆)アイコンから開きます。G
 | SK-01 | 他ユーザーの S3 キーの拒否 | 他ユーザーのプレフィックス（`tracks/<他人>/…` など）・パストラバーサル（`../`）・カテゴリ違いのキーを post-track / post-record / post-project / put-project / put-profile に送る | すべて 400（`Invalid s3Key` など）で拒否され、登録されない。**E2E 自動化済み** |
 | SK-02 | 存在しない trackId での作成 | 存在しない `trackId` を指定してプロジェクトを作成し、トラック一覧を取得する | プロジェクトは作成されるが、トラック一覧に title も音源もない壊れた項目は作られない。**E2E 自動化済み**(SK-01 内で確認) |
 | SK-03 | 正常系の非退行 | 自分のキーでトラック追加・録音保存・プロジェクト作成・アートワーク変更・プロフィール画像変更を行う | 従来どおり成功する(TL-02 / QR-01 / NP-05 / AP-07 / PD-03 で確認。E2E は QR-01 / PE-11 が兼ねる) |
-| SK-04 | タイトル・名前の文字数上限 | 256 文字以上の文字列を `title`（post-track / put-track / post-memo / put-memo）・`projectName` / `trackName`（post-project / put-project）に送る | 400 `{ "message": "<項目名> is too long" }` で拒否され、保存されない。255 文字ちょうどは成功する |
-| SK-05 | 本文（リッチテキスト）の文字数上限 | 100,001 文字以上の文字列を `body`（post-memo / put-memo / put-project）に送る | 400 `{ "message": "body is too long" }` で拒否される。100,000 文字ちょうどは成功する |
-| SK-06 | プロフィール名の文字数上限 | 101 文字以上の `username` を put-profile / post-auth-register に送る | 400 `{ "message": "username is too long" }` で拒否される。100 文字ちょうどは成功する（PD-01 の通常の名前変更は従来どおり） |
-| SK-07 | メール形式の検証（新規登録） | `@` なし・ドメインのドットなし・空白入り・255 文字以上のメールアドレスで post-auth-register を呼ぶ | 400 `{ "message": "Invalid email format" }` で拒否され、認証コードも消費されない。通常のアドレス（RG-03）は従来どおり成功する |
-| SK-08 | パスワードの長さ（新規登録・リセット） | 7 文字以下・129 文字以上のパスワードで post-auth-register / post-auth-reset-password を呼ぶ | 400 `{ "message": "Password must be 8-128 characters" }` で拒否され、認証コードも消費されない。8 文字・128 文字は成功する。既存アカウントのログイン（SI-04）には影響しない。アプリの画面は汎用エラー（「登録に失敗しました。」など）を表示する |
-| SK-09 | 上限以下の非退行 | 通常の長さで新規登録・プロフィール名変更・メモ作成/更新・プロジェクト作成/歌詞保存・トラック名変更を行う | 従来どおり成功する(RG-03 / PD-01 / QM-05 / QM-06 / NP-05 / PE-01 / PE-08 / TL-09 で確認) |
+| SK-06 | タイトル・名前の文字数上限 | 256 文字以上の文字列を `title`（post-track / put-track / post-memo / put-memo）・`projectName` / `trackName`（post-project / put-project）に送る | 400 `{ "message": "<項目名> is too long" }` で拒否され、保存されない。255 文字ちょうどは成功する |
+| SK-07 | 本文（リッチテキスト）の文字数上限 | 100,001 文字以上の文字列を `body`（post-memo / put-memo / put-project）に送る | 400 `{ "message": "body is too long" }` で拒否される。100,000 文字ちょうどは成功する |
+| SK-08 | プロフィール名の文字数上限 | 101 文字以上の `username` を put-profile / post-auth-register に送る | 400 `{ "message": "username is too long" }` で拒否される。100 文字ちょうどは成功する（PD-01 の通常の名前変更は従来どおり） |
+| SK-09 | メール形式の検証（新規登録） | `@` なし・ドメインのドットなし・空白入り・255 文字以上のメールアドレスで post-auth-register を呼ぶ | 400 `{ "message": "Invalid email format" }` で拒否され、認証コードも消費されない。通常のアドレス（RG-03）は従来どおり成功する |
+| SK-10 | パスワードの長さ（新規登録・リセット） | 7 文字以下・129 文字以上のパスワードで post-auth-register / post-auth-reset-password を呼ぶ | 400 `{ "message": "Password must be 8-128 characters" }` で拒否され、認証コードも消費されない。8 文字・128 文字は成功する。既存アカウントのログイン（SI-04）には影響しない。アプリの画面は汎用エラー（「登録に失敗しました。」など）を表示する |
+| SK-11 | 上限以下の非退行 | 通常の長さで新規登録・プロフィール名変更・メモ作成/更新・プロジェクト作成/歌詞保存・トラック名変更を行う | 従来どおり成功する(RG-03 / PD-01 / QM-05 / QM-06 / NP-05 / PE-01 / PE-08 / TL-09 で確認) |
 
 ---
 
