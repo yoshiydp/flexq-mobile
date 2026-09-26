@@ -353,6 +353,7 @@ export default function NewProjectScreen() {
                 source={{ uri: artworkUri }}
                 style={[styles.artworkImage, { opacity: artworkImageOpacity }]}
                 onLoadEnd={handleArtworkLoadEnd}
+                testID="new-project-artwork"
               />
               {artworkLoading && (
                 <Animated.View style={[styles.artworkImageLoading, { opacity: artworkSpinnerOpacity }]}>
@@ -361,7 +362,10 @@ export default function NewProjectScreen() {
               )}
             </View>
           ) : (
-            <View style={styles.artworkPlaceholder}>
+            <View
+              style={styles.artworkPlaceholder}
+              testID="new-project-artwork-placeholder"
+            >
               <Icon
                 component={FontAwesome}
                 name="music"
@@ -382,6 +386,7 @@ export default function NewProjectScreen() {
       <SubmitButton
         containerClassName={styles.submitButton}
         label="CREATE"
+        testID="new-project-create-button"
         onPress={handleCreate}
         disabled={!title.trim() || (!pendingAudio && !selectedTrack)}
       />
@@ -398,10 +403,11 @@ export default function NewProjectScreen() {
             <FlatList
               data={tracks}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <Pressable
                   style={styles.trackItem}
                   onPress={() => handleSelectExistingTrack(item)}
+                  testID={`track-picker-item-${index}`}
                 >
                   {item.artwork ? (
                     <View style={styles.trackItemArtwork}>

@@ -89,7 +89,7 @@ const enterTitleAndCreate = async (utils: any) => {
     'New Project',
   );
   await act(async () => {
-    fireEvent.press(utils.getByTestId('submit-button'));
+    fireEvent.press(utils.getByTestId('new-project-create-button'));
   });
 };
 

@@ -1,0 +1,99 @@
+# ID: NP-07
+# シナリオ名: 既存トラック + アートワーク変更でプロジェクトを作成する
+# 前提条件: dev API に接続できること・demo アカウントにアートワーク未設定のトラックが
+#           1 件以上あること（フロー内の API セットアップで対象トラックを
+#           トラック選択モーダルの先頭に表示させる）
+#           iOS シミュレーターの写真ライブラリに画像が 1 枚以上あること
+#           （`xcrun simctl addmedia <udid> <画像>` で追加できる）
+# 操作手順: ログイン → NEW PROJECT → FROM TRACK LIST で先頭のトラックを選ぶ
+#           → CHANGE ARTWORK で写真を選ぶ → タイトルを入力 → CREATE
+# 期待結果: 選んだ画像がアートワークとしてプロジェクトに保存される
+#           （API 検証で artworkKey 由来の artwork が返ること・
+#             選んだ既存トラック側のアートワークは変わらないこと）
+# 備考: 修正前は handleCreate のアートワークアップロードが「UPLOAD NEW」の分岐の
+#       中にしかなく、この経路では保存されずデフォルト画像になっていた (TASK-122)。
+#       アートワーク「未設定」のトラックを使うのが重要で、設定済みトラックだと
+#       サーバー側のトラック artworkKey フォールバックで表示されてしまい判別できない。
+#       写真ピッカーは OS のネイティブ UI のため、iOS のみを対象にしている
+#       （Android の写真ピッカーは別 UI のため、手動確認: docs/test-cases.md NP-07）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - NP
+  - NP-07
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+  NP07_PROJECT_NAME: 'e2e-np07'
+---
+# データ準備（残骸の削除 + アートワーク未設定のトラックを一覧先頭に出す）
+- runScript: ../../scripts/np07-setup.js
+
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# 新規プロジェクト作成画面へ
+- tapOn:
+    id: 'header-action-button'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'NEW PROJECT'
+
+# 既存トラックを選ぶ（セットアップで先頭に出した artwork 未設定のトラック）
+- tapOn: 'FROM TRACK LIST'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: 'SELECT TRACK'
+- tapOn:
+    id: 'track-picker-item-0'
+- waitForAnimationToEnd:
+    timeout: 3000
+# トラックにアートワークがないため、この時点ではプレースホルダーのままであること
+- assertVisible:
+    id: 'new-project-artwork-placeholder'
+
+# アートワークを写真から選ぶ（OS のネイティブ写真ピッカー = PHPicker）
+# ※ PHPicker は写真へのアクセス許可を必要としないため、許可ダイアログは出ない
+- tapOn: 'CHANGE ARTWORK'
+- extendedWaitUntil:
+    visible:
+      id: 'PXGGridLayout-Info'
+    timeout: 20000
+# 先頭（最も新しい）の写真を選ぶ
+- tapOn:
+    id: 'PXGGridLayout-Info'
+    index: 0
+# allowsEditing: true のためトリミング画面（Move and Scale）が開く。
+# この画面はシステム言語に関わらず英語表記になることがあるため両方を拾う
+- extendedWaitUntil:
+    visible: '(選択|Choose)'
+    timeout: 15000
+- tapOn: '(選択|Choose)'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# アートワークが画面に反映されたこと（プレースホルダーではなくなる）
+- extendedWaitUntil:
+    visible:
+      id: 'new-project-artwork'
+    timeout: 15000
+- assertNotVisible:
+    id: 'new-project-artwork-placeholder'
+
+# タイトルを入力して作成
+- tapOn: 'プロジェクト名を入力してください'
+- inputText: 'e2e-np07 artwork'
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn:
+    id: 'new-project-create-button'
+
+# 作成後はプロジェクト編集画面へ遷移する（アップロードを含むため長めに待つ）。
+# 「REC MODE」ボタンは Pressable に子テキストがグループ化されて完全一致しないため、
+# 作成したプロジェクト名で遷移先を判定する
+- extendedWaitUntil:
+    visible: 'e2e-np07 artwork'
+    timeout: 60000
+
+# API 検証 + 後始末（作成したプロジェクトに artwork が保存されていること）
+- runScript: ../../scripts/np07-verify.js
