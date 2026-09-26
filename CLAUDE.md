@@ -130,6 +130,8 @@ API クライアント (`src/apiClient/`) は `openapi-typescript-codegen` で**
 
 モックサーバー (`yarn mock:server`) は `src/data/*.ts` のデータを Express でローカルに配信します。
 
+> **依存の置き場所:** モックサーバー・生成スクリプト専用のパッケージ（`express` / `cors` / `swagger-ui-express` / `yamljs` / `js-yaml`）は `devDependencies` に置く。`dependencies` はアプリ（Metro バンドル）が実際に import するものだけにし、未使用パッケージは削除する（TASK-110。`yarn npm audit --environment production --severity high` を 0 件に保つ）。
+
 ### AWS API Gateway
 
 AWS Lambda + API Gateway は **dev / staging / production の 3 環境**に分離されています。
