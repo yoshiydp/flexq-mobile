@@ -1,5 +1,4 @@
-import * as FileSystem from 'expo-file-system';
-import { EncodingType } from 'expo-file-system';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 
 const TARGET_BARS = 300;
 const MAX_READ_BYTES = 512 * 1024; // 500KB
@@ -83,7 +82,7 @@ export async function generateWaveform(
     // base64 は元サイズの約4/3。500KB分を読むため約680KB文字を使用
     const MAX_BASE64_CHARS = Math.ceil((MAX_READ_BYTES * 4) / 3);
 
-    const fullBase64 = await FileSystem.readAsStringAsync(uri, {
+    const fullBase64 = await readAsStringAsync(uri, {
       encoding: EncodingType.Base64,
     });
 
