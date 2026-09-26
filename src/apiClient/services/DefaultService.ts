@@ -173,7 +173,6 @@ export class DefaultService {
     public static updateProfile(
         requestBody: {
             username?: string;
-            email?: string;
             thumbnailKey?: string;
             socialAccounts?: Array<{
                 provider?: string;
