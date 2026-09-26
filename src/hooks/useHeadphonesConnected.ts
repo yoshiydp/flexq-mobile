@@ -163,9 +163,16 @@ const ensureBluetoothPermission = (): Promise<void> => {
         setBluetoothDetectionStatus('granted');
         return;
       }
-      const prompted = await AsyncStorage.getItem(
-        BLUETOOTH_PERMISSION_PROMPTED_KEY,
-      );
+      let prompted: string | null = null;
+      try {
+        prompted = await AsyncStorage.getItem(
+          BLUETOOTH_PERMISSION_PROMPTED_KEY,
+        );
+      } catch {
+        // 読み込みに失敗した場合は未説明として扱う（記録の有無が不明なため、
+        // 検知が有効にならないまま黙って終わるより説明を出すほうが無害）
+        prompted = null;
+      }
       if (prompted !== null) {
         setBluetoothDetectionStatus('denied');
         return;

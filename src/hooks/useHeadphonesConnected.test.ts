@@ -405,6 +405,24 @@ describe('useHeadphonesConnected', () => {
       expect(checkSpy).toHaveBeenCalledTimes(2);
     });
 
+    it('説明済みの記録の読み込みに失敗した場合は未説明として説明を表示する', async () => {
+      useAndroid();
+      answerRationale('許可する');
+      const getItemSpy = jest
+        .spyOn(AsyncStorage, 'getItem')
+        .mockRejectedValue(new Error('storage unavailable'));
+
+      mockConnection(false, true);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(result.current).toBe('bluetooth'));
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+      expect(status.result.current).toBe('granted');
+      getItemSpy.mockRestore();
+    });
+
     it('権限の確認自体が失敗しても検知は続行される', async () => {
       useAndroid();
       checkSpy.mockRejectedValue(new Error('check failed'));
