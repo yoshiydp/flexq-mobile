@@ -541,7 +541,8 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 - 各フローは docs/test-cases.md のケース ID を代表 ID としてヘッダーコメント（ID / シナリオ名 / 前提条件 / 操作手順 / 期待結果 / 備考）に記載し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
 - 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）。作成に外部 API の実行（Replicate 等）が必要なデータは demo アカウントの既存サンプルを読み取り専用で使い、`updatedAt` の更新やブックマークで一覧先頭に出す（例: `sy05-setup.js`）
 - リスト項目の `Pressable` は子テキストがグループ化され、ラベルが「タイトル, 日付 …」の連結になるため `'.*タイトル.*'` の部分一致で探す。表示領域の狭い内側の ScrollView では枠外の項目も階層上は「表示中」扱いになり `scrollUntilVisible` → `tapOn` が枠外をタップして失敗するため、対象を先頭に出す前提データにする
-- ネイティブ UI（DocumentPicker / ImagePicker など）を伴う操作は E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
+- ネイティブ UI を伴う操作のうち、**iOS の写真ピッカー（PHPicker）は Maestro から操作できる**ため自動化している（`07-new-project/NP-07`）。グリッドの写真は `id: PXGGridLayout-Info` + `index` で選び、`allowsEditing: true` のトリミング画面は `(選択|Choose)` をタップする（トリミング画面は端末が日本語でも英語表記になることがある）。事前にシミュレーターへ画像を入れておくこと（`xcrun simctl addmedia <udid> <画像>`）
+- DocumentPicker（ファイル選択）と Android の写真ピッカーは E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
 
 **実行前提:**
 - `yarn start` で開発サーバーを起動済み（dev 環境に接続）。非対話で起動する場合は `CI=1 npx expo start`（ファイル監視なし。ソース変更後は再起動が必要）

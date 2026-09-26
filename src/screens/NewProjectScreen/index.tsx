@@ -29,6 +29,7 @@ import {
 } from '@/constants/headerToolBarButtons';
 import { useFetchTrack, TrackType } from '@/hooks/useFetchTrack';
 import { readId3Artwork } from '@/utils/readId3Artwork';
+import { uploadBase64ToS3, uploadFileToS3 } from '@/utils/uploadToS3';
 import { generateWaveform } from '@/utils/generateWaveform';
 import {
   setPendingWaveformData,
@@ -44,32 +45,29 @@ type PendingAudio = {
   ext: string;
 };
 
-async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
-  const fileResponse = await fetch(uri);
-  const blob = await fileResponse.blob();
-  await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: blob,
-  });
-}
+/**
+ * アートワークの出自。CREATE 時に S3 へアップロードすべきかを判別するために保持する。
+ * - none:   未設定（デフォルト画像のまま）
+ * - id3:    選んだ音源の ID3 タグから取り出した data URI（アップロードが必要）
+ * - track:  既存トラックのアートワーク（Presigned URL。アップロード不要）
+ * - picked: ユーザーが写真から選んだローカル画像（アップロードが必要）
+ */
+type ArtworkSource = 'none' | 'id3' | 'track' | 'picked';
 
-async function uploadBase64ToS3(
-  uploadUrl: string,
-  dataUri: string,
-  contentType: string,
-) {
-  const base64 = dataUri.split(',')[1];
-  const binary = atob(base64);
-  const bytes = new Uint8Array(binary.length);
-  for (let i = 0; i < binary.length; i++) {
-    bytes[i] = binary.charCodeAt(i);
-  }
-  await fetch(uploadUrl, {
-    method: 'PUT',
-    headers: { 'Content-Type': contentType },
-    body: bytes.buffer,
-  });
+/**
+ * S3 へ送るアートワークの拡張子と Content-Type。
+ *
+ * get-track-upload-url が受け付けるのは jpg / jpeg / png のみ。ImagePicker は端末に
+ * よって webp / heic などを返すことがあり、その拡張子をそのまま渡すと 400 になるため
+ * png 以外はすべて jpg として扱う。
+ */
+function resolveArtworkFormat(uri: string, isDataUri: boolean) {
+  const isPng = isDataUri
+    ? uri.startsWith('data:image/png')
+    : uri.split('?')[0].split('.').pop()?.toLowerCase() === 'png';
+  return isPng
+    ? { ext: 'png', contentType: 'image/png' }
+    : { ext: 'jpg', contentType: 'image/jpeg' };
 }
 
 export default function NewProjectScreen() {
@@ -84,7 +82,7 @@ export default function NewProjectScreen() {
   const [pendingAudio, setPendingAudio] = useState<PendingAudio | null>(null);
   const [selectedTrack, setSelectedTrack] = useState<TrackType | null>(null);
   const [artworkUri, setArtworkUri] = useState<string | null>(null);
-  const [artworkIsDataUri, setArtworkIsDataUri] = useState(false);
+  const [artworkSource, setArtworkSource] = useState<ArtworkSource>('none');
   const [artworkLoading, setArtworkLoading] = useState(false);
   const [loadedTrackIds, setLoadedTrackIds] = useState<Set<string>>(new Set());
   const [showTrackPicker, setShowTrackPicker] = useState(false);
@@ -143,14 +141,14 @@ export default function NewProjectScreen() {
     setSelectedTrack(null);
     const artwork = await readId3Artwork(asset.uri);
     setArtworkUri(artwork);
-    setArtworkIsDataUri(!!artwork);
+    setArtworkSource(artwork ? 'id3' : 'none');
   };
 
   const handleSelectExistingTrack = (track: TrackType) => {
     setSelectedTrack(track);
     setPendingAudio(null);
     setArtworkUri(track.artwork || null);
-    setArtworkIsDataUri(false);
+    setArtworkSource(track.artwork ? 'track' : 'none');
     setShowTrackPicker(false);
   };
 
@@ -163,7 +161,7 @@ export default function NewProjectScreen() {
     });
     if (!result.canceled && result.assets?.length) {
       setArtworkUri(result.assets[0].uri);
-      setArtworkIsDataUri(false);
+      setArtworkSource('picked');
     }
   };
 
@@ -177,6 +175,29 @@ export default function NewProjectScreen() {
       let waveformJsonKey: string | undefined;
       let localWaveformData: number[] | undefined;
 
+      // アートワークは音源の選び方（UPLOAD NEW / FROM TRACK LIST）に関わらず
+      // アップロードする。以前はこの処理が UPLOAD NEW の分岐の中にしかなく、
+      // FROM TRACK LIST で「CHANGE ARTWORK」した画像が保存されずデフォルト画像に
+      // なっていた (TASK-122)。
+      // 既存トラックのアートワーク（artworkSource === 'track'）は再アップロードしない。
+      // その場合はサーバー側がトラックの artworkKey にフォールバックする。
+      if (artworkUri && (artworkSource === 'picked' || artworkSource === 'id3')) {
+        const isDataUri = artworkSource === 'id3';
+        const { ext: imageExt, contentType: imageContentType } =
+          resolveArtworkFormat(artworkUri, isDataUri);
+        const { uploadUrl: artworkUploadUrl, key } =
+          (await DefaultService.getTrackUploadUrl(
+            `artwork.${imageExt}`,
+            imageContentType,
+          )) as any;
+        if (isDataUri) {
+          await uploadBase64ToS3(artworkUploadUrl, artworkUri, imageContentType);
+        } else {
+          await uploadFileToS3(artworkUploadUrl, artworkUri, imageContentType);
+        }
+        artworkKey = key;
+      }
+
       if (pendingAudio) {
         // 1. 音源を S3 にアップロード
         const audioContentType =
@@ -186,7 +207,7 @@ export default function NewProjectScreen() {
             pendingAudio.name,
             audioContentType,
           )) as any;
-        await uploadToS3(audioUploadUrl, pendingAudio.uri, audioContentType);
+        await uploadFileToS3(audioUploadUrl, pendingAudio.uri, audioContentType);
 
         // 2. 波形JSONを生成してS3にアップロード（失敗しても続行）
         try {
@@ -199,42 +220,23 @@ export default function NewProjectScreen() {
               'waveform.json',
               'application/json',
             )) as any;
-          await fetch(waveformUploadUrl, {
+          const waveformResponse = await fetch(waveformUploadUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localWaveformData),
           });
+          // 失敗を無視すると実体のない波形キーがプロジェクトに保存される
+          if (!waveformResponse.ok) {
+            throw new Error(`S3 upload failed: ${waveformResponse.status}`);
+          }
           waveformJsonKey = waveformKey;
         } catch (waveformErr) {
           console.warn('Waveform upload failed, continuing without S3 key:', waveformErr);
         }
 
-        // 3. アートワークを S3 にアップロード
-        if (artworkUri) {
-          const isData = artworkIsDataUri;
-          const imageExt = isData
-            ? 'jpg'
-            : (artworkUri.split('.').pop()?.toLowerCase() ?? 'jpg');
-          const imageContentType =
-            imageExt === 'png' ? 'image/png' : 'image/jpeg';
-          const { uploadUrl: artworkUploadUrl, key } =
-            (await DefaultService.getTrackUploadUrl(
-              `artwork.${imageExt}`,
-              imageContentType,
-            )) as any;
-          if (isData) {
-            await uploadBase64ToS3(
-              artworkUploadUrl,
-              artworkUri,
-              imageContentType,
-            );
-          } else {
-            await uploadToS3(artworkUploadUrl, artworkUri, imageContentType);
-          }
-          artworkKey = key;
-        }
-
         // 3. トラックメタデータを DynamoDB に保存
+        //    新規トラックにも同じアートワークを設定する（既存トラックを選んだ場合は
+        //    他プロジェクトと共有され得るためトラック側は更新しない）
         const trackTitle = title || pendingAudio.name.replace(/\.[^.]+$/, '');
         const track = (await DefaultService.createTrack({
           title: trackTitle,
@@ -260,11 +262,15 @@ export default function NewProjectScreen() {
               'waveform.json',
               'application/json',
             )) as any;
-          await fetch(waveformUploadUrl, {
+          const waveformResponse = await fetch(waveformUploadUrl, {
             method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(localWaveformData),
           });
+          // 失敗を無視すると実体のない波形キーがプロジェクトに保存される
+          if (!waveformResponse.ok) {
+            throw new Error(`S3 upload failed: ${waveformResponse.status}`);
+          }
           waveformJsonKey = waveformKey;
         } catch (waveformErr) {
           console.warn('Waveform generation for existing track failed:', waveformErr);
@@ -347,6 +353,7 @@ export default function NewProjectScreen() {
                 source={{ uri: artworkUri }}
                 style={[styles.artworkImage, { opacity: artworkImageOpacity }]}
                 onLoadEnd={handleArtworkLoadEnd}
+                testID="new-project-artwork"
               />
               {artworkLoading && (
                 <Animated.View style={[styles.artworkImageLoading, { opacity: artworkSpinnerOpacity }]}>
@@ -355,7 +362,10 @@ export default function NewProjectScreen() {
               )}
             </View>
           ) : (
-            <View style={styles.artworkPlaceholder}>
+            <View
+              style={styles.artworkPlaceholder}
+              testID="new-project-artwork-placeholder"
+            >
               <Icon
                 component={FontAwesome}
                 name="music"
@@ -376,6 +386,7 @@ export default function NewProjectScreen() {
       <SubmitButton
         containerClassName={styles.submitButton}
         label="CREATE"
+        testID="new-project-create-button"
         onPress={handleCreate}
         disabled={!title.trim() || (!pendingAudio && !selectedTrack)}
       />
@@ -392,10 +403,11 @@ export default function NewProjectScreen() {
             <FlatList
               data={tracks}
               keyExtractor={(item) => item.id}
-              renderItem={({ item }) => (
+              renderItem={({ item, index }) => (
                 <Pressable
                   style={styles.trackItem}
                   onPress={() => handleSelectExistingTrack(item)}
+                  testID={`track-picker-item-${index}`}
                 >
                   {item.artwork ? (
                     <View style={styles.trackItemArtwork}>
