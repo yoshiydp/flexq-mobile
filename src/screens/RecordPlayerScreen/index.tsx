@@ -61,9 +61,6 @@ const SYNC_DEBUG_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_SYNC_DEBUG === '1'
 const SYNC_DEBUG_INTERVAL_MS = 500;
 
 export default function RecordPlayerScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute<RouteProp<RootStackParamList, 'RecordPlayer'>>();
@@ -530,6 +527,10 @@ export default function RecordPlayerScreen() {
       },
     });
   };
+
+  // Android のシステム back ジェスチャー / 戻るボタンをヘッダーの戻るボタンと同じ処理に接続する（TASK-113）
+  // 終了の確認モーダルを経由する
+  useBlockAndroidBackGesture(handleGoBack);
 
   const handleBookmark = () => setIsBookmarked((prev) => !prev);
 

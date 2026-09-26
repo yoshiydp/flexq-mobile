@@ -19,8 +19,8 @@ import { PLACEHOLDERS } from '@/constants/placeholders';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUpdateTrack } from '@/hooks/useUpdateTrack';
 import { useDeleteTrack } from '@/hooks/useDeleteTrack';
-import { formatDate } from '@/utils/formatDate';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
+import { formatDate } from '@/utils/formatDate';
 import styles from './AudioPlayerScreen.styles';
 
 interface Track {
@@ -34,9 +34,6 @@ interface Track {
 }
 
 export default function AudioPlayerScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   const route = useRoute<any>();
   const navigation = useNavigation();
   const { trackIndex, tracks } = route.params as {
@@ -255,9 +252,18 @@ export default function AudioPlayerScreen() {
   };
 
   const handleGoBack = async () => {
-    if (sound) await sound.stopAsync();
+    // 停止に失敗しても画面は必ず戻す（Android のシステム back でも同じ処理を呼ぶため、
+    // 例外で goBack に到達しないと戻れなくなる）
+    try {
+      if (sound) await sound.stopAsync();
+    } catch {}
     navigation.goBack();
   };
+
+  // Android のシステム back ジェスチャー / 戻るボタンをヘッダーの戻るボタンと同じ処理に接続する（TASK-113）
+  // 確認なしで戻るが、再生中の音を止めてから戻る（アンマウント時のクリーンアップは
+  // 最後に currentIndex が変わった時点の sound しか止めないため）
+  useBlockAndroidBackGesture(handleGoBack);
 
   const onSubmitTrackName = async (newTitle: string) => {
     if (!newTitle.trim()) return;

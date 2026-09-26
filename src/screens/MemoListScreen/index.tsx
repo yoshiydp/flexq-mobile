@@ -17,9 +17,6 @@ import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './MemoListScreen.styles';
 
 export default function MemoListScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
@@ -59,6 +56,10 @@ export default function MemoListScreen() {
       navigation.goBack();
     }
   };
+
+  // Android のシステム back ジェスチャー / 戻るボタンをヘッダーの戻るボタンと同じ処理に接続する（TASK-113）
+  // DRAFTS 起点ではヘッダーと同じく DRAFTS タブへ戻す
+  useBlockAndroidBackGesture(handleGoBack);
 
   const handleNewMemo = () => {
     navigation.navigate('QuickMemo', { source: params.source });
