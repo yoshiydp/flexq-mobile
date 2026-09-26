@@ -3,6 +3,7 @@ import { docClient } from './db';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isOwnedS3Key } from './s3-key-validation';
+import { TITLE_MAX_LENGTH, findTooLongField, tooLongMessage } from './validation';
 import { randomUUID } from 'crypto';
 
 export const handler = async (event: any) => {
@@ -12,6 +13,14 @@ export const handler = async (event: any) => {
   const { projectName, trackName, trackId, artworkKey, waveformJsonKey } = JSON.parse(event.body || '{}');
   if (!projectName) {
     return createResponse({ message: 'projectName is required' }, 400);
+  }
+  // 文字数上限（TASK-107）
+  const tooLongField = findTooLongField([
+    ['projectName', projectName, TITLE_MAX_LENGTH],
+    ['trackName', trackName, TITLE_MAX_LENGTH],
+  ]);
+  if (tooLongField) {
+    return createResponse(tooLongMessage(tooLongField), 400);
   }
   // get-track-upload-url が発行する自ユーザーのキー以外は受け付けない
   // （他ユーザーのオブジェクトを参照・削除させないため）

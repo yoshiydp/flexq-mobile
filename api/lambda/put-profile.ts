@@ -6,6 +6,7 @@ import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isOwnedS3Key } from './s3-key-validation';
+import { USERNAME_MAX_LENGTH, isTooLong, tooLongMessage } from './validation';
 
 export const handler = async (event: any) => {
   const claims = await verifyToken(event);
@@ -22,6 +23,10 @@ export const handler = async (event: any) => {
   // （保存条件と同じく、値が入っているときだけ検証する）
   if (thumbnailKey && !isOwnedS3Key(thumbnailKey, claims.userId, ['artworks', 'profiles'])) {
     return createResponse({ message: 'Invalid thumbnailKey' }, 400);
+  }
+  // username の長さ上限（巨大な文字列をそのまま保存させない・TASK-107）
+  if (isTooLong(username, USERNAME_MAX_LENGTH)) {
+    return createResponse(tooLongMessage('username'), 400);
   }
 
   const expressions: string[] = [];

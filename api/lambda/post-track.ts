@@ -3,6 +3,7 @@ import { docClient } from './db';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isOwnedS3Key } from './s3-key-validation';
+import { TITLE_MAX_LENGTH, isTooLong, tooLongMessage } from './validation';
 import { randomUUID } from 'crypto';
 
 export const handler = async (event: any) => {
@@ -12,6 +13,10 @@ export const handler = async (event: any) => {
   const { title, s3Key, extention, artworkKey } = JSON.parse(event.body || '{}');
   if (!title || !s3Key || !extention) {
     return createResponse({ message: 'title, s3Key and extention are required' }, 400);
+  }
+  // title の文字数上限（TASK-107）
+  if (isTooLong(title, TITLE_MAX_LENGTH)) {
+    return createResponse(tooLongMessage('title'), 400);
   }
   // get-track-upload-url が発行する自ユーザーのキー以外は受け付けない
   // （他ユーザーのオブジェクトを参照・削除させないため）

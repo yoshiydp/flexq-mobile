@@ -5,6 +5,7 @@ import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isOwnedS3Key, ownedS3Prefix } from './s3-key-validation';
+import { TITLE_MAX_LENGTH, isTooLong, tooLongMessage } from './validation';
 
 /**
  * 指定した artworkKey を参照しているプロジェクトが 1 つでも存在するか確認する。
@@ -43,6 +44,10 @@ export const handler = async (event: any) => {
   }
   if (title !== undefined && (typeof title !== 'string' || !title.trim())) {
     return createResponse({ message: 'title must be a non-empty string' }, 400);
+  }
+  // title の文字数上限（TASK-107）
+  if (isTooLong(title, TITLE_MAX_LENGTH)) {
+    return createResponse(tooLongMessage('title'), 400);
   }
   if (artworkKey !== undefined && (typeof artworkKey !== 'string' || !artworkKey)) {
     return createResponse({ message: 'artworkKey must be a non-empty string' }, 400);

@@ -3,6 +3,12 @@ import { docClient } from './db';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isOwnedS3Key } from './s3-key-validation';
+import {
+  RICH_TEXT_MAX_LENGTH,
+  TITLE_MAX_LENGTH,
+  findTooLongField,
+  tooLongMessage,
+} from './validation';
 
 export const handler = async (event: any) => {
   const claims = await verifyToken(event);
@@ -12,6 +18,16 @@ export const handler = async (event: any) => {
   if (!projectId) return createResponse({ message: 'id is required' }, 400);
 
   const { body, cueButtons, projectName, artworkKey, trackId, trackName } = JSON.parse(event.body || '{}');
+
+  // 文字数上限（body は歌詞のリッチテキスト HTML のため大きめ・TASK-107）
+  const tooLongField = findTooLongField([
+    ['projectName', projectName, TITLE_MAX_LENGTH],
+    ['trackName', trackName, TITLE_MAX_LENGTH],
+    ['body', body, RICH_TEXT_MAX_LENGTH],
+  ]);
+  if (tooLongField) {
+    return createResponse(tooLongMessage(tooLongField), 400);
+  }
 
   // get-track-upload-url が発行する自ユーザーのキー以外は受け付けない
   // （他ユーザーのオブジェクトを参照・削除させないため）。
