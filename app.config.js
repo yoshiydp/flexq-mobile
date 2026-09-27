@@ -6,7 +6,7 @@
  * | APP_VARIANT   | アプリ名   | バンドル ID                   | アイコン | 使うプロファイル          |
  * |---------------|-----------|------------------------------|---------|-------------------------|
  * | development   | FlexQ Dev | com.yoshiydp.lyricsapp.dev   | Dev 帯  | development-device      |
- * | staging       | FlexQ     | com.yoshiydp.lyricsapp       | STG 帯  | staging                 |
+ * | staging       | FlexQ STG | com.yoshiydp.lyricsapp       | STG 帯  | staging                 |
  * | （未設定）     | FlexQ     | com.yoshiydp.lyricsapp       | 素      | production・ローカルビルド |
  *
  * ■ バンドル ID を分ける理由
@@ -54,8 +54,11 @@ module.exports = ({ config }) => {
   const variant = process.env.APP_VARIANT;
 
   if (variant === 'staging') {
-    // TestFlight / Play 内部テスト向け。ストア配信と同じ ID・名前のままアイコンだけ分ける
-    return withIcons(config, 'stg');
+    // TestFlight / Play 内部テスト向け。
+    // バンドル ID は production と同じ（ストア配信の枠を使うため変えられない）が、
+    // ホーム画面の表示名とアイコンを分けて本番版と見分けられるようにする。
+    // ストアの掲載名は App Store Connect / Play Console 側の設定なので影響しない。
+    return { ...withIcons(config, 'stg'), name: 'FlexQ STG' };
   }
 
   if (variant !== 'development') return config;

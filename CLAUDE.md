@@ -354,7 +354,7 @@ TestFlight / Play 内部テストのビルドと**同じ端末に同時に入れ
 | APP_VARIANT | アプリ名 | バンドル ID | アイコン | プロファイル |
 |------------|---------|-----------|---------|------------|
 | `development` | FlexQ Dev | `com.yoshiydp.lyricsapp.dev` | 下部に **Dev** の帯 | `development-device` |
-| `staging` | FlexQ | `com.yoshiydp.lyricsapp` | 下部に **STG** の帯 | `staging` |
+| `staging` | FlexQ STG | `com.yoshiydp.lyricsapp` | 下部に **STG** の帯 | `staging` |
 | （未設定） | FlexQ | `com.yoshiydp.lyricsapp` | 素のアイコン | `production`・ローカルビルド |
 
 バリアント用のアイコンは `swift scripts/generate-variant-icons.swift` で生成する
