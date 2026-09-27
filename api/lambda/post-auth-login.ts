@@ -4,7 +4,7 @@ import { docClient } from './db';
 import { createResponse } from './utils';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
 import { issueTokens } from './auth-tokens';
-import { readCurrentTokenVersion } from './token-version-store';
+import { readConsistentUserRecord } from './user-snapshot';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
@@ -14,18 +14,34 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Email and password are required' }, 400);
   }
 
+  // email-index は email から userId を解決するためだけに使う（GSI は強整合
+  // 読み取りができないため、ここで読んだ属性は判断に使わない・TASK-105）
   const result = await docClient.send(
     new QueryCommand({
       TableName: process.env.USERS_TABLE!,
       IndexName: 'email-index',
       KeyConditionExpression: 'email = :email',
       ExpressionAttributeValues: { ':email': email },
-    })
+    }),
   );
 
-  const user = result.Items?.[0];
+  const indexSnapshot = result.Items?.[0];
+  if (!indexSnapshot?.userId) {
+    return createResponse({ message: 'Invalid credentials' }, 401);
+  }
+
+  // パスワードの検証・BAN 判定・tokenVersion・応答に返すプロフィールは
+  // すべて同一スナップショットから取る。混在させると、パスワードリセット直後に
+  // 「GSI の古い passwordHash（旧パスワードで一致）＋ 強整合の加算後
+  // tokenVersion」の組み合わせが成立し、旧パスワードでのログインがリセット後の
+  // 版数を持つトークンを受け取ってセッション失効を回避できてしまう (TASK-105)。
+  // 強整合読み取りが失敗・レコードなしの場合は GSI のスナップショットに
+  // 一貫して戻す（従来と同じ挙動。検証も版数もそのスナップショットから行う）
+  const user =
+    (await readConsistentUserRecord(indexSnapshot.userId)) ?? indexSnapshot;
+
   // passwordHash を持たないユーザー（Google ログインで自動作成）はパスワード認証不可
-  if (!user || !user.passwordHash) {
+  if (!user.passwordHash) {
     return createResponse({ message: 'Invalid credentials' }, 401);
   }
 
@@ -40,14 +56,6 @@ export const handler = async (event: any) => {
     return suspendedResponse();
   }
 
-  // email-index は強整合読み取りができず、ログアウト直後は古い tokenVersion を
-  // 返しうる。そのまま発行すると「すでに失効済みのトークン」を渡してしまうため、
-  // 発行に使う値だけ Users から強整合読み取りで取り直す (TASK-105)
-  const tokenVersion = await readCurrentTokenVersion(
-    user.userId,
-    user.tokenVersion,
-  );
-
   return createResponse({
     userId: user.userId,
     username: user.username,
@@ -57,7 +65,7 @@ export const handler = async (event: any) => {
     token: issueTokens({
       userId: user.userId,
       email: user.email,
-      tokenVersion,
+      tokenVersion: user.tokenVersion,
     }),
   });
 };

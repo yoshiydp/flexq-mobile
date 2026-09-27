@@ -6,7 +6,7 @@ import { createResponse } from './utils';
 import { verifyGoogleAccessToken } from './google-auth';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
 import { issueTokens } from './auth-tokens';
-import { readCurrentTokenVersion } from './token-version-store';
+import { readConsistentUserRecord } from './user-snapshot';
 
 // Google OAuth のアクセストークンを検証してログインする。
 // ユーザーの照合は一般的なサービスと同じ 3 段階:
@@ -63,7 +63,15 @@ export const handler = async (event: any) => {
       ExpressionAttributeValues: { ':sub': googleUser.sub },
     }),
   );
-  let user = subResult.Items?.[0];
+  // GSI は強整合読み取りができないため googleSub → userId の解決にだけ使い、
+  // BAN 判定・tokenVersion・応答に返すプロフィールは強整合読み取りした
+  // 同一スナップショットから取る（混在させない・TASK-105）。
+  // 読み取りに失敗した場合は GSI のスナップショットへ一貫して戻す
+  const linkedSnapshot = subResult.Items?.[0];
+  let user = linkedSnapshot
+    ? ((await readConsistentUserRecord(linkedSnapshot.userId)) ??
+      linkedSnapshot)
+    : undefined;
   let isNewUser = false;
 
   if (!user) {
@@ -96,31 +104,57 @@ export const handler = async (event: any) => {
         ExpressionAttributeValues: { ':email': email },
       }),
     );
-    user = emailResult.Items?.[0];
+    const emailSnapshot = emailResult.Items?.[0];
 
-    if (user) {
+    if (emailSnapshot) {
       // 停止（BAN）中のアカウントには googleSub をひも付けず、
       // レコードを変更しないまま拒否する (TASK-81)
-      if (isSuspendedUser(user)) {
+      if (isSuspendedUser(emailSnapshot)) {
         return suspendedResponse();
       }
       const socialAccounts = upsertGoogleSocialAccount(
-        user.socialAccounts,
+        emailSnapshot.socialAccounts,
         googleUser.name ?? '',
       );
-      await docClient.send(
-        new UpdateCommand({
-          TableName: process.env.USERS_TABLE!,
-          Key: { userId: user.userId },
-          UpdateExpression:
-            'SET googleSub = :sub, socialAccounts = :socialAccounts',
-          ExpressionAttributeValues: {
-            ':sub': googleUser.sub,
-            ':socialAccounts': socialAccounts,
-          },
-        }),
-      );
-      user = { ...user, googleSub: googleUser.sub, socialAccounts };
+      // この経路は自分で書き込むため、`ReturnValues: 'ALL_NEW'` で書き込み後の
+      // 正となるレコードをそのまま受け取る（強整合の GetItem を足すより
+      // 読み取り 1 回ぶん安く、書き込みと同じ時点のスナップショットになるので
+      // BAN 判定と tokenVersion が食い違わない・TASK-105）。
+      // 上の BAN 判定は結果整合の GSI スナップショット由来なので、停止直後は
+      // 素通りしうる。条件付き書き込みで「正のレコードが停止中なら書かない」を
+      // 担保する（条件不一致＝停止中なので 403 を返す）
+      let updated;
+      try {
+        updated = await docClient.send(
+          new UpdateCommand({
+            TableName: process.env.USERS_TABLE!,
+            Key: { userId: emailSnapshot.userId },
+            UpdateExpression:
+              'SET googleSub = :sub, socialAccounts = :socialAccounts',
+            ConditionExpression:
+              'attribute_not_exists(#status) OR #status <> :suspended',
+            ExpressionAttributeNames: { '#status': 'status' },
+            ExpressionAttributeValues: {
+              ':sub': googleUser.sub,
+              ':socialAccounts': socialAccounts,
+              ':suspended': 'suspended',
+            },
+            ReturnValues: 'ALL_NEW',
+          }),
+        );
+      } catch (err: any) {
+        if (err?.name === 'ConditionalCheckFailedException') {
+          return suspendedResponse();
+        }
+        throw err;
+      }
+      user =
+        updated.Attributes ??
+        ({
+          ...emailSnapshot,
+          googleSub: googleUser.sub,
+          socialAccounts,
+        } as any);
     } else if (!allowCreate) {
       // ③' SignIn 画面からのログインでは自動作成しない（Register 画面へ誘導）
       return createResponse(
@@ -172,23 +206,20 @@ export const handler = async (event: any) => {
   }
 
   // 停止（BAN）中のアカウントは Google ログイン・再登録とも不可 (TASK-81)。
-  // ②（email 照合）は上で遮断済みのため、ここでは ①（googleSub 照合）を遮断する。
+  // ②（email 照合）は上の事前判定と条件付き書き込みで遮断済みだが、ALL_NEW で
+  // 返る正のレコードでもう一度判定しても害はないためここを共通の関門にする。
   // Users レコードが論理削除で残るため、mode: 'register' でも新規作成には
   // 進まず（①/② でヒットする）BAN の回避はできない
   if (isSuspendedUser(user)) {
     return suspendedResponse();
   }
 
-  // 既存ユーザーの tokenVersion は GSI（googleSub-index / email-index）経由で
-  // 読んでおり強整合読み取りができないため、ログアウト直後は古い値を返しうる。
-  // そのまま発行すると「すでに失効済みのトークン」を渡してしまうので、発行に
-  // 使う値だけ Users から強整合読み取りで取り直す (TASK-105)。
-  // 新規作成したユーザーは直前の PutCommand で 0 を書いた値がそのまま正なので、
-  // 追加の読み取りは行わない
-  const tokenVersion = isNewUser
-    ? user.tokenVersion
-    : await readCurrentTokenVersion(user.userId, user.tokenVersion);
-
+  // ここに来る user は、①（強整合の GetItem）/ ②（ALL_NEW の書き込み結果）/
+  // ③（直前の PutCommand で自分が書いた内容）のいずれかで、どの経路でも
+  // 「BAN 判定・tokenVersion・プロフィールが同一スナップショット」になっている。
+  // GSI の古い tokenVersion をそのまま焼き込むと「すでに失効済みのトークン」を
+  // 渡してしまい、保護 API とリフレッシュが更新後のレコードを観測した時点で
+  // 401 になる (TASK-105)
   return createResponse(
     {
       userId: user.userId,
@@ -199,7 +230,7 @@ export const handler = async (event: any) => {
       token: issueTokens({
         userId: user.userId,
         email: user.email,
-        tokenVersion,
+        tokenVersion: user.tokenVersion,
       }),
     },
     isNewUser ? 201 : 200,
