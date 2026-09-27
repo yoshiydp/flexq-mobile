@@ -260,7 +260,7 @@ AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api --region ap-northea
 
 ### 実施状況(2026-09-27 時点)
 
-1〜4 は完了済み。**残るのは 5(運営者への連絡)のみ**。
+**後片付けは完了**。以降、旧環境に関する作業はない。
 
 | 手順 | 状況 |
 |------|------|
@@ -268,7 +268,12 @@ AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api --region ap-northea
 | 2. 旧スタックの削除 | 完了(開発者アカウントに残る SAM スタックは `lyrics-dev-api` のみ) |
 | 3. `migration-reader` の削除 | 完了(アクセスキー削除 → `ReadOnlyAccess` 解除 → ユーザー削除) |
 | 4. `staging` ブランチ・旧ワークフロー | 完了(いずれも残骸なし) |
-| 5. 運営者へ「削除完了」を連絡 | **未対応** |
+| 5. 運営者へ「削除完了」を連絡 | **不要と判断**(下記) |
+
+手順 5 は**実施しない**。運営者は AWS の知識を持たず管理コンソールも操作しないため、
+連絡しても対応できる作業がない(本来の目的は運営者側ローカルの `~/s3-migration` を
+片付ける合図だった)。旧環境の削除状況は開発者側がこのドキュメントで把握していれば足りる。
+運営者のローカルに移行時の作業ディレクトリが残る可能性はあるが、AWS 側には影響しない。
 
 削除前に、旧 dev(`lyrics-mock-api`)にいた実アカウント 3 件
 (`yoshihisa.watanabe.info` / `luz104tb` / `syamusyamu1124`)が、いずれも現 dev
