@@ -214,14 +214,14 @@ AWS_PROFILE=flexq-ops USERS_TABLE=<テーブル名> npx tsx scripts/ban-user.ts 
 |------|------|
 | パスワードログイン / Google ログイン / トークンリフレッシュ | 403 で拒否 |
 | すでにログイン中の端末（発行済みトークン） | 401 で全 API 遮断。**反映は最大 60 秒**（`auth-middleware` の status キャッシュ TTL） |
-| 同じメールでの新規登録 | 409（レコードが残るため自然にブロック） |
+| 同じメールでの新規登録 | 登録不可（レコードが残るため `verification-code` は登録済み扱いでコードを発行せず、`register` は 400 reason code_* で止まる。TASK-104 以降は 409 に到達しない） |
 
 **運用ルール:**
 - BAN 実行は日時・対象 userId / email・理由を Notion に記録する
 - **BAN はアカウント単位**。同一人物が別メールで持つ別アカウント（同じ Google アカウントを連携している場合を含む）には影響しないため、必要に応じて個別に BAN する
 - データは `suspendedAt` から 1 年保持し、解除の見込みがなければ物理削除する（TASK-80 の削除処理を流用・当面は手動運用）
 
-**E2E 検証:** `scripts/e2e-ban.sh` が dev の専用アカウント `e2e-ban@example.com` を BAN → `.maestro/flows/25-account-suspension/`（AS-01: ログイン 403 Account suspended / 再登録 409 を API で検証 + 「Login Failed」の UI 確認）→ 解除、の順に実行する。Google ログイン・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は `docs/test-cases.md` の AS-02 / AS-03 / AS-05 で手動確認する
+**E2E 検証:** `scripts/e2e-ban.sh` が dev の専用アカウント `e2e-ban@example.com` を BAN → `.maestro/flows/25-account-suspension/`（AS-01: ログイン 403 Account suspended / 再登録 400 reason code_* を API で検証 + 「Login Failed」の UI 確認）→ 解除、の順に実行する。Google ログイン・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は `docs/test-cases.md` の AS-02 / AS-03 / AS-05 で手動確認する
 
 ### AI クリーンアップ（Replicate 連携）
 

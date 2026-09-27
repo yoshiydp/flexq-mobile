@@ -25,7 +25,7 @@ DynamoDB のスキーマ変更（AttributeDefinitions / GSI）は不要。既存
 | Google ログイン（`post-auth-google`） | 403（googleSub / email どちらの照合でも） |
 | トークンリフレッシュ（`post-auth-refresh`） | 403 |
 | 発行済みアクセストークンでの API アクセス | 401（`auth-middleware` が Users の status を参照して即時遮断。コンテナ単位 60 秒キャッシュのため反映は最大約 60 秒） |
-| 新規登録（`post-auth-register`） | 409 Email already in use（レコードが残るため自然にブロック） |
+| 新規登録（`post-auth-register`） | 登録できない。レコードが残るため `verification-code` が登録済み扱いになり認証コードを発行せず（案内メールのみ・応答は通常と同じ 200）、`register` は 400（reason: code_*）で止まる（TASK-104 でコード検証を存在チェックより先にしたため 409 には到達しない） |
 | Google での再登録（mode: register） | 403（既存レコードにヒットするため新規作成に進まない） |
 
 ## 実行手段（運営）
@@ -82,7 +82,7 @@ aws cloudformation describe-stacks --stack-name flexq-prod-api \
 
 - dev では `scripts/e2e-ban.sh` で自動確認できる（専用アカウント `e2e-ban@example.com` を BAN →
   `.maestro/flows/25-account-suspension/` を実行 → 解除）。AS-01 がログインの 403
-  `Account suspended` と同じ email での再登録 409 を API で検証し、アプリ側の「Login Failed」
+  `Account suspended` と同じ email での再登録が 400（reason: code_*）で拒否されることを API で検証し、アプリ側の「Login Failed」
   表示を確認する
 - Google ログインの拒否・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は
   `docs/test-cases.md` の AS-02 / AS-03 / AS-05 として手動確認する

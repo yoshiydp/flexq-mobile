@@ -1,20 +1,26 @@
 # ID: PW-02
-# シナリオ名: 存在しないメール
-# 前提条件: dev API に接続できること。E2E_UNKNOWN_EMAIL が未登録であること
+# シナリオ名: 存在しないメール（応答から登録の有無が分からないこと・アカウント列挙対策）
+# 前提条件: dev API に接続できること。入力するメールアドレスが未登録であること
+#           （実行ごとに `e2e-pw02-<タイムスタンプ>@example.com` を生成し、60 秒の再送制限（429）に
+#           かからないようにする。TTL 付きの認証コード行が 1 件できるだけで、メールは送られない）
 # 操作手順: パスワードをリセットする → 未登録のメールアドレスを入力 → SEND CODE
-# 期待結果: 「該当のメールアドレスが見つかりません。」と表示され、コード入力ステップへは進まない
-# 備考: 未登録メールの場合サーバーは 404 を返しコードを発行しないため、DB もメール送信も変化しない
-#       （dev 環境で安全に実行できる）
+#           → 適当な 6 桁 + 新しいパスワードで PASSWORD RESET
+# 期待結果: 「該当のメールアドレスが見つかりません」のエラーは出ず、登録済みのときと同じく
+#           コード入力ステップへ進む。案内文に「登録済みのメールアドレスにのみ届く」旨が表示される。
+#           適当なコードでは「認証コードが正しくありません。」となりリセットは成立しない
+# 備考: TASK-104 で未登録メールへの 404 を廃止した（任意の email を投げるだけで登録の有無が
+#       判別できたため）。サーバーは未登録でもメールを送らずに同じ 200 を返す
 
 appId: com.yoshiydp.lyricsapp
 tags:
   - PW
   - PW-02
-env:
-  E2E_UNKNOWN_EMAIL: 'e2e-not-registered@example.com'
 ---
 # 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
 - runFlow: ../helpers/launch-app.yaml
+
+# 実行ごとに一意の未登録メールアドレスを生成する（再送制限の 429 を避ける）
+- evalScript: ${output.pw02Email = 'e2e-pw02-' + Date.now() + '@example.com'}
 
 # パスワードリセット画面へ遷移
 - tapOn: 'パスワードをリセットする'
@@ -22,24 +28,47 @@ env:
     timeout: 5000
 - assertVisible: 'PASSWORD RESET'
 
-# 未登録のメールアドレスで SEND CODE（サーバーは 404 を返す）
+# 未登録のメールアドレスで SEND CODE（サーバーは登録済みと同じ 200 を返す）
 - tapOn: 'メールアドレスを入力してください'
-- inputText: ${E2E_UNKNOWN_EMAIL}
+- inputText: ${output.pw02Email}
 - runFlow: ../helpers/hide-keyboard.yaml
 - tapOn:
     id: 'submit-button'
 - extendedWaitUntil:
-    visible: '.*見つかりません.*'
+    visible: 'Verification Code'
+    timeout: 30000
+
+# 「見つかりません」のエラーは出ず、登録済みのメールにのみ届く旨の案内が表示される
+- assertNotVisible: '.*見つかりません.*'
+- assertVisible: '.*登録済みのメールアドレスにのみ届きます.*'
+
+# 適当な 6 桁 + 新しいパスワードではリセットできない（404 ではなくコード不一致の 400）
+# ※ 認証コード欄は number-pad で Return キーがないため hide-keyboard を使わずそのまま次の欄へ
+- tapOn: '6桁の認証コードを入力してください'
+- inputText: '000000'
+- tapOn: '新しいパスワードを入力してください'
+- inputText: 'newpassword123'
+- runFlow: ../helpers/hide-keyboard.yaml
+- runFlow: ../helpers/dismiss-password-save.yaml
+- tapOn:
+    id: 'submit-button'
+- runFlow: ../helpers/dismiss-password-save.yaml
+- extendedWaitUntil:
+    visible: '.*認証コードが正しくありません.*'
     timeout: 30000
 - tapOn: 'OK'
 - waitForAnimationToEnd:
     timeout: 3000
 
-# コード入力ステップへは進まず、メール入力ステップのままであること
-- assertVisible: 'SEND CODE'
-- assertNotVisible: 'Verification Code'
+# コード入力ステップに留まる（リセットは成立していない）
+- assertVisible: 'Verification Code'
 
-# サインイン画面に戻る
+# 戻るでメール入力ステップへ → サインイン画面に戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: 'SEND CODE'
 - tapOn:
     id: 'toolbar-back'
 - waitForAnimationToEnd:

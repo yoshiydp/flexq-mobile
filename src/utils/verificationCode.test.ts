@@ -1,4 +1,7 @@
-import { verificationCodeFailureMessage } from './verificationCode';
+import {
+  verificationCodeFailureMessage,
+  verificationSentNotice,
+} from './verificationCode';
 
 describe('verificationCodeFailureMessage', () => {
   it('コード不一致の文言を返す', () => {
@@ -18,5 +21,19 @@ describe('verificationCodeFailureMessage', () => {
     expect(verificationCodeFailureMessage(undefined)).toBeNull();
     expect(verificationCodeFailureMessage('other')).toBeNull();
     expect(verificationCodeFailureMessage(null)).toBeNull();
+  });
+});
+
+describe('verificationSentNotice', () => {
+  it('新規登録では登録済みの場合に案内メールが届くことを補足する', () => {
+    const notice = verificationSentNotice('register', 'a@example.com');
+    expect(notice).toContain('a@example.com 宛に 6 桁の認証コードを送信しました。');
+    expect(notice).toContain('登録済みである旨のメールが届きます');
+  });
+
+  it('パスワードリセットでは登録済みのメールにのみ届くことを補足する', () => {
+    const notice = verificationSentNotice('reset', 'b@example.com');
+    expect(notice).toContain('b@example.com 宛に 6 桁の認証コードを送信しました。');
+    expect(notice).toContain('登録済みのメールアドレスにのみ届きます');
   });
 });
