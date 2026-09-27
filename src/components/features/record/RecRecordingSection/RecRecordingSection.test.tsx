@@ -3,7 +3,10 @@ import { Alert, AppState } from 'react-native';
 import { render, act, fireEvent } from '@testing-library/react-native';
 import { useKeepAwake } from 'expo-keep-awake';
 import RecRecordingSection from './index';
-import { REC_PERMISSION_MESSAGES } from '@/constants/messages';
+import {
+  REC_BACKGROUND_MESSAGES,
+  REC_PERMISSION_MESSAGES,
+} from '@/constants/messages';
 
 const mockRequestPermissionsAsync = jest.fn();
 const mockSetAudioModeAsync = jest.fn();
@@ -108,6 +111,29 @@ describe('RecRecordingSection コンポーネント', () => {
     await act(async () => {
       jest.advanceTimersByTime(ms);
     });
+  };
+
+  // 登録済みの AppState 'change' リスナー全てに状態変化を通知する
+  // （解除済みのリスナーも含むが、いずれも state のガードで無害）
+  const emitAppState = async (state: string) => {
+    const listeners = (AppState.addEventListener as jest.Mock).mock.calls
+      .filter(([event]) => event === 'change')
+      .map(([, listener]) => listener as (state: string) => void);
+    await act(async () => {
+      listeners.forEach((listener) => listener(state));
+    });
+  };
+
+  // Platform.OS を Android に切り替えてテストを実行する（jest の既定は ios）
+  const withAndroid = async (run: () => Promise<void>) => {
+    const platform = jest.requireActual('react-native').Platform;
+    const originalOS = platform.OS;
+    platform.OS = 'android';
+    try {
+      await run();
+    } finally {
+      platform.OS = originalOS;
+    }
   };
 
   it('コンポーネントが正しくレンダリングされる', () => {
@@ -254,7 +280,7 @@ describe('RecRecordingSection コンポーネント', () => {
     );
   });
 
-  it('Android では staysActiveInBackground を有効にしない（バックグラウンド挙動は TASK-112）', async () => {
+  it('Android では staysActiveInBackground を有効にしない（代わりに background で停止する / TASK-112）', async () => {
     const platform = jest.requireActual('react-native').Platform;
     const originalOS = platform.OS;
     platform.OS = 'android';
@@ -274,6 +300,242 @@ describe('RecRecordingSection コンポーネント', () => {
     } finally {
       platform.OS = originalOS;
     }
+  });
+
+  it('Android では録音中に background へ移ると録音を停止して保存経路へ渡す (TASK-112)', async () => {
+    await withAndroid(async () => {
+      mockRecordingGetStatusAsync.mockResolvedValue({
+        canRecord: true,
+        isRecording: true,
+        durationMillis: 12345,
+      });
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+      await advanceTimers(1000);
+
+      // ホーム遷移・画面ロックでアクティビティが一時停止する
+      await emitAppState('background');
+      // 連続して通知されても停止・保存は 1 回だけ
+      await emitAppState('background');
+
+      expect(mockStopAndUnloadAsync).toHaveBeenCalledTimes(1);
+      expect(mockOnStop).toHaveBeenCalledTimes(1);
+      expect(mockOnStop).toHaveBeenCalledWith(
+        12345,
+        'mock-recording-uri',
+        undefined,
+      );
+      expect(mockOnAbort).not.toHaveBeenCalled();
+      // バックグラウンド中の Alert は表示されないため復帰まで案内しない
+      expect(alertSpy).not.toHaveBeenCalled();
+
+      await emitAppState('active');
+
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      // 停止しただけではテイクは永続化されないため、保存操作が必要である旨を案内する
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.stoppedNeedsSave,
+      );
+
+      // 復帰が複数回通知されても案内は 1 回だけ
+      await emitAppState('active');
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('Android で停止完了より先に復帰した場合、停止成功後に保存を促す案内を 1 回だけ出す (TASK-112)', async () => {
+    await withAndroid(async () => {
+      mockRecordingGetStatusAsync.mockResolvedValue({
+        canRecord: true,
+        isRecording: true,
+        durationMillis: 12345,
+      });
+      // 停止（ネイティブ処理）の完了を保留して、先にフォアグラウンド復帰させる
+      let resolveStop: () => void = () => {};
+      mockStopAndUnloadAsync.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveStop = resolve;
+        }),
+      );
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+      await advanceTimers(1000);
+
+      await emitAppState('background');
+      // 停止結果が確定するまでは案内を出さない（暫定の文言を先に出さない）
+      await emitAppState('active');
+      expect(alertSpy).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolveStop();
+      });
+
+      expect(mockOnStop).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.stoppedNeedsSave,
+      );
+    });
+  });
+
+  it('Android で停止完了より先に復帰し、停止が失敗した場合は中止の案内だけを出す (TASK-112)', async () => {
+    await withAndroid(async () => {
+      mockRecordingGetStatusAsync.mockResolvedValue({
+        canRecord: true,
+        isRecording: true,
+        durationMillis: 12345,
+      });
+      // 停止処理が失敗するケース。結果が出る前に復帰しても「残っている」旨を
+      // 伝えてはいけない（テイクは onAbort で破棄される）
+      let rejectStop: (err: Error) => void = () => {};
+      mockStopAndUnloadAsync.mockReturnValueOnce(
+        new Promise<void>((_resolve, reject) => {
+          rejectStop = reject;
+        }),
+      );
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+      await advanceTimers(1000);
+
+      await emitAppState('background');
+      await emitAppState('active');
+      expect(alertSpy).not.toHaveBeenCalled();
+
+      await act(async () => {
+        rejectStop(new Error('stop failed'));
+      });
+
+      // テイクは破棄されるため「保存してください」ではなく中止の案内を出す
+      expect(mockOnStop).not.toHaveBeenCalled();
+      expect(mockOnAbort).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+      );
+      expect(alertSpy).not.toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.stoppedNeedsSave,
+      );
+    });
+  });
+
+  it('Android で長さ 0 のテイクは破棄され、中止の案内を出す (TASK-112)', async () => {
+    await withAndroid(async () => {
+      // 録音開始直後にバックグラウンドへ移ったケース（保存できる長さがない）
+      mockRecordingGetStatusAsync.mockResolvedValue({
+        canRecord: true,
+        isRecording: true,
+        durationMillis: 0,
+      });
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+
+      await emitAppState('background');
+      expect(mockOnStop).not.toHaveBeenCalled();
+      expect(mockOnAbort).toHaveBeenCalledTimes(1);
+
+      await emitAppState('active');
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+      );
+    });
+  });
+
+  it('Android のカウントダウン中に background へ移ると録音を開始せず中止する (TASK-112)', async () => {
+    await withAndroid(async () => {
+      render(
+        <RecRecordingSection
+          {...mockProps}
+          trackSource="https://example.com/track.mp3"
+        />,
+      );
+      await flushAsync();
+      // カウントダウン中（録音開始前）にバックグラウンドへ移る
+      await advanceTimers(2000);
+      await emitAppState('background');
+
+      expect(mockOnAbort).toHaveBeenCalledTimes(1);
+      expect(mockOnStop).not.toHaveBeenCalled();
+
+      // カウントダウンが 0 になっても録音は開始されない（マイクも掴まない）
+      await advanceTimers(5000);
+      await flushAsync();
+      expect(mockPrepareToRecordAsync).not.toHaveBeenCalled();
+      expect(mockStartAsync).not.toHaveBeenCalled();
+      expect(mockCreateAsync).not.toHaveBeenCalled();
+
+      await emitAppState('active');
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+      );
+    });
+  });
+
+  it('Android のマイク許可ダイアログによる background では録音を中止しない (TASK-112)', async () => {
+    await withAndroid(async () => {
+      let resolvePermission: (value: { granted: boolean }) => void = () => {};
+      mockRequestPermissionsAsync.mockReturnValue(
+        new Promise((resolve) => {
+          resolvePermission = resolve;
+        }),
+      );
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+
+      // 許可ダイアログはアクティビティを一時停止させ 'background' として通知される
+      await emitAppState('background');
+      expect(mockOnAbort).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolvePermission({ granted: true });
+      });
+      await advanceTimers(5000);
+      await flushAsync();
+
+      expect(mockStartAsync).toHaveBeenCalledTimes(1);
+      await emitAppState('active');
+      expect(alertSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  it('iOS では background へ移っても録音を停止しない（TASK-111 の継続動作）', async () => {
+    const { getByText } = render(
+      <RecRecordingSection {...mockProps} trackSource={null} />,
+    );
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+    await advanceTimers(1000);
+
+    await emitAppState('background');
+
+    expect(mockStopAndUnloadAsync).not.toHaveBeenCalled();
+    expect(mockOnStop).not.toHaveBeenCalled();
+    expect(mockOnAbort).not.toHaveBeenCalled();
+    expect(alertSpy).not.toHaveBeenCalled();
+
+    // 録音は継続しているためタイマーも進み続ける
+    await advanceTimers(1000);
+    getByText('00:02:00');
   });
 
   it('フォアグラウンド復帰時に録音側の経過時間でタイマー表示を合わせ直す (TASK-111)', async () => {
@@ -349,6 +611,31 @@ describe('RecRecordingSection コンポーネント', () => {
     await flushAsync();
 
     expect(mockOnStop).toHaveBeenCalledWith(1000, 'mock-recording-uri', undefined);
+  });
+
+  it('停止処理が失敗した場合も onAbort でモーダルを閉じる (TASK-112)', async () => {
+    const { getByTestId } = render(
+      <RecRecordingSection {...mockProps} trackSource={null} />,
+    );
+    await flushAsync();
+    await advanceTimers(5000);
+    await flushAsync();
+    await advanceTimers(1000);
+
+    // 停止の解放処理が失敗するケース。stopHandledRef を立てているため STOP の
+    // 再押下では回復できず、中止として閉じないとモーダルが残り操作不能になる
+    mockStopAndUnloadAsync.mockRejectedValueOnce(new Error('stop failed'));
+
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+
+    expect(mockOnStop).not.toHaveBeenCalled();
+    expect(mockOnAbort).toHaveBeenCalledTimes(1);
+
+    // 再押下しても二重に通知しない（stopHandledRef のガード）
+    fireEvent.press(getByTestId('rec-recording-section-pressable'));
+    await flushAsync();
+    expect(mockOnAbort).toHaveBeenCalledTimes(1);
   });
 
   it('Android では位置報告が落ち着いた 0.8 秒後に取り直した値を採用する (TASK-121)', async () => {
