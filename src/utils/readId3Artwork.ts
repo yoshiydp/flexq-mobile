@@ -1,4 +1,4 @@
-import { readAsStringAsync, EncodingType } from 'expo-file-system';
+import { readAsStringAsync, EncodingType } from 'expo-file-system/legacy';
 
 function decodeSynchsafeInt(b0: number, b1: number, b2: number, b3: number): number {
   return ((b0 & 0x7f) << 21) | ((b1 & 0x7f) << 14) | ((b2 & 0x7f) << 7) | (b3 & 0x7f);

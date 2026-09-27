@@ -29,9 +29,6 @@ import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './PasswordResetScreen.styles';
 
 export default function PasswordResetScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   const navigation =
     useNavigation<StackNavigationProp<RootStackParamList>>();
   const [email, setEmail] = useState('');
@@ -56,6 +53,10 @@ export default function PasswordResetScreen() {
     }
     navigation.goBack();
   };
+
+  // Android のシステム back ジェスチャー / 戻るボタンをヘッダーの戻るボタンと同じ処理に接続する（TASK-113）
+  // 認証コード入力中はメール入力へ戻す
+  useBlockAndroidBackGesture(handleGoBack);
 
   // 登録済みメールアドレス宛に 6 桁の認証コードを送信して検証ステップへ進む
   const handleSendCode = async () => {
