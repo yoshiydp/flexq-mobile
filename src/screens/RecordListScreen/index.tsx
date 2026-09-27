@@ -1,6 +1,8 @@
 import React, { useCallback, useMemo, useState } from 'react';
 import { View, ScrollView, ActivityIndicator, RefreshControl } from 'react-native';
 import { useNavigation, useRoute, useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
 import HeaderToolBar from '@/components/ui/HeaderToolBar';
 import RecordItem from '@/components/features/drafts/RecordItem';
 import ErrorBanner from '@/components/ui/ErrorBanner';
@@ -16,7 +18,8 @@ import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './RecordListScreen.styles';
 
 export default function RecordListScreen() {
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const route = useRoute();
   const params = (route as any).params || {};
 

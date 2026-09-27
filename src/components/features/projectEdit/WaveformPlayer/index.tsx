@@ -43,7 +43,7 @@ export default function WaveformPlayer({
 
     const loadWaveform = async () => {
       try {
-        let json;
+        let json: number[];
 
         if (typeof waveformJson === 'string') {
           const res = await fetch(waveformJson);
@@ -55,11 +55,11 @@ export default function WaveformPlayer({
         }
 
         const max = Math.max(...json.map(Math.abs)) || 1;
-        const normalized = json.map((v: number) => Math.abs(v) / max);
+        const normalized: number[] = json.map((v: number) => Math.abs(v) / max);
 
         const desiredBars = Math.floor(svgWidth / 3);
         const step = Math.max(1, Math.floor(normalized.length / desiredBars));
-        const downSampled = [];
+        const downSampled: number[] = [];
 
         for (let i = 0; i < normalized.length; i += step) {
           const slice = normalized.slice(i, i + step);

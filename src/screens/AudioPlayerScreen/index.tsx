@@ -14,7 +14,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { useFetchTrack } from '@/hooks/useFetchTrack';
-import type { LinkedProject } from '@/hooks/useFetchTrack';
+import type { SerializedTrackType } from '@/types/trackType';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { MODAL_MESSAGES } from '@/constants/messages';
 import { useUpdateTrack } from '@/hooks/useUpdateTrack';
@@ -23,22 +23,12 @@ import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { formatDate } from '@/utils/formatDate';
 import styles from './AudioPlayerScreen.styles';
 
-interface Track {
-  id: string;
-  title: string;
-  source: string;
-  artwork?: string;
-  linkedProjects: LinkedProject[];
-  extention: string;
-  updatedAt: Date;
-}
-
 export default function AudioPlayerScreen() {
   const route = useRoute<any>();
   const navigation = useNavigation();
   const { trackIndex, tracks } = route.params as {
     trackIndex: number;
-    tracks: Track[];
+    tracks: SerializedTrackType[];
   };
 
   const [localTracks, setLocalTracks] = useState(tracks);

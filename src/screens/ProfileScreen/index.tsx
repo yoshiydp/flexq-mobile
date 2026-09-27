@@ -58,7 +58,7 @@ export default function ProfileScreen() {
     transform: [{ translateX }, { translateY }],
   });
 
-  const handleProfileEditPress = () => navigation.navigate('ProfileEdit', {});
+  const handleProfileEditPress = () => navigation.navigate('ProfileEdit');
 
   const onSubmitLogout = async () => {
     closeModal();

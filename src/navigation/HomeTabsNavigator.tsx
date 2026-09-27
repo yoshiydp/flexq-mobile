@@ -5,8 +5,9 @@ import TrackListScreen from '@/screens/TrackListScreen';
 import ProfileScreen from '@/screens/ProfileScreen';
 import DraftsScreen from '@/screens/DraftsScreen';
 import NavigationBar from '@/components/features/navigation/NavigationBar';
+import type { HomeTabsParamList } from './types';
 
-const Tab = createBottomTabNavigator();
+const Tab = createBottomTabNavigator<HomeTabsParamList>();
 
 export default function HomeTabsNavigator() {
   return (

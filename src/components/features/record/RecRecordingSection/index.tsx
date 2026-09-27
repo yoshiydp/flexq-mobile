@@ -132,6 +132,11 @@ export default function RecRecordingSection({
   // ため、まず自動ロック自体を起こさない (TASK-111)
   useKeepAwake();
 
+  // カウントダウン完了時に呼ぶ録音開始関数への参照。startRecording は後方で
+  // useCallback 定義するため、カウントダウンの useEffect からは直接参照できない
+  // （依存配列は render 時に評価されるため宣言前アクセスになる / TASK-109）
+  const startRecordingRef = useRef<() => void>(() => {});
+
   // アンマウント時に音源とフォアグラウンド復帰待ちを必ずクリーンアップ
   useEffect(() => {
     return () => {
@@ -193,12 +198,12 @@ export default function RecRecordingSection({
     if (countdown > 0) {
       interval = setInterval(() => setCountdown((prev) => prev - 1), 1000);
     } else if (countdown === 0) {
-      startRecording();
+      startRecordingRef.current();
     }
     return () => {
       if (interval) clearInterval(interval);
     };
-  }, [permissionGranted, countdown, startRecording]);
+  }, [permissionGranted, countdown]);
 
   useEffect(() => {
     if (!isRunning) return;
@@ -541,6 +546,8 @@ export default function RecRecordingSection({
 
     setIsRunning(true);
   }, [trackSource, startPositionMs]);
+
+  startRecordingRef.current = startRecording;
 
   /**
    * 録音を停止して保存経路（onStop）へ渡す。保存できる録音がない場合は
