@@ -93,7 +93,6 @@ export default function ProfileEditScreen() {
 
       await updateProfile({
         username: changedUsername ?? profile.username,
-        email: profile.email,
         ...(thumbnailKey ? { thumbnailKey } : {}),
       });
 
