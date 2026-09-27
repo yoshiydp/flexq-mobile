@@ -258,6 +258,22 @@ AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api --region ap-northea
   4. `staging` ブランチと旧ワークフローの残骸を削除
   5. 運営者に「削除完了」を連絡(運営者側の `~/s3-migration` 片付けの合図。別冊 第 8 章)
 
+### 実施状況(2026-09-27 時点)
+
+1〜4 は完了済み。**残るのは 5(運営者への連絡)のみ**。
+
+| 手順 | 状況 |
+|------|------|
+| 1. S3 を空にする | 完了(`lyrics-prod-api-*` は元から空 / `lyrics-mock-api-*` は 123 ファイル・488MB を削除) |
+| 2. 旧スタックの削除 | 完了(開発者アカウントに残る SAM スタックは `lyrics-dev-api` のみ) |
+| 3. `migration-reader` の削除 | 完了(アクセスキー削除 → `ReadOnlyAccess` 解除 → ユーザー削除) |
+| 4. `staging` ブランチ・旧ワークフロー | 完了(いずれも残骸なし) |
+| 5. 運営者へ「削除完了」を連絡 | **未対応** |
+
+削除前に、旧 dev(`lyrics-mock-api`)にいた実アカウント 3 件
+(`yoshihisa.watanabe.info` / `luz104tb` / `syamusyamu1124`)が、いずれも現 dev
+(`lyrics-dev-api`)に存在することを確認している。
+
 ## 3. トラブルシューティング(開発者向け)
 
 | 症状 | 原因と対処 |
