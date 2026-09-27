@@ -348,9 +348,22 @@ TASK-121 で導入した `react-native-audio-api`（設定プラグインあり�
 TestFlight / Play 内部テストのビルドと**同じ端末に同時に入れられる**。ホーム画面では
 アプリ名で見分ける（`FlexQ` = ストア配信版 / `FlexQ Dev` = 開発ビルド）。
 
-切り替えは `app.config.js` が環境変数 `APP_VARIANT` を見て行う。`development` のときだけ
-バンドル ID・パッケージ名・アプリ名・ディープリンクのスキームを変える。
-この環境変数は `eas.json` の `development-device` プロファイルにだけ設定している。
+切り替えは `app.config.js` が環境変数 `APP_VARIANT` を見て行う。`eas.json` の各ビルド
+プロファイルで設定している。
+
+| APP_VARIANT | アプリ名 | バンドル ID | アイコン | プロファイル |
+|------------|---------|-----------|---------|------------|
+| `development` | FlexQ Dev | `com.yoshiydp.lyricsapp.dev` | 下部に **Dev** の帯 | `development-device` |
+| `staging` | FlexQ | `com.yoshiydp.lyricsapp` | 下部に **STG** の帯 | `staging` |
+| （未設定） | FlexQ | `com.yoshiydp.lyricsapp` | 素のアイコン | `production`・ローカルビルド |
+
+バリアント用のアイコンは `swift scripts/generate-variant-icons.swift` で生成する
+（`icon.png` / `adaptive-icon.png` に帯を重ねて `-stg` / `-dev` を書き出す）。
+元のアイコンを差し替えたら再実行すること。Android は前景画像の中央 66.7% しか
+表示されないため、帯の位置が iOS と異なる。
+
+> **アイコンはネイティブ資産なので OTA では変わらない。** 帯付きアイコンが反映されるのは
+> 次回のビルドから。
 
 > **ローカルビルド（`yarn ios` / `yarn android`）と EAS の `development` プロファイルでは
 > 設定しない。** シミュレーター / エミュレーターには TestFlight 版が入らないので衝突せず、

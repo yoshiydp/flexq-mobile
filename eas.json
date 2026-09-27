@@ -40,6 +40,7 @@
       "channel": "staging",
       "node": "20.11.0",
       "env": {
+        "APP_VARIANT": "staging",
         "EXPO_PUBLIC_API_BASE_URL": "https://5pzt12icve.execute-api.ap-northeast-1.amazonaws.com/v1",
         "EXPO_PUBLIC_SYNC_DEBUG": "1"
       },
