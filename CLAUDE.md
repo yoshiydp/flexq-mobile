@@ -87,7 +87,7 @@ iOS と同様、日常の開発は `yarn start` を起動し、ターミナル�
 
 **OTA Update の確認:**
 
-`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
+`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側で開発ビルドを完全終了 → 再起動すると最新 update が適用されます。**Expo Go は使えません**（理由と代替は「開発ビルド（実機検証用）」を参照）。
 
 > **Android のセットアップ状況:** Google ログイン（TASK-54）・Google Play Console・EAS submit・内部テスト配信まですべてセットアップ済みで運用可能。Google OAuth の Android クライアントは lyrics-app-492415 にデバッグ署名 / EAS アップロード鍵 / Play アプリ署名鍵の 3 つを登録済み（`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` は `.env` に設定済み）。**新規 Android クライアント作成時は「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**（デフォルト無効のままだと OAuth が `400: invalid_request` になる）。
 
@@ -320,6 +320,103 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
 
+### 開発ビルド（実機検証用）
+
+#### Expo Go は使えない
+
+TASK-121 で導入した `react-native-audio-api`（設定プラグインあり）をはじめ、`expo-speech-recognition` /
+`@10play/tentap-editor` / `react-native-device-info` など **Expo Go に同梱されないネイティブモジュール**を
+使っているため、Expo Go では動きません。`react-native-audio-api` は起動時の画面連鎖で読み込まれるので、
+無い環境では白画面ではなく**起動直後にクラッシュ**します
+（`Failed to install react-native-audio-api: The native module could not be found.`）。
+
+代わりに **開発ビルド（expo-dev-client）** を使います。これが Expo 公式の Expo Go 代替です。
+
+#### 使い分け
+
+| 用途 | 作り方 | 接続先 |
+|------|-------|-------|
+| シミュレーター / エミュレーター（日常開発・E2E） | ローカルビルド `yarn ios` / `yarn android` | `yarn start` の Metro |
+| **実機**（TestFlight / Play 内部テスト前の検証） | `eas build --profile development-device` | dev チャンネルの OTA |
+
+**ネイティブ依存を変えていない限り、開発ビルドは作り直し不要**です。JS の変更は `dev` ブランチへの
+マージで OTA が届きます（`runtimeVersion` を上げたときだけ作り直す）。
+
+#### TestFlight / Play 版との共存（アプリバリアント）
+
+実機用の開発ビルドは **`com.yoshiydp.lyricsapp.dev`** という別のバンドル ID で作るため、
+TestFlight / Play 内部テストのビルドと**同じ端末に同時に入れられる**。ホーム画面では
+アプリ名で見分ける（`FlexQ` = ストア配信版 / `FlexQ Dev` = 開発ビルド）。
+
+切り替えは `app.config.js` が環境変数 `APP_VARIANT` を見て行う。`eas.json` の各ビルド
+プロファイルで設定している。
+
+| APP_VARIANT | アプリ名 | バンドル ID | アイコン | プロファイル |
+|------------|---------|-----------|---------|------------|
+| `development` | FlexQ Dev | `com.yoshiydp.lyricsapp.dev` | 下部に **Dev** の帯 | `development-device` |
+| `staging` | FlexQ STG | `com.yoshiydp.lyricsapp` | 下部に **STG** の帯 | `staging` |
+| （未設定） | FlexQ | `com.yoshiydp.lyricsapp` | 素のアイコン | `production`・ローカルビルド |
+
+バリアント用のアイコンは `swift scripts/generate-variant-icons.swift` で生成する
+（`icon.png` / `adaptive-icon.png` に帯を重ねて `-stg` / `-dev` を書き出す）。
+元のアイコンを差し替えたら再実行すること。Android は前景画像の中央 66.7% しか
+表示されないため、帯の位置が iOS と異なる。
+
+> **アイコンはネイティブ資産なので OTA では変わらない。** 帯付きアイコンが反映されるのは
+> 次回のビルドから。
+
+> **ローカルビルド（`yarn ios` / `yarn android`）と EAS の `development` プロファイルでは
+> 設定しない。** シミュレーター / エミュレーターには TestFlight 版が入らないので衝突せず、
+> E2E（`.maestro` の `appId` は素の `com.yoshiydp.lyricsapp`）もそのまま動かせるため。
+> 実機で E2E を回す場合だけ `appId` の違いに注意する。
+
+**制約: 開発バリアントでは Google ログインが使えない。** OAuth クライアントはバンドル ID /
+パッケージ名に紐づくため。使えるようにするには Google Cloud（`lyrics-app-492415`）で
+`com.yoshiydp.lyricsapp.dev` 用のクライアントを追加作成する:
+
+- iOS: iOS クライアントを作成 → 逆順クライアント ID を `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` に設定
+- Android: Android クライアントを作成（パッケージ名 + EAS のキーストアの SHA-1。
+  `eas credentials` で確認できる）→ `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` を差し替え。
+  **「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**
+
+未設定の間もメール / パスワードのログインは使えるため、Google ログイン自体を検証したいとき以外は
+支障がない。
+
+#### 実機用の開発ビルドを作る・配る
+
+```bash
+# Android（APK）。インストールリンク / QR が発行される
+eas build --profile development-device --platform android
+
+# iOS（アドホック配布。事前に UDID 登録が必要）
+eas device:create                    # 端末未登録の場合のみ（QR / リンクから登録）
+eas build --profile development-device --platform ios
+```
+
+- ビルド完了後に出る URL を端末で開いてインストールする（Android は Play を経由しない・iOS は TestFlight 不要）
+- 登録済み端末は `eas device:list --apple-team-id GSAWY4TUK9` で確認できる
+- [Expo Orbit](https://docs.expo.dev/build/orbit/)（macOS アプリ）を使うと、EAS のビルドをワンクリックで
+  シミュレーター・実機にインストールできる（任意）
+
+#### チャンネルの対応（EAS Update）
+
+`eas.json` の `channel` と、GitHub Actions が配信する `eas update --branch` の名前が一致していないと
+**OTA はどのビルドにも届かない**。現在の対応は次のとおり:
+
+| チャンネル | 紐づく branch | 受け取るビルド |
+|-----------|--------------|--------------|
+| `dev` | `dev` | `development` / `development-device` |
+| `staging` | `staging` | `staging`（TestFlight / Play 内部テスト） |
+| `production` | `production` | `production` |
+
+`eas channel:list` で対応を確認できる。新しいチャンネルは `eas channel:create <名前>` で作る
+（同名の branch に自動で接続される）。
+
+> 2026-09-26 まで `dev` チャンネルが存在せず（`development` チャンネルが branch `development` を
+> 指していた）、dev ブランチへのマージで配信していた OTA がどのビルドにも届いていなかった（TASK-123）。
+
+---
+
 ### EAS ビルド（実機配布）
 
 #### 概要
@@ -361,13 +458,14 @@ eas submit --profile staging --platform ios
 
 #### eas.json の配布方式
 
-| プロファイル | distribution | 用途 |
-|------------|-------------|------|
-| `staging` | `store` | TestFlight 経由でテスター配布 |
-| `production` | `store` | App Store リリース |
-| `development` | `internal` | 開発者のみ（シミュレーター） |
+| プロファイル | distribution | チャンネル | 用途 |
+|------------|-------------|-----------|------|
+| `staging` | `store` | staging | TestFlight / Play 内部テスト経由でテスター配布 |
+| `production` | `store` | production | App Store リリース |
+| `development-device` | `internal` | dev | **開発者の実機**（TestFlight 前の検証。iOS は登録済み UDID のアドホック配布） |
+| `development` | `internal` | dev | シミュレーター専用（通常はローカルビルドを使うため EAS では作らない） |
 
-> **注意:** `distribution: "internal"` は UDID 登録が必要で、テスターの操作が煩雑になるため、面談・外部テスターには `store`（TestFlight）を使用する。
+> **注意:** `distribution: "internal"` は iOS で UDID 登録が必要なため、面談・外部テスターには `store`（TestFlight）を使用する。開発者自身の端末は UDID を登録済みなので `development-device` が使える。
 
 #### App Store Connect アプリ情報
 
@@ -471,7 +569,7 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 1. feature ブランチから `dev` への PR を作成・マージ
 2. ワークフロー `Deploy to Dev (EAS Update)` が dev チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL_DEV`）
-3. 実機でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用される
+3. 実機で開発ビルド（`development-device` プロファイル）を完全終了 → 再起動すると最新 update が適用される
 4. Lambda（`api/` 配下）に変更がある場合は、あわせて `lyrics-dev-api` へ手動 SAM デプロイ（`/deploy-api-dev`）
 
 #### staging への配信（リリース前検証）
