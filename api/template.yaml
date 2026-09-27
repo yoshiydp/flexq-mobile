@@ -1153,6 +1153,10 @@ Resources:
     Properties:
       Handler: lambda/post-auth-logout.handler
       CodeUri: ./
+      Policies:
+        # tokenVersion の ADD（セッション失効・TASK-105）
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
       Events:
         PostAuthLogout:
           Type: Api

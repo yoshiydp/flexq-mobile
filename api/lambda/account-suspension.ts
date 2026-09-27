@@ -32,18 +32,19 @@ export function suspendedResponse() {
 }
 
 /**
- * ユーザー status の TTL 付きキャッシュ（Lambda コンテナ単位）。
- * 全 API リクエストごとの DynamoDB 参照を抑えつつ、BAN を TTL 以内に
- * 反映させるためのトレードオフ。時刻は引数で注入できる（テスト用）。
+ * ユーザー単位の TTL 付きキャッシュ（Lambda コンテナ単位）。
+ * 全 API リクエストごとの DynamoDB 参照を抑えつつ、BAN やセッション失効
+ * （tokenVersion・TASK-105）を TTL 以内に反映させるためのトレードオフ。
+ * 時刻は引数で注入できる（テスト用）。
  */
-export interface SuspensionCache {
-  /** キャッシュ済みなら suspended フラグ、未キャッシュ・期限切れなら undefined */
-  get(userId: string, now?: number): boolean | undefined;
-  set(userId: string, suspended: boolean, now?: number): void;
+export interface TtlCache<T> {
+  /** キャッシュ済みなら値、未キャッシュ・期限切れなら undefined */
+  get(userId: string, now?: number): T | undefined;
+  set(userId: string, value: T, now?: number): void;
 }
 
-export function createSuspensionCache(ttlMs: number): SuspensionCache {
-  const entries = new Map<string, { suspended: boolean; expiresAt: number }>();
+export function createTtlCache<T>(ttlMs: number): TtlCache<T> {
+  const entries = new Map<string, { value: T; expiresAt: number }>();
   return {
     get(userId, now = Date.now()) {
       const entry = entries.get(userId);
@@ -52,10 +53,10 @@ export function createSuspensionCache(ttlMs: number): SuspensionCache {
         entries.delete(userId);
         return undefined;
       }
-      return entry.suspended;
+      return entry.value;
     },
-    set(userId, suspended, now = Date.now()) {
-      entries.set(userId, { suspended, expiresAt: now + ttlMs });
+    set(userId, value, now = Date.now()) {
+      entries.set(userId, { value, expiresAt: now + ttlMs });
     },
   };
 }

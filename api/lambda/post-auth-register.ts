@@ -1,11 +1,11 @@
 import { QueryCommand, PutCommand } from '@aws-sdk/lib-dynamodb';
-import * as jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
 import { randomUUID } from 'crypto';
 import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
 import { verifyAndConsumeCode } from './verification-code-store';
+import { issueTokens } from './auth-tokens';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
@@ -60,20 +60,13 @@ export const handler = async (event: any) => {
         username,
         thumbnail: null,
         socialAccounts: [],
+        tokenVersion: 0,
         createdAt: now,
       },
     }),
   );
 
-  const payload = { userId, email };
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: '7d',
-  });
-  const refreshToken = jwt.sign(
-    { userId, type: 'refresh' },
-    process.env.JWT_SECRET!,
-    { expiresIn: '30d' },
-  );
+  const token = issueTokens({ userId, email, tokenVersion: 0 });
 
   try {
     await sendEmail({
@@ -103,11 +96,7 @@ export const handler = async (event: any) => {
       email,
       thumbnail: null,
       socialAccounts: [],
-      token: {
-        accessToken,
-        refreshToken,
-        expiresIn: 604800,
-      },
+      token,
     },
     201,
   );
