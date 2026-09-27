@@ -60,8 +60,9 @@ export const handler = async (event: any) => {
     new UpdateCommand({
       TableName: process.env.USERS_TABLE!,
       Key: { userId: user.userId },
-      UpdateExpression: 'SET passwordHash = :hash',
-      ExpressionAttributeValues: { ':hash': passwordHash },
+      // tokenVersion を進めて他端末のセッション（発行済みトークン）を失効させる (TASK-105)
+      UpdateExpression: 'SET passwordHash = :hash ADD tokenVersion :one',
+      ExpressionAttributeValues: { ':hash': passwordHash, ':one': 1 },
     }),
   );
 

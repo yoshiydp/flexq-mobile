@@ -1,9 +1,10 @@
 import { QueryCommand } from '@aws-sdk/lib-dynamodb';
-import * as jwt from 'jsonwebtoken';
 import * as bcrypt from 'bcryptjs';
 import { docClient } from './db';
 import { createResponse } from './utils';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
+import { issueTokens } from './auth-tokens';
+import { readConsistentUserRecord } from './user-snapshot';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
@@ -13,18 +14,34 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Email and password are required' }, 400);
   }
 
+  // email-index は email から userId を解決するためだけに使う（GSI は強整合
+  // 読み取りができないため、ここで読んだ属性は判断に使わない・TASK-105）
   const result = await docClient.send(
     new QueryCommand({
       TableName: process.env.USERS_TABLE!,
       IndexName: 'email-index',
       KeyConditionExpression: 'email = :email',
       ExpressionAttributeValues: { ':email': email },
-    })
+    }),
   );
 
-  const user = result.Items?.[0];
+  const indexSnapshot = result.Items?.[0];
+  if (!indexSnapshot?.userId) {
+    return createResponse({ message: 'Invalid credentials' }, 401);
+  }
+
+  // パスワードの検証・BAN 判定・tokenVersion・応答に返すプロフィールは
+  // すべて同一スナップショットから取る。混在させると、パスワードリセット直後に
+  // 「GSI の古い passwordHash（旧パスワードで一致）＋ 強整合の加算後
+  // tokenVersion」の組み合わせが成立し、旧パスワードでのログインがリセット後の
+  // 版数を持つトークンを受け取ってセッション失効を回避できてしまう (TASK-105)。
+  // 強整合読み取りが失敗・レコードなしの場合は GSI のスナップショットに
+  // 一貫して戻す（従来と同じ挙動。検証も版数もそのスナップショットから行う）
+  const user =
+    (await readConsistentUserRecord(indexSnapshot.userId)) ?? indexSnapshot;
+
   // passwordHash を持たないユーザー（Google ログインで自動作成）はパスワード認証不可
-  if (!user || !user.passwordHash) {
+  if (!user.passwordHash) {
     return createResponse({ message: 'Invalid credentials' }, 401);
   }
 
@@ -39,26 +56,16 @@ export const handler = async (event: any) => {
     return suspendedResponse();
   }
 
-  const payload = { userId: user.userId, email: user.email };
-  const accessToken = jwt.sign(payload, process.env.JWT_SECRET!, {
-    expiresIn: '7d',
-  });
-  const refreshToken = jwt.sign(
-    { userId: user.userId, type: 'refresh' },
-    process.env.JWT_SECRET!,
-    { expiresIn: '30d' }
-  );
-
   return createResponse({
     userId: user.userId,
     username: user.username,
     email: user.email,
     thumbnail: user.thumbnail ?? null,
     socialAccounts: user.socialAccounts ?? [],
-    token: {
-      accessToken,
-      refreshToken,
-      expiresIn: 604800,
-    },
+    token: issueTokens({
+      userId: user.userId,
+      email: user.email,
+      tokenVersion: user.tokenVersion,
+    }),
   });
 };

@@ -184,7 +184,9 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 
 > **注意:** `api/samconfig.toml` のデフォルトスタック名は dev の `lyrics-dev-api`（`--stack-name` なしの `sam deploy` は dev に向く）。**staging / production へのデプロイでは `--stack-name` と `AWS_PROFILE=flexq-ops` を必ず明示する**。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
 
-- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（新規作成時はテンプレートの `Default` が入る。下記「Replicate トークン」の注意も参照）
+- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（UsePreviousValue）。**`JwtSecret` は `Default` を持たない必須パラメータ**（TASK-106 で既定値 `lyrics-jwt-secret-change-in-production` を撤廃・`MinLength: 32`）のため、**スタックを新規作成するときは `--parameter-overrides JwtSecret="$(openssl rand -base64 32)"` を必ず指定する**（未指定だとデプロイ前のパラメータ検証で失敗する）。その他のパラメータは新規作成時にテンプレートの `Default` が入る（下記「Replicate トークン」の注意も参照）
+- 既存 3 スタックが既定シークレットのままになっていないかは `docs/jwt-secret-verification.md` の手順で確認する（既定シークレットで署名した JWT が 401 になれば OK。既定値だった環境はシークレットを差し替えて再デプロイし、その環境の全ユーザーが再ログインになる）
+- 未認証の `GET /data`（モックデータ一括返却の `GetDataFunction`）は TASK-106 で API Gateway から削除済み。`api/openapi.yaml` の `/data` と `yarn mock:server` の `/data` はローカルモック専用
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
@@ -215,6 +217,8 @@ AWS_PROFILE=flexq-ops USERS_TABLE=<テーブル名> npx tsx scripts/ban-user.ts 
 | パスワードログイン / Google ログイン / トークンリフレッシュ | 403 で拒否 |
 | すでにログイン中の端末（発行済みトークン） | 401 で全 API 遮断。**反映は最大 60 秒**（`auth-middleware` の status キャッシュ TTL） |
 | 同じメールでの新規登録 | 登録不可（レコードが残るため `verification-code` は登録済み扱いでコードを発行せず、`register` は 400 reason code_* で止まる。TASK-104 以降は 409 に到達しない） |
+
+**セッション失効（TASK-105）:** ログアウト・パスワードリセットは Users の `tokenVersion`（属性なしは 0）を `ADD` で +1 し、以後は `tv` クレームが一致しないトークンをリフレッシュ 401 / 保護 API 401 で拒否する（`api/lambda/auth-tokens.ts` の `issueTokens` が login / register / google / refresh で両トークンに `tv` を焼き込む）。保護 API 側の照合は上記 BAN と同じ `auth-middleware` の GetItem・60 秒キャッシュに相乗りしているため、**反映は最大 60 秒**・DynamoDB 障害時はフェイルオープン（ただしキャッシュより新しい `tv` のトークンは DB を引き直すので、ログアウト直後の再ログインは待たされない）。照合は完全一致ではなく「`tv` が保存値より古いか」で行う: `tv` は署名済み JWT の中身なので水増しできず、`tv` > 保存値は結果整合の読み取り遅れ（GetItem の既定や login / google の GSI 経由）しか意味しないため、その向きは許容して発行直後のトークンが 401 になるのを防ぐ。`tv` なしの旧トークンは tokenVersion が 0 の間だけ有効で、初回のログアウトで自然に失効する。**発行時と照合時で読み取り方が違う**: トークンを発行する login / google / refresh は、焼き込む `tv` を Users の `GetItem` + `ConsistentRead: true`（`api/lambda/user-snapshot.ts` の `readConsistentUserRecord`。refresh は本体の `GetCommand` に付与）で読む — GSI（`email-index` / `googleSub-index`）は強整合読み取りができず、`GetItem` も既定では結果整合のため、そのままだとログアウト直後のログインが「すでに失効済みの `tv`」を焼き込んだトークンを発行し、保護 API とリフレッシュが更新後のレコードを観測した時点で 401 になる。強整合読み取りが失敗した場合・レコードが読めなかった場合は GSI のスナップショットへ**一貫して**フォールバックしてログインを落とさない（`console.warn` を残す）。**資格情報の検証・BAN 判定・版数の決定・応答に返すプロフィールは必ず同一スナップショットから行う**（GSI は email / googleSub → userId の解決にだけ使い、属性は射影せず 1 回の強整合読み取りでまとめて引く。google の email 照合経路は自分で書き込むため `UpdateCommand` の `ReturnValues: 'ALL_NEW'` を正のスナップショットとして使い、結果整合の事前 BAN 判定をすり抜けても書き込まないよう `status <> suspended` の `ConditionExpression` を付けている）: 混在させると、パスワードリセット直後に「GSI の古い `passwordHash`（旧パスワードで一致）＋ 強整合の加算後 `tokenVersion`」が成立し、旧パスワードでのログインがリセット後の版数を持つトークンを受け取ってリセットによる失効を回避できてしまう。refresh は念のため「受信した `tv` と保存値の大きい方」を再発行するトークンに焼き込み、クライアントが持つ有効なトークンの版数を下げない。一方**保護 API 側の照合（`auth-middleware.verifyToken`）は結果整合の `GetItem` + 60 秒キャッシュのまま**で、上記の許容（`tv` > 保存値）がその読み取り遅れを吸収する。ログアウト API の `ADD` は「保存値 = トークンの `tv`」を条件にしており（失効済みトークンで以後のセッションを切れないようにするため）、条件不一致・失敗時も 200 を返す（クライアントはローカルのトークンを破棄する）。
 
 **運用ルール:**
 - BAN 実行は日時・対象 userId / email・理由を Notion に記録する

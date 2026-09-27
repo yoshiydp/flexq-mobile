@@ -2,7 +2,7 @@
  * account-suspension.ts（アカウント停止の純粋ロジック）のユニットテスト (TASK-81)
  */
 import {
-  createSuspensionCache,
+  createTtlCache,
   isSuspendedUser,
   suspendedResponse,
 } from './account-suspension';
@@ -41,14 +41,14 @@ describe('suspendedResponse', () => {
   });
 });
 
-describe('createSuspensionCache', () => {
+describe('createTtlCache', () => {
   it('未キャッシュのユーザーは undefined を返す', () => {
-    const cache = createSuspensionCache(60_000);
+    const cache = createTtlCache<boolean>(60_000);
     expect(cache.get('user-1', 0)).toBeUndefined();
   });
 
   it('set した値を TTL 内は返す（suspended / active の両方）', () => {
-    const cache = createSuspensionCache(60_000);
+    const cache = createTtlCache<boolean>(60_000);
     cache.set('banned', true, 0);
     cache.set('normal', false, 0);
     expect(cache.get('banned', 59_999)).toBe(true);
@@ -56,20 +56,20 @@ describe('createSuspensionCache', () => {
   });
 
   it('TTL を過ぎたエントリは undefined になる（再参照で DB を引き直す）', () => {
-    const cache = createSuspensionCache(60_000);
+    const cache = createTtlCache<boolean>(60_000);
     cache.set('user-1', false, 0);
     expect(cache.get('user-1', 60_000)).toBeUndefined();
   });
 
   it('set し直すと TTL が更新される', () => {
-    const cache = createSuspensionCache(60_000);
+    const cache = createTtlCache<boolean>(60_000);
     cache.set('user-1', false, 0);
     cache.set('user-1', true, 30_000);
     expect(cache.get('user-1', 89_999)).toBe(true);
   });
 
   it('ユーザーごとに独立してキャッシュされる', () => {
-    const cache = createSuspensionCache(60_000);
+    const cache = createTtlCache<boolean>(60_000);
     cache.set('user-1', true, 0);
     expect(cache.get('user-2', 0)).toBeUndefined();
   });
