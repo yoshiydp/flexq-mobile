@@ -6,6 +6,7 @@ import { createResponse } from './utils';
 import { verifyGoogleAccessToken } from './google-auth';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
 import { issueTokens } from './auth-tokens';
+import { readCurrentTokenVersion } from './token-version-store';
 
 // Google OAuth のアクセストークンを検証してログインする。
 // ユーザーの照合は一般的なサービスと同じ 3 段階:
@@ -178,6 +179,16 @@ export const handler = async (event: any) => {
     return suspendedResponse();
   }
 
+  // 既存ユーザーの tokenVersion は GSI（googleSub-index / email-index）経由で
+  // 読んでおり強整合読み取りができないため、ログアウト直後は古い値を返しうる。
+  // そのまま発行すると「すでに失効済みのトークン」を渡してしまうので、発行に
+  // 使う値だけ Users から強整合読み取りで取り直す (TASK-105)。
+  // 新規作成したユーザーは直前の PutCommand で 0 を書いた値がそのまま正なので、
+  // 追加の読み取りは行わない
+  const tokenVersion = isNewUser
+    ? user.tokenVersion
+    : await readCurrentTokenVersion(user.userId, user.tokenVersion);
+
   return createResponse(
     {
       userId: user.userId,
@@ -188,7 +199,7 @@ export const handler = async (event: any) => {
       token: issueTokens({
         userId: user.userId,
         email: user.email,
-        tokenVersion: user.tokenVersion,
+        tokenVersion,
       }),
     },
     isNewUser ? 201 : 200,

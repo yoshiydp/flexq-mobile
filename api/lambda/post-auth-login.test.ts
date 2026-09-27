@@ -18,15 +18,20 @@ jest.mock('./db', () => ({
 
 jest.mock(
   '@aws-sdk/lib-dynamodb',
-  () => ({
-    QueryCommand: class {
-      type = 'Query';
-      input: any;
-      constructor(input: any) {
-        this.input = input;
-      }
-    },
-  }),
+  () => {
+    const makeCommandClass = (commandType: string) =>
+      class {
+        type = commandType;
+        input: any;
+        constructor(input: any) {
+          this.input = input;
+        }
+      };
+    return {
+      QueryCommand: makeCommandClass('Query'),
+      GetCommand: makeCommandClass('Get'),
+    };
+  },
   { virtual: true },
 );
 
@@ -57,9 +62,32 @@ describe('post-auth-login の tokenVersion 引き継ぎ', () => {
     );
   });
 
-  const setUser = (user: Record<string, unknown>) => {
-    mockSend.mockResolvedValue({ Items: [user] });
+  /**
+   * email-index の Query（GSI スナップショット）と、発行前の強整合 GetItem を
+   * 別々に差し替える。consistentTokenVersion を省略すると Query と同じ値を返す
+   */
+  const setUser = (
+    user: Record<string, unknown>,
+    options: { consistentTokenVersion?: unknown; getFails?: boolean } = {},
+  ) => {
+    mockSend.mockImplementation(async (command: any) => {
+      if (command?.type === 'Get') {
+        if (options.getFails) throw new Error('consistent read failed');
+        return {
+          Item: {
+            tokenVersion:
+              'consistentTokenVersion' in options
+                ? options.consistentTokenVersion
+                : user.tokenVersion,
+          },
+        };
+      }
+      return { Items: [user] };
+    });
   };
+
+  const getCommand = () =>
+    mockSend.mock.calls.find(([command]: any) => command?.type === 'Get')?.[0];
 
   it('保存されている tokenVersion を accessToken / refreshToken の tv に含める', async () => {
     setUser({
@@ -86,6 +114,56 @@ describe('post-auth-login の tokenVersion 引き継ぎ', () => {
       type: 'refresh',
       tv: 3,
     });
+  });
+
+  it('GSI が古い tokenVersion を返しても強整合読み取りの値で発行する', async () => {
+    // ログアウト直後の再ログイン。email-index は強整合読み取りができないため
+    // 古い値（1）を返しうるが、その値で発行すると「すでに失効済みのトークン」を
+    // 渡してしまい、保護 API が更新後のレコードを観測した時点で 401 になる
+    setUser(
+      {
+        userId: 'user-1',
+        email: 'u@example.com',
+        username: 'User',
+        passwordHash: 'hash',
+        tokenVersion: 1,
+      },
+      { consistentTokenVersion: 2 },
+    );
+
+    const res = await invoke();
+
+    expect(res.statusCode).toBe(200);
+    expect(mockSign.mock.calls[0][0]).toMatchObject({ tv: 2 });
+    expect(mockSign.mock.calls[1][0]).toMatchObject({ type: 'refresh', tv: 2 });
+    // 強整合読み取り + tokenVersion のみの射影で引いていること
+    expect(getCommand()?.input).toMatchObject({
+      TableName: 'users',
+      Key: { userId: 'user-1' },
+      ConsistentRead: true,
+      ProjectionExpression: 'tokenVersion',
+    });
+  });
+
+  it('強整合読み取りが失敗しても GSI の値でログインを成功させる', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    setUser(
+      {
+        userId: 'user-1',
+        email: 'u@example.com',
+        username: 'User',
+        passwordHash: 'hash',
+        tokenVersion: 1,
+      },
+      { getFails: true },
+    );
+
+    const res = await invoke();
+
+    expect(res.statusCode).toBe(200);
+    expect(mockSign.mock.calls[0][0]).toMatchObject({ tv: 1 });
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
   });
 
   it('tokenVersion 属性のない既存ユーザーは tv: 0 で発行する', async () => {

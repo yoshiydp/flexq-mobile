@@ -32,6 +32,7 @@ jest.mock(
       };
     return {
       QueryCommand: makeCommandClass('Query'),
+      GetCommand: makeCommandClass('Get'),
       PutCommand: makeCommandClass('Put'),
       UpdateCommand: makeCommandClass('Update'),
     };
@@ -72,12 +73,26 @@ const mockGoogleFetch = (emailVerified: boolean | string | undefined) => {
   }) as unknown as typeof fetch;
 };
 
-// docClient.send のレスポンスを Query の対象インデックスごとに切り替える
+// docClient.send のレスポンスを Query の対象インデックスごとに切り替える。
+// 発行前の強整合 GetItem（TASK-105）は consistentTokenVersion で差し替えられ、
+// 省略時は GSI で見つかったユーザーと同じ tokenVersion を返す
 const setQueryResults = (results: {
   bySub?: unknown[];
   byEmail?: unknown[];
+  consistentTokenVersion?: unknown;
 }) => {
   mockSend.mockImplementation(async (command: any) => {
+    if (command.type === 'Get') {
+      const found: any = results.bySub?.[0] ?? results.byEmail?.[0];
+      return {
+        Item: {
+          tokenVersion:
+            'consistentTokenVersion' in results
+              ? results.consistentTokenVersion
+              : found?.tokenVersion,
+        },
+      };
+    }
     if (command.type !== 'Query') return {};
     if (command.input.IndexName === 'googleSub-index') {
       return { Items: results.bySub ?? [] };
@@ -85,6 +100,9 @@ const setQueryResults = (results: {
     return { Items: results.byEmail ?? [] };
   });
 };
+
+const getCommands = () =>
+  mockSend.mock.calls.filter(([command]: any) => command?.type === 'Get');
 
 const invoke = (mode?: 'login' | 'register') =>
   handler({ body: JSON.stringify({ accessToken: 'google-token', mode }) });
@@ -240,6 +258,56 @@ describe('post-auth-google の tokenVersion 引き継ぎ (TASK-105)', () => {
     });
   });
 
+  it('googleSub-index が古い tokenVersion を返しても強整合読み取りの値で発行する', async () => {
+    // ログアウト直後の Google ログイン。GSI は強整合読み取りができないため
+    // 古い値（1）を返しうるが、その値で発行すると発行直後に 401 になる
+    setQueryResults({
+      bySub: [
+        {
+          userId: 'linked-user',
+          email: EMAIL,
+          username: 'Linked',
+          googleSub: GOOGLE_SUB,
+          tokenVersion: 1,
+        },
+      ],
+      consistentTokenVersion: 2,
+    });
+    mockGoogleFetch(true);
+
+    const res = await invoke('login');
+
+    expect(res.statusCode).toBe(200);
+    expect(mockSign.mock.calls[0][0]).toMatchObject({ tv: 2 });
+    expect(mockSign.mock.calls[1][0]).toMatchObject({ type: 'refresh', tv: 2 });
+    expect(getCommands()[0][0].input).toMatchObject({
+      TableName: 'users',
+      Key: { userId: 'linked-user' },
+      ConsistentRead: true,
+      ProjectionExpression: 'tokenVersion',
+    });
+  });
+
+  it('email 照合で連携した既存ユーザーも強整合読み取りの値で発行する', async () => {
+    setQueryResults({
+      byEmail: [
+        {
+          userId: 'victim-user',
+          email: EMAIL,
+          username: 'Victim',
+          tokenVersion: 0,
+        },
+      ],
+      consistentTokenVersion: 3,
+    });
+    mockGoogleFetch(true);
+
+    const res = await invoke('login');
+
+    expect(res.statusCode).toBe(200);
+    expect(mockSign.mock.calls[0][0]).toMatchObject({ tv: 3 });
+  });
+
   it('新規作成する Google ユーザーには tokenVersion: 0 を保存する', async () => {
     setQueryResults({});
     mockGoogleFetch(true);
@@ -252,5 +320,7 @@ describe('post-auth-google の tokenVersion 引き継ぎ (TASK-105)', () => {
     );
     expect(putCall?.[0].input.Item.tokenVersion).toBe(0);
     expect(mockSign.mock.calls[0][0]).toMatchObject({ tv: 0 });
+    // 直前に自分で書いた値が正なので、強整合読み取りは行わない
+    expect(getCommands()).toHaveLength(0);
   });
 });

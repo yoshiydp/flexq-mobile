@@ -85,15 +85,33 @@ describe('post-auth-refresh の tokenVersion 照合', () => {
     expect(JSON.parse(res.body)).toEqual({ message: 'Invalid refresh token' });
   });
 
-  it('tv が保存値より新しい refreshToken は拒否しない（結果整合の読み取り遅れ）', async () => {
+  it('tv が保存値より新しい refreshToken は拒否せず、再発行するトークンの tv も下げない', async () => {
     // ログアウト直後の再ログインでは、login が GSI（強整合読み取り不可）から
-    // 新しい tokenVersion を読んで発行する一方、ここの GetItem が古い値を
-    // 返す窓がある。完全一致を求めると発行したばかりのトークンで 401 になる
+    // 新しい tokenVersion を読んで発行する一方、ここの読み取りが古い値を
+    // 返す窓がある。完全一致を求めると発行したばかりのトークンで 401 になる。
+    // さらに、保存値（1）をそのまま焼き込むとクライアントの有効なトークンを
+    // 古い版数で上書きしてしまい、次に version 2 を観測した時点で
+    // セッションが切れるため、検証を通った tv を引き継ぐ
     setUser({ ...BASE_USER, tokenVersion: 1 });
 
     const res = await invoke({ userId: 'user-1', type: 'refresh', tv: 2 });
 
     expect(res.statusCode).toBe(200);
+    const { token } = JSON.parse(res.body);
+    expect(JSON.parse(token.accessToken).tv).toBe(2);
+    expect(JSON.parse(token.refreshToken).tv).toBe(2);
+  });
+
+  it('Users の読み取りは強整合読み取りで行う', async () => {
+    setUser({ ...BASE_USER, tokenVersion: 2 });
+
+    await invoke({ userId: 'user-1', type: 'refresh', tv: 2 });
+
+    expect(mockSend.mock.calls[0][0].input).toMatchObject({
+      TableName: 'users',
+      Key: { userId: 'user-1' },
+      ConsistentRead: true,
+    });
   });
 
   it('tv なしの旧仕様 refreshToken は tokenVersion 属性なし（0）の間は有効で、発行トークンには tv: 0 が付く', async () => {

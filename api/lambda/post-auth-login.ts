@@ -4,6 +4,7 @@ import { docClient } from './db';
 import { createResponse } from './utils';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
 import { issueTokens } from './auth-tokens';
+import { readCurrentTokenVersion } from './token-version-store';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
@@ -39,6 +40,14 @@ export const handler = async (event: any) => {
     return suspendedResponse();
   }
 
+  // email-index は強整合読み取りができず、ログアウト直後は古い tokenVersion を
+  // 返しうる。そのまま発行すると「すでに失効済みのトークン」を渡してしまうため、
+  // 発行に使う値だけ Users から強整合読み取りで取り直す (TASK-105)
+  const tokenVersion = await readCurrentTokenVersion(
+    user.userId,
+    user.tokenVersion,
+  );
+
   return createResponse({
     userId: user.userId,
     username: user.username,
@@ -48,7 +57,7 @@ export const handler = async (event: any) => {
     token: issueTokens({
       userId: user.userId,
       email: user.email,
-      tokenVersion: user.tokenVersion,
+      tokenVersion,
     }),
   });
 };
