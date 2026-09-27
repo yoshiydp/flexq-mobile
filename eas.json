@@ -20,6 +20,7 @@
       "distribution": "internal",
       "channel": "dev",
       "env": {
+        "APP_VARIANT": "development",
         "EXPO_PUBLIC_SYNC_DEBUG": "1"
       },
       "ios": {

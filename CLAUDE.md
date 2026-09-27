@@ -342,6 +342,33 @@ TASK-121 で導入した `react-native-audio-api`（設定プラグインあり�
 **ネイティブ依存を変えていない限り、開発ビルドは作り直し不要**です。JS の変更は `dev` ブランチへの
 マージで OTA が届きます（`runtimeVersion` を上げたときだけ作り直す）。
 
+#### TestFlight / Play 版との共存（アプリバリアント）
+
+実機用の開発ビルドは **`com.yoshiydp.lyricsapp.dev`** という別のバンドル ID で作るため、
+TestFlight / Play 内部テストのビルドと**同じ端末に同時に入れられる**。ホーム画面では
+アプリ名で見分ける（`FlexQ` = ストア配信版 / `FlexQ Dev` = 開発ビルド）。
+
+切り替えは `app.config.js` が環境変数 `APP_VARIANT` を見て行う。`development` のときだけ
+バンドル ID・パッケージ名・アプリ名・ディープリンクのスキームを変える。
+この環境変数は `eas.json` の `development-device` プロファイルにだけ設定している。
+
+> **ローカルビルド（`yarn ios` / `yarn android`）と EAS の `development` プロファイルでは
+> 設定しない。** シミュレーター / エミュレーターには TestFlight 版が入らないので衝突せず、
+> E2E（`.maestro` の `appId` は素の `com.yoshiydp.lyricsapp`）もそのまま動かせるため。
+> 実機で E2E を回す場合だけ `appId` の違いに注意する。
+
+**制約: 開発バリアントでは Google ログインが使えない。** OAuth クライアントはバンドル ID /
+パッケージ名に紐づくため。使えるようにするには Google Cloud（`lyrics-app-492415`）で
+`com.yoshiydp.lyricsapp.dev` 用のクライアントを追加作成する:
+
+- iOS: iOS クライアントを作成 → 逆順クライアント ID を `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` に設定
+- Android: Android クライアントを作成（パッケージ名 + EAS のキーストアの SHA-1。
+  `eas credentials` で確認できる）→ `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` を差し替え。
+  **「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**
+
+未設定の間もメール / パスワードのログインは使えるため、Google ログイン自体を検証したいとき以外は
+支障がない。
+
 #### 実機用の開発ビルドを作る・配る
 
 ```bash
