@@ -37,9 +37,6 @@ const DEFAULT_SOCIAL_ACCOUNTS: SocialAccount[] = (
 }));
 
 export default function ProfileEditScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   const navigation = useNavigation();
   // profile は編集フォームのシードに使われるため、フォアグラウンド復帰時の
   // 自動再フェッチは無効化して編集中の内容が上書きされないようにする（TASK-47）
@@ -47,6 +44,10 @@ export default function ProfileEditScreen() {
   const { pickThumbnail, uploadThumbnail, updateProfile } = useUpdateProfile();
   const { showConfirmModal, showInputModal, showLoading, hideLoading, closeModal } = useModal();
   const { signIn: googleSignIn } = useGoogleAuth();
+
+  const handleGoBack = () => navigation.goBack();
+  // Android のシステム back ジェスチャー / 戻るボタンを ✕ ボタンと同じ処理に接続する（TASK-113）
+  useBlockAndroidBackGesture(handleGoBack);
 
   const [thumbnailUri, setThumbnailUri] = useState<string | null>(null);
   const [changedUsername, setChangedUsername] = useState<string | null>(null);
@@ -201,7 +202,7 @@ export default function ProfileEditScreen() {
 
   if (loading || !profile) {
     return (
-      <OverlayScreenTemplate>
+      <OverlayScreenTemplate onClose={handleGoBack}>
         <View style={styles.container}>
           <ActivityIndicator size="large" />
         </View>
@@ -213,7 +214,7 @@ export default function ProfileEditScreen() {
   const currentThumbnail = thumbnailUri ? { uri: thumbnailUri } : profile.thumbnail;
 
   return (
-    <OverlayScreenTemplate>
+    <OverlayScreenTemplate onClose={handleGoBack}>
       <ScrollView style={styles.container} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
         <ProfileIcon
           thumbnail={currentThumbnail}
