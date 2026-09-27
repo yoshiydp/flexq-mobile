@@ -154,7 +154,7 @@ staging / production は**運営者名義の AWS アカウント**、dev は開�
 - **production エンドポイント**: `https://7ez5duggcc.execute-api.ap-northeast-1.amazonaws.com/v1`（`eas.json` の production プロファイルに設定済み）
 - **リージョン**: `ap-northeast-1`（東京）
 - **SAM テンプレート**: `api/template.yaml`（3 環境共通）
-- 旧スタックのうち `lyrics-prod-api` は **2026-09-27 に削除済み**（全テーブル・S3 とも中身が空であることを確認したうえで削除）。`lyrics-mock-api` は旧 dev のデータ（ユーザー 8 件・音源 488MB）が残っているため未削除（`docs/aws-account-migration-guide.md` 第 IV 部 2 の手順で、S3 を空にしてから削除する）
+- 旧スタック（`lyrics-mock-api` / `lyrics-prod-api`）は **2026-09-27 に削除済み**。開発者アカウントに残る SAM スタックは `lyrics-dev-api` のみ（`docs/aws-account-migration-guide.md` 第 IV 部 2 の手順どおり、S3 バケットを空にしてから削除した。旧 dev の 3 アカウントのデータは現 dev 環境へ移行済みであることを確認済み）
 
 `src/App.tsx` の起動時に `OpenAPI.BASE` を環境変数で設定しています：
 
