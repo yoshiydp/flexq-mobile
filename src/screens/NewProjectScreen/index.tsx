@@ -71,9 +71,6 @@ function resolveArtworkFormat(uri: string, isDataUri: boolean) {
 }
 
 export default function NewProjectScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   const navigation =
     useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { tracks } = useFetchTrack();
@@ -128,6 +125,9 @@ export default function NewProjectScreen() {
   const audioDisplayName = pendingAudio?.name ?? selectedTrack?.title ?? null;
 
   const handleGoBack = () => navigation.goBack();
+
+  // Android のシステム back ジェスチャー / 戻るボタンをヘッダーの戻るボタンと同じ処理に接続する（TASK-113）
+  useBlockAndroidBackGesture(handleGoBack);
 
   const handlePickNewAudio = async () => {
     const result = await DocumentPicker.getDocumentAsync({
