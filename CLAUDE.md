@@ -184,7 +184,9 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 
 > **注意:** `api/samconfig.toml` のデフォルトスタック名は dev の `lyrics-dev-api`（`--stack-name` なしの `sam deploy` は dev に向く）。**staging / production へのデプロイでは `--stack-name` と `AWS_PROFILE=flexq-ops` を必ず明示する**。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
 
-- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（新規作成時はテンプレートの `Default` が入る。下記「Replicate トークン」の注意も参照）
+- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（UsePreviousValue）。**`JwtSecret` は `Default` を持たない必須パラメータ**（TASK-106 で既定値 `lyrics-jwt-secret-change-in-production` を撤廃・`MinLength: 32`）のため、**スタックを新規作成するときは `--parameter-overrides JwtSecret="$(openssl rand -base64 32)"` を必ず指定する**（未指定だとデプロイ前のパラメータ検証で失敗する）。その他のパラメータは新規作成時にテンプレートの `Default` が入る（下記「Replicate トークン」の注意も参照）
+- 既存 3 スタックが既定シークレットのままになっていないかは `docs/jwt-secret-verification.md` の手順で確認する（既定シークレットで署名した JWT が 401 になれば OK。既定値だった環境はシークレットを差し替えて再デプロイし、その環境の全ユーザーが再ログインになる）
+- 未認証の `GET /data`（モックデータ一括返却の `GetDataFunction`）は TASK-106 で API Gateway から削除済み。`api/openapi.yaml` の `/data` と `yarn mock:server` の `/data` はローカルモック専用
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 

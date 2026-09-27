@@ -6,8 +6,12 @@ Parameters:
   JwtSecret:
     Type: String
     NoEcho: true
-    Default: "lyrics-jwt-secret-change-in-production"
-    Description: Secret key for signing JWT tokens
+    MinLength: 32
+    Description: >-
+      Secret key for signing JWT tokens. REQUIRED (no default): pass it with
+      --parameter-overrides JwtSecret=... when creating a new stack (generate
+      with `openssl rand -base64 32`). Updates to an existing stack keep the
+      previous value when omitted (UsePreviousValue)
   SenderEmail:
     Type: String
     Default: ""
@@ -243,27 +247,6 @@ Resources:
           ThrottlingBurstLimit: 40
 
   # ─── Lambda Functions ──────────────────────────────────
-  GetDataFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: lambda/get-data.handler
-      CodeUri: ./
-      Events:
-        GetData:
-          Type: Api
-          Properties:
-            RestApiId: !Ref LyricsApi
-            Path: /data
-            Method: get
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2020
-        Sourcemap: false
-        EntryPoints:
-          - lambda/get-data.ts
-
   GetProjectFunction:
     Type: AWS::Serverless::Function
     Properties:
