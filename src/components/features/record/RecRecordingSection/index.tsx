@@ -33,21 +33,34 @@ const MEASURE_START_POSITION_SETTLE_MS_ANDROID = 800;
  * （停止と同時にモーダルが閉じて録音再生画面へ遷移する）ため、コンポーネントの
  * 寿命から切り離して購読する (TASK-112)
  *
- * @returns 案内が表示される前に文言を差し替える関数（停止結果の確定が復帰より
- *          遅れることがあるため、購読は先に登録して文言だけ後から直せるようにする）
+ * 購読は復帰の取りこぼしを避けるため停止処理の開始前に登録するが、案内の表示は
+ * **「停止結果が確定した」と「フォアグラウンドに戻った」の両方が揃ってから**にする。
+ * 暫定の文言を先に出して後から訂正する方式だと、停止完了より復帰が早かった場合に
+ * 「録音は残っている」と伝えたあとで実際には破棄される（停止失敗・長さ 0）ケースを
+ * 訂正できない
+ *
+ * @returns 停止結果が確定したときに呼ぶ関数（最初の 1 回のみ有効）。フォアグラウンド
+ *          復帰済みならその場で、まだバックグラウンドなら復帰時に案内を表示する
  */
-const scheduleForegroundNotice = (message: string) => {
-  let pendingMessage = message;
+const scheduleForegroundNotice = () => {
+  let noticeMessage: string | null = null;
+  let isForeground = false;
   let shown = false;
-  const subscription = AppState.addEventListener('change', (state) => {
-    if (state !== 'active' || shown) return;
+  const showIfReady = () => {
+    if (shown || !isForeground || noticeMessage === null) return;
     shown = true;
     subscription.remove();
-    Alert.alert(REC_BACKGROUND_MESSAGES.noticeTitle, pendingMessage);
+    Alert.alert(REC_BACKGROUND_MESSAGES.noticeTitle, noticeMessage);
+  };
+  const subscription = AppState.addEventListener('change', (state) => {
+    // 復帰後に再度バックグラウンドへ移った場合は表示しない（Alert が見えない）
+    isForeground = state === 'active';
+    showIfReady();
   });
-  return (nextMessage: string) => {
-    if (shown) return;
-    pendingMessage = nextMessage;
+  return (message: string) => {
+    if (shown || noticeMessage !== null) return;
+    noticeMessage = message;
+    showIfReady();
   };
 };
 
@@ -110,9 +123,7 @@ export default function RecRecordingSection({
   const onAbortRef = useRef(onAbort);
   onAbortRef.current = onAbort;
 
-  // AppState リスナー（登録時の値を掴まないよう ref 経由で参照する）から見る録音の進行状況
-  const isRunningRef = useRef(isRunning);
-  isRunningRef.current = isRunning;
+  // AppState リスナー（登録時の値を掴まないよう ref 経由で参照する）から見るマイク許可の状態
   const permissionGrantedRef = useRef(permissionGranted);
   permissionGrantedRef.current = permissionGranted;
 
@@ -234,18 +245,22 @@ export default function RecRecordingSection({
       if (!permissionGrantedRef.current) return;
       // STOP ボタンや直前の background で既に停止済みなら案内も出さない
       if (stopHandledRef.current) return;
-      // 停止処理の完了より復帰が先になることがあるため、案内の購読は先に登録し、
-      // 文言は停止結果で必要に応じて差し替える
-      const updateNotice = scheduleForegroundNotice(
-        isRunningRef.current
-          ? REC_BACKGROUND_MESSAGES.stoppedAndSaved
-          : REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+      // 復帰の取りこぼしを防ぐため購読は停止処理の前に登録し、案内自体は
+      // 停止結果が確定してから（かつフォアグラウンド復帰後に）表示する
+      const resolveNotice = scheduleForegroundNotice();
+      void stopRecordingRef.current().then(
+        (result) => {
+          resolveNotice(
+            result === 'saved'
+              ? // テイクはまだ永続化されていない（録音再生画面の SAVE で保存する）
+                REC_BACKGROUND_MESSAGES.stoppedNeedsSave
+              : // 保存できる録音がなかった（カウントダウン中・開始直後・停止失敗）
+                REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+          );
+        },
+        // stopRecording は内部で例外を捕まえるが、想定外の失敗でも購読を残さない
+        () => resolveNotice(REC_BACKGROUND_MESSAGES.cancelledBeforeStart),
       );
-      void stopRecordingRef.current().then((result) => {
-        if (result === 'saved') return;
-        // 保存できる録音がなかった場合（カウントダウン中・開始直後）は中止の案内にする
-        updateNotice(REC_BACKGROUND_MESSAGES.cancelledBeforeStart);
-      });
     });
     return () => subscription.remove();
   }, []);

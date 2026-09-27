@@ -335,14 +335,126 @@ describe('RecRecordingSection コンポーネント', () => {
       await emitAppState('active');
 
       expect(alertSpy).toHaveBeenCalledTimes(1);
+      // 停止しただけではテイクは永続化されないため、保存操作が必要である旨を案内する
       expect(alertSpy).toHaveBeenCalledWith(
         REC_BACKGROUND_MESSAGES.noticeTitle,
-        REC_BACKGROUND_MESSAGES.stoppedAndSaved,
+        REC_BACKGROUND_MESSAGES.stoppedNeedsSave,
       );
 
       // 復帰が複数回通知されても案内は 1 回だけ
       await emitAppState('active');
       expect(alertSpy).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('Android で停止完了より先に復帰した場合、停止成功後に保存を促す案内を 1 回だけ出す (TASK-112)', async () => {
+    await withAndroid(async () => {
+      mockRecordingGetStatusAsync.mockResolvedValue({
+        canRecord: true,
+        isRecording: true,
+        durationMillis: 12345,
+      });
+      // 停止（ネイティブ処理）の完了を保留して、先にフォアグラウンド復帰させる
+      let resolveStop: () => void = () => {};
+      mockStopAndUnloadAsync.mockReturnValueOnce(
+        new Promise<void>((resolve) => {
+          resolveStop = resolve;
+        }),
+      );
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+      await advanceTimers(1000);
+
+      await emitAppState('background');
+      // 停止結果が確定するまでは案内を出さない（暫定の文言を先に出さない）
+      await emitAppState('active');
+      expect(alertSpy).not.toHaveBeenCalled();
+
+      await act(async () => {
+        resolveStop();
+      });
+
+      expect(mockOnStop).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.stoppedNeedsSave,
+      );
+    });
+  });
+
+  it('Android で停止完了より先に復帰し、停止が失敗した場合は中止の案内だけを出す (TASK-112)', async () => {
+    await withAndroid(async () => {
+      mockRecordingGetStatusAsync.mockResolvedValue({
+        canRecord: true,
+        isRecording: true,
+        durationMillis: 12345,
+      });
+      // 停止処理が失敗するケース。結果が出る前に復帰しても「残っている」旨を
+      // 伝えてはいけない（テイクは onAbort で破棄される）
+      let rejectStop: (err: Error) => void = () => {};
+      mockStopAndUnloadAsync.mockReturnValueOnce(
+        new Promise<void>((_resolve, reject) => {
+          rejectStop = reject;
+        }),
+      );
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+      await advanceTimers(1000);
+
+      await emitAppState('background');
+      await emitAppState('active');
+      expect(alertSpy).not.toHaveBeenCalled();
+
+      await act(async () => {
+        rejectStop(new Error('stop failed'));
+      });
+
+      // テイクは破棄されるため「保存してください」ではなく中止の案内を出す
+      expect(mockOnStop).not.toHaveBeenCalled();
+      expect(mockOnAbort).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+      );
+      expect(alertSpy).not.toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.stoppedNeedsSave,
+      );
+    });
+  });
+
+  it('Android で長さ 0 のテイクは破棄され、中止の案内を出す (TASK-112)', async () => {
+    await withAndroid(async () => {
+      // 録音開始直後にバックグラウンドへ移ったケース（保存できる長さがない）
+      mockRecordingGetStatusAsync.mockResolvedValue({
+        canRecord: true,
+        isRecording: true,
+        durationMillis: 0,
+      });
+
+      render(<RecRecordingSection {...mockProps} trackSource={null} />);
+      await flushAsync();
+      await advanceTimers(5000);
+      await flushAsync();
+
+      await emitAppState('background');
+      expect(mockOnStop).not.toHaveBeenCalled();
+      expect(mockOnAbort).toHaveBeenCalledTimes(1);
+
+      await emitAppState('active');
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        REC_BACKGROUND_MESSAGES.noticeTitle,
+        REC_BACKGROUND_MESSAGES.cancelledBeforeStart,
+      );
     });
   });
 
