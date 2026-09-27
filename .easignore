@@ -27,7 +27,6 @@ ios/
 
 # Build artifacts
 dist/
-.lambda-build/
 
 # Docs
 docs/

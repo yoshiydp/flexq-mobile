@@ -137,6 +137,8 @@ Replicate トークンは運営者へ渡さない(開発側負担のため。移
      --capabilities CAPABILITY_IAM --no-confirm-changeset \
      --parameter-overrides JwtSecret="<dev 用シークレット>"
    ```
+   `JwtSecret` は `Default` を持たない必須パラメータ(TASK-106 で既定値を撤廃・32 文字以上)。
+   `openssl rand -base64 32` で発行した値を新規作成時に必ず指定する
 2. dev 用データの投入: 別冊 7-2 と同じスクリプトの要領で、現 Staging(`lyrics-mock-api`)から
    `lyrics-dev-api` へ demo アカウント等をコピーする(プロファイルは両方とも現行アカウントで可)
 3. `.env` の `EXPO_PUBLIC_API_BASE_URL` を dev の `ApiUrl` に変更(Maestro E2E の接続先も dev になる)
@@ -227,7 +229,7 @@ AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api --region ap-northea
   --parameter-overrides ReplicateApiToken="<開発者の Replicate トークン>"
 ```
 
-- `JwtSecret` / `SenderEmail` は指定しなくても CloudFormation が前回値を保持する
+- `JwtSecret` / `SenderEmail` は既存スタックの更新であれば指定しなくても CloudFormation が前回値を保持する(`JwtSecret` に `Default` はないため、新規作成時のみ必須)
 - 将来 Replicate の負担を運営者側へ移す場合は、運営者名義のトークンに差し替えて同じコマンドで再デプロイすればよい
 
 ---

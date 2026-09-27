@@ -6,13 +6,20 @@ import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { isOwnedS3Key } from './s3-key-validation';
+import { USERNAME_MAX_LENGTH, isTooLong, tooLongMessage } from './validation';
 
 export const handler = async (event: any) => {
   const claims = await verifyToken(event);
   if (!claims) return unauthorizedResponse();
 
   const { username, email, thumbnailKey, socialAccounts } = JSON.parse(event.body || '{}');
-  if (!username && !email && !thumbnailKey && !socialAccounts) {
+  // email は読み取り専用（email-index のパーティションキー）。API 直叩きで他ユーザーの
+  // メールに書き換えられると email-index に重複が生じ、ログイン・パスワードリセット・
+  // Google 連携の照合（Items[0]）が取り違えられるため、値の有無にかかわらず拒否する (TASK-103)
+  if (email !== undefined) {
+    return createResponse({ message: 'Email cannot be changed' }, 400);
+  }
+  if (!username && !thumbnailKey && !socialAccounts) {
     return createResponse({ message: 'At least one field is required' }, 400);
   }
   // get-track-upload-url が発行する自ユーザーのキー以外は受け付けない
@@ -23,6 +30,10 @@ export const handler = async (event: any) => {
   if (thumbnailKey && !isOwnedS3Key(thumbnailKey, claims.userId, ['artworks', 'profiles'])) {
     return createResponse({ message: 'Invalid thumbnailKey' }, 400);
   }
+  // username の長さ上限（巨大な文字列をそのまま保存させない・TASK-107）
+  if (isTooLong(username, USERNAME_MAX_LENGTH)) {
+    return createResponse(tooLongMessage('username'), 400);
+  }
 
   const expressions: string[] = [];
   const values: Record<string, any> = {};
@@ -32,11 +43,6 @@ export const handler = async (event: any) => {
     expressions.push('#username = :username');
     values[':username'] = username;
     names['#username'] = 'username';
-  }
-  if (email) {
-    expressions.push('#email = :email');
-    values[':email'] = email;
-    names['#email'] = 'email';
   }
   if (thumbnailKey) {
     expressions.push('thumbnailKey = :thumbnailKey');

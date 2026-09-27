@@ -3,6 +3,12 @@ import { randomUUID } from 'crypto';
 import { docClient } from './db';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
+import {
+  RICH_TEXT_MAX_LENGTH,
+  TITLE_MAX_LENGTH,
+  findTooLongField,
+  tooLongMessage,
+} from './validation';
 
 export const handler = async (event: any) => {
   const claims = await verifyToken(event);
@@ -13,6 +19,14 @@ export const handler = async (event: any) => {
 
   if (!title) {
     return createResponse({ message: 'title is required' }, 400);
+  }
+  // 文字数上限（body はリッチテキスト HTML のため大きめ・TASK-107）
+  const tooLongField = findTooLongField([
+    ['title', title, TITLE_MAX_LENGTH],
+    ['body', memoBody, RICH_TEXT_MAX_LENGTH],
+  ]);
+  if (tooLongField) {
+    return createResponse(tooLongMessage(tooLongField), 400);
   }
 
   const memoId = randomUUID();

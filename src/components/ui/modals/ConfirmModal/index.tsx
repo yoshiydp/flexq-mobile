@@ -8,7 +8,7 @@ interface ConfirmModalProps {
   onClose: () => void;
   message: string;
   description?: string;
-  submitButton?: { label: string; onPress: () => void | Promise<void> };
+  submitButton?: { label?: string; onPress: () => void | Promise<void> };
   closeLabel?: string;
 }
 

@@ -41,7 +41,9 @@ export function useFetchProfile(
       const mappedAccounts: SocialAccount[] = (res.socialAccounts ?? []).map(
         (acc: { provider: keyof typeof SOCIAL_ICON_MAP; username: string; isLinked: boolean }) => ({
           provider: acc.provider,
-          icon: SOCIAL_ICON_MAP[acc.provider] ?? SOCIAL_ICON_MAP['x'],
+          // 未実装の連携（x / instagram）は SOCIAL_ICON_MAP に存在しないため
+          // フォールバック先も無い（socialIconMap.ts の TODO 参照）
+          icon: SOCIAL_ICON_MAP[acc.provider],
           username: acc.username,
           isLinked: acc.isLinked,
         }),

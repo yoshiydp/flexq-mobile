@@ -32,6 +32,9 @@ jobs:
       - name: Run ESLint
         run: yarn lint --max-warnings=0
 
+      - name: Run TypeScript type check
+        run: yarn typecheck
+
   test:
     name: Jest
     runs-on: ubuntu-latest

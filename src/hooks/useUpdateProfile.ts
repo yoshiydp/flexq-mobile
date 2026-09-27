@@ -3,9 +3,9 @@ import * as ImagePicker from 'expo-image-picker';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { uploadFileToS3 } from '@/utils/uploadToS3';
 
+// email は読み取り専用（API 側で 400 拒否）のため送信対象に含めない (TASK-103)
 export interface UpdateProfileInput {
   username?: string;
-  email?: string;
   thumbnailKey?: string;
   socialAccounts?: { provider: string; username: string; isLinked: boolean }[];
 }

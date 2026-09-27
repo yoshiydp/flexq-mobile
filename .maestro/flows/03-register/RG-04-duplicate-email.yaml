@@ -1,17 +1,25 @@
 # ID: RG-04
-# シナリオ名: 登録済みメール
-# 前提条件: dev API に接続できること。E2E_REGISTERED_EMAIL のアカウントが登録済みであること
+# シナリオ名: 登録済みメール（応答から登録の有無が分からないこと・アカウント列挙対策）
+# 前提条件: **モック API サーバー接続が前提**（tags: mock）
+#   1. `yarn mock:server` を起動（http://localhost:3000・mockUsers に E2E_REGISTERED_EMAIL が含まれる）
+#   2. `.env.local` に `EXPO_PUBLIC_API_BASE_URL=http://localhost:3000` を設定して `yarn start`
+#   ※ dev（AWS）では登録済みメール宛に実際の「登録済みです」案内メールが送信される
+#     （実在しない宛先への送信は SES の到達率を下げる）ため、モックで実行する
 # 操作手順: 新規登録へ → 登録済みのメールアドレスを含む 3 項目を入力 → CREATE
-# 期待結果: 「このメールアドレスはすでに登録されています。」と表示され、認証コード入力画面へは進まない
-# 備考: 登録済みメールの場合サーバーは 409 を返しコードを発行しないため、DB もメール送信も変化しない
-#       （TASK-85 でコード発行前に重複チェックする実装。dev 環境で安全に実行できる）
+# 期待結果: 「すでに登録されています」のエラーは出ず、未登録のときと同じく認証コード入力画面へ進む。
+#           案内文に「登録済みの場合は登録済みである旨のメールが届く」旨が表示される。
+#           適当な 6 桁を入力しても登録は成立しない（モックは 409・本番はコード不一致の 400）
+# 備考: TASK-104 で登録済みメールへの 409 を廃止した（任意の email を投げるだけで登録の有無が
+#       判別できたため）。本番 Lambda は認証コードの代わりに案内メールを送り、同じ 200 を返す。
+#       モックは状態を残さないため何度でも再実行できる
 
 appId: com.yoshiydp.lyricsapp
 tags:
   - RG
   - RG-04
+  - mock
 env:
-  E2E_REGISTERED_EMAIL: 'demo@example.com'
+  E2E_REGISTERED_EMAIL: 'testuser@example.com'
 ---
 # 起動（共通ヘルパー。アプリ状態を初期化しログイン画面表示まで待機）
 - runFlow: ../helpers/launch-app.yaml
@@ -35,27 +43,46 @@ env:
 # iOS の「パスワードを保存しますか？」が出た場合は閉じる
 - runFlow: ../helpers/dismiss-password-save.yaml
 
-# CREATE（サーバーは 409 を返す）
+# CREATE（サーバーは登録済みでも未登録と同じ 200 を返す）
 - tapOn:
     id: 'submit-button'
 # iOS の「パスワードを保存しますか？」が出た場合は閉じる
 - runFlow: ../helpers/dismiss-password-save.yaml
 - extendedWaitUntil:
-    visible: '.*すでに登録されています.*'
+    visible: 'Verification Code'
+    timeout: 30000
+
+# 「すでに登録されています」のエラーは出ず、登録済みの場合の案内が表示される
+- assertNotVisible: '.*すでに登録されています.*'
+- assertVisible: '.*登録済みである旨のメールが届きます.*'
+
+# 適当な 6 桁では登録できない（モックは登録済みメール + 固定コードで 409 → 「すでに登録されています」、
+# 本番はコードが発行されていないため「認証コードが正しくありません」等の 400）
+- tapOn: '6桁の認証コードを入力してください'
+- inputText: '000000'
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible: '.*(認証コードが正しくありません|すでに登録されています).*'
     timeout: 30000
 - tapOn: 'OK'
 - waitForAnimationToEnd:
     timeout: 3000
 
-# 認証コード入力画面へは進まず、入力フォームのままであること
-- assertVisible: 'User Name'
-- assertNotVisible: 'Verification Code'
+# 認証コード入力画面に留まる（登録は成立していない）
+- assertVisible: 'Verification Code'
 
-# サインイン画面に戻る
+# 戻るで入力フォームに復帰 → サインイン画面に戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 3000
+# iOS の「パスワードを保存しますか？」が遷移後に出た場合は閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+- assertVisible: 'User Name'
 - tapOn:
     id: 'toolbar-back'
 - waitForAnimationToEnd:
     timeout: 5000
-# iOS の「パスワードを保存しますか？」が遷移後に出た場合は閉じる
 - runFlow: ../helpers/dismiss-password-save.yaml
 - assertVisible: 'Your Email'

@@ -6,8 +6,12 @@ Parameters:
   JwtSecret:
     Type: String
     NoEcho: true
-    Default: "lyrics-jwt-secret-change-in-production"
-    Description: Secret key for signing JWT tokens
+    MinLength: 32
+    Description: >-
+      Secret key for signing JWT tokens. REQUIRED (no default): pass it with
+      --parameter-overrides JwtSecret=... when creating a new stack (generate
+      with `openssl rand -base64 32`). Updates to an existing stack keep the
+      previous value when omitted (UsePreviousValue)
   SenderEmail:
     Type: String
     Default: ""
@@ -64,10 +68,18 @@ Globals:
 
 Resources:
   # ─── DynamoDB Tables ───────────────────────────────────
+  # ユーザーデータを保持する 5 テーブル（Users / Projects / Tracks / Records / Memos）は
+  # PITR（ポイントインタイムリカバリ）を有効にし、誤削除・誤更新時に直近 35 日の
+  # 任意時点へ復元できるようにする (TASK-107)。
+  # PITR の有効化はテーブルの置換を伴わない in-place 更新（changeset は Modify・
+  # Replacement=False）で、既存データ・GSI・テーブル名に影響しない。
+  # 復元は別テーブル名への復元になるため、実施時はアプリ側の参照切替が必要
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -97,6 +109,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -112,6 +126,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -127,6 +143,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -151,6 +169,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -163,7 +183,9 @@ Resources:
           KeyType: RANGE
 
   # メール認証コード（6 桁 OTP）。新規登録のメール検証とパスワードリセットの
-  # 本人確認で共用する。expiresAt の TTL で期限切れコードは自動削除される (TASK-85)
+  # 本人確認で共用する。expiresAt の TTL で期限切れコードは自動削除される (TASK-85)。
+  # PITR は付けない: 数分で失効する使い捨てデータで復元する価値がなく、
+  # 復元してもコード自体が期限切れになっているため (TASK-107)
   VerificationCodesTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -183,9 +205,38 @@ Resources:
         Enabled: true
 
   # ─── S3 Bucket ─────────────────────────────────────────
+  # 音源・アートワーク・録音・波形 JSON・分離音源・ミックス音源を保持する。
+  # アクセスは全て Lambda が発行する Presigned URL（PUT / GET）経由のため、
+  # 暗号化・パブリックアクセスブロックを有効にしてもアプリの動作に影響はない (TASK-107):
+  #   - BucketEncryption（SSE-S3 / AES256）: 新規オブジェクトは自動で暗号化される。
+  #     Presigned PUT 側でヘッダー指定は不要（既存オブジェクトは再アップロード時に暗号化）
+  #   - PublicAccessBlockConfiguration: 誤ってパブリック ACL / バケットポリシーを
+  #     付けても公開されないようにする。Presigned URL は署名者（Lambda ロール）の
+  #     権限で評価されるためブロックの対象外
+  # どちらもバケットの置換を伴わない in-place 更新（changeset は Modify・
+  # Replacement=False）で、バケット名・既存オブジェクトはそのまま。
+  #
+  # ライフサイクル（未実装・設計メモ）: records/mixed/ のミックス音源は
+  # post-record-mix.ts が record-mix.ts の isMixCacheValid（mixStatus=done・
+  # mixedS3Key あり・mixTrackRef と実効開始位置と mixVersion が一致）を条件に
+  # DynamoDB のレコードだけを見てキャッシュ再利用するため、期限切れで自動削除すると
+  # 「mixedS3Key はあるが S3 に実体がない」状態になり、共有・保存が失敗する。
+  # ライフサイクルを入れる場合は、post-record-mix.ts に S3 の HeadObject で
+  # 欠損を検知して再生成する経路（または削除時に mixedS3Key を落とす仕組み）を
+  # 先に用意すること。tracks/ artworks/ records/ はユーザーデータ本体なので
+  # ライフサイクルの対象にしない
   TrackAudioBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
@@ -202,29 +253,47 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: v1
+      # ステージのスロットリング (TASK-104)
+      # ※ API Gateway のステージ／メソッド単位のスロットリングは「ステージ全体」の上限で、
+      #   送信元 IP ごとの制限ではない（IP 単位・失敗回数ロックは AWS WAF が必要で対象外）。
+      #   単一の攻撃者が上限に達すると正規ユーザーも同じパスで 429 を受ける点に注意。
+      #   Lambda・DynamoDB の暴走コストを抑えつつ、ログインの総当たりをリクエスト/秒で
+      #   頭打ちにする目的。認証系は 1 ユーザーの操作頻度（数回/分）に対して十分な値。
+      # ResourcePath はメソッド設定のキー形式で、パスの "/" を "~1" にエンコードする
+      MethodSettings:
+        # 全体（緩い上限）
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingRateLimit: 50
+          ThrottlingBurstLimit: 100
+        # 認証系（厳しめ）: パスワードログイン・登録・リセット・認証コード発行・Google ログイン
+        - ResourcePath: '/~1data~1auth~1login'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1register'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1reset-password'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1verification-code'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1google'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        # トークンリフレッシュは全クライアントが起動時・期限切れ時に呼ぶためやや緩め
+        - ResourcePath: '/~1data~1auth~1refresh'
+          HttpMethod: POST
+          ThrottlingRateLimit: 20
+          ThrottlingBurstLimit: 40
 
   # ─── Lambda Functions ──────────────────────────────────
-  GetDataFunction:
-    Type: AWS::Serverless::Function
-    Properties:
-      Handler: lambda/get-data.handler
-      CodeUri: ./
-      Events:
-        GetData:
-          Type: Api
-          Properties:
-            RestApiId: !Ref LyricsApi
-            Path: /data
-            Method: get
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        Minify: false
-        Target: es2020
-        Sourcemap: false
-        EntryPoints:
-          - lambda/get-data.ts
-
   GetProjectFunction:
     Type: AWS::Serverless::Function
     Properties:
@@ -1114,6 +1183,10 @@ Resources:
     Properties:
       Handler: lambda/post-auth-logout.handler
       CodeUri: ./
+      Policies:
+        # tokenVersion の ADD（セッション失効・TASK-105）
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
       Events:
         PostAuthLogout:
           Type: Api
@@ -1167,7 +1240,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthVerificationCode:
           Type: Api
@@ -1197,7 +1275,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthRegister:
           Type: Api
@@ -1225,7 +1308,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthGoogle:
           Type: Api
@@ -1279,7 +1367,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthResetPassword:
           Type: Api

@@ -8,8 +8,11 @@ servers:
 paths:
   /data:
     get:
-      summary: Get all data
-      description: Returns all mock data defined in /src/data directory.
+      summary: Get all data (local mock server only)
+      description: >-
+        Returns all mock data defined in /src/data directory. Served only by
+        the local mock server (yarn mock:server); the unauthenticated
+        GetDataFunction was removed from AWS API Gateway (TASK-106).
       responses:
         '200':
           description: OK
@@ -205,8 +208,6 @@ paths:
               type: object
               properties:
                 username:
-                  type: string
-                email:
                   type: string
                 thumbnailKey:
                   type: string
@@ -1043,9 +1044,11 @@ paths:
                       expiresIn:
                         type: integer
         '400':
-          description: Bad Request
+          description: Bad Request (including invalid / expired code)
         '409':
-          description: Email already in use
+          description: >-
+            Email already in use (checked only after a valid code, i.e. a
+            registration raced in after the code was issued)
   /data/profile/link-google:
     post:
       summary: Link a Google account to the signed-in user
@@ -1165,6 +1168,11 @@ paths:
         (double opt-in), purpose "reset" verifies identity before a password
         reset. The code expires in 10 minutes, resend is rate-limited to once
         per 60 seconds, and the code is invalidated after 5 failed attempts.
+        The response does not reveal whether the email is registered: for
+        purpose "register" an already-registered email receives an
+        "already registered" notice instead of a code, and for purpose
+        "reset" an unknown email receives no email at all, both with the
+        same 200 response (account enumeration protection).
       operationId: postDataAuthVerificationCode
       requestBody:
         required: true
@@ -1203,10 +1211,6 @@ paths:
                     description: Seconds to wait before a resend is allowed
         '400':
           description: Bad Request
-        '404':
-          description: User not found (purpose reset only)
-        '409':
-          description: Email already in use (purpose register only)
         '429':
           description: Resend requested too soon
         '502':
@@ -1251,9 +1255,9 @@ paths:
                   message:
                     type: string
         '400':
-          description: Bad Request (including invalid / expired code)
-        '404':
-          description: User not found
+          description: >-
+            Bad Request (including invalid / expired code, or no account for
+            the email; 404 is not returned to avoid account enumeration)
 components:
   examples:
     MEMO_DATA:

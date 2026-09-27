@@ -1,6 +1,8 @@
 import React, { useCallback } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '@/navigation/types';
 import HomeTabsScreenTemplate from '@/components/features/home/templates/HomeTabsScreenTemplate';
 import DraftsAddList from '@/components/features/drafts/DraftsAddList';
 import { useScreenAnimation } from '@/hooks/useScreenAnimation';
@@ -10,7 +12,8 @@ import styles from './DraftsScreen.styles';
 
 export default function DraftsScreen() {
   const { titleAnim1, titleAnim2, startListAnimation } = useScreenAnimation();
-  const navigation = useNavigation();
+  const navigation =
+    useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { hasItems: memosHasItems, refreshMemo } = useFetchMemo();
   const { hasItems: recordsHasItems, refreshRecord } = useFetchRecord();
 
