@@ -405,9 +405,9 @@ PROFILE タブの右上にある編集(鉛筆)アイコンから開きます。G
 | AS-05 | 解除後の復旧 | `--unban` で解除したあと、同じアカウントでログインする | ログインでき、停止前のプロジェクト・トラック・録音・メモがすべて残っている。手動確認 |
 | AS-06 | 他ユーザーへの影響なし | BAN 中に別の(停止していない)アカウントで各機能を操作する | 従来どおり全機能が動作する(既存の E2E 全フローが通ることで確認) |
 
-## 26. API 入力検証(S3 キー所有者・認証)(SK)
+## 26. API 入力検証(S3 キー所有者・認証・文字数上限)(SK)
 
-> 運営者（開発者）向けの確認項目です。一般のテスターは実施不要です。UI からは自分のキーしか送られないため、`.maestro/flows/26-s3-key-validation/` の runScript で API を直接検証します（`maestro test .maestro --include-tags=SK`）。SK-04 / SK-05 は AWS の各環境（dev / staging / production）に対して手動で確認します（コマンドは `docs/jwt-secret-verification.md`）。
+> 運営者（開発者）向けの確認項目です。一般のテスターは実施不要です。UI からは自分のキーしか送られず、文字数の上限にも通常は到達しないため、`.maestro/flows/26-s3-key-validation/` の runScript（SK-01）または `curl` で API を直接検証します（`maestro test .maestro --include-tags=SK`）。SK-04 / SK-05 は AWS の各環境（dev / staging / production）に対して手動で確認します（コマンドは `docs/jwt-secret-verification.md`）。
 
 | No | 確認すること | 手順 | 期待される結果 |
 |----|----|----|----|
@@ -416,6 +416,12 @@ PROFILE タブの右上にある編集(鉛筆)アイコンから開きます。G
 | SK-03 | 正常系の非退行 | 自分のキーでトラック追加・録音保存・プロジェクト作成・アートワーク変更・プロフィール画像変更を行う | 従来どおり成功する(TL-02 / QR-01 / NP-05 / AP-07 / PD-03 で確認。E2E は QR-01 / PE-11 が兼ねる) |
 | SK-04 | 既定シークレットで署名した JWT の拒否 | 旧テンプレートの既定値 `lyrics-jwt-secret-change-in-production` で署名した JWT を `Authorization: Bearer` に付けて `GET /data/project` を呼ぶ(dev / staging / production それぞれ) | **401 Unauthorized** になる。200(空配列)が返る環境は既定シークレットのままなので、新しいシークレットで再デプロイする(その環境の全ユーザーが再ログインになる)。手動確認・SAM デプロイ後のスモークチェックにも含める |
 | SK-05 | 未認証の `GET /data` が存在しない | Authorization なしで `GET /data`(末尾にパスなし)を呼ぶ | **403**(`Missing Authentication Token`)または 404 になり、モックデータが返らない。手動確認 |
+| SK-06 | タイトル・名前の文字数上限 | 256 文字以上の文字列を `title`（post-track / put-track / post-memo / put-memo）・`projectName` / `trackName`（post-project / put-project）に送る | 400 `{ "message": "<項目名> is too long" }` で拒否され、保存されない。255 文字ちょうどは成功する |
+| SK-07 | 本文（リッチテキスト）の文字数上限 | 100,001 文字以上の文字列を `body`（post-memo / put-memo / put-project）に送る | 400 `{ "message": "body is too long" }` で拒否される。100,000 文字ちょうどは成功する |
+| SK-08 | プロフィール名の文字数上限 | 101 文字以上の `username` を put-profile / post-auth-register に送る | 400 `{ "message": "username is too long" }` で拒否される。100 文字ちょうどは成功する（PD-01 の通常の名前変更は従来どおり） |
+| SK-09 | メール形式の検証（新規登録） | `@` なし・ドメインのドットなし・空白入り・255 文字以上のメールアドレスで post-auth-register を呼ぶ | 400 `{ "message": "Invalid email format" }` で拒否され、認証コードも消費されない。通常のアドレス（RG-03）は従来どおり成功する |
+| SK-10 | パスワードの長さ（新規登録・リセット） | 7 文字以下・129 文字以上のパスワードで post-auth-register / post-auth-reset-password を呼ぶ | 400 `{ "message": "Password must be 8-128 characters" }` で拒否され、認証コードも消費されない。8 文字・128 文字は成功する。既存アカウントのログイン（SI-04）には影響しない。アプリの画面は汎用エラー（「登録に失敗しました。」など）を表示する |
+| SK-11 | 上限以下の非退行 | 通常の長さで新規登録・プロフィール名変更・メモ作成/更新・プロジェクト作成/歌詞保存・トラック名変更を行う | 従来どおり成功する(RG-03 / PD-01 / QM-05 / QM-06 / NP-05 / PE-01 / PE-08 / TL-09 で確認) |
 
 ---
 

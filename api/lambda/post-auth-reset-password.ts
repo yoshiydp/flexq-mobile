@@ -4,6 +4,7 @@ import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
 import { verifyAndConsumeCode } from './verification-code-store';
+import { PASSWORD_MAX_LENGTH, PASSWORD_MIN_LENGTH, isValidPassword } from './validation';
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
@@ -12,6 +13,14 @@ export const handler = async (event: any) => {
   if (!email || !newPassword || !code) {
     return createResponse(
       { message: 'Email, new password, and code are required' },
+      400,
+    );
+  }
+
+  // 新パスワードの長さ検証（認証コードを消費する前に弾く・TASK-107）
+  if (!isValidPassword(newPassword)) {
+    return createResponse(
+      { message: `Password must be ${PASSWORD_MIN_LENGTH}-${PASSWORD_MAX_LENGTH} characters` },
       400,
     );
   }

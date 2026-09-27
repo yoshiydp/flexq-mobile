@@ -68,10 +68,18 @@ Globals:
 
 Resources:
   # ─── DynamoDB Tables ───────────────────────────────────
+  # ユーザーデータを保持する 5 テーブル（Users / Projects / Tracks / Records / Memos）は
+  # PITR（ポイントインタイムリカバリ）を有効にし、誤削除・誤更新時に直近 35 日の
+  # 任意時点へ復元できるようにする (TASK-107)。
+  # PITR の有効化はテーブルの置換を伴わない in-place 更新（changeset は Modify・
+  # Replacement=False）で、既存データ・GSI・テーブル名に影響しない。
+  # 復元は別テーブル名への復元になるため、実施時はアプリ側の参照切替が必要
   UsersTable:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -101,6 +109,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -116,6 +126,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -131,6 +143,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -155,6 +169,8 @@ Resources:
     Type: AWS::DynamoDB::Table
     Properties:
       BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification:
+        PointInTimeRecoveryEnabled: true
       AttributeDefinitions:
         - AttributeName: userId
           AttributeType: S
@@ -167,7 +183,9 @@ Resources:
           KeyType: RANGE
 
   # メール認証コード（6 桁 OTP）。新規登録のメール検証とパスワードリセットの
-  # 本人確認で共用する。expiresAt の TTL で期限切れコードは自動削除される (TASK-85)
+  # 本人確認で共用する。expiresAt の TTL で期限切れコードは自動削除される (TASK-85)。
+  # PITR は付けない: 数分で失効する使い捨てデータで復元する価値がなく、
+  # 復元してもコード自体が期限切れになっているため (TASK-107)
   VerificationCodesTable:
     Type: AWS::DynamoDB::Table
     Properties:
@@ -187,9 +205,38 @@ Resources:
         Enabled: true
 
   # ─── S3 Bucket ─────────────────────────────────────────
+  # 音源・アートワーク・録音・波形 JSON・分離音源・ミックス音源を保持する。
+  # アクセスは全て Lambda が発行する Presigned URL（PUT / GET）経由のため、
+  # 暗号化・パブリックアクセスブロックを有効にしてもアプリの動作に影響はない (TASK-107):
+  #   - BucketEncryption（SSE-S3 / AES256）: 新規オブジェクトは自動で暗号化される。
+  #     Presigned PUT 側でヘッダー指定は不要（既存オブジェクトは再アップロード時に暗号化）
+  #   - PublicAccessBlockConfiguration: 誤ってパブリック ACL / バケットポリシーを
+  #     付けても公開されないようにする。Presigned URL は署名者（Lambda ロール）の
+  #     権限で評価されるためブロックの対象外
+  # どちらもバケットの置換を伴わない in-place 更新（changeset は Modify・
+  # Replacement=False）で、バケット名・既存オブジェクトはそのまま。
+  #
+  # ライフサイクル（未実装・設計メモ）: records/mixed/ のミックス音源は
+  # post-record-mix.ts が record-mix.ts の isMixCacheValid（mixStatus=done・
+  # mixedS3Key あり・mixTrackRef と実効開始位置と mixVersion が一致）を条件に
+  # DynamoDB のレコードだけを見てキャッシュ再利用するため、期限切れで自動削除すると
+  # 「mixedS3Key はあるが S3 に実体がない」状態になり、共有・保存が失敗する。
+  # ライフサイクルを入れる場合は、post-record-mix.ts に S3 の HeadObject で
+  # 欠損を検知して再生成する経路（または削除時に mixedS3Key を落とす仕組み）を
+  # 先に用意すること。tracks/ artworks/ records/ はユーザーデータ本体なので
+  # ライフサイクルの対象にしない
   TrackAudioBucket:
     Type: AWS::S3::Bucket
     Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
       CorsConfiguration:
         CorsRules:
           - AllowedHeaders:
@@ -1193,7 +1240,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthVerificationCode:
           Type: Api
@@ -1223,7 +1275,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthRegister:
           Type: Api
@@ -1251,7 +1308,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthGoogle:
           Type: Api
@@ -1305,7 +1367,12 @@ Resources:
         - Statement:
             - Effect: Allow
               Action: ses:SendEmail
-              Resource: '*'
+              # 送信元をこのアカウント・リージョンの検証済み ID に限定する (TASK-107)。
+              # ses.ts は ConfigurationSetName を指定しないが、ID に既定の設定セットが
+              # 紐づく場合は configuration-set リソースも評価対象になるため併記する
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
       Events:
         PostAuthResetPassword:
           Type: Api

@@ -627,11 +627,17 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 | Records | `RecordsTable` | `recordId` |
 | Users | `UsersTable` | `userId` |
 
+上記 5 テーブルは **PITR（ポイントインタイムリカバリ）有効**（TASK-107。直近 35 日の任意時点へ別テーブル名で復元できる）。`VerificationCodesTable`（TTL 付きの使い捨て認証コード）は対象外。PITR の有効化はテーブルの置換を伴わない in-place 更新。
+
 ### S3 バケット
 
 | バケット | SAM リソース名 | 用途 |
 |--------|--------------|------|
 | `TrackAudioBucket` | `TrackAudioBucket` | 音源（`tracks/`）・アートワーク（`artworks/`）・プロフィール画像（`profiles/`） |
+
+バケットは **SSE-S3（AES256）のデフォルト暗号化 + パブリックアクセスブロック（4 項目）有効**（TASK-107）。アクセスは全て Presigned URL 経由のため動作影響はなく、どちらもバケットの置換を伴わない。`records/mixed/` のライフサイクルは未実装（`isMixCacheValid` が S3 の実体を確認しないため、欠損時の再生成経路を先に用意する必要がある。`api/template.yaml` のコメント参照）。
+
+Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 254（形式チェックあり）/ password 8〜128 / タイトル・名前系（memo title・track title・projectName・trackName）255 / リッチテキスト本文（memo body・project body）100,000 文字。超過は 400 `{ message: '<field> is too long' }`。
 
 ### 関連ファイル一覧
 

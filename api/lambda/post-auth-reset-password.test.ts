@@ -1,12 +1,14 @@
 /**
  * post-auth-reset-password.ts のユニットテスト。
  *
- * このファイルは 2 つのタスクの検証を兼ねる（同名のテストファイルを両タスクが
+ * このファイルは 3 つのタスクの検証を兼ねる（同名のテストファイルを各タスクが
  * 別々に作成したため、マージ時に 1 つへ統合した）:
  *  - TASK-105: パスワード更新と同じ UpdateItem で tokenVersion を +1 し、
  *    他端末のセッション（発行済みトークン）を失効させること
  *  - TASK-104: 「コード検証 → ユーザー検索」の順序と、未登録メールに 404 を
  *    返さず汎用の 400 にとどめること（アカウント列挙対策）
+ *  - TASK-107: 入力バリデーション（新パスワードの長さ）がコード検証より前に効き、
+ *    長さ違反は認証コードを消費せずに 400 で弾くこと
  *
  * Lambda の依存（DynamoDB / SES / bcryptjs）はリポジトリ直下の node_modules に
  * 無いため virtual mock で差し替える。認証コードの検証（TASK-85）と
@@ -66,9 +68,18 @@ const mockUserLookup = (user: Record<string, unknown> | null) => {
   );
 };
 
-const invoke = (email: string, code = '123456') =>
+/**
+ * ハンドラーを呼ぶ。第 2 引数でリクエスト本文の任意のフィールドを上書きできる
+ * （コードの誤入力や長さ違反の新パスワードを流し込むため）
+ */
+const invoke = (email: string, overrides: Record<string, unknown> = {}) =>
   handler({
-    body: JSON.stringify({ email, newPassword: 'newpassword123', code }),
+    body: JSON.stringify({
+      email,
+      newPassword: 'newpassword123',
+      code: '123456',
+      ...overrides,
+    }),
   });
 
 const findUpdateCall = () =>
@@ -99,7 +110,7 @@ describe('post-auth-reset-password のセッション失効（TASK-105）', () =
   it('認証コードが不一致なら tokenVersion を進めない（既存セッションを巻き添えにしない）', async () => {
     mockVerifyAndConsumeCode.mockResolvedValue('mismatch');
 
-    const res = await invoke(REGISTERED_EMAIL, '000000');
+    const res = await invoke(REGISTERED_EMAIL, { code: '000000' });
 
     expect(res.statusCode).toBe(400);
     expect(findUpdateCall()).toBeUndefined();
@@ -133,5 +144,28 @@ describe('post-auth-reset-password の検証順序（アカウント列挙対策
 
     expect(res.statusCode).toBe(200);
     expect(findUpdateCall()?.[0].input.Key).toEqual({ userId: 'user-1' });
+  });
+});
+
+describe('post-auth-reset-password の入力バリデーション（TASK-107）', () => {
+  // 共通の beforeEach でコード検証は 'ok'・ユーザーも存在する状態にしてあるので、
+  // コードを消費していない = バリデーションで先に弾けていることの裏付けになる
+  it('新パスワードが 8 文字未満なら 400 で弾き、コードを消費しない', async () => {
+    const res = await invoke(REGISTERED_EMAIL, { newPassword: 'short7c' });
+
+    expect(res.statusCode).toBe(400);
+    expect(JSON.parse(res.body).message).toBe(
+      'Password must be 8-128 characters',
+    );
+    expect(mockVerifyAndConsumeCode).not.toHaveBeenCalled();
+    expect(mockSend).not.toHaveBeenCalled();
+  });
+
+  it('新パスワードが 128 文字を超えたら 400 で弾き、コードを消費しない', async () => {
+    const res = await invoke(REGISTERED_EMAIL, { newPassword: 'a'.repeat(129) });
+
+    expect(res.statusCode).toBe(400);
+    expect(mockVerifyAndConsumeCode).not.toHaveBeenCalled();
+    expect(mockSend).not.toHaveBeenCalled();
   });
 });
