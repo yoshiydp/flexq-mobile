@@ -91,6 +91,8 @@ iOS と同様、日常の開発は `yarn start` を起動し、ターミナル�
 
 > **Android のセットアップ状況:** Google ログイン（TASK-54）・Google Play Console・EAS submit・内部テスト配信まですべてセットアップ済みで運用可能。Google OAuth の Android クライアントは lyrics-app-492415 にデバッグ署名 / EAS アップロード鍵 / Play アプリ署名鍵の 3 つを登録済み（`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` は `.env` に設定済み）。**新規 Android クライアント作成時は「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**（デフォルト無効のままだと OAuth が `400: invalid_request` になる）。
 
+> **Bluetooth イヤホン検知の権限（Android 12+ / TASK-115）:** `useHeadphonesConnected` は `BLUETOOTH_CONNECT` を `check` → 未許可なら `Alert` で事前説明 →「許可する」で `request` の順に 1 回だけ実行し、説明への応答を AsyncStorage `bluetoothPermissionPrompted` に記録して以降は再要求しない（拒否されても有線検知・録音は動く。`HeadphoneIndicator` が「Bluetooth 検知オフ」を表示し、タップで `Linking.openSettings()`。端末設定で許可されればフォアグラウンド復帰時に自動で有効になる）。`app.json` の `android.allowBackup: false`（AsyncStorage の設定値を自動バックアップ対象から外す）はネイティブビルドでのみ反映される。
+
 ### ナビゲーション
 
 アプリのルーターには expo-router ではなく **React Navigation**（Stack + Bottom Tabs）を使用しています。`src/app/` ディレクトリは最小限で、ルートレイアウトのラップのみを担当します。
