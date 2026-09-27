@@ -173,7 +173,6 @@ export class DefaultService {
     public static updateProfile(
         requestBody: {
             username?: string;
-            email?: string;
             thumbnailKey?: string;
             socialAccounts?: Array<{
                 provider?: string;
@@ -810,8 +809,8 @@ export class DefaultService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                400: `Bad Request`,
-                409: `Email already in use`,
+                400: `Bad Request (including invalid / expired code)`,
+                409: `Email already in use (checked only after a valid code, i.e. a registration raced in after the code was issued)`,
             },
         });
     }
@@ -889,7 +888,7 @@ export class DefaultService {
     }
     /**
      * Send a 6-digit email verification code
-     * Generates a 6-digit verification code and sends it to the given email via SES. purpose "register" verifies email ownership before signup (double opt-in), purpose "reset" verifies identity before a password reset. The code expires in 10 minutes, resend is rate-limited to once per 60 seconds, and the code is invalidated after 5 failed attempts.
+     * Generates a 6-digit verification code and sends it to the given email via SES. purpose "register" verifies email ownership before signup (double opt-in), purpose "reset" verifies identity before a password reset. The code expires in 10 minutes, resend is rate-limited to once per 60 seconds, and the code is invalidated after 5 failed attempts. The response does not reveal whether the email is registered: for purpose "register" an already-registered email receives an "already registered" notice instead of a code, and for purpose "reset" an unknown email receives no email at all, both with the same 200 response (account enumeration protection).
      * @param requestBody
      * @returns any OK
      * @throws ApiError
@@ -917,8 +916,6 @@ export class DefaultService {
             mediaType: 'application/json',
             errors: {
                 400: `Bad Request`,
-                404: `User not found (purpose reset only)`,
-                409: `Email already in use (purpose register only)`,
                 429: `Resend requested too soon`,
                 502: `Failed to send verification email`,
                 503: `Verification email is not configured`,
@@ -949,8 +946,7 @@ export class DefaultService {
             body: requestBody,
             mediaType: 'application/json',
             errors: {
-                400: `Bad Request (including invalid / expired code)`,
-                404: `User not found`,
+                400: `Bad Request (including invalid / expired code, or no account for the email; 404 is not returned to avoid account enumeration)`,
             },
         });
     }

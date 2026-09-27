@@ -18,7 +18,21 @@ export const handler = async (event: any) => {
     );
   }
 
-  // Check if email already exists
+  // メール検証（ダブルオプトイン）: 事前に発行した 6 桁コードの一致を必須にする (TASK-85)
+  // 重複チェックより先に行う (TASK-104): 以前はコード検証の前に email-index を引いて 409 を
+  // 返していたため、コードを持たない第三者でも email だけで登録の有無を判別できた。
+  // 登録済みメールには verification-code がコードを発行しない（案内メールのみ）ので、
+  // ここは通常 code_expired / code_invalid の 400 になり、登録の有無は分からない
+  const verifyResult = await verifyAndConsumeCode(email, 'register', code);
+  if (verifyResult !== 'ok') {
+    return createResponse(
+      { message: 'Verification code check failed', reason: `code_${verifyResult}` },
+      400,
+    );
+  }
+
+  // 重複チェック: コード発行〜送信の間に同じメールで登録が成立した競合への保険。
+  // 有効なコード（= メールの所有者）なしにはここへ到達できないので列挙面にはならない
   const existing = await docClient.send(
     new QueryCommand({
       TableName: process.env.USERS_TABLE!,
@@ -30,15 +44,6 @@ export const handler = async (event: any) => {
 
   if (existing.Items?.length) {
     return createResponse({ message: 'Email already in use' }, 409);
-  }
-
-  // メール検証（ダブルオプトイン）: 事前に発行した 6 桁コードの一致を必須にする (TASK-85)
-  const verifyResult = await verifyAndConsumeCode(email, 'register', code);
-  if (verifyResult !== 'ok') {
-    return createResponse(
-      { message: 'Verification code check failed', reason: `code_${verifyResult}` },
-      400,
-    );
   }
 
   const passwordHash = await bcrypt.hash(password, 10);

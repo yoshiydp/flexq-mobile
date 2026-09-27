@@ -36,9 +36,6 @@ async function uploadToS3(uploadUrl: string, uri: string, contentType: string) {
 }
 
 export default function ProjectSettingsScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   const route = useRoute<RouteProp<RootStackParamList, 'ProjectSettings'>>();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
   const { deleteProject } = useDeleteProject();
@@ -110,6 +107,10 @@ export default function ProjectSettingsScreen() {
     }
     navigation.goBack();
   };
+
+  // Android のシステム back ジェスチャー / 戻るボタンを ✕ ボタンと同じ処理に接続する（TASK-113）
+  // 変更内容を ProjectEdit へ引き渡してから戻る
+  useBlockAndroidBackGesture(flushAndGoBack);
 
   const handlePickArtwork = async () => {
     const result = await ImagePicker.launchImageLibraryAsync({

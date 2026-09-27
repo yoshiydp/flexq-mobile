@@ -2,7 +2,7 @@ import { generateWaveform } from './generateWaveform';
 
 const mockReadAsStringAsync = jest.fn();
 
-jest.mock('expo-file-system', () => ({
+jest.mock('expo-file-system/legacy', () => ({
   readAsStringAsync: (...args: any[]) => mockReadAsStringAsync(...args),
   EncodingType: {
     Base64: 'base64',

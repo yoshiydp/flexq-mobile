@@ -6,7 +6,8 @@
 #           `maestro test .maestro` のデフォルト実行からは tags の requires-ban で除外している。
 # 操作手順: BAN されたアカウントの正しいメール・パスワードで SIGN IN
 # 期待結果: 「Login Failed」アラートが表示されログインされない（ログイン画面に留まる）。
-#           API レベルでは login が 403 Account suspended、同じ email での register が 409 になる
+#           API レベルでは login が 403 Account suspended、同じ email での register が認証コード不成立の
+#           400（reason: code_*）で拒否される（TASK-104 以降、コード検証が存在チェックより先のため 409 には到達しない）
 # 備考: Google ログイン（ネイティブ UI）・発行済みトークンの遮断（反映に最大 60 秒）・解除後の復旧は
 #       docs/test-cases.md の AS-02 / AS-03 / AS-05 で手動確認する
 
@@ -20,7 +21,7 @@ env:
   E2E_BAN_EMAIL: 'e2e-ban@example.com'
   E2E_BAN_PASSWORD: 'password123'
 ---
-# API レベルの検証（login 403 Account suspended / register 409）
+# API レベルの検証（login 403 Account suspended / register 400 reason code_*）
 # UI の「Login Failed」はパスワード誤りと区別できないため、BAN が効いていることはここで確認する
 - runScript: ../../scripts/as01-verify.js
 
