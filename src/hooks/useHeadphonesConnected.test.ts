@@ -1,18 +1,24 @@
 import { act, renderHook, waitFor } from '@testing-library/react-native';
 import {
+  Alert,
   AppState,
   NativeModules,
   PermissionsAndroid,
   Platform,
 } from 'react-native';
+// __mocks__/@react-native-async-storage/async-storage.js（手動モック）が自動適用される
+import AsyncStorage from '@react-native-async-storage/async-storage';
 // __mocks__/react-native-device-info.js（手動モック）が自動適用される
 import MockDeviceInfo from 'react-native-device-info';
 import { Audio } from 'expo-av';
 import {
+  BLUETOOTH_PERMISSION_PROMPTED_KEY,
   resetBluetoothPermissionRequestForTesting,
   resetIosAudioSessionActivationForTesting,
+  useBluetoothDetectionStatus,
   useHeadphonesConnected,
 } from './useHeadphonesConnected';
+import { BLUETOOTH_PERMISSION_MESSAGES } from '@/constants/messages';
 
 // iOS のオーディオセッションアクティブ化（TASK-66）で無音再生に使う expo-av のみモックする
 jest.mock('expo-av', () => ({
@@ -167,14 +173,53 @@ describe('useHeadphonesConnected', () => {
     addEventListenerSpy.mockRestore();
   });
 
-  describe('BLUETOOTH_CONNECT 権限リクエスト（Android 12+ / TASK-57）', () => {
-    beforeEach(() => {
+  describe('BLUETOOTH_CONNECT 権限リクエスト（Android 12+ / TASK-57・TASK-115）', () => {
+    let checkSpy: jest.SpyInstance;
+    let requestSpy: jest.SpyInstance;
+    let alertSpy: jest.SpyInstance;
+
+    type AlertButton = { text?: string; onPress?: () => void };
+    type AlertOptions = { onDismiss?: () => void };
+
+    /** 事前説明ダイアログに応答する（'dismiss' は戻る操作などで閉じる） */
+    const answerRationale = (choice: '許可する' | '今はしない' | 'dismiss') => {
+      alertSpy.mockImplementation(
+        (
+          _title: string,
+          _message?: string,
+          buttons?: AlertButton[],
+          options?: AlertOptions,
+        ) => {
+          if (choice === 'dismiss') {
+            options?.onDismiss?.();
+            return;
+          }
+          buttons?.find((button) => button.text === choice)?.onPress?.();
+        },
+      );
+    };
+
+    const useAndroid = (version = 33) => {
+      jest.replaceProperty(Platform, 'OS', 'android');
+      jest.spyOn(Platform, 'Version', 'get').mockReturnValue(version);
+    };
+
+    beforeEach(async () => {
       resetBluetoothPermissionRequestForTesting();
+      await AsyncStorage.clear();
       // Platform.OS を android に差し替えると RN 内部の AppState 実装が
       // テスト環境ではスタブ実体を持たず購読が undefined になるため差し替える
       jest
         .spyOn(AppState, 'addEventListener')
         .mockReturnValue({ remove: jest.fn() } as never);
+      checkSpy = jest
+        .spyOn(PermissionsAndroid, 'check')
+        .mockResolvedValue(false);
+      requestSpy = jest
+        .spyOn(PermissionsAndroid, 'request')
+        .mockResolvedValue('granted' as never);
+      // 既定では応答しない（説明が出ないことを検証するテストで使う）
+      alertSpy = jest.spyOn(Alert, 'alert').mockImplementation(() => undefined);
     });
 
     afterEach(() => {
@@ -182,27 +227,117 @@ describe('useHeadphonesConnected', () => {
       jest.restoreAllMocks();
     });
 
-    it('Android 12+ ではマウント時に 1 回だけ権限をリクエストしてから検知を開始する', async () => {
-      jest.replaceProperty(Platform, 'OS', 'android');
-      jest.spyOn(Platform, 'Version', 'get').mockReturnValue(33);
-      const requestSpy = jest
-        .spyOn(PermissionsAndroid, 'request')
-        .mockResolvedValue('granted' as never);
+    it('すでに許可済み（check が true）なら説明も request も出さずに検知を開始する', async () => {
+      useAndroid();
+      checkSpy.mockResolvedValue(true);
 
       mockConnection(false, true);
       const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
 
       await waitFor(() => expect(result.current).toBe('bluetooth'));
-      expect(requestSpy).toHaveBeenCalledTimes(1);
-      requestSpy.mockRestore();
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(requestSpy).not.toHaveBeenCalled();
+      expect(status.result.current).toBe('granted');
     });
 
-    it('複数の画面要素から同時にマウントされても権限リクエストは 1 回だけ', async () => {
-      jest.replaceProperty(Platform, 'OS', 'android');
-      jest.spyOn(Platform, 'Version', 'get').mockReturnValue(33);
-      const requestSpy = jest
-        .spyOn(PermissionsAndroid, 'request')
-        .mockResolvedValue('granted' as never);
+    it('初回は権限ダイアログの前に説明を表示し、「許可する」で request してから検知を開始する', async () => {
+      useAndroid();
+      answerRationale('許可する');
+
+      mockConnection(false, true);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(result.current).toBe('bluetooth'));
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledWith(
+        BLUETOOTH_PERMISSION_MESSAGES.rationaleTitle,
+        BLUETOOTH_PERMISSION_MESSAGES.rationaleBody,
+        expect.any(Array),
+        expect.any(Object),
+      );
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy).toHaveBeenCalledWith(
+        PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
+      );
+      // 説明はダイアログの前に出る
+      expect(alertSpy.mock.invocationCallOrder[0]).toBeLessThan(
+        requestSpy.mock.invocationCallOrder[0],
+      );
+      expect(status.result.current).toBe('granted');
+      // 説明済みが記録される
+      await expect(
+        AsyncStorage.getItem(BLUETOOTH_PERMISSION_PROMPTED_KEY),
+      ).resolves.toBe('true');
+    });
+
+    it('「今はしない」を選ぶと request せず未許可（denied）として検知を続行し、記録される', async () => {
+      useAndroid();
+      answerRationale('今はしない');
+
+      mockConnection(true, false);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      // 有線検知は動作する
+      await waitFor(() => expect(result.current).toBe('wired'));
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy).not.toHaveBeenCalled();
+      expect(status.result.current).toBe('denied');
+      await expect(
+        AsyncStorage.getItem(BLUETOOTH_PERMISSION_PROMPTED_KEY),
+      ).resolves.toBe('true');
+    });
+
+    it('説明に応答済み（記録あり）なら以降の起動では説明も request も出さない', async () => {
+      useAndroid();
+      await AsyncStorage.setItem(BLUETOOTH_PERMISSION_PROMPTED_KEY, 'true');
+
+      mockConnection(true, false);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(result.current).toBe('wired'));
+      expect(alertSpy).not.toHaveBeenCalled();
+      expect(requestSpy).not.toHaveBeenCalled();
+      expect(status.result.current).toBe('denied');
+    });
+
+    it('戻る操作で説明を閉じた場合は記録せず、今回は未許可として検知を続行する', async () => {
+      useAndroid();
+      answerRationale('dismiss');
+
+      mockConnection(false, false);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(result.current).toBe('none'));
+      expect(requestSpy).not.toHaveBeenCalled();
+      expect(status.result.current).toBe('denied');
+      // 次回起動で改めて説明できるよう記録しない
+      await expect(
+        AsyncStorage.getItem(BLUETOOTH_PERMISSION_PROMPTED_KEY),
+      ).resolves.toBeNull();
+    });
+
+    it('OS のダイアログで拒否されても検知は続行される（有線検知は動作する）', async () => {
+      useAndroid();
+      answerRationale('許可する');
+      requestSpy.mockResolvedValue('denied' as never);
+
+      mockConnection(true, false);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(result.current).toBe('wired'));
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+      expect(status.result.current).toBe('denied');
+    });
+
+    it('複数の画面要素から同時にマウントされても説明・権限リクエストは 1 回だけ', async () => {
+      useAndroid();
+      answerRationale('許可する');
 
       mockConnection(false, false);
       const first = renderHook(() => useHeadphonesConnected());
@@ -210,44 +345,117 @@ describe('useHeadphonesConnected', () => {
 
       await waitFor(() => expect(first.result.current).toBe('none'));
       await waitFor(() => expect(second.result.current).toBe('none'));
+      expect(checkSpy).toHaveBeenCalledTimes(1);
+      expect(alertSpy).toHaveBeenCalledTimes(1);
       expect(requestSpy).toHaveBeenCalledTimes(1);
-      requestSpy.mockRestore();
     });
 
-    it('権限が拒否されても検知は続行される（有線検知は動作する）', async () => {
-      jest.replaceProperty(Platform, 'OS', 'android');
-      jest.spyOn(Platform, 'Version', 'get').mockReturnValue(33);
-      const requestSpy = jest
-        .spyOn(PermissionsAndroid, 'request')
-        .mockResolvedValue('denied' as never);
+    it('未許可のまま端末設定で許可されると、フォアグラウンド復帰時に granted へ更新される', async () => {
+      useAndroid();
+      answerRationale('今はしない');
+      const addEventListenerSpy =
+        AppState.addEventListener as unknown as jest.Mock;
+
+      mockConnection(false, false);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(result.current).toBe('none'));
+      expect(status.result.current).toBe('denied');
+
+      const changeHandler = addEventListenerSpy.mock.calls.find(
+        ([event]) => event === 'change',
+      )?.[1] as (state: string) => void;
+      expect(changeHandler).toBeDefined();
+
+      // 設定アプリで「付近のデバイス」を許可して戻ってきた
+      checkSpy.mockResolvedValue(true);
+      mockConnection(false, true);
+      act(() => {
+        changeHandler('active');
+      });
+
+      await waitFor(() => expect(status.result.current).toBe('granted'));
+      await waitFor(() => expect(result.current).toBe('bluetooth'));
+      expect(requestSpy).not.toHaveBeenCalled();
+    });
+
+    it('未許可のまま別画面で端末設定を変えて戻った場合も、再マウント時に granted へ更新される', async () => {
+      useAndroid();
+      answerRationale('今はしない');
+
+      mockConnection(false, false);
+      const first = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(first.result.current).toBe('none'));
+      expect(status.result.current).toBe('denied');
+      // 録音画面を離れる（フックが 1 つもマウントされていない間に設定で許可される）
+      first.unmount();
+      checkSpy.mockResolvedValue(true);
+      mockConnection(false, true);
+
+      const second = renderHook(() => useHeadphonesConnected());
+
+      await waitFor(() => expect(status.result.current).toBe('granted'));
+      await waitFor(() => expect(second.result.current).toBe('bluetooth'));
+      // 説明・リクエストはやり直さない（check の再確認のみ）
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy).not.toHaveBeenCalled();
+      expect(checkSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('説明済みの記録の読み込みに失敗した場合は未説明として説明を表示する', async () => {
+      useAndroid();
+      answerRationale('許可する');
+      const getItemSpy = jest
+        .spyOn(AsyncStorage, 'getItem')
+        .mockRejectedValue(new Error('storage unavailable'));
+
+      mockConnection(false, true);
+      const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
+
+      await waitFor(() => expect(result.current).toBe('bluetooth'));
+      expect(alertSpy).toHaveBeenCalledTimes(1);
+      expect(requestSpy).toHaveBeenCalledTimes(1);
+      expect(status.result.current).toBe('granted');
+      getItemSpy.mockRestore();
+    });
+
+    it('権限の確認自体が失敗しても検知は続行される', async () => {
+      useAndroid();
+      checkSpy.mockRejectedValue(new Error('check failed'));
 
       mockConnection(true, false);
       const { result } = renderHook(() => useHeadphonesConnected());
 
       await waitFor(() => expect(result.current).toBe('wired'));
-      requestSpy.mockRestore();
+      expect(alertSpy).not.toHaveBeenCalled();
     });
 
-    it('iOS では権限をリクエストしない', async () => {
-      const requestSpy = jest.spyOn(PermissionsAndroid, 'request');
-
+    it('iOS では権限を確認・リクエストしない（not-required）', async () => {
       const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
 
       await waitFor(() => expect(result.current).toBe('none'));
+      expect(checkSpy).not.toHaveBeenCalled();
+      expect(alertSpy).not.toHaveBeenCalled();
       expect(requestSpy).not.toHaveBeenCalled();
-      requestSpy.mockRestore();
+      expect(status.result.current).toBe('not-required');
     });
 
-    it('Android 11 以前では権限をリクエストしない', async () => {
-      jest.replaceProperty(Platform, 'OS', 'android');
-      jest.spyOn(Platform, 'Version', 'get').mockReturnValue(30);
-      const requestSpy = jest.spyOn(PermissionsAndroid, 'request');
+    it('Android 11 以前では権限を確認・リクエストしない（not-required）', async () => {
+      useAndroid(30);
 
       const { result } = renderHook(() => useHeadphonesConnected());
+      const status = renderHook(() => useBluetoothDetectionStatus());
 
       await waitFor(() => expect(result.current).toBe('none'));
+      expect(checkSpy).not.toHaveBeenCalled();
+      expect(alertSpy).not.toHaveBeenCalled();
       expect(requestSpy).not.toHaveBeenCalled();
-      requestSpy.mockRestore();
+      expect(status.result.current).toBe('not-required');
     });
   });
 

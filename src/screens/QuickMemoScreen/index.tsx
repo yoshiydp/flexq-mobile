@@ -40,9 +40,6 @@ import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './QuickMemoScreen.styles';
 
 export default function QuickMemoScreen() {
-  // Android のシステム back ジェスチャー / 戻るボタンによる誤操作の画面戻りを防止（TASK-67）
-  useBlockAndroidBackGesture();
-
   // Android 用: タイトル入力を「キーボードを閉じない」保護領域として登録する
   const titleProtection = useKeyboardDismissProtection();
   const navigation =
@@ -153,6 +150,10 @@ export default function QuickMemoScreen() {
       navigation.goBack();
     }
   };
+
+  // Android のシステム back ジェスチャー / 戻るボタンをヘッダーの戻るボタンと同じ処理に接続する（TASK-113）
+  // 入力があれば破棄の確認モーダルを経由する
+  useBlockAndroidBackGesture(handleGoBack);
 
   const handleBookmark = () => {
     setIsBookmarked((prev) => !prev);

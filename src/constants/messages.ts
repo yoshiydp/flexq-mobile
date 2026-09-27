@@ -63,9 +63,41 @@ export const REC_PERMISSION_MESSAGES = {
     'トラックの再生を開始できませんでした。もう一度お試しください。',
 };
 
+/**
+ * Android はバックグラウンドでのマイクアクセスが OS に制限される（Android 14 以降は
+ * microphone 型のフォアグラウンドサービスが必須）ため、録音中にバックグラウンドへ
+ * 移ったら録音を停止して、そこまでの録音を保存経路へ渡す。バックグラウンド中の
+ * Alert は表示されないため、フォアグラウンド復帰時に案内する (TASK-112)
+ *
+ * 停止した時点ではテイクはまだ永続化されていない（呼び出し元は録音再生画面へ
+ * 遷移するだけで、アップロードは画面下部の「SAVE」ボタンで実行される）ため、
+ * 案内では保存操作が必要であることを明示する。停止に失敗した場合・保存できる
+ * 長さがない場合はテイクが破棄されるため `cancelledBeforeStart` を使う
+ */
+export const REC_BACKGROUND_MESSAGES = {
+  noticeTitle: 'お知らせ',
+  stoppedNeedsSave:
+    'バックグラウンドに移動したため録音を停止しました。ここまでの録音は再生して確認できます。残す場合は「SAVE」ボタンで保存してください。',
+  cancelledBeforeStart:
+    'バックグラウンドに移動したため録音を中止しました。もう一度 REC ボタンから録音してください。',
+};
+
 export const HEADPHONE_LABELS = {
   wired: '有線イヤホン接続中',
   bluetooth: 'Bluetoothイヤホン接続中',
+  // Android 12+ で「付近のデバイス」が未許可のときの表示（TASK-115）
+  bluetoothDetectionOff: 'Bluetooth 検知オフ',
+  bluetoothDetectionOffHint:
+    '端末の設定で「付近のデバイス」を許可すると Bluetooth イヤホンを検知できます',
+};
+
+// Android 12+ の BLUETOOTH_CONNECT 権限ダイアログの前に出す事前説明（TASK-115）
+export const BLUETOOTH_PERMISSION_MESSAGES = {
+  rationaleTitle: 'Bluetooth イヤホンの検知',
+  rationaleBody:
+    'Bluetooth イヤホンの接続を検知して録音の同期補正に使います。次の画面で「付近のデバイス」へのアクセスを許可してください。',
+  allow: '許可する',
+  notNow: '今はしない',
 };
 
 export const SYNC_PLAYBACK_LABELS = {

@@ -41,8 +41,10 @@ jest.mock('@/hooks/useAiCleanupSetting', () => ({
   useAiCleanupSetting: () => ({ enabled: false, setEnabled: jest.fn() }),
 }));
 
+const mockUseBlockAndroidBackGesture = jest.fn();
 jest.mock('@/hooks/useBlockAndroidBackGesture', () => ({
-  useBlockAndroidBackGesture: jest.fn(),
+  useBlockAndroidBackGesture: (onBack?: () => void) =>
+    mockUseBlockAndroidBackGesture(onBack),
 }));
 
 describe('QuickRecordScreen', () => {
@@ -63,6 +65,16 @@ describe('QuickRecordScreen', () => {
     expect(props.countdownSeconds).toBe(0);
     // トラックを伴わない単独録音のため trackSource は渡さない
     expect(props.trackSource).toBeUndefined();
+  });
+
+  it('Android のシステム戻る操作をヘッダーの戻るボタンと同じ処理（goBack）に接続する (TASK-113)', () => {
+    render(<QuickRecordScreen />);
+
+    const onBack = mockUseBlockAndroidBackGesture.mock.calls.at(-1)[0];
+    expect(typeof onBack).toBe('function');
+
+    onBack();
+    expect(mockGoBack).toHaveBeenCalledTimes(1);
   });
 
   it('録音停止でレコードプレイヤーに遷移する', () => {

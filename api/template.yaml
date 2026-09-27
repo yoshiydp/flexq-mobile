@@ -249,6 +249,45 @@ Resources:
     Type: AWS::Serverless::Api
     Properties:
       StageName: v1
+      # ステージのスロットリング (TASK-104)
+      # ※ API Gateway のステージ／メソッド単位のスロットリングは「ステージ全体」の上限で、
+      #   送信元 IP ごとの制限ではない（IP 単位・失敗回数ロックは AWS WAF が必要で対象外）。
+      #   単一の攻撃者が上限に達すると正規ユーザーも同じパスで 429 を受ける点に注意。
+      #   Lambda・DynamoDB の暴走コストを抑えつつ、ログインの総当たりをリクエスト/秒で
+      #   頭打ちにする目的。認証系は 1 ユーザーの操作頻度（数回/分）に対して十分な値。
+      # ResourcePath はメソッド設定のキー形式で、パスの "/" を "~1" にエンコードする
+      MethodSettings:
+        # 全体（緩い上限）
+        - ResourcePath: '/*'
+          HttpMethod: '*'
+          ThrottlingRateLimit: 50
+          ThrottlingBurstLimit: 100
+        # 認証系（厳しめ）: パスワードログイン・登録・リセット・認証コード発行・Google ログイン
+        - ResourcePath: '/~1data~1auth~1login'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1register'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1reset-password'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1verification-code'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1google'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        # トークンリフレッシュは全クライアントが起動時・期限切れ時に呼ぶためやや緩め
+        - ResourcePath: '/~1data~1auth~1refresh'
+          HttpMethod: POST
+          ThrottlingRateLimit: 20
+          ThrottlingBurstLimit: 40
 
   # ─── Lambda Functions ──────────────────────────────────
   GetDataFunction:

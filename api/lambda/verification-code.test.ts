@@ -5,6 +5,7 @@ import {
   CODE_TTL_SECONDS,
   MAX_ATTEMPTS,
   RESEND_INTERVAL_SECONDS,
+  alreadyRegisteredEmailContent,
   canResend,
   evaluateCode,
   generateCode,
@@ -136,5 +137,17 @@ describe('canResend', () => {
   it('再送間隔を過ぎたら再送できる', () => {
     const lastSentAt = NOW_MS - RESEND_INTERVAL_SECONDS * 1000;
     expect(canResend({ lastSentAt }, NOW_MS)).toBe(true);
+  });
+});
+
+describe('alreadyRegisteredEmailContent', () => {
+  it('登録済みであることを伝え、認証コードは含めない（TASK-104）', () => {
+    const { subject, body } = alreadyRegisteredEmailContent();
+    expect(subject).toContain('すでに登録されています');
+    expect(body).toContain('すでに FlexQ に登録されています');
+    expect(body).not.toContain('認証コード:');
+    // 第三者による操作だった場合に不安を与えないよう「変更なし」を明記する
+    expect(body).toContain('何も変更は加えられていません');
+    expect(body.trimEnd().endsWith('FlexQ チーム')).toBe(true);
   });
 });
