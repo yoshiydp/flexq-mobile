@@ -304,7 +304,7 @@ git push origin feature/your-feature-name
 **2. dev で実機確認**
 
 - `feature/*` → `dev` へ PR を作成してマージ → dev チャンネルへ OTA 配信（開発側 AWS）
-- 実機（Expo Go / 開発ビルド）で動作に問題がないことを確認する
+- 実機の開発ビルド（`FlexQ Dev`）で動作に問題がないことを確認する（**Expo Go は使えません**。「実機（iPhone / Android）で確認」を参照）
 
 **3. develop へ反映（staging 検証）**
 
@@ -347,12 +347,51 @@ yarn start
 
 `dev` ブランチへのマージ（dev チャンネル）や `develop` へのマージ（staging チャンネル）で配信された OTA Update を実機で確認するには：
 
-1. 実機で **Expo Go**（または開発ビルド）を完全に終了して再起動
-2. 最新の update が自動適用される
+1. 実機で開発ビルド（`FlexQ Dev`）を完全に終了して再起動
+2. ランチャーの **Updates** タブから対象のブランチ（`dev` など）の最新 update を選ぶ
 
 EAS Update はプラットフォーム共通のため、各チャンネルの配信は iOS / Android 両方に届きます。
 
+> **Expo Go は使えません。** `react-native-audio-api`（TASK-121 で導入・設定プラグインあり）をはじめ、
+> `expo-speech-recognition` / `@10play/tentap-editor` / `react-native-device-info` など
+> Expo Go に同梱されないネイティブモジュールを使っているためです。`react-native-audio-api` は
+> 起動時の画面連鎖で読み込まれるので、無い環境では起動直後にクラッシュします。
+> Expo 公式の代替である**開発ビルド（expo-dev-client）**を使ってください。
+
+#### 実機用の開発ビルドを作る・配る
+
+シミュレーター / エミュレーターはローカルビルド（`yarn ios` / `yarn android`）で十分ですが、
+**実機に入れるビルドは EAS Build で作ります**（署名込み・インストールリンクで配布）。
+
+```bash
+# Android（APK）。完了後に出る URL を端末のブラウザで開いてインストールする
+eas build --profile development-device --platform android
+
+# iOS（アドホック配布。端末が未登録なら先に eas device:create）
+eas build --profile development-device --platform ios
+```
+
+**ネイティブ依存を変えていない限り作り直しは不要**です。JS の変更は `dev` ブランチへの
+マージで OTA が届きます（`runtimeVersion` を上げたときだけ作り直す）。
+
 Android 実機でローカルの変更を直接確認する場合は、実機の「開発者向けオプション」で USB デバッグを有効化し、USB 接続して `yarn android` でインストールします。
+
+#### ビルドバリアント（本番 / staging / 開発ビルドの見分け）
+
+`app.config.js` が環境変数 `APP_VARIANT` を見て、アプリ名・バンドル ID・アイコンを切り替えます。
+**開発ビルドだけバンドル ID が別**なので、TestFlight / Play 内部テストのビルドと同じ端末に共存できます。
+
+| APP_VARIANT | アプリ名 | バンドル ID | アイコン | プロファイル |
+|------------|---------|-----------|---------|------------|
+| `development` | FlexQ Dev | `com.yoshiydp.lyricsapp.dev` | 下部に **Dev** の帯 | `development-device` |
+| `staging` | FlexQ STG | `com.yoshiydp.lyricsapp` | 下部に **STG** の帯 | `staging` |
+| （未設定） | FlexQ | `com.yoshiydp.lyricsapp` | 素のアイコン | `production`・ローカルビルド |
+
+アイコンは `swift scripts/generate-variant-icons.swift` で生成します。アプリ名とアイコンは
+ネイティブ資産のため **OTA では変わらず、次回のビルドから反映**されます。
+
+> 開発バリアントでは **Google ログインが使えません**（OAuth クライアントがバンドル ID に
+> 紐づくため）。メール / パスワードのログインは使えます。詳細は CLAUDE.md を参照。
 
 ### TestFlight で確認（テスターへの配布）
 

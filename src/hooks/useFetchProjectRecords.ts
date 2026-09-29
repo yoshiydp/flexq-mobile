@@ -53,7 +53,7 @@ export function useFetchProjectRecords(projectId: string) {
           createdAt: new Date(record.createdAt ?? record.updatedAt),
           updatedAt: new Date(record.updatedAt),
         }))
-        .sort((a, b) => {
+        .sort((a: ProjectRecordType, b: ProjectRecordType) => {
           if (a.isBookmarked && !b.isBookmarked) return -1;
           if (!a.isBookmarked && b.isBookmarked) return 1;
           // 作成日時の降順（編集しても並び順が変わらないように。TASK-51）

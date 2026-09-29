@@ -137,6 +137,8 @@ Replicate トークンは運営者へ渡さない(開発側負担のため。移
      --capabilities CAPABILITY_IAM --no-confirm-changeset \
      --parameter-overrides JwtSecret="<dev 用シークレット>"
    ```
+   `JwtSecret` は `Default` を持たない必須パラメータ(TASK-106 で既定値を撤廃・32 文字以上)。
+   `openssl rand -base64 32` で発行した値を新規作成時に必ず指定する
 2. dev 用データの投入: 別冊 7-2 と同じスクリプトの要領で、現 Staging(`lyrics-mock-api`)から
    `lyrics-dev-api` へ demo アカウント等をコピーする(プロファイルは両方とも現行アカウントで可)
 3. `.env` の `EXPO_PUBLIC_API_BASE_URL` を dev の `ApiUrl` に変更(Maestro E2E の接続先も dev になる)
@@ -227,7 +229,7 @@ AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api --region ap-northea
   --parameter-overrides ReplicateApiToken="<開発者の Replicate トークン>"
 ```
 
-- `JwtSecret` / `SenderEmail` は指定しなくても CloudFormation が前回値を保持する
+- `JwtSecret` / `SenderEmail` は既存スタックの更新であれば指定しなくても CloudFormation が前回値を保持する(`JwtSecret` に `Default` はないため、新規作成時のみ必須)
 - 将来 Replicate の負担を運営者側へ移す場合は、運営者名義のトークンに差し替えて同じコマンドで再デプロイすればよい
 
 ---
@@ -255,6 +257,27 @@ AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-api --region ap-northea
   3. 移行用読み取りユーザー(`migration-reader`)を削除
   4. `staging` ブランチと旧ワークフローの残骸を削除
   5. 運営者に「削除完了」を連絡(運営者側の `~/s3-migration` 片付けの合図。別冊 第 8 章)
+
+### 実施状況(2026-09-27 時点)
+
+**後片付けは完了**。以降、旧環境に関する作業はない。
+
+| 手順 | 状況 |
+|------|------|
+| 1. S3 を空にする | 完了(`lyrics-prod-api-*` は元から空 / `lyrics-mock-api-*` は 123 ファイル・488MB を削除) |
+| 2. 旧スタックの削除 | 完了(開発者アカウントに残る SAM スタックは `lyrics-dev-api` のみ) |
+| 3. `migration-reader` の削除 | 完了(アクセスキー削除 → `ReadOnlyAccess` 解除 → ユーザー削除) |
+| 4. `staging` ブランチ・旧ワークフロー | 完了(いずれも残骸なし) |
+| 5. 運営者へ「削除完了」を連絡 | **不要と判断**(下記) |
+
+手順 5 は**実施しない**。運営者は AWS の知識を持たず管理コンソールも操作しないため、
+連絡しても対応できる作業がない(本来の目的は運営者側ローカルの `~/s3-migration` を
+片付ける合図だった)。旧環境の削除状況は開発者側がこのドキュメントで把握していれば足りる。
+運営者のローカルに移行時の作業ディレクトリが残る可能性はあるが、AWS 側には影響しない。
+
+削除前に、旧 dev(`lyrics-mock-api`)にいた実アカウント 3 件
+(`yoshihisa.watanabe.info` / `luz104tb` / `syamusyamu1124`)が、いずれも現 dev
+(`lyrics-dev-api`)に存在することを確認している。
 
 ## 3. トラブルシューティング(開発者向け)
 

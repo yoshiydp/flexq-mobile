@@ -14,6 +14,9 @@ yarn android              # Android エミュレーター
 # Lint & フォーマット
 yarn lint                 # expo lint (CI では --max-warnings=0)
 
+# 型チェック
+yarn typecheck            # tsc --noEmit (CI でも実行。エラー 0 が前提)
+
 # テスト (Jest)
 yarn test                 # Jest ウォッチモード
 yarn test:ci              # Jest カバレッジ付き実行 (CI)
@@ -87,9 +90,11 @@ iOS と同様、日常の開発は `yarn start` を起動し、ターミナル�
 
 **OTA Update の確認:**
 
-`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
+`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側で開発ビルドを完全終了 → 再起動すると最新 update が適用されます。**Expo Go は使えません**（理由と代替は「開発ビルド（実機検証用）」を参照）。
 
 > **Android のセットアップ状況:** Google ログイン（TASK-54）・Google Play Console・EAS submit・内部テスト配信まですべてセットアップ済みで運用可能。Google OAuth の Android クライアントは lyrics-app-492415 にデバッグ署名 / EAS アップロード鍵 / Play アプリ署名鍵の 3 つを登録済み（`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` は `.env` に設定済み）。**新規 Android クライアント作成時は「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**（デフォルト無効のままだと OAuth が `400: invalid_request` になる）。
+
+> **Bluetooth イヤホン検知の権限（Android 12+ / TASK-115）:** `useHeadphonesConnected` は `BLUETOOTH_CONNECT` を `check` → 未許可なら `Alert` で事前説明 →「許可する」で `request` の順に 1 回だけ実行し、説明への応答を AsyncStorage `bluetoothPermissionPrompted` に記録して以降は再要求しない（拒否されても有線検知・録音は動く。`HeadphoneIndicator` が「Bluetooth 検知オフ」を表示し、タップで `Linking.openSettings()`。端末設定で許可されればフォアグラウンド復帰時に自動で有効になる）。`app.json` の `android.allowBackup: false`（AsyncStorage の設定値を自動バックアップ対象から外す）はネイティブビルドでのみ反映される。
 
 ### ナビゲーション
 
@@ -130,6 +135,8 @@ API クライアント (`src/apiClient/`) は `openapi-typescript-codegen` で**
 
 モックサーバー (`yarn mock:server`) は `src/data/*.ts` のデータを Express でローカルに配信します。
 
+> **依存の置き場所:** モックサーバー・生成スクリプト専用のパッケージ（`express` / `cors` / `swagger-ui-express` / `yamljs` / `js-yaml`）は `devDependencies` に置く。`dependencies` はアプリ（Metro バンドル）が実際に import するものだけにし、未使用パッケージは削除する（TASK-110。`yarn npm audit --environment production --severity high` を 0 件に保つ）。
+
 ### AWS API Gateway
 
 AWS Lambda + API Gateway は **dev / staging / production の 3 環境**に分離されています。
@@ -147,7 +154,7 @@ staging / production は**運営者名義の AWS アカウント**、dev は開�
 - **production エンドポイント**: `https://7ez5duggcc.execute-api.ap-northeast-1.amazonaws.com/v1`（`eas.json` の production プロファイルに設定済み）
 - **リージョン**: `ap-northeast-1`（東京）
 - **SAM テンプレート**: `api/template.yaml`（3 環境共通）
-- 旧スタック（`lyrics-mock-api` / `lyrics-prod-api`）は切り戻し用に一時温存中。安定稼働の確認後に削除する（`docs/aws-account-migration-guide.md` 第 IV 部）
+- 旧スタック（`lyrics-mock-api` / `lyrics-prod-api`）は **2026-09-27 に削除済み**。開発者アカウントに残る SAM スタックは `lyrics-dev-api` のみ（`docs/aws-account-migration-guide.md` 第 IV 部 2 の手順どおり、S3 バケットを空にしてから削除した。旧 dev の 3 アカウントのデータは現 dev 環境へ移行済みであることを確認済み）
 
 `src/App.tsx` の起動時に `OpenAPI.BASE` を環境変数で設定しています：
 
@@ -180,7 +187,9 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 
 > **注意:** `api/samconfig.toml` のデフォルトスタック名は dev の `lyrics-dev-api`（`--stack-name` なしの `sam deploy` は dev に向く）。**staging / production へのデプロイでは `--stack-name` と `AWS_PROFILE=flexq-ops` を必ず明示する**。また `confirm_changeset = true` のため、非対話実行では `--no-confirm-changeset` が必須。
 
-- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（新規作成時はテンプレートの `Default` が入る。下記「Replicate トークン」の注意も参照）
+- `JwtSecret` / `SenderEmail` などの設定済みパラメータは、**既存スタックの更新時のみ**未指定でも CloudFormation が前回値を保持する（UsePreviousValue）。**`JwtSecret` は `Default` を持たない必須パラメータ**（TASK-106 で既定値 `lyrics-jwt-secret-change-in-production` を撤廃・`MinLength: 32`）のため、**スタックを新規作成するときは `--parameter-overrides JwtSecret="$(openssl rand -base64 32)"` を必ず指定する**（未指定だとデプロイ前のパラメータ検証で失敗する）。その他のパラメータは新規作成時にテンプレートの `Default` が入る（下記「Replicate トークン」の注意も参照）
+- 既存 3 スタックが既定シークレットのままになっていないかは `docs/jwt-secret-verification.md` の手順で確認する（既定シークレットで署名した JWT が 401 になれば OK。既定値だった環境はシークレットを差し替えて再デプロイし、その環境の全ユーザーが再ログインになる）
+- 未認証の `GET /data`（モックデータ一括返却の `GetDataFunction`）は TASK-106 で API Gateway から削除済み。`api/openapi.yaml` の `/data` と `yarn mock:server` の `/data` はローカルモック専用
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
 
@@ -210,14 +219,16 @@ AWS_PROFILE=flexq-ops USERS_TABLE=<テーブル名> npx tsx scripts/ban-user.ts 
 |------|------|
 | パスワードログイン / Google ログイン / トークンリフレッシュ | 403 で拒否 |
 | すでにログイン中の端末（発行済みトークン） | 401 で全 API 遮断。**反映は最大 60 秒**（`auth-middleware` の status キャッシュ TTL） |
-| 同じメールでの新規登録 | 409（レコードが残るため自然にブロック） |
+| 同じメールでの新規登録 | 登録不可（レコードが残るため `verification-code` は登録済み扱いでコードを発行せず、`register` は 400 reason code_* で止まる。TASK-104 以降は 409 に到達しない） |
+
+**セッション失効（TASK-105）:** ログアウト・パスワードリセットは Users の `tokenVersion`（属性なしは 0）を `ADD` で +1 し、以後は `tv` クレームが一致しないトークンをリフレッシュ 401 / 保護 API 401 で拒否する（`api/lambda/auth-tokens.ts` の `issueTokens` が login / register / google / refresh で両トークンに `tv` を焼き込む）。保護 API 側の照合は上記 BAN と同じ `auth-middleware` の GetItem・60 秒キャッシュに相乗りしているため、**反映は最大 60 秒**・DynamoDB 障害時はフェイルオープン（ただしキャッシュより新しい `tv` のトークンは DB を引き直すので、ログアウト直後の再ログインは待たされない）。照合は完全一致ではなく「`tv` が保存値より古いか」で行う: `tv` は署名済み JWT の中身なので水増しできず、`tv` > 保存値は結果整合の読み取り遅れ（GetItem の既定や login / google の GSI 経由）しか意味しないため、その向きは許容して発行直後のトークンが 401 になるのを防ぐ。`tv` なしの旧トークンは tokenVersion が 0 の間だけ有効で、初回のログアウトで自然に失効する。**発行時と照合時で読み取り方が違う**: トークンを発行する login / google / refresh は、焼き込む `tv` を Users の `GetItem` + `ConsistentRead: true`（`api/lambda/user-snapshot.ts` の `readConsistentUserRecord`。refresh は本体の `GetCommand` に付与）で読む — GSI（`email-index` / `googleSub-index`）は強整合読み取りができず、`GetItem` も既定では結果整合のため、そのままだとログアウト直後のログインが「すでに失効済みの `tv`」を焼き込んだトークンを発行し、保護 API とリフレッシュが更新後のレコードを観測した時点で 401 になる。強整合読み取りが失敗した場合・レコードが読めなかった場合は GSI のスナップショットへ**一貫して**フォールバックしてログインを落とさない（`console.warn` を残す）。**資格情報の検証・BAN 判定・版数の決定・応答に返すプロフィールは必ず同一スナップショットから行う**（GSI は email / googleSub → userId の解決にだけ使い、属性は射影せず 1 回の強整合読み取りでまとめて引く。google の email 照合経路は自分で書き込むため `UpdateCommand` の `ReturnValues: 'ALL_NEW'` を正のスナップショットとして使い、結果整合の事前 BAN 判定をすり抜けても書き込まないよう `status <> suspended` の `ConditionExpression` を付けている）: 混在させると、パスワードリセット直後に「GSI の古い `passwordHash`（旧パスワードで一致）＋ 強整合の加算後 `tokenVersion`」が成立し、旧パスワードでのログインがリセット後の版数を持つトークンを受け取ってリセットによる失効を回避できてしまう。refresh は念のため「受信した `tv` と保存値の大きい方」を再発行するトークンに焼き込み、クライアントが持つ有効なトークンの版数を下げない。一方**保護 API 側の照合（`auth-middleware.verifyToken`）は結果整合の `GetItem` + 60 秒キャッシュのまま**で、上記の許容（`tv` > 保存値）がその読み取り遅れを吸収する。ログアウト API の `ADD` は「保存値 = トークンの `tv`」を条件にしており（失効済みトークンで以後のセッションを切れないようにするため）、条件不一致・失敗時も 200 を返す（クライアントはローカルのトークンを破棄する）。
 
 **運用ルール:**
 - BAN 実行は日時・対象 userId / email・理由を Notion に記録する
 - **BAN はアカウント単位**。同一人物が別メールで持つ別アカウント（同じ Google アカウントを連携している場合を含む）には影響しないため、必要に応じて個別に BAN する
 - データは `suspendedAt` から 1 年保持し、解除の見込みがなければ物理削除する（TASK-80 の削除処理を流用・当面は手動運用）
 
-**E2E 検証:** `scripts/e2e-ban.sh` が dev の専用アカウント `e2e-ban@example.com` を BAN → `.maestro/flows/25-account-suspension/`（AS-01: ログイン 403 Account suspended / 再登録 409 を API で検証 + 「Login Failed」の UI 確認）→ 解除、の順に実行する。Google ログイン・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は `docs/test-cases.md` の AS-02 / AS-03 / AS-05 で手動確認する
+**E2E 検証:** `scripts/e2e-ban.sh` が dev の専用アカウント `e2e-ban@example.com` を BAN → `.maestro/flows/25-account-suspension/`（AS-01: ログイン 403 Account suspended / 再登録 400 reason code_* を API で検証 + 「Login Failed」の UI 確認）→ 解除、の順に実行する。Google ログイン・発行済みトークンの遮断（最大 60 秒）・解除後の復旧は `docs/test-cases.md` の AS-02 / AS-03 / AS-05 で手動確認する
 
 ### AI クリーンアップ（Replicate 連携）
 
@@ -250,6 +261,7 @@ RecordPlayer「AI クリーンアップ」
 - **出力形式は wav 固定 + Lambda 側で位置合わせ（TASK-44。変更しないこと）**: demucs は入力 m4a の AAC priming（先頭無音 2112 サンプル ≈48ms）を含めてデコードするため、mp3/flac/wav のどれを選んでも出力の頭に無音が残り、トラックとの同時再生で声が一定時間遅れる。wav で受けて保存時に `audio-align.ts` が「出力の長さ − 元録音の長さ」を先頭からトリムし、16-bit PCM 化（サイズは 24-bit flac と同程度）して保存する。位置合わせ済みレコードには `separationAligned: true` が付き、フラグのない古い分離音源（mp3 / flac 移行期）は API が未処理（none）として返すので「AI クリーンアップ」ボタンから再生成できる（完了時に旧ファイルは削除される）
 - 本来の denoise 候補だった `resemble-enhance` は **m4a コンテナ自体を読めない**（wav / mp3 / flac のみ）ため demucs で代用中。専用モデルに戻す場合は `ReplicateDenoiseModel` を差し替える（`inputFor` がモデル名で入力スキーマを切り替える）
 - **iOS 録音は AAC 必須**: `src/utils/recordingOptions.ts` の `outputFormat: Audio.IOSOutputFormat.MPEG4AAC` を削除しないこと。未指定だと PCM-in-M4A という特殊形式になり全モデルが読めず、ファイルサイズも約 5 倍になる（TASK-42 で修正）。**AAC 化以前の録音は AI クリーンアップ不可**（failed 遷移 → 再実行可能）
+- **iOS の録音は画面ロック・バックグラウンドでも継続する（TASK-111）**: `RecRecordingSection` の録音モード（`Audio.setAudioModeAsync`）で `staysActiveInBackground: true`（iOS のみ）を指定し、アンマウント時に false へ戻す。expo-av は false のままバックグラウンドへ入ると音声セッションを停止して全録音・全再生を止める。前提の Info.plist `UIBackgroundModes: ["audio"]` は react-native-audio-api の設定プラグイン（既定 `iosBackgroundMode: true`）が追加している（runtimeVersion 1.1.0 以降のビルドに含まれる）ため専用のネイティブ変更は不要。録音中は `expo-keep-awake` の `useKeepAwake()` で自動ロックを抑止し、復帰時・停止時の長さは録音側の `durationMillis` で合わせる（JS タイマーはバックグラウンドで間引かれる）。**Android はバックグラウンド遷移で録音を停止して保存する（TASK-112）**: Android 14 以降はバックグラウンドでのマイクアクセスに microphone 型のフォアグラウンドサービスが必要（react-native-audio-api の設定プラグインが追加する `CentralizedForegroundService` は mediaPlayback 型で、audio-api の再生時にしか起動しないため expo-av の録音は守られない）で、音声セッションを維持しても録音は無音になる。さらに expo-av の Android 実装（`AVManager.onHostPause`）は `staysActiveInBackground: false` のときトラック再生を止めて音声フォーカスを手放すため同期の前提も崩れる。そこで Android では `staysActiveInBackground` を false のままにし、`RecRecordingSection` が AppState の `background` を受けたら通常の停止フロー（STOP ボタンと同じ経路。`stopHandledRef` で二重停止を防ぐ）を実行して「ここまで」を保存経路（`onStop`）へ渡す。録音開始前（カウントダウン中）は中止（`onAbort`）に落とす。バックグラウンド中の `Alert` は表示されず、停止と同時にモーダルが閉じてコンポーネントもアンマウントされるため、案内はコンポーネントの外（モジュールスコープの `scheduleForegroundNotice`）で張る一度きりの AppState 購読でフォアグラウンド復帰時に出す。**案内は「停止結果の確定」と「フォアグラウンド復帰」の両方が揃ってから 1 回だけ表示する**（購読は復帰の取りこぼしを防ぐため停止処理の前に登録するが、暫定の文言を先に出して後から訂正する方式は採らない。停止完了より復帰が早いと、破棄されたテイクを「残っている」と誤って伝えてしまう）。停止した時点のテイクはまだ永続化されていない（`onStop` は録音再生画面へ渡すだけで、アップロードは `RecordPlayerScreen.handleSave` = 画面下部の「SAVE」ボタン）ため、案内の文言（`REC_BACKGROUND_MESSAGES.stoppedNeedsSave`）では保存操作が必要であることを明示する。停止失敗・長さ 0 で破棄した場合は中止の案内（`cancelledBeforeStart`）にする。**Android のマイク許可ダイアログはアクティビティを一時停止させ `background` として通知されるため、許可の取得完了前は反応しない**（初回録音がダイアログ応答だけで中止される）。microphone 型フォアグラウンドサービス化（Android でもバックグラウンド録音を継続する案）は TASK-114 の移行と同時に検討する。手動確認は `docs/test-cases.md` の PR-13〜PR-15 / QR-06 / QR-07
 
 #### Replicate アカウント・トークンのセットアップ
 
@@ -306,6 +318,7 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 - **Bluetooth 録音のテイクは開始位置を出力遅延ぶん手前に補正する**（`src/utils/syncStartPosition.ts` の `getEffectiveStartPositionMs`、代表値 220ms）。録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、Bluetooth（A2DP）では耳に届くのが出力遅延ぶん後のため保存値が真の値より大きくなり、同時再生・ミックスで声が 0.2〜0.3 秒先行していた（有線は遅延ほぼ 0 のため無症状。無線で録ったテイクは有線で再生しても先行する）。サーバー側のミックス（`api/lambda/record-mix.ts` の `effectiveStartPositionMs`、`MIX_PIPELINE_VERSION` v4）も同じ値・同じ規則で補正する。**両方の定数は必ず同じ値に揃えること**。OS の実測値（iOS `AVAudioSession.outputLatency`）を保存する方式への置き換えは別タスク
 - **同時再生の同期は `src/utils/syncedAudioPlayer.ts`（react-native-audio-api）が担う**（TASK-121）。声とトラックを PCM にデコードして 1 つの AudioContext に載せ、同じコンテキスト時計に対して `start(when, offset)` で予約再生する（先行 50ms）。両 OS ともサンプル単位で同期し、**expo-av 時代の実測補正シーク・ミュート合流・ストール学習・速度微調整・ドリフト監視（TASK-61/118/119/120）は全て撤去した**。再生位置はノードの報告ではなくコンテキスト時計から算出する。再生・シーク・ループのたびにノードを作り直す（AudioBufferSourceNode は一度しか start できない）。対応位置が負（TASK-89）の間はトラックの開始時刻を遅らせて先頭から鳴らす。再生中の同時再生 ON はその時点の対応位置から即座に合流する（無音の待ちなし）。**保存された startPositionMs の誤りは補正できない**（対応位置に正確に合わせるだけ）。`useSyncedTrackPlayback` は有効化条件（canSync）・トラック音源の解決（ローカルキャッシュ）・音量だけを担い、`useRecordPlayer` が画面の寿命と同じ 1 つの `SyncedAudioPlayer` を管理する。**ネイティブ依存（react-native-audio-api・Expo 設定プラグイン）を含むため、導入後は開発ビルドの再ビルド（`yarn ios` / `yarn android`）と TestFlight / Play の新ビルドが必要で、OTA だけでは届かない**（`runtimeVersion` を `1.1.0` に上げてあり、旧ビルドには OTA が配信されない）。選定の経緯: expo-av の 2 プレイヤー方式（別クロック + 事後補正）は Android（ExoPlayer）のシーク停止 0.2〜0.3 秒・シーク直後の楽観的な位置報告・速度変更の数百 ms の遅延のため、6 回の改修でも ±15〜40ms + 合流の無音約 1 秒が限界だった（iOS の AVPlayer は ±5ms まで届いていた）。expo-audio も Android は同じ ExoPlayer で同じ限界を持つ。注意点: worklets は使わない（プロジェクトの react-native-worklets 0.5.1 は要件 0.6 未満だが、ビルド時の版判定で worklet 系ノードだけ無効化される）。m4a は同梱の FFmpeg でデコードする（アプリサイズ iOS 約 12MB・Android 約 11MB 増）。iOS の音声セッションは `AudioManager.setAudioSessionOptions`（playback / default / オプションなし。iOS 26 は playback に allowBluetoothA2DP を付けると setCategory が失敗する）。音源全体を PCM に展開するためメモリを使う（3 分の音源 2 本で 100MB 前後）。Jest では `__mocks__/react-native-audio-api.js` に置き換わる。**録音再生画面にいる間は expo-av を無効化する**（`useRecordPlayer` が AudioContext 生成前に `Audio.setIsEnabledAsync(false)`、離脱時に true）: expo-av（他画面の AVPlayer）と audio-api（AVAudioEngine）が同時に音声セッションを操作すると iOS のオーディオサーバーがデッドロックする。**iOS 26.5 シミュレーターでは AVAudioEngine の起動（AURemoteIO::Start）が "RPC timeout. Apparently deadlocked" で abort する**（Apple のシミュレーター側の既知事象・実機では起きない報告）ため、同時再生の検証は実機（TestFlight / Play 内部テスト）で行う。SY-05 の E2E もシミュレーターでは再生開始で落ちる。
 - 再生画面下部の可視化テキスト（`sync-offset-debug`・`source=… sync=… offset=… start=… track=… engine=audio-api`）は Metro 接続の開発ビルド（`__DEV__`）に加え、`EXPO_PUBLIC_SYNC_DEBUG=1` でビルドされた OTA バンドルでも表示される（dev / staging の EAS Update ワークフローで設定済み。production では設定しない）。`track=` はトラック音源の取得元（local = キャッシュ / remote = ストリーミングフォールバック）で、実機でのキャッシュ失敗の切り分けに使う。`offset` は両ノードの位置報告を同じ時刻に揃えて比較した実測値（正 = トラックが先行）。同じ時計で動くため原理上ゼロ付近で、大きく外れる場合はエンジン側の問題。E2E `.maestro/flows/13-sync-playback/SY-05-separated-timing.yaml` はこの値が ±39ms 以内であることを検証する
+- **録音・トラック再生に残る expo-av は SDK 55 以降では使えない**（expo-av は SDK 54 向けの 16.0.8 が最終リリース）。同時再生は TASK-121 で react-native-audio-api へ移行済みだが、録音（`RecRecordingSection`）・トラック再生（`AudioPlayerScreen` など）・イヤホン検知のセッション活性化・A2DP パッチは expo-av のままで、SDK 更新の前提として移行が必要。依存箇所の棚卸し・候補比較（expo-audio / react-native-audio-api）・段階的な移行手順は `docs/expo-av-migration-plan.md`（TASK-114）を参照
 
 #### トラブルシューティング
 
@@ -319,6 +332,103 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 | 開始直後に 502 | `PostRecordSeparateFunction` の CloudWatch ログ（Replicate API エラーの詳細が出る） |
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
+
+### 開発ビルド（実機検証用）
+
+#### Expo Go は使えない
+
+TASK-121 で導入した `react-native-audio-api`（設定プラグインあり）をはじめ、`expo-speech-recognition` /
+`@10play/tentap-editor` / `react-native-device-info` など **Expo Go に同梱されないネイティブモジュール**を
+使っているため、Expo Go では動きません。`react-native-audio-api` は起動時の画面連鎖で読み込まれるので、
+無い環境では白画面ではなく**起動直後にクラッシュ**します
+（`Failed to install react-native-audio-api: The native module could not be found.`）。
+
+代わりに **開発ビルド（expo-dev-client）** を使います。これが Expo 公式の Expo Go 代替です。
+
+#### 使い分け
+
+| 用途 | 作り方 | 接続先 |
+|------|-------|-------|
+| シミュレーター / エミュレーター（日常開発・E2E） | ローカルビルド `yarn ios` / `yarn android` | `yarn start` の Metro |
+| **実機**（TestFlight / Play 内部テスト前の検証） | `eas build --profile development-device` | dev チャンネルの OTA |
+
+**ネイティブ依存を変えていない限り、開発ビルドは作り直し不要**です。JS の変更は `dev` ブランチへの
+マージで OTA が届きます（`runtimeVersion` を上げたときだけ作り直す）。
+
+#### TestFlight / Play 版との共存（アプリバリアント）
+
+実機用の開発ビルドは **`com.yoshiydp.lyricsapp.dev`** という別のバンドル ID で作るため、
+TestFlight / Play 内部テストのビルドと**同じ端末に同時に入れられる**。ホーム画面では
+アプリ名で見分ける（`FlexQ` = ストア配信版 / `FlexQ Dev` = 開発ビルド）。
+
+切り替えは `app.config.js` が環境変数 `APP_VARIANT` を見て行う。`eas.json` の各ビルド
+プロファイルで設定している。
+
+| APP_VARIANT | アプリ名 | バンドル ID | アイコン | プロファイル |
+|------------|---------|-----------|---------|------------|
+| `development` | FlexQ Dev | `com.yoshiydp.lyricsapp.dev` | 下部に **Dev** の帯 | `development-device` |
+| `staging` | FlexQ STG | `com.yoshiydp.lyricsapp` | 下部に **STG** の帯 | `staging` |
+| （未設定） | FlexQ | `com.yoshiydp.lyricsapp` | 素のアイコン | `production`・ローカルビルド |
+
+バリアント用のアイコンは `swift scripts/generate-variant-icons.swift` で生成する
+（`icon.png` / `adaptive-icon.png` に帯を重ねて `-stg` / `-dev` を書き出す）。
+元のアイコンを差し替えたら再実行すること。Android は前景画像の中央 66.7% しか
+表示されないため、帯の位置が iOS と異なる。
+
+> **アイコンはネイティブ資産なので OTA では変わらない。** 帯付きアイコンが反映されるのは
+> 次回のビルドから。
+
+> **ローカルビルド（`yarn ios` / `yarn android`）と EAS の `development` プロファイルでは
+> 設定しない。** シミュレーター / エミュレーターには TestFlight 版が入らないので衝突せず、
+> E2E（`.maestro` の `appId` は素の `com.yoshiydp.lyricsapp`）もそのまま動かせるため。
+> 実機で E2E を回す場合だけ `appId` の違いに注意する。
+
+**制約: 開発バリアントでは Google ログインが使えない。** OAuth クライアントはバンドル ID /
+パッケージ名に紐づくため。使えるようにするには Google Cloud（`lyrics-app-492415`）で
+`com.yoshiydp.lyricsapp.dev` 用のクライアントを追加作成する:
+
+- iOS: iOS クライアントを作成 → 逆順クライアント ID を `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` に設定
+- Android: Android クライアントを作成（パッケージ名 + EAS のキーストアの SHA-1。
+  `eas credentials` で確認できる）→ `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` を差し替え。
+  **「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**
+
+未設定の間もメール / パスワードのログインは使えるため、Google ログイン自体を検証したいとき以外は
+支障がない。
+
+#### 実機用の開発ビルドを作る・配る
+
+```bash
+# Android（APK）。インストールリンク / QR が発行される
+eas build --profile development-device --platform android
+
+# iOS（アドホック配布。事前に UDID 登録が必要）
+eas device:create                    # 端末未登録の場合のみ（QR / リンクから登録）
+eas build --profile development-device --platform ios
+```
+
+- ビルド完了後に出る URL を端末で開いてインストールする（Android は Play を経由しない・iOS は TestFlight 不要）
+- 登録済み端末は `eas device:list --apple-team-id GSAWY4TUK9` で確認できる
+- [Expo Orbit](https://docs.expo.dev/build/orbit/)（macOS アプリ）を使うと、EAS のビルドをワンクリックで
+  シミュレーター・実機にインストールできる（任意）
+
+#### チャンネルの対応（EAS Update）
+
+`eas.json` の `channel` と、GitHub Actions が配信する `eas update --branch` の名前が一致していないと
+**OTA はどのビルドにも届かない**。現在の対応は次のとおり:
+
+| チャンネル | 紐づく branch | 受け取るビルド |
+|-----------|--------------|--------------|
+| `dev` | `dev` | `development` / `development-device` |
+| `staging` | `staging` | `staging`（TestFlight / Play 内部テスト） |
+| `production` | `production` | `production` |
+
+`eas channel:list` で対応を確認できる。新しいチャンネルは `eas channel:create <名前>` で作る
+（同名の branch に自動で接続される）。
+
+> 2026-09-26 まで `dev` チャンネルが存在せず（`development` チャンネルが branch `development` を
+> 指していた）、dev ブランチへのマージで配信していた OTA がどのビルドにも届いていなかった（TASK-123）。
+
+---
 
 ### EAS ビルド（実機配布）
 
@@ -361,13 +471,14 @@ eas submit --profile staging --platform ios
 
 #### eas.json の配布方式
 
-| プロファイル | distribution | 用途 |
-|------------|-------------|------|
-| `staging` | `store` | TestFlight 経由でテスター配布 |
-| `production` | `store` | App Store リリース |
-| `development` | `internal` | 開発者のみ（シミュレーター） |
+| プロファイル | distribution | チャンネル | 用途 |
+|------------|-------------|-----------|------|
+| `staging` | `store` | staging | TestFlight / Play 内部テスト経由でテスター配布 |
+| `production` | `store` | production | App Store リリース |
+| `development-device` | `internal` | dev | **開発者の実機**（TestFlight 前の検証。iOS は登録済み UDID のアドホック配布） |
+| `development` | `internal` | dev | シミュレーター専用（通常はローカルビルドを使うため EAS では作らない） |
 
-> **注意:** `distribution: "internal"` は UDID 登録が必要で、テスターの操作が煩雑になるため、面談・外部テスターには `store`（TestFlight）を使用する。
+> **注意:** `distribution: "internal"` は iOS で UDID 登録が必要なため、面談・外部テスターには `store`（TestFlight）を使用する。開発者自身の端末は UDID を登録済みなので `development-device` が使える。
 
 #### App Store Connect アプリ情報
 
@@ -452,7 +563,9 @@ corepack prepare yarn@4.12.0 --activate
 
 ### デプロイフロー
 
-ブランチへのマージをトリガーに、GitHub Actions（ESLint → Jest → EAS Update）が各チャンネルへ OTA 配信します。lint または test が失敗した場合は配信が中止されます。
+ブランチへのマージをトリガーに、GitHub Actions（ESLint + `tsc --noEmit` → Jest → EAS Update）が各チャンネルへ OTA 配信します。lint・型チェック・test のいずれかが失敗した場合は配信が中止されます。
+
+> 型チェック（`yarn typecheck`）は PR / push の CI（`ci.yml`）と各デプロイワークフローの lint ジョブで実行されるため、ローカルでも `yarn lint` / `yarn test:ci` とあわせて通してからコミットする（TASK-109）。
 
 > **ネイティブ依存を追加・更新したら `app.json` の `runtimeVersion` を必ず上げる**（固定文字列方式。例: TASK-121 の react-native-audio-api 追加で `1.0.0` → `1.1.0`）。上げずにマージすると、そのネイティブモジュールを持たない既存ビルド（TestFlight / Play 内部テスト / 開発ビルド）にも OTA が届き、起動時にモジュール未検出でクラッシュする。上げたあとは新しい runtimeVersion のビルド（`/testflight` / `/playstore`・開発ビルドは `yarn ios` / `yarn android`）を作るまで OTA は誰にも届かない。誤って配信した場合は `eas update:republish --branch <dev|staging|production> --group <直前の正常な group ID>` で旧 runtimeVersion 向けに戻す
 
@@ -471,7 +584,7 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 1. feature ブランチから `dev` への PR を作成・マージ
 2. ワークフロー `Deploy to Dev (EAS Update)` が dev チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL_DEV`）
-3. 実機でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用される
+3. 実機で開発ビルド（`development-device` プロファイル）を完全終了 → 再起動すると最新 update が適用される
 4. Lambda（`api/` 配下）に変更がある場合は、あわせて `lyrics-dev-api` へ手動 SAM デプロイ（`/deploy-api-dev`）
 
 #### staging への配信（リリース前検証）
@@ -536,7 +649,8 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 - 各フローは docs/test-cases.md のケース ID を代表 ID としてヘッダーコメント（ID / シナリオ名 / 前提条件 / 操作手順 / 期待結果 / 備考）に記載し、`tags` にセクション ID（例: `PE`）とケース ID（例: `PE-11`）を付与する
 - 削除や異常状態など UI 操作では準備しにくい前提データは、フロー内の `runScript`（`.maestro/scripts/*.js` + `http`）で dev API を直接呼び出してセットアップ・後始末する。テストデータ名には `e2e-` prefix を付け、セットアップ時に前回の残骸を掃除して冪等にする（例: `pe11-setup.js`）。作成に外部 API の実行（Replicate 等）が必要なデータは demo アカウントの既存サンプルを読み取り専用で使い、`updatedAt` の更新やブックマークで一覧先頭に出す（例: `sy05-setup.js`）
 - リスト項目の `Pressable` は子テキストがグループ化され、ラベルが「タイトル, 日付 …」の連結になるため `'.*タイトル.*'` の部分一致で探す。表示領域の狭い内側の ScrollView では枠外の項目も階層上は「表示中」扱いになり `scrollUntilVisible` → `tapOn` が枠外をタップして失敗するため、対象を先頭に出す前提データにする
-- ネイティブ UI（DocumentPicker / ImagePicker など）を伴う操作は E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
+- ネイティブ UI を伴う操作のうち、**iOS の写真ピッカー（PHPicker）は Maestro から操作できる**ため自動化している（`07-new-project/NP-07`）。グリッドの写真は `id: PXGGridLayout-Info` + `index` で選び、`allowsEditing: true` のトリミング画面は `(選択|Choose)` をタップする（トリミング画面は端末が日本語でも英語表記になることがある）。事前にシミュレーターへ画像を入れておくこと（`xcrun simctl addmedia <udid> <画像>`）
+- DocumentPicker（ファイル選択）と Android の写真ピッカーは E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
 
 **実行前提:**
 - `yarn start` で開発サーバーを起動済み（dev 環境に接続）。非対話で起動する場合は `CI=1 npx expo start`（ファイル監視なし。ソース変更後は再起動が必要）
@@ -616,11 +730,17 @@ Lambda は 6MB のペイロード制限があるため、ファイルを Lambda 
 | Records | `RecordsTable` | `recordId` |
 | Users | `UsersTable` | `userId` |
 
+上記 5 テーブルは **PITR（ポイントインタイムリカバリ）有効**（TASK-107。直近 35 日の任意時点へ別テーブル名で復元できる）。`VerificationCodesTable`（TTL 付きの使い捨て認証コード）は対象外。PITR の有効化はテーブルの置換を伴わない in-place 更新。
+
 ### S3 バケット
 
 | バケット | SAM リソース名 | 用途 |
 |--------|--------------|------|
 | `TrackAudioBucket` | `TrackAudioBucket` | 音源（`tracks/`）・アートワーク（`artworks/`）・プロフィール画像（`profiles/`） |
+
+バケットは **SSE-S3（AES256）のデフォルト暗号化 + パブリックアクセスブロック（4 項目）有効**（TASK-107）。アクセスは全て Presigned URL 経由のため動作影響はなく、どちらもバケットの置換を伴わない。`records/mixed/` のライフサイクルは未実装（`isMixCacheValid` が S3 の実体を確認しないため、欠損時の再生成経路を先に用意する必要がある。`api/template.yaml` のコメント参照）。
+
+Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 254（形式チェックあり）/ password 8〜128 / タイトル・名前系（memo title・track title・projectName・trackName）255 / リッチテキスト本文（memo body・project body）100,000 文字。超過は 400 `{ message: '<field> is too long' }`。
 
 ### 関連ファイル一覧
 
@@ -818,6 +938,7 @@ cd api && sam build && sam deploy --stack-name lyrics-dev-api --no-confirm-chang
 | `/deploy-api-stg` | `.claude/commands/deploy-api-stg.md` | develop ブランチから `flexq-stg-api`（運営者アカウント）への SAM デプロイ |
 | `/testflight` | `.claude/commands/testflight.md` | EAS Build → TestFlight 配信 |
 | `/playstore` | `.claude/commands/playstore.md` | EAS Build → Google Play 内部テスト配信（Android） |
+| `/handoff` | `.claude/commands/handoff.md` | Mac Mini ⇄ MacBook Air のセッション・メモリ引き継ぎ（`out` / `in` / `clean`。詳細は `docs/claude-code-session-handoff.md`） |
 
 ---
 
