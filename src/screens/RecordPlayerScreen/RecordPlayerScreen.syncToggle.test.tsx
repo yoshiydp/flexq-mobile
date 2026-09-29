@@ -66,8 +66,9 @@ jest.mock('@/hooks/useUpdateRecord', () => ({
 jest.mock('@/hooks/useDeleteRecord', () => ({
   useDeleteRecord: () => ({ deleteRecord: jest.fn() }),
 }));
+const mockUploadRecord = jest.fn();
 jest.mock('@/hooks/useUploadRecord', () => ({
-  useUploadRecord: () => ({ uploadRecord: jest.fn() }),
+  useUploadRecord: () => ({ uploadRecord: mockUploadRecord }),
 }));
 jest.mock('@/hooks/useFetchRecord', () => ({
   useFetchRecord: () => ({ refreshRecord: jest.fn() }),
@@ -139,8 +140,10 @@ jest.mock('@/components/ui/VolumeSlider', () => {
   return jest.fn(() => <View testID="volume-slider" />);
 });
 jest.mock('@/components/ui/buttons/SubmitButton', () => {
-  const { View } = require('react-native');
-  return jest.fn(() => <View testID="submit-button" />);
+  const { Pressable } = require('react-native');
+  return jest.fn(({ onPress }: { onPress?: () => void }) => (
+    <Pressable testID="submit-button" onPress={onPress} />
+  ));
 });
 
 const mockedUseSyncedTrackPlayback = useSyncedTrackPlayback as jest.Mock;
@@ -183,6 +186,29 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
 
   afterEach(() => {
     (Alert.alert as jest.Mock).mockRestore();
+  });
+
+  it('保存時に録音時の出力遅延（recordingLatencyMs）を uploadRecord へ引き渡す (TASK-124)', async () => {
+    // 未保存テイク（id なし）は SAVE でアップロードされる。0 が欠落すると
+    // サーバー・クライアント双方で代表値 220ms が適用され過補正になる
+    mockParams = {
+      ...mockParams,
+      id: undefined,
+      recordedFile: 'file:///tmp/recording.m4a',
+      recordedWithHeadphones: 'bluetooth',
+      recordingLatencyMs: 0,
+    };
+    const { getByTestId } = await renderScreen();
+
+    await act(async () => {
+      fireEvent.press(getByTestId('submit-button'));
+    });
+
+    expect(mockUploadRecord).toHaveBeenCalledWith(
+      'file:///tmp/recording.m4a',
+      expect.any(String),
+      expect.objectContaining({ recordingLatencyMs: 0, projectId: 'project-1' }),
+    );
   });
 
   it('projectId を持つレコードの場合、トグルが表示される', async () => {

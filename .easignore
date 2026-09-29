@@ -40,3 +40,10 @@ scripts/server.ts
 
 # Demo account seed assets
 demo-assets/
+
+# モック API サーバー（src/data/*.ts）とユニットテストだけが参照するサンプル音源。
+# アプリ本体からは import しておらず、`npx expo export` の成果物にも含まれない
+# （実測: エクスポート 16MB・音源ファイルなし）。合計 121MB あり、これを含めると
+# EAS へのアップロードが 271MB になるため除外する（TASK-123）。
+src/assets/audio/
+src/assets/record/

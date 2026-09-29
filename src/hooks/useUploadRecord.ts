@@ -10,6 +10,8 @@ type UploadRecordOptions = {
   isBookmarked?: boolean;
   /** 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う） */
   recordedWithHeadphones?: RecordedWithHeadphones;
+  /** 開始位置に焼き込まれた出力遅延（ms）。同時再生・ミックスでこの分を差し引く（TASK-124） */
+  recordingLatencyMs?: number;
 };
 
 export function useUploadRecord() {
@@ -21,7 +23,13 @@ export function useUploadRecord() {
     title: string,
     options: UploadRecordOptions = {},
   ) => {
-    const { projectId, startPositionMs, isBookmarked = false, recordedWithHeadphones } = options;
+    const {
+      projectId,
+      startPositionMs,
+      isBookmarked = false,
+      recordedWithHeadphones,
+      recordingLatencyMs,
+    } = options;
     setLoading(true);
     setError(null);
     try {
@@ -41,6 +49,7 @@ export function useUploadRecord() {
         ...(startPositionMs !== undefined ? { startPositionMs } : {}),
         isBookmarked,
         ...(recordedWithHeadphones ? { recordedWithHeadphones } : {}),
+        ...(recordingLatencyMs !== undefined ? { recordingLatencyMs } : {}),
       });
 
       return record;

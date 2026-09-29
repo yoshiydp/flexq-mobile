@@ -19,6 +19,7 @@ import {
   type HeadphoneConnection,
 } from '@/hooks/useHeadphonesConnected';
 import { useAiCleanupSetting } from '@/hooks/useAiCleanupSetting';
+import { getRecordingLatencyMsForSave } from '@/utils/recordingLatency';
 import { REC_LABELS } from '@/constants/messages';
 import styles from './RecView.styles';
 
@@ -106,6 +107,7 @@ export default function RecView({
       // 使用していた音源をトラック同期再生でそのまま使えるように引き渡す
       trackSource: trackSource ?? undefined,
       recordedWithHeadphones: headphonesAtRecordStartRef.current ?? undefined,
+      recordingLatencyMs: getRecordingLatencyMsForSave(),
       autoCleanup: aiCleanupEnabled,
     });
   };
@@ -149,6 +151,7 @@ export default function RecView({
                     // トラック（pending trackSource）とは一致しない可能性があるため、
                     // RecordPlayer 側でプロジェクト詳細から取得させる
                     recordedWithHeadphones: record.recordedWithHeadphones,
+                    recordingLatencyMs: record.recordingLatencyMs,
                     separationStatus: record.separationStatus,
                     separatedSource: record.separatedSource,
                   });

@@ -90,7 +90,7 @@ iOS と同様、日常の開発は `yarn start` を起動し、ターミナル�
 
 **OTA Update の確認:**
 
-`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用されます。
+`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側で開発ビルドを完全終了 → 再起動すると最新 update が適用されます。**Expo Go は使えません**（理由と代替は「開発ビルド（実機検証用）」を参照）。
 
 > **Android のセットアップ状況:** Google ログイン（TASK-54）・Google Play Console・EAS submit・内部テスト配信まですべてセットアップ済みで運用可能。Google OAuth の Android クライアントは lyrics-app-492415 にデバッグ署名 / EAS アップロード鍵 / Play アプリ署名鍵の 3 つを登録済み（`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` は `.env` に設定済み）。**新規 Android クライアント作成時は「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**（デフォルト無効のままだと OAuth が `400: invalid_request` になる）。
 
@@ -154,7 +154,7 @@ staging / production は**運営者名義の AWS アカウント**、dev は開�
 - **production エンドポイント**: `https://7ez5duggcc.execute-api.ap-northeast-1.amazonaws.com/v1`（`eas.json` の production プロファイルに設定済み）
 - **リージョン**: `ap-northeast-1`（東京）
 - **SAM テンプレート**: `api/template.yaml`（3 環境共通）
-- 旧スタック（`lyrics-mock-api` / `lyrics-prod-api`）は切り戻し用に一時温存中。安定稼働の確認後に削除する（`docs/aws-account-migration-guide.md` 第 IV 部）
+- 旧スタック（`lyrics-mock-api` / `lyrics-prod-api`）は **2026-09-27 に削除済み**。開発者アカウントに残る SAM スタックは `lyrics-dev-api` のみ（`docs/aws-account-migration-guide.md` 第 IV 部 2 の手順どおり、S3 バケットを空にしてから削除した。旧 dev の 3 アカウントのデータは現 dev 環境へ移行済みであることを確認済み）
 
 `src/App.tsx` の起動時に `OpenAPI.BASE` を環境変数で設定しています：
 
@@ -315,9 +315,9 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 - **録音開始位置（`startPositionMs`）は負の値になり得る**（TASK-89）。REC 開始時、マイクは即座に録り始める一方、ProjectEdit のトラック（ストリーミング）は鳴り始めるまでモバイル回線で数百 ms〜数秒かかるため、実測値「トラック位置 − 録音経過時間」は負になる。以前は `Math.max(0, …)` で 0 に丸め、さらに実測が 2 秒で諦めて選択位置（0）にフォールバックしていたため、「はじめから」録音したテイクが起動遅延ぶんトラック先行（声が 0.4〜0.5 秒遅れて聞こえる）で保存されていた（staging の該当テイクは 4 本とも `startPositionMs` がぴったり 0 で、シミュレーターでも初回計測が −1 ms → 0 に丸められることを確認）。再生側がストリーミングだった頃はトラックも同じだけ遅れて鳴るため偶然相殺され、トラックをローカル化した時点で露出した。対応: 実測を丸めず負のまま保存（試行上限 10 秒）、`useSyncedTrackPlayback` は対応位置が負の間トラックを先頭で待機させて対応位置 0 で開始（`scheduleTrackStartIfEarly`）、ミックスは `adelay` でトラックを遅らせる（`MIX_PIPELINE_VERSION` v5）、`post-record` は負値を受け付ける。**丸められて保存された既存テイク（0）は復元できない**。**Android の実測は最初の 1 サンプルではなく 0.8 秒後に取り直した値を採用する**（`MEASURE_START_POSITION_SETTLE_MS_ANDROID`・TASK-121）: ExoPlayer は再生開始直後、実際の音声が出る前から再生位置を進めて報告するため、最初の実測は真の開始位置より 70〜115ms 大きく保存されていた（staging の Android テイク 3 本をトラックと相互相関して確認。iOS テイクの誤差は −19ms）。**修正前に Android で録音したテイクは 0.1 秒前後トラックが遅れて聞こえたままで復元できない**（録り直しが必要）
 - 途中から録音したテイクの `startPositionMs` は、staging の実テイクをトラックと相互相関して −12 ms（有線）/ −72 ms（スピーカー）の精度で正確だと確認済み（相互相関の手順はトラブルシューティング参照）
 - **トラック音源も同時再生の有効化時に同じ仕組みでローカルキャッシュする**（`useSyncedTrackPlayback.resolveTrackPlaybackUri`、キー `track-<S3 オブジェクト名>`）。ストリーミングのままだと再生開始・シーク直後のバッファリングに同期補正のシークが重なり、トラックの出だしが引っかかる（iOS / Android 共通）。ダウンロード中はフルスクリーンローディングを表示する
-- **Bluetooth 録音のテイクは開始位置を出力遅延ぶん手前に補正する**（`src/utils/syncStartPosition.ts` の `getEffectiveStartPositionMs`、代表値 220ms）。録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、Bluetooth（A2DP）では耳に届くのが出力遅延ぶん後のため保存値が真の値より大きくなり、同時再生・ミックスで声が 0.2〜0.3 秒先行していた（有線は遅延ほぼ 0 のため無症状。無線で録ったテイクは有線で再生しても先行する）。サーバー側のミックス（`api/lambda/record-mix.ts` の `effectiveStartPositionMs`、`MIX_PIPELINE_VERSION` v4）も同じ値・同じ規則で補正する。**両方の定数は必ず同じ値に揃えること**。OS の実測値（iOS `AVAudioSession.outputLatency`）を保存する方式への置き換えは別タスク
+- **録音テイクの開始位置は「焼き込まれた出力遅延」ぶん手前に補正する**（`src/utils/syncStartPosition.ts` の `getEffectiveStartPositionMs`）。録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、耳に届くのは出力遅延ぶん後で、歌い手は聞こえた音に合わせて歌う。そのため**出力遅延を位置報告に含めないプレイヤーでは保存値が真の値より遅延ぶん大きくなり、補正しないとトラックが先に進んで声が遅れて聞こえる**（有線は遅延ほぼ 0 のため無症状）。逆に**必要以上に差し引くと声が合うべきタイミングより早く聞こえる**。差し引く量は録音時に保存した `recordingLatencyMs`（TASK-124）を優先し、未保存の既存レコードは Bluetooth 録音のみ代表値 220ms（`BLUETOOTH_RECORDING_LATENCY_MS`）へフォールバックする。**iOS（AVPlayer）は送出済み位置を報告するため補正が必要・Android（ExoPlayer）は `AudioTrack` のタイムスタンプ経由で A2DP のシンク遅延を含んだ位置を報告するため補正不要**で、Android では録音時に `recordingLatencyMs: 0` を明示保存する（`src/utils/recordingLatency.ts`。保存しないと代表値が効いて過補正になり、Android 実機で声が 0.2 秒ほど早く聞こえていた / TASK-124）。サーバー側のミックス（`api/lambda/record-mix.ts` の `effectiveStartPositionMs`）も同じ値・同じ規則で補正する。**代表値の定数は必ず両方同じ値に揃えること**。補正量の変更では `MIX_PIPELINE_VERSION` を上げない（キャッシュ判定が補正後の実効値 `mixStartPositionMs` を比較しているため、補正量が変わったレコードだけが stale になって作り直される）。OS の実測値（iOS `AVAudioSession.outputLatency`）を保存する方式への置き換えは TASK-90。**TASK-124 より前に Android で録音したテイクは `recordingLatencyMs` を持たないため過補正のままで、復元できない**（録り直しが必要）
 - **同時再生の同期は `src/utils/syncedAudioPlayer.ts`（react-native-audio-api）が担う**（TASK-121）。声とトラックを PCM にデコードして 1 つの AudioContext に載せ、同じコンテキスト時計に対して `start(when, offset)` で予約再生する（先行 50ms）。両 OS ともサンプル単位で同期し、**expo-av 時代の実測補正シーク・ミュート合流・ストール学習・速度微調整・ドリフト監視（TASK-61/118/119/120）は全て撤去した**。再生位置はノードの報告ではなくコンテキスト時計から算出する。再生・シーク・ループのたびにノードを作り直す（AudioBufferSourceNode は一度しか start できない）。対応位置が負（TASK-89）の間はトラックの開始時刻を遅らせて先頭から鳴らす。再生中の同時再生 ON はその時点の対応位置から即座に合流する（無音の待ちなし）。**保存された startPositionMs の誤りは補正できない**（対応位置に正確に合わせるだけ）。`useSyncedTrackPlayback` は有効化条件（canSync）・トラック音源の解決（ローカルキャッシュ）・音量だけを担い、`useRecordPlayer` が画面の寿命と同じ 1 つの `SyncedAudioPlayer` を管理する。**ネイティブ依存（react-native-audio-api・Expo 設定プラグイン）を含むため、導入後は開発ビルドの再ビルド（`yarn ios` / `yarn android`）と TestFlight / Play の新ビルドが必要で、OTA だけでは届かない**（`runtimeVersion` を `1.1.0` に上げてあり、旧ビルドには OTA が配信されない）。選定の経緯: expo-av の 2 プレイヤー方式（別クロック + 事後補正）は Android（ExoPlayer）のシーク停止 0.2〜0.3 秒・シーク直後の楽観的な位置報告・速度変更の数百 ms の遅延のため、6 回の改修でも ±15〜40ms + 合流の無音約 1 秒が限界だった（iOS の AVPlayer は ±5ms まで届いていた）。expo-audio も Android は同じ ExoPlayer で同じ限界を持つ。注意点: worklets は使わない（プロジェクトの react-native-worklets 0.5.1 は要件 0.6 未満だが、ビルド時の版判定で worklet 系ノードだけ無効化される）。m4a は同梱の FFmpeg でデコードする（アプリサイズ iOS 約 12MB・Android 約 11MB 増）。iOS の音声セッションは `AudioManager.setAudioSessionOptions`（playback / default / オプションなし。iOS 26 は playback に allowBluetoothA2DP を付けると setCategory が失敗する）。音源全体を PCM に展開するためメモリを使う（3 分の音源 2 本で 100MB 前後）。Jest では `__mocks__/react-native-audio-api.js` に置き換わる。**録音再生画面にいる間は expo-av を無効化する**（`useRecordPlayer` が AudioContext 生成前に `Audio.setIsEnabledAsync(false)`、離脱時に true）: expo-av（他画面の AVPlayer）と audio-api（AVAudioEngine）が同時に音声セッションを操作すると iOS のオーディオサーバーがデッドロックする。**iOS 26.5 シミュレーターでは AVAudioEngine の起動（AURemoteIO::Start）が "RPC timeout. Apparently deadlocked" で abort する**（Apple のシミュレーター側の既知事象・実機では起きない報告）ため、同時再生の検証は実機（TestFlight / Play 内部テスト）で行う。SY-05 の E2E もシミュレーターでは再生開始で落ちる。
-- 再生画面下部の可視化テキスト（`sync-offset-debug`・`source=… sync=… offset=… start=… track=… engine=audio-api`）は Metro 接続の開発ビルド（`__DEV__`）に加え、`EXPO_PUBLIC_SYNC_DEBUG=1` でビルドされた OTA バンドルでも表示される（dev / staging の EAS Update ワークフローで設定済み。production では設定しない）。`track=` はトラック音源の取得元（local = キャッシュ / remote = ストリーミングフォールバック）で、実機でのキャッシュ失敗の切り分けに使う。`offset` は両ノードの位置報告を同じ時刻に揃えて比較した実測値（正 = トラックが先行）。同じ時計で動くため原理上ゼロ付近で、大きく外れる場合はエンジン側の問題。E2E `.maestro/flows/13-sync-playback/SY-05-separated-timing.yaml` はこの値が ±39ms 以内であることを検証する
+- 再生画面下部の可視化テキスト（`sync-offset-debug`・`source=… sync=… offset=… start=… lat=… track=… engine=audio-api`）は Metro 接続の開発ビルド（`__DEV__`）に加え、`EXPO_PUBLIC_SYNC_DEBUG=1` でビルドされた OTA バンドルでも表示される（dev / staging の EAS Update ワークフローで設定済み。production では設定しない）。`track=` はトラック音源の取得元（local = キャッシュ / remote = ストリーミングフォールバック）で、実機でのキャッシュ失敗の切り分けに使う。`lat=` は開始位置から実際に差し引いた出力遅延（`recordingLatencyMs` またはフォールバックの代表値）で、Bluetooth 録音テイクの補正量の切り分けに使う。`offset` は両ノードの位置報告を同じ時刻に揃えて比較した実測値（正 = トラックが先行）。同じ時計で動くため原理上ゼロ付近で、大きく外れる場合はエンジン側の問題。E2E `.maestro/flows/13-sync-playback/SY-05-separated-timing.yaml` はこの値が ±39ms 以内であることを検証する
 - **録音・トラック再生に残る expo-av は SDK 55 以降では使えない**（expo-av は SDK 54 向けの 16.0.8 が最終リリース）。同時再生は TASK-121 で react-native-audio-api へ移行済みだが、録音（`RecRecordingSection`）・トラック再生（`AudioPlayerScreen` など）・イヤホン検知のセッション活性化・A2DP パッチは expo-av のままで、SDK 更新の前提として移行が必要。依存箇所の棚卸し・候補比較（expo-audio / react-native-audio-api）・段階的な移行手順は `docs/expo-av-migration-plan.md`（TASK-114）を参照
 
 #### トラブルシューティング
@@ -326,12 +326,109 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 |------|--------------|
 | 実行時に 503 | `ReplicateApiToken` 未設定（SAM パラメータを確認） |
 | 声のみの同時再生がズレる・冒頭がカクつく | 分離音源がローカルキャッシュではなく URL から直接デコードされている（開発ビルドの `sync-offset-debug` が `separated:remote` になる = ダウンロード失敗。端末の空き容量・Presigned URL の期限切れを確認）。`separated:local` でズレる場合は `offset` の値を確認する（TASK-121 以降は同一クロックの予約再生なので、ズレるなら保存された `startPositionMs` かエンジン側の問題） |
-| 声が一定時間**先行**する（有線で再生しても同じ） | 録音時の Bluetooth 出力遅延が `startPositionMs` に焼き込まれている。`recordedWithHeadphones` が `bluetooth` なら `getEffectiveStartPositionMs` の補正が効いているか、代表値（220ms）と機種の実遅延の差を疑う |
-| 声が一定時間**遅れる**（トラックが先行） | 「はじめから」録音したテイクで `startPositionMs` が 0 ちょうどなら、負の実測値が丸められた旧テイク（TASK-89 以前）で復元不可。 Android で TASK-121 以前に録音したテイクも 70〜115ms 分だけトラックが先行する（ExoPlayer の先走った位置報告が焼き込まれている・復元不可）。新規テイクでも起きる場合は録音時の実測ログ（開発ビルドの `[rec-start-measure]`）と再生画面の `start=` を確認。録音側の誤差を疑う場合は staging の S3（`flexq-stg-api-trackaudiobucket-*`）からテイクとトラックを取得し相互相関で `startPositionMs` を検証する（イヤホンなし・有線のテイクはかぶりで相関が取れる） |
+| 声が合うべきタイミングより**早く**聞こえる（トラックが後から追いかける・有線で再生しても同じ） | 開始位置から差し引いた遅延が過剰（過補正）。再生画面の `lat=` を確認する。Android のテイクで `lat=220` なら `recordingLatencyMs` を保存していない TASK-124 以前の録音で復元不可（録り直し）。`lat=0` でも起きる場合は録音時の実測値そのものを疑う。iOS で起きる場合は代表値 220ms と機種の実遅延の差（150〜300ms）を疑い、TASK-90 の実測化を検討する |
+| 声が合うべきタイミングより**遅れる**（トラックが先行） | Bluetooth 録音テイクで `lat=0` のまま遅れる場合は、そのプレイヤーの位置報告に出力遅延が含まれておらず補正が必要な可能性（`recordingLatencyMs` の値を見直す）。「はじめから」録音したテイクで `startPositionMs` が 0 ちょうどなら、負の実測値が丸められた旧テイク（TASK-89 以前）で復元不可。 Android で TASK-121 以前に録音したテイクも 70〜115ms 分だけトラックが先行する（ExoPlayer の先走った位置報告が焼き込まれている・復元不可）。新規テイクでも起きる場合は録音時の実測ログ（開発ビルドの `[rec-start-measure]`）と再生画面の `start=` を確認。録音側の誤差を疑う場合は staging の S3（`flexq-stg-api-trackaudiobucket-*`）からテイクとトラックを取得し相互相関で `startPositionMs` を検証する（イヤホンなし・有線のテイクはかぶりで相関が取れる） |
 | トラックの出だしが引っかかる | トラック音源のローカルキャッシュに失敗してストリーミングにフォールバックしている（`Failed to cache project track audio` のログ。URL 再取得後も失敗した場合は「トラック音源のダウンロードに失敗したため…」のアラートが出る）。空き容量・URL 期限切れを確認。アラートなしで引っかかる場合はキャッシュ以外（Android 低スペック端末での Oboe のアンダーラン等）を疑う |
 | 開始直後に 502 | `PostRecordSeparateFunction` の CloudWatch ログ（Replicate API エラーの詳細が出る） |
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
+
+### 開発ビルド（実機検証用）
+
+#### Expo Go は使えない
+
+TASK-121 で導入した `react-native-audio-api`（設定プラグインあり）をはじめ、`expo-speech-recognition` /
+`@10play/tentap-editor` / `react-native-device-info` など **Expo Go に同梱されないネイティブモジュール**を
+使っているため、Expo Go では動きません。`react-native-audio-api` は起動時の画面連鎖で読み込まれるので、
+無い環境では白画面ではなく**起動直後にクラッシュ**します
+（`Failed to install react-native-audio-api: The native module could not be found.`）。
+
+代わりに **開発ビルド（expo-dev-client）** を使います。これが Expo 公式の Expo Go 代替です。
+
+#### 使い分け
+
+| 用途 | 作り方 | 接続先 |
+|------|-------|-------|
+| シミュレーター / エミュレーター（日常開発・E2E） | ローカルビルド `yarn ios` / `yarn android` | `yarn start` の Metro |
+| **実機**（TestFlight / Play 内部テスト前の検証） | `eas build --profile development-device` | dev チャンネルの OTA |
+
+**ネイティブ依存を変えていない限り、開発ビルドは作り直し不要**です。JS の変更は `dev` ブランチへの
+マージで OTA が届きます（`runtimeVersion` を上げたときだけ作り直す）。
+
+#### TestFlight / Play 版との共存（アプリバリアント）
+
+実機用の開発ビルドは **`com.yoshiydp.lyricsapp.dev`** という別のバンドル ID で作るため、
+TestFlight / Play 内部テストのビルドと**同じ端末に同時に入れられる**。ホーム画面では
+アプリ名で見分ける（`FlexQ` = ストア配信版 / `FlexQ Dev` = 開発ビルド）。
+
+切り替えは `app.config.js` が環境変数 `APP_VARIANT` を見て行う。`eas.json` の各ビルド
+プロファイルで設定している。
+
+| APP_VARIANT | アプリ名 | バンドル ID | アイコン | プロファイル |
+|------------|---------|-----------|---------|------------|
+| `development` | FlexQ Dev | `com.yoshiydp.lyricsapp.dev` | 下部に **Dev** の帯 | `development-device` |
+| `staging` | FlexQ STG | `com.yoshiydp.lyricsapp` | 下部に **STG** の帯 | `staging` |
+| （未設定） | FlexQ | `com.yoshiydp.lyricsapp` | 素のアイコン | `production`・ローカルビルド |
+
+バリアント用のアイコンは `swift scripts/generate-variant-icons.swift` で生成する
+（`icon.png` / `adaptive-icon.png` に帯を重ねて `-stg` / `-dev` を書き出す）。
+元のアイコンを差し替えたら再実行すること。Android は前景画像の中央 66.7% しか
+表示されないため、帯の位置が iOS と異なる。
+
+> **アイコンはネイティブ資産なので OTA では変わらない。** 帯付きアイコンが反映されるのは
+> 次回のビルドから。
+
+> **ローカルビルド（`yarn ios` / `yarn android`）と EAS の `development` プロファイルでは
+> 設定しない。** シミュレーター / エミュレーターには TestFlight 版が入らないので衝突せず、
+> E2E（`.maestro` の `appId` は素の `com.yoshiydp.lyricsapp`）もそのまま動かせるため。
+> 実機で E2E を回す場合だけ `appId` の違いに注意する。
+
+**制約: 開発バリアントでは Google ログインが使えない。** OAuth クライアントはバンドル ID /
+パッケージ名に紐づくため。使えるようにするには Google Cloud（`lyrics-app-492415`）で
+`com.yoshiydp.lyricsapp.dev` 用のクライアントを追加作成する:
+
+- iOS: iOS クライアントを作成 → 逆順クライアント ID を `EXPO_PUBLIC_GOOGLE_IOS_URL_SCHEME` に設定
+- Android: Android クライアントを作成（パッケージ名 + EAS のキーストアの SHA-1。
+  `eas credentials` で確認できる）→ `EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` を差し替え。
+  **「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**
+
+未設定の間もメール / パスワードのログインは使えるため、Google ログイン自体を検証したいとき以外は
+支障がない。
+
+#### 実機用の開発ビルドを作る・配る
+
+```bash
+# Android（APK）。インストールリンク / QR が発行される
+eas build --profile development-device --platform android
+
+# iOS（アドホック配布。事前に UDID 登録が必要）
+eas device:create                    # 端末未登録の場合のみ（QR / リンクから登録）
+eas build --profile development-device --platform ios
+```
+
+- ビルド完了後に出る URL を端末で開いてインストールする（Android は Play を経由しない・iOS は TestFlight 不要）
+- 登録済み端末は `eas device:list --apple-team-id GSAWY4TUK9` で確認できる
+- [Expo Orbit](https://docs.expo.dev/build/orbit/)（macOS アプリ）を使うと、EAS のビルドをワンクリックで
+  シミュレーター・実機にインストールできる（任意）
+
+#### チャンネルの対応（EAS Update）
+
+`eas.json` の `channel` と、GitHub Actions が配信する `eas update --branch` の名前が一致していないと
+**OTA はどのビルドにも届かない**。現在の対応は次のとおり:
+
+| チャンネル | 紐づく branch | 受け取るビルド |
+|-----------|--------------|--------------|
+| `dev` | `dev` | `development` / `development-device` |
+| `staging` | `staging` | `staging`（TestFlight / Play 内部テスト） |
+| `production` | `production` | `production` |
+
+`eas channel:list` で対応を確認できる。新しいチャンネルは `eas channel:create <名前>` で作る
+（同名の branch に自動で接続される）。
+
+> 2026-09-26 まで `dev` チャンネルが存在せず（`development` チャンネルが branch `development` を
+> 指していた）、dev ブランチへのマージで配信していた OTA がどのビルドにも届いていなかった（TASK-123）。
+
+---
 
 ### EAS ビルド（実機配布）
 
@@ -374,13 +471,14 @@ eas submit --profile staging --platform ios
 
 #### eas.json の配布方式
 
-| プロファイル | distribution | 用途 |
-|------------|-------------|------|
-| `staging` | `store` | TestFlight 経由でテスター配布 |
-| `production` | `store` | App Store リリース |
-| `development` | `internal` | 開発者のみ（シミュレーター） |
+| プロファイル | distribution | チャンネル | 用途 |
+|------------|-------------|-----------|------|
+| `staging` | `store` | staging | TestFlight / Play 内部テスト経由でテスター配布 |
+| `production` | `store` | production | App Store リリース |
+| `development-device` | `internal` | dev | **開発者の実機**（TestFlight 前の検証。iOS は登録済み UDID のアドホック配布） |
+| `development` | `internal` | dev | シミュレーター専用（通常はローカルビルドを使うため EAS では作らない） |
 
-> **注意:** `distribution: "internal"` は UDID 登録が必要で、テスターの操作が煩雑になるため、面談・外部テスターには `store`（TestFlight）を使用する。
+> **注意:** `distribution: "internal"` は iOS で UDID 登録が必要なため、面談・外部テスターには `store`（TestFlight）を使用する。開発者自身の端末は UDID を登録済みなので `development-device` が使える。
 
 #### App Store Connect アプリ情報
 
@@ -486,7 +584,7 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 1. feature ブランチから `dev` への PR を作成・マージ
 2. ワークフロー `Deploy to Dev (EAS Update)` が dev チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL_DEV`）
-3. 実機でアプリ（開発ビルド / Expo Go）を完全終了 → 再起動すると最新 update が適用される
+3. 実機で開発ビルド（`development-device` プロファイル）を完全終了 → 再起動すると最新 update が適用される
 4. Lambda（`api/` 配下）に変更がある場合は、あわせて `lyrics-dev-api` へ手動 SAM デプロイ（`/deploy-api-dev`）
 
 #### staging への配信（リリース前検証）

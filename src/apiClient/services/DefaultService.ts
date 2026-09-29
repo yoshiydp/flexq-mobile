@@ -7,8 +7,8 @@ import { OpenAPI } from '../core/OpenAPI';
 import { request as __request } from '../core/request';
 export class DefaultService {
     /**
-     * Get all data
-     * Returns all mock data defined in /src/data directory.
+     * Get all data (local mock server only)
+     * Returns all mock data defined in /src/data directory. Served only by the local mock server (yarn mock:server); the unauthenticated GetDataFunction was removed from AWS API Gateway (TASK-106).
      * @returns any OK
      * @throws ApiError
      */
@@ -485,6 +485,7 @@ export class DefaultService {
         source?: string;
         projectId?: string;
         startPositionMs?: number;
+        recordingLatencyMs?: number;
         createdAt?: string;
         updatedAt?: string;
         isBookmarked?: boolean;
@@ -510,6 +511,7 @@ export class DefaultService {
             s3Key: string;
             projectId?: string;
             startPositionMs?: number;
+            recordingLatencyMs?: number;
             isBookmarked?: boolean;
             recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
         },
@@ -519,6 +521,7 @@ export class DefaultService {
         source?: string;
         projectId?: string;
         startPositionMs?: number;
+        recordingLatencyMs?: number;
         createdAt?: string;
         updatedAt?: string;
         isBookmarked?: boolean;

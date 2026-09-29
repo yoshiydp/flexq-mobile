@@ -155,6 +155,34 @@ describe('useUploadRecord', () => {
     );
   });
 
+  it('recordingLatencyMs は 0 でも createRecord に含める (TASK-124)', async () => {
+    const { result } = renderHook(() => useUploadRecord());
+
+    await act(async () => {
+      await result.current.uploadRecord(localFileUri, 'My Recording', {
+        recordedWithHeadphones: 'bluetooth',
+        recordingLatencyMs: 0,
+      });
+    });
+
+    // 0（Android の補正不要）が落ちると代表値 220ms が適用されて過補正になる
+    expect(mockedService.createRecord).toHaveBeenCalledWith(
+      expect.objectContaining({ recordingLatencyMs: 0 }),
+    );
+  });
+
+  it('recordingLatencyMs 未指定の場合は createRecord に含めない (TASK-124)', async () => {
+    const { result } = renderHook(() => useUploadRecord());
+
+    await act(async () => {
+      await result.current.uploadRecord(localFileUri, 'My Recording');
+    });
+
+    expect(mockedService.createRecord.mock.calls[0][0]).not.toHaveProperty(
+      'recordingLatencyMs',
+    );
+  });
+
   it('タイトルが空白のみの場合は "No Title" で保存する', async () => {
     const { result } = renderHook(() => useUploadRecord());
 

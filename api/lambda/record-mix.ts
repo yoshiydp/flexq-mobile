@@ -58,34 +58,60 @@ export function mixedS3KeyFor(
  *     （録音時の BT 出力遅延が startPositionMs に焼き込まれ声が先行する問題の修正 / TASK-89）
  * v5: 負の開始位置（録音がトラックの発音より先に始まったテイク）に対応し、
  *     トラック側を adelay で遅らせる（TASK-89）
+ *
+ * 開始位置の補正量の変更（TASK-124 の recordingLatencyMs 導入など）では上げない:
+ * ミックスのキャッシュ判定（isMixCacheValid）が補正後の実効値 mixStartPositionMs を
+ * 比較しているため、補正量が変わったレコードだけが stale になって作り直される
+ * （バージョンを上げると影響のない全ミックスまで再生成してしまう）
  */
 export const MIX_PIPELINE_VERSION = 5;
 
 /**
- * Bluetooth イヤホンで録音したテイクの開始位置補正（ms）。
- * 録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、Bluetooth
- * （A2DP）では耳に届くのが出力遅延ぶん後のため、保存値が真の値より大きくなり
- * 声が先行する。アプリ側の同時再生（src/utils/syncStartPosition.ts）と
- * 同じ値・同じ規則で差し引く
+ * Bluetooth 録音テイクの出力遅延の代表値（ms）。
+ * 録音開始位置はプレイヤーが送出済みのトラック位置から実測されるが、耳に届くのは
+ * 出力遅延ぶん後になる。歌い手は聞こえた音に合わせて歌うため、出力遅延を位置報告に
+ * 含めないプレイヤー（iOS の AVPlayer）では保存値が真の値より遅延ぶん大きくなり、
+ * 補正しないとトラックが先に進んで声が遅れて聞こえる。
+ * `recordingLatencyMs` が保存されていない既存レコードのフォールバックとして使う。
+ * アプリ側の同時再生（src/utils/syncStartPosition.ts）と同じ値・同じ規則にすること
  */
 export const BLUETOOTH_RECORDING_LATENCY_MS = 220;
 
 /**
+ * 開始位置から差し引く出力遅延（ms）。
+ * 録音時に確定した値（recordingLatencyMs）を優先し、無い場合だけイヤホン種別から
+ * 代表値を選ぶ。Android は ExoPlayer の位置報告が A2DP のシンク遅延を含むため
+ * 録音時に 0 を保存する（代表値を適用すると過補正になる / TASK-124）
+ */
+function recordingLatencyMsOf(record: {
+  recordedWithHeadphones?: string;
+  recordingLatencyMs?: number;
+}): number {
+  if (
+    typeof record.recordingLatencyMs === 'number' &&
+    Number.isFinite(record.recordingLatencyMs)
+  ) {
+    return record.recordingLatencyMs;
+  }
+  return record.recordedWithHeadphones === 'bluetooth'
+    ? BLUETOOTH_RECORDING_LATENCY_MS
+    : 0;
+}
+
+/**
  * ミックスで使う実効的な録音開始位置（ms）。
- * Bluetooth 録音のテイクは出力遅延の代表値を差し引く（0 未満にはしない）
+ * 負の値は「録音がトラックの発音より先に始まった」テイク（TASK-89）。
+ * 0 に丸めるとトラックが先行するため、そのまま（補正込みで）返す
  */
 export function effectiveStartPositionMs(record: {
   startPositionMs?: number;
   recordedWithHeadphones?: string;
+  recordingLatencyMs?: number;
 }): number {
-  // 負の値は「録音がトラックの発音より先に始まった」テイク（TASK-89）。
-  // 0 に丸めるとトラックが先行するため、そのまま（補正込みで）返す
   // 開始位置が保存されていない旧レコードは「トラック先頭から」として扱い、
-  // Bluetooth 補正も適用しない（アプリ側 getEffectiveStartPositionMs と同じ規則）
+  // 遅延補正も適用しない（アプリ側 getEffectiveStartPositionMs と同じ規則）
   if (typeof record.startPositionMs !== 'number') return 0;
-  const base = record.startPositionMs;
-  if (record.recordedWithHeadphones !== 'bluetooth') return base;
-  return base - BLUETOOTH_RECORDING_LATENCY_MS;
+  return record.startPositionMs - recordingLatencyMsOf(record);
 }
 
 /**
@@ -103,6 +129,7 @@ export function isMixCacheValid(
     mixStartPositionMs?: number;
     startPositionMs?: number;
     recordedWithHeadphones?: string;
+    recordingLatencyMs?: number;
     mixVersion?: number;
   },
   trackRef: string
