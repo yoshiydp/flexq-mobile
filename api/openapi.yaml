@@ -600,6 +600,8 @@ paths:
                       type: string
                     startPositionMs:
                       type: number
+                    recordingLatencyMs:
+                      type: number
                     createdAt:
                       type: string
                     updatedAt:
@@ -640,6 +642,8 @@ paths:
                   type: string
                 startPositionMs:
                   type: number
+                recordingLatencyMs:
+                  type: number
                 isBookmarked:
                   type: boolean
                 recordedWithHeadphones:
@@ -662,6 +666,8 @@ paths:
                   projectId:
                     type: string
                   startPositionMs:
+                    type: number
+                  recordingLatencyMs:
                     type: number
                   createdAt:
                     type: string

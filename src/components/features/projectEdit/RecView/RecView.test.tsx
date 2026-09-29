@@ -1,5 +1,6 @@
 import React from 'react';
 import { render, fireEvent, act } from '@testing-library/react-native';
+import { Platform } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { ModalProvider } from '@/contexts/ModalContext';
 import RecView from './index';
@@ -181,8 +182,35 @@ describe('RecView コンポーネント', () => {
       trackSource: undefined,
       // TASK-38: 録音開始時のイヤホン状態と AI クリーンアップ設定（デフォルト OFF）
       recordedWithHeadphones: undefined,
+      // TASK-124: iOS は保存せず代表値フォールバックに任せる
+      recordingLatencyMs: undefined,
       autoCleanup: false,
     });
+    jest.useRealTimers();
+  });
+
+  it('Android は録音時の出力遅延 0 を RecordPlayer に引き渡す (TASK-124)', async () => {
+    jest.replaceProperty(Platform, 'OS', 'android');
+    jest.useFakeTimers();
+    renderWithProviders(<RecView {...mockProps} />);
+
+    const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
+    await act(async () => {
+      recStartProps.onStartRecording(5000);
+      jest.advanceTimersByTime(300);
+    });
+
+    const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
+    await act(async () => {
+      recModalProps.onStop(3000, 'file:///tmp/recording.m4a');
+    });
+
+    // ExoPlayer の位置報告は A2DP のシンク遅延を含むため補正不要。0 を保存しないと
+    // 代表値 220ms が適用されて過補正になる
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'RecordPlayer',
+      expect.objectContaining({ recordingLatencyMs: 0 }),
+    );
     jest.useRealTimers();
   });
 

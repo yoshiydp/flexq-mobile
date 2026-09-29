@@ -108,7 +108,7 @@ describe('isMixCacheValid', () => {
   });
 });
 
-describe('effectiveStartPositionMs（Bluetooth 録音の開始位置補正 / TASK-89）', () => {
+describe('effectiveStartPositionMs（録音テイクの開始位置補正 / TASK-89・TASK-124）', () => {
   it('Bluetooth 録音は出力遅延の代表値を差し引く', () => {
     expect(
       effectiveStartPositionMs({ startPositionMs: 10000, recordedWithHeadphones: 'bluetooth' }),
@@ -129,6 +129,64 @@ describe('effectiveStartPositionMs（Bluetooth 録音の開始位置補正 / TAS
     expect(effectiveStartPositionMs({ startPositionMs: 100, recordedWithHeadphones: 'bluetooth' })).toBe(
       100 - BLUETOOTH_RECORDING_LATENCY_MS,
     );
+  });
+
+  it('recordingLatencyMs が保存されていれば代表値より優先する（TASK-124）', () => {
+    // Android は ExoPlayer の位置報告が A2DP のシンク遅延を含むため録音時に 0 を保存する。
+    // 代表値を適用すると過補正になり、声が合うべきタイミングより早く聞こえる
+    expect(
+      effectiveStartPositionMs({
+        startPositionMs: 10000,
+        recordedWithHeadphones: 'bluetooth',
+        recordingLatencyMs: 0,
+      }),
+    ).toBe(10000);
+    // 実測値（TASK-90）が入った場合もそのまま差し引く
+    expect(
+      effectiveStartPositionMs({
+        startPositionMs: 10000,
+        recordedWithHeadphones: 'bluetooth',
+        recordingLatencyMs: 310,
+      }),
+    ).toBe(10000 - 310);
+    // イヤホン種別に関わらず保存値を使う
+    expect(
+      effectiveStartPositionMs({
+        startPositionMs: 10000,
+        recordedWithHeadphones: 'wired',
+        recordingLatencyMs: 40,
+      }),
+    ).toBe(10000 - 40);
+  });
+
+  it('不正な recordingLatencyMs は無視して代表値にフォールバックする', () => {
+    expect(
+      effectiveStartPositionMs({
+        startPositionMs: 10000,
+        recordedWithHeadphones: 'bluetooth',
+        recordingLatencyMs: Number.NaN,
+      }),
+    ).toBe(10000 - BLUETOOTH_RECORDING_LATENCY_MS);
+  });
+
+  it('recordingLatencyMs = 0 のテイクは補正前の値で生成したキャッシュを再利用できる', () => {
+    const base = {
+      mixStatus: 'done',
+      mixedS3Key: 'records/mixed/u/r-token.m4a',
+      mixTrackRef: 'tracks/t.mp3',
+      mixVersion: MIX_PIPELINE_VERSION,
+      startPositionMs: 10000,
+      recordedWithHeadphones: 'bluetooth',
+      recordingLatencyMs: 0,
+    };
+    expect(isMixCacheValid({ ...base, mixStartPositionMs: 10000 }, 'tracks/t.mp3')).toBe(true);
+    // 代表値で生成された旧ミックスは stale として作り直される
+    expect(
+      isMixCacheValid(
+        { ...base, mixStartPositionMs: 10000 - BLUETOOTH_RECORDING_LATENCY_MS },
+        'tracks/t.mp3',
+      ),
+    ).toBe(false);
   });
 
   it('Bluetooth 録音のキャッシュは補正後の実効値で判定する', () => {

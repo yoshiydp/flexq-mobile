@@ -45,7 +45,10 @@ import { useRecordPlayer } from '@/hooks/useRecordPlayer';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { getSeparationStartErrorMessage } from '@/utils/separationErrorMessage';
 import { isRemoteUri, resolveCachedRecordAudio } from '@/utils/recordAudioCache';
-import { getEffectiveStartPositionMs } from '@/utils/syncStartPosition';
+import {
+  getAppliedRecordingLatencyMs,
+  getEffectiveStartPositionMs,
+} from '@/utils/syncStartPosition';
 import styles from './RecordPlayerScreen.styles';
 
 /**
@@ -669,11 +672,13 @@ export default function RecordPlayerScreen() {
             startPositionMs: params?.startPositionMs,
             isBookmarked,
             recordedWithHeadphones: params?.recordedWithHeadphones,
+            recordingLatencyMs: params?.recordingLatencyMs,
           });
         } else {
           record = await uploadRecord(recordedFile, title, {
             isBookmarked,
             recordedWithHeadphones: params?.recordedWithHeadphones,
+            recordingLatencyMs: params?.recordingLatencyMs,
           });
         }
         // AI クリーンアップトグル ON で録音したテイクは保存成功後に自動で処理を開始する
@@ -925,7 +930,9 @@ export default function RecordPlayerScreen() {
                   debugSyncOffsetMs === null
                     ? '--'
                     : `${debugSyncOffsetMs >= 0 ? '+' : ''}${debugSyncOffsetMs}ms`
-                } start=${getEffectiveStartPositionMs(params)}ms track=${
+                } start=${getEffectiveStartPositionMs(params)}ms lat=${getAppliedRecordingLatencyMs(
+                  params,
+                )}ms track=${
                   syncPlayback.trackPlaybackSource ?? '--'
                 } engine=audio-api`}
               </Text>

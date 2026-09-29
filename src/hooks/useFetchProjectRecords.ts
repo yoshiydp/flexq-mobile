@@ -20,6 +20,8 @@ export interface ProjectRecordType {
   updatedAt: Date;
   isBookmarked: boolean;
   recordedWithHeadphones?: RecordedWithHeadphones;
+  /** 開始位置に焼き込まれた出力遅延（ms）。未保存の既存レコードは undefined（TASK-124） */
+  recordingLatencyMs?: number;
   separationStatus?: SeparationStatus;
   separationType?: SeparationType;
   separatedSource?: string;

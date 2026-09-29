@@ -120,6 +120,7 @@ export default function RecordListScreen() {
                 projectId: record.projectId,
                 startPositionMs: record.startPositionMs,
                 recordedWithHeadphones: record.recordedWithHeadphones,
+                recordingLatencyMs: record.recordingLatencyMs,
                 separationStatus: record.separationStatus,
                 separatedSource: record.separatedSource,
               });

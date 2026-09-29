@@ -176,7 +176,7 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
     expect(mockShowLoading).toHaveBeenCalledTimes(1);
     expect(mockHideLoading).toHaveBeenCalledTimes(1);
     expect(utils.getByTestId('sync-offset-debug')).toHaveTextContent(
-      'source=original:local sync=off offset=-- start=0ms track=-- engine=audio-api',
+      'source=original:local sync=off offset=-- start=0ms lat=0ms track=-- engine=audio-api',
     );
   });
 
@@ -247,7 +247,7 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
     );
     // 開発時の可視化: 再生対象がローカルキャッシュであることを表示する
     expect(utils.getByTestId('sync-offset-debug')).toHaveTextContent(
-      'source=separated:local sync=off offset=-- start=0ms track=-- engine=audio-api',
+      'source=separated:local sync=off offset=-- start=0ms lat=0ms track=-- engine=audio-api',
     );
   });
 
@@ -279,7 +279,7 @@ describe('RecordPlayerScreen 声のみ音源のローカルキャッシュ (TASK
     expect(mockHideLoading).toHaveBeenCalledTimes(2);
     expect(Alert.alert).not.toHaveBeenCalled();
     expect(utils.getByTestId('sync-offset-debug')).toHaveTextContent(
-      'source=separated:local sync=off offset=-- start=0ms track=-- engine=audio-api',
+      'source=separated:local sync=off offset=-- start=0ms lat=0ms track=-- engine=audio-api',
     );
     consoleError.mockRestore();
   });

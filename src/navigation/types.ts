@@ -71,6 +71,8 @@ export type RootStackParamList = {
         trackSource?: string;
         /** 録音開始時点のイヤホン接続状態（AI クリーンアップ用） */
         recordedWithHeadphones?: 'wired' | 'bluetooth' | 'none';
+        /** 開始位置に焼き込まれた出力遅延（ms）。トラック同期再生・ミックスで差し引く（TASK-124） */
+        recordingLatencyMs?: number;
         /** 保存成功後に AI クリーンアップを自動実行するか */
         autoCleanup?: boolean;
         separationStatus?: 'none' | 'processing' | 'done' | 'failed';
