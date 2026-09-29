@@ -5,6 +5,7 @@ import { ModalProvider } from '@/contexts/ModalContext';
 import RecView from './index';
 import RecRecordingModal from '@/components/ui/modals/RecRecordingModal';
 import RecStartModal from '@/components/ui/modals/RecStartModal';
+import { MODAL_TRANSITION_DELAY_MS } from '@/constants/modalTiming';
 
 const mockNavigate = jest.fn();
 jest.mock('@react-navigation/native', () => {
@@ -163,13 +164,17 @@ describe('RecView コンポーネント', () => {
       recStartProps.onStartRecording(5000);
       // RecRecordingModal を開くまでの 300ms のみ進める
       // （runAllTimers は useHeadphonesConnected のポーリングで停止しないため使わない）
-      jest.advanceTimersByTime(300);
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
     });
 
     // 録音停止で RecordPlayer へ遷移
     const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
     await act(async () => {
       recModalProps.onStop(3000, 'file:///tmp/recording.m4a');
+    });
+    // 録音モーダルが閉じきってから遷移する (TASK-125)
+    await act(async () => {
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
     });
 
     expect(mockNavigate).toHaveBeenCalledWith('RecordPlayer', {
@@ -197,18 +202,82 @@ describe('RecView コンポーネント', () => {
       recStartProps.onStartRecording(0);
       // RecRecordingModal を開くまでの 300ms のみ進める
       // （runAllTimers は useHeadphonesConnected のポーリングで停止しないため使わない）
-      jest.advanceTimersByTime(300);
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
     });
 
     const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
     await act(async () => {
       recModalProps.onStop(3000, 'file:///tmp/recording.m4a');
     });
+    // 録音モーダルが閉じきってから遷移する (TASK-125)
+    await act(async () => {
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+    });
 
     expect(mockNavigate).toHaveBeenCalledWith(
       'RecordPlayer',
       expect.objectContaining({ trackSource: 'file:///pending/track.mp3' }),
     );
+    jest.useRealTimers();
+  });
+
+  it('録音停止時は録音モーダルを閉じてから RecordPlayer へ遷移する (TASK-125)', async () => {
+    jest.useFakeTimers();
+    renderWithProviders(<RecView {...mockProps} />);
+
+    const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
+    await act(async () => {
+      recStartProps.onStartRecording(0);
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+    });
+    expect(
+      (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0].visible,
+    ).toBe(true);
+
+    const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
+    await act(async () => {
+      recModalProps.onStop(3000, 'file:///tmp/recording.m4a');
+    });
+
+    // 停止直後はモーダルを閉じるだけで、まだ遷移しない
+    // （dismiss と遷移が同じコミットで走ると Android で画面がブランクになる）
+    expect(
+      (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0].visible,
+    ).toBe(false);
+    expect(mockNavigate).not.toHaveBeenCalled();
+
+    await act(async () => {
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+    });
+    expect(mockNavigate).toHaveBeenCalledWith(
+      'RecordPlayer',
+      expect.objectContaining({ recordedFile: 'file:///tmp/recording.m4a' }),
+    );
+    jest.useRealTimers();
+  });
+
+  it('長さ 0 のテイクは録音モーダルを閉じるだけで遷移しない (TASK-125)', async () => {
+    jest.useFakeTimers();
+    renderWithProviders(<RecView {...mockProps} />);
+
+    const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
+    await act(async () => {
+      recStartProps.onStartRecording(0);
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+    });
+
+    const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
+    await act(async () => {
+      recModalProps.onStop(0, '');
+    });
+    await act(async () => {
+      jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+    });
+
+    expect(
+      (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0].visible,
+    ).toBe(false);
+    expect(mockNavigate).not.toHaveBeenCalled();
     jest.useRealTimers();
   });
 

@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { View } from 'react-native';
 import { useNavigation, useRoute, RouteProp } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -14,7 +14,12 @@ import {
 } from '@/hooks/useHeadphonesConnected';
 import { useAiCleanupSetting } from '@/hooks/useAiCleanupSetting';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
+import { useModal } from '@/contexts/ModalContext';
+import { MODAL_TRANSITION_DELAY_MS } from '@/constants/modalTiming';
 import styles from './QuickRecordScreen.styles';
+
+/** 録音停止後に RecordPlayer へ渡すテイク（モーダルが閉じきるまで保持する） */
+type PendingTake = NonNullable<RootStackParamList['RecordPlayer']>;
 
 export default function QuickRecordScreen() {
   const navigator =
@@ -23,6 +28,14 @@ export default function QuickRecordScreen() {
   const params = route.params;
 
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
+  // 停止したテイク。録音モーダルが閉じきってから RecordPlayer へ渡す (TASK-125)
+  const [pendingTake, setPendingTake] = useState<PendingTake | null>(null);
+
+  const { showLoading, hideLoading } = useModal();
+  // 遷移待ちの effect から参照する。navigation オブジェクトと ModalContext の関数は
+  // レンダーごとに作り直されることがあり、依存に入れると待ち時間がリセットされ続ける
+  const transitionRef = useRef({ navigator, showLoading, hideLoading });
+  transitionRef.current = { navigator, showLoading, hideLoading };
 
   const headphoneConnection = useHeadphonesConnected();
   // 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う）
@@ -44,9 +57,13 @@ export default function QuickRecordScreen() {
   };
 
   const handleStopRecording = (duration: number, file: string) => {
-    if (!file || duration <= 0) return;
+    // 遷移は録音モーダルが閉じきってから行うため、ここではテイクを預かるだけにする
+    // （同じコミットで dismiss と遷移を流すと Android で画面がブランクになる / TASK-125）
     setRecordingModalVisible(false);
-    navigator.navigate('RecordPlayer', {
+    // 長さ 0 のテイク（開始直後の停止など）は保存できないため閉じるだけにする。
+    // 通常は RecRecordingSection が onAbort へ落とすが、呼び出し側でも閉じておく
+    if (!file || duration <= 0) return;
+    setPendingTake({
       recordedFile: file,
       recordedDuration: duration,
       source: params?.source || undefined,
@@ -54,6 +71,25 @@ export default function QuickRecordScreen() {
       autoCleanup: aiCleanupEnabled,
     });
   };
+
+  // 録音モーダルが閉じきってから RecordPlayer へ遷移する (TASK-125)。
+  // 詳細は RecView（プロジェクト編集の REC モード）の同名の effect を参照
+  useEffect(() => {
+    if (recordingModalVisible || !pendingTake) return;
+    transitionRef.current.showLoading();
+    let navigated = false;
+    const timer = setTimeout(() => {
+      navigated = true;
+      transitionRef.current.hideLoading();
+      setPendingTake(null);
+      transitionRef.current.navigator.navigate('RecordPlayer', pendingTake);
+    }, MODAL_TRANSITION_DELAY_MS);
+    return () => {
+      clearTimeout(timer);
+      // 遷移前に画面を離れた場合もローディングを残さない
+      if (!navigated) transitionRef.current.hideLoading();
+    };
+  }, [recordingModalVisible, pendingTake]);
 
   const navigateRecordList = () => {
     navigator.navigate('RecordList');
