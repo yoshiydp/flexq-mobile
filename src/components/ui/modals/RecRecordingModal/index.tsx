@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Modal, BackHandler, View } from 'react-native';
+import { Modal, BackHandler, View, Platform } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import {
   useEditorBridge,
@@ -25,6 +25,15 @@ const RecLyricsThemeBridge = new BridgeExtension({
     .ProseMirror p { margin: 0; }
   `,
 });
+
+/**
+ * 閉じるときのフェードアウトは iOS のみ行う。このモーダルは visible=false で
+ * コンポーネントごとアンマウントするため、Android では reanimated が exiting
+ * アニメーションのあいだ Dialog ウィンドウ内のビューを保持することになり、
+ * 画面が描画されない・操作を受け付けなくなることがある
+ * （TASK-125 / reanimated #4422）。開くときの entering は両 OS で行う
+ */
+const FADE_OUT_ENABLED = Platform.OS === 'ios';
 
 interface RecRecordingModalProps {
   visible: boolean;
@@ -102,12 +111,12 @@ export default function RecRecordingModal({
       <Animated.View
         style={styles.overlay}
         entering={FadeIn.duration(200)}
-        exiting={FadeOut.duration(200)}
+        exiting={FADE_OUT_ENABLED ? FadeOut.duration(200) : undefined}
       >
         <Animated.View
           style={[styles.container, hasLyrics && styles.containerWithLyrics]}
           entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
+          exiting={FADE_OUT_ENABLED ? FadeOut.duration(200) : undefined}
         >
           {hasLyrics && (
             <View style={styles.lyricsContainer}>

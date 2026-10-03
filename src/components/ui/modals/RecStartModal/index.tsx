@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Modal, View, Text, Pressable, BackHandler } from 'react-native';
+import { Modal, View, Text, Pressable, BackHandler, Platform } from 'react-native';
 import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { Audio } from 'expo-av';
 import WaveformPlayer from '@/components/features/projectEdit/WaveformPlayer';
@@ -10,6 +10,12 @@ import { formatTime } from '@/utils/formatTime';
 import { REC_LABELS } from '@/constants/messages';
 import type { CuePointType } from '@/types/cuePointType';
 import styles from './RecStartModal.styles';
+
+/**
+ * 閉じるときのフェードアウトは iOS のみ行う。理由は RecRecordingModal の
+ * 同名の定数を参照（TASK-125 / reanimated #4422）
+ */
+const FADE_OUT_ENABLED = Platform.OS === 'ios';
 
 interface RecStartModalProps {
   visible: boolean;
@@ -136,8 +142,16 @@ export default function RecStartModal({
       statusBarTranslucent
       navigationBarTranslucent
     >
-      <Animated.View style={styles.overlay} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
-        <Animated.View style={styles.container} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+      <Animated.View
+        style={styles.overlay}
+        entering={FadeIn.duration(200)}
+        exiting={FADE_OUT_ENABLED ? FadeOut.duration(200) : undefined}
+      >
+        <Animated.View
+          style={styles.container}
+          entering={FadeIn.duration(200)}
+          exiting={FADE_OUT_ENABLED ? FadeOut.duration(200) : undefined}
+        >
           <Text style={styles.title}>{REC_LABELS.startModalTitle}</Text>
 
           {trackSource && (
