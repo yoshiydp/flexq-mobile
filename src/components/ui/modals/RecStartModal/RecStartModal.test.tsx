@@ -35,6 +35,15 @@ jest.mock('@/components/features/audioPlayer/PlayerControls', () => {
   ));
 });
 
+jest.mock('@/components/ui/buttons/SubmitButton', () => {
+  const { Pressable, Text } = require('react-native');
+  return jest.fn(({ onPress, label, testID, disabled }: any) => (
+    <Pressable testID={testID} onPress={onPress} disabled={disabled}>
+      <Text>{label}</Text>
+    </Pressable>
+  ));
+});
+
 jest.mock('@/components/ui/buttons/CancelButton', () => {
   const { Pressable, Text } = require('react-native');
   return jest.fn(({ onPress }: any) => (
@@ -113,21 +122,7 @@ describe('RecStartModal コンポーネント', () => {
     expect(queryByText('CUE C')).toBeNull();
   });
 
-  it('はじめからを選択すると onStartRecording(0) が呼ばれる', () => {
-    const { getByText } = render(
-      <RecStartModal
-        visible={true}
-        onClose={mockOnClose}
-        onStartRecording={mockOnStartRecording}
-        waveformData={[]}
-        cueButtons={[]}
-      />,
-    );
-    fireEvent.press(getByText(REC_LABELS.fromBeginning));
-    expect(mockOnStartRecording).toHaveBeenCalledWith(0);
-  });
-
-  it('CUEポイントを選択すると onStartRecording(time) が呼ばれる', () => {
+  it('行をタップしただけでは録音を開始しない', () => {
     const { getByText } = render(
       <RecStartModal
         visible={true}
@@ -137,8 +132,178 @@ describe('RecStartModal コンポーネント', () => {
         cueButtons={mockCueButtons}
       />,
     );
+    fireEvent.press(getByText(REC_LABELS.fromBeginning));
     fireEvent.press(getByText('CUE A'));
-    expect(mockOnStartRecording).toHaveBeenCalledWith(5000);
+    expect(mockOnStartRecording).not.toHaveBeenCalled();
+  });
+
+  it('初期状態は未選択で、REC START は非活性（押しても録音を開始しない）', () => {
+    const { getByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        waveformData={[]}
+        cueButtons={mockCueButtons}
+      />,
+    );
+    expect(
+      getByTestId('rec-start-option-beginning').props.accessibilityState,
+    ).toEqual({ selected: false });
+    expect(
+      getByTestId('rec-start-button').props.accessibilityState,
+    ).toMatchObject({ disabled: true });
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).not.toHaveBeenCalled();
+  });
+
+  it('「はじめから」を選択すると REC START が活性になり onStartRecording(0) が呼ばれる', () => {
+    const { getByText, getByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        waveformData={[]}
+        cueButtons={mockCueButtons}
+      />,
+    );
+    fireEvent.press(getByText(REC_LABELS.fromBeginning));
+    expect(
+      getByTestId('rec-start-option-beginning').props.accessibilityState,
+    ).toEqual({ selected: true });
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).toHaveBeenCalledTimes(1);
+    expect(mockOnStartRecording).toHaveBeenCalledWith(0);
+  });
+
+  it('CUEポイントを選択して REC START を押すと onStartRecording(time) が呼ばれる', () => {
+    const { getByText, getByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        waveformData={[]}
+        cueButtons={mockCueButtons}
+      />,
+    );
+    fireEvent.press(getByText('CUE B'));
+    expect(
+      getByTestId('rec-start-option-cue-1').props.accessibilityState,
+    ).toEqual({ selected: true });
+    expect(
+      getByTestId('rec-start-option-beginning').props.accessibilityState,
+    ).toEqual({ selected: false });
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).toHaveBeenCalledWith(32000);
+  });
+
+  it('CUE を選んだあと「はじめから」を選び直せる', () => {
+    const { getByText, getByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        waveformData={[]}
+        cueButtons={mockCueButtons}
+      />,
+    );
+    fireEvent.press(getByText('CUE A'));
+    fireEvent.press(getByText(REC_LABELS.fromBeginning));
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).toHaveBeenCalledWith(0);
+  });
+
+  it('波形をシークしても「現在位置」は自動選択されず、行をタップして初めて REC START が活性になる', async () => {
+    const WaveformPlayer = require('@/components/features/projectEdit/WaveformPlayer');
+    const { getByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        trackSource="https://example.com/track.mp3"
+        waveformData={[]}
+        cueButtons={mockCueButtons}
+      />,
+    );
+    await act(async () => {});
+    const { onSeek } = WaveformPlayer.mock.calls.at(-1)[0];
+    act(() => onSeek(12000));
+    expect(
+      getByTestId('rec-start-option-custom').props.accessibilityState,
+    ).toEqual({ selected: false });
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).not.toHaveBeenCalled();
+
+    fireEvent.press(getByTestId('rec-start-option-custom'));
+    expect(
+      getByTestId('rec-start-option-custom').props.accessibilityState,
+    ).toEqual({ selected: true });
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).toHaveBeenCalledWith(12000);
+  });
+
+  it('試聴を一時停止して「現在位置」が出ても自動選択されない', async () => {
+    const WaveformPlayer = require('@/components/features/projectEdit/WaveformPlayer');
+    const { getByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        trackSource="https://example.com/track.mp3"
+        waveformData={[]}
+        cueButtons={mockCueButtons}
+      />,
+    );
+    await act(async () => {});
+    const { onPlaybackStatusUpdate } = WaveformPlayer.mock.calls.at(-1)[0];
+    act(() =>
+      onPlaybackStatusUpdate({
+        isLoaded: true,
+        isPlaying: false,
+        positionMillis: 8000,
+      }),
+    );
+    expect(
+      getByTestId('rec-start-option-custom').props.accessibilityState,
+    ).toEqual({ selected: false });
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).not.toHaveBeenCalled();
+  });
+
+  it('リストが表示領域に収まらないときだけスクロールバーを表示する', () => {
+    const { getByTestId, queryByTestId } = render(
+      <RecStartModal
+        visible={true}
+        onClose={mockOnClose}
+        onStartRecording={mockOnStartRecording}
+        waveformData={[]}
+        cueButtons={mockCueButtons}
+      />,
+    );
+    const list = getByTestId('rec-start-option-list');
+    fireEvent(list, 'layout', { nativeEvent: { layout: { height: 200 } } });
+    fireEvent(list, 'contentSizeChange', 300, 200);
+    expect(queryByTestId('rec-start-scrollbar')).toBeNull();
+
+    fireEvent(list, 'contentSizeChange', 300, 320);
+    expect(getByTestId('rec-start-scrollbar')).toBeTruthy();
+  });
+
+  it('開き直すと未選択に戻り、REC START が非活性になる', () => {
+    const props = {
+      onClose: mockOnClose,
+      onStartRecording: mockOnStartRecording,
+      waveformData: [],
+      cueButtons: mockCueButtons,
+    };
+    const { getByText, getByTestId, rerender } = render(
+      <RecStartModal visible={true} {...props} />,
+    );
+    fireEvent.press(getByText('CUE A'));
+    rerender(<RecStartModal visible={false} {...props} />);
+    rerender(<RecStartModal visible={true} {...props} />);
+    fireEvent.press(getByTestId('rec-start-button'));
+    expect(mockOnStartRecording).not.toHaveBeenCalled();
   });
 
   it('CANCEL ボタンで onClose が呼ばれる', () => {
