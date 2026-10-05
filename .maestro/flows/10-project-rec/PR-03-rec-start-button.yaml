@@ -1,0 +1,104 @@
+# ID: PR-03
+# シナリオ名: 録音開始位置の選択（REC START ボタン）
+# 前提条件: demo アカウントに 1 件以上のプロジェクトが dev 環境に存在すること
+# 操作手順: ログイン → 先頭のプロジェクトを開く → REC MODE → REC ボタン
+#           →「はじめから」の行をタップ → REC START をタップ
+# 期待結果: 「録音開始位置を選択」の画面に REC START と CANCEL が表示される。
+#           開いた直後は未選択で REC START は非活性（タップしても何も起きない）。
+#           行をタップしただけでは録音フローが始まらず（選択画面のまま）、
+#           REC START のタップで録音フロー（5 秒カウントダウン → 録音）に進む (TASK-127)
+# 備考: CUE・現在位置の行は dev 環境のデータに依存するためアサートしない
+#       （選択の切り替えは Jest と docs/test-cases.md の PR-03 / PR-04 で確認する）。
+#       停止後のレコードプレイヤーはシミュレーターの音声エンジンに依存するため、
+#       録音中の表示までを検証する（PR-05 / PR-07 は手動確認）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PR
+  - PR-03
+---
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# 先頭のプロジェクトを開いて REC MODE に切り替える
+- tapOn:
+    id: 'project-item-0'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'toolbar-hamburger'
+- tapOn:
+    id: 'rec-mode-button'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# REC ボタンで録音開始位置の選択画面を開く
+- tapOn:
+    id: 'rec-ready-section-pressable'
+- extendedWaitUntil:
+    visible: '録音開始位置を選択'
+    timeout: 10000
+- assertVisible:
+    id: 'rec-start-option-beginning'
+- assertVisible:
+    id: 'rec-start-button'
+- assertVisible: 'CANCEL'
+- takeScreenshot: .maestro/screenshots/TASK-127/01-rec-start-modal
+
+# 未選択の間は REC START が非活性で、タップしても録音フローに進まない
+- assertVisible:
+    id: 'rec-start-button'
+    enabled: false
+- tapOn:
+    id: 'rec-start-button'
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: '録音開始位置を選択'
+- assertNotVisible:
+    id: 'rec-countdown-text'
+
+# 行をタップしただけでは録音フローに進まない（選択画面のまま）。
+# CUE の有無は dev 環境のデータに依存するため、CUE があるときだけ選択の切り替えも確認する
+- runFlow:
+    when:
+      visible:
+        id: 'rec-start-option-cue-0'
+    commands:
+      - tapOn:
+          id: 'rec-start-option-cue-0'
+      - waitForAnimationToEnd:
+          timeout: 2000
+      - assertVisible: '録音開始位置を選択'
+      - assertNotVisible:
+          id: 'rec-countdown-text'
+      - takeScreenshot: .maestro/screenshots/TASK-127/02-cue-selected
+- tapOn:
+    id: 'rec-start-option-beginning'
+- waitForAnimationToEnd:
+    timeout: 2000
+- assertVisible: '録音開始位置を選択'
+- assertNotVisible:
+    id: 'rec-countdown-text'
+- assertVisible:
+    id: 'rec-start-button'
+    enabled: true
+
+# REC START で録音フロー（5 秒カウントダウン → 録音）に進む。
+# カウントダウンは 1 秒ごとに表示が変わり、要素の取得中に終わってしまうことがあるため
+# アサートせず、直後のスクリーンショットで残す。録音フローへ進んだことは
+# 録音中のタイマー表示で確認する
+- tapOn:
+    id: 'rec-start-button'
+- takeScreenshot: .maestro/screenshots/TASK-127/03-countdown-after-rec-start
+# 初回のみシステムのマイク権限ダイアログが出る（許可の取得完了後にカウントダウンが始まる）
+- runFlow:
+    when:
+      visible: '(?i)(OK|Allow|許可|アプリの使用時のみ)'
+    commands:
+      - tapOn: '(?i)(OK|Allow|許可|アプリの使用時のみ)'
+- extendedWaitUntil:
+    visible:
+      id: 'rec-recording-timer'
+    timeout: 20000
+- assertNotVisible: '録音開始位置を選択'
+- takeScreenshot: .maestro/screenshots/TASK-127/04-recording

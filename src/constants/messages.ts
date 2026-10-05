@@ -5,6 +5,7 @@ export const REC_LABELS = {
   startModalTitle: '録音開始位置を選択',
   fromBeginning: 'はじめから',
   currentPosition: '現在位置',
+  startButton: 'REC START',
 };
 
 export const TRACK_UPLOAD_LABELS = {
