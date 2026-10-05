@@ -22,7 +22,11 @@ appId: com.yoshiydp.lyricsapp
     when:
       visible: 'Enter URL manually'
     commands:
-      - tapOn: 'Enter URL manually'
+      # サーバー選択の直後はランチャーが閉じる途中で、判定時に見えていてもタップ時には
+      # 消えていることがある（iOS 18 のシミュレーターで再現）。その場合は失敗にしない
+      - tapOn:
+          text: 'Enter URL manually'
+          optional: true
       - waitForAnimationToEnd:
           timeout: 3000
 

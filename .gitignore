@@ -59,3 +59,6 @@ app-example
 
 # デモアカウント用のシード素材（音源・画像）。リポジトリには含めない
 demo-assets/
+
+# E2E フローの takeScreenshot / startRecording の出力（手元確認用）
+.maestro/screenshots/
