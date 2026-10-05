@@ -35,8 +35,12 @@ jest.mock('@/components/ui/modals/RecRecordingModal', () => {
   return jest.fn(() => <View testID="rec-recording-modal" />);
 });
 
+// イヤホンの接続状態と Bluetooth 検知の権限状態。テストごとに上書きする (TASK-126)
+let mockHeadphoneConnection: string | null = 'none';
+let mockBluetoothDetectionStatus = 'not-required';
 jest.mock('@/hooks/useHeadphonesConnected', () => ({
-  useHeadphonesConnected: () => 'none',
+  useHeadphonesConnected: () => mockHeadphoneConnection,
+  useBluetoothDetectionStatus: () => mockBluetoothDetectionStatus,
 }));
 
 jest.mock('@/hooks/useAiCleanupSetting', () => ({
@@ -52,6 +56,8 @@ jest.mock('@/hooks/useBlockAndroidBackGesture', () => ({
 describe('QuickRecordScreen', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockHeadphoneConnection = 'none';
+    mockBluetoothDetectionStatus = 'not-required';
   });
 
   const lastModalProps = () =>
@@ -130,5 +136,37 @@ describe('QuickRecordScreen', () => {
     expect(lastModalProps().visible).toBe(false);
     expect(mockNavigate).not.toHaveBeenCalled();
     jest.useRealTimers();
+  });
+
+  describe('録音開始時のイヤホン接続状態 (TASK-126)', () => {
+    const recordAndStop = () => {
+      jest.useFakeTimers();
+      const { getByTestId } = renderScreen();
+      fireEvent.press(getByTestId('rec-button'));
+      act(() => {
+        lastModalProps().onStop(3000, 'file://recording.m4a');
+      });
+      // 録音モーダルが閉じきってから遷移する (TASK-125)
+      act(() => {
+        jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+      });
+      jest.useRealTimers();
+      return mockNavigate.mock.calls.at(-1)[1];
+    };
+
+    it('イヤホン未接続で録音したテイクは none を引き渡す', () => {
+      expect(recordAndStop().recordedWithHeadphones).toBe('none');
+    });
+
+    it('Bluetooth 検知の権限が未許可の端末では、未接続と検知されても値なしで引き渡す', () => {
+      mockBluetoothDetectionStatus = 'denied';
+      expect(recordAndStop().recordedWithHeadphones).toBeUndefined();
+    });
+
+    it('Bluetooth 検知の権限が未許可でも有線イヤホンは wired を引き渡す', () => {
+      mockBluetoothDetectionStatus = 'denied';
+      mockHeadphoneConnection = 'wired';
+      expect(recordAndStop().recordedWithHeadphones).toBe('wired');
+    });
   });
 });

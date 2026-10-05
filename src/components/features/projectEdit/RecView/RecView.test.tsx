@@ -68,6 +68,14 @@ jest.mock('@/components/ui/modals/RecStartModal', () => {
   ));
 });
 
+// イヤホンの接続状態と Bluetooth 検知の権限状態。テストごとに上書きする (TASK-126)
+let mockHeadphoneConnection: string | null = null;
+let mockBluetoothDetectionStatus = 'not-required';
+jest.mock('@/hooks/useHeadphonesConnected', () => ({
+  useHeadphonesConnected: () => mockHeadphoneConnection,
+  useBluetoothDetectionStatus: () => mockBluetoothDetectionStatus,
+}));
+
 const mockProps = {
   projectId: 'project-1',
   records: [
@@ -106,6 +114,8 @@ const renderWithProviders = (children: React.ReactNode) =>
 describe('RecView コンポーネント', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    mockHeadphoneConnection = null;
+    mockBluetoothDetectionStatus = 'not-required';
   });
 
   it('コンポーネントが正しくレンダリングされる', () => {
@@ -360,5 +370,44 @@ describe('RecView コンポーネント', () => {
     const lyrics = '<p>Test lyrics</p>';
     renderWithProviders(<RecView {...mockProps} lyrics={lyrics} />);
     expect((RecRecordingModal as jest.Mock).mock.calls[0][0].lyrics).toBe(lyrics);
+  });
+
+  describe('録音開始時のイヤホン接続状態 (TASK-126)', () => {
+    const recordAndStop = async () => {
+      jest.useFakeTimers();
+      renderWithProviders(<RecView {...mockProps} />);
+      const recStartProps = (RecStartModal as jest.Mock).mock.calls[0][0];
+      await act(async () => {
+        recStartProps.onStartRecording(0);
+        jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+      });
+      const recModalProps = (RecRecordingModal as jest.Mock).mock.calls.at(-1)[0];
+      await act(async () => {
+        recModalProps.onStop(3000, 'file:///tmp/recording.m4a');
+      });
+      // 録音モーダルが閉じきってから遷移する (TASK-125)
+      await act(async () => {
+        jest.advanceTimersByTime(MODAL_TRANSITION_DELAY_MS);
+      });
+      jest.useRealTimers();
+      return mockNavigate.mock.calls.at(-1)[1];
+    };
+
+    it('イヤホン未接続で録音したテイクは none を引き渡す', async () => {
+      mockHeadphoneConnection = 'none';
+      expect((await recordAndStop()).recordedWithHeadphones).toBe('none');
+    });
+
+    it('Bluetooth 検知の権限が未許可の端末では、未接続と検知されても値なしで引き渡す', async () => {
+      mockHeadphoneConnection = 'none';
+      mockBluetoothDetectionStatus = 'denied';
+      expect((await recordAndStop()).recordedWithHeadphones).toBeUndefined();
+    });
+
+    it('Bluetooth 検知の権限が未許可でも有線イヤホンは wired を引き渡す', async () => {
+      mockHeadphoneConnection = 'wired';
+      mockBluetoothDetectionStatus = 'denied';
+      expect((await recordAndStop()).recordedWithHeadphones).toBe('wired');
+    });
   });
 });

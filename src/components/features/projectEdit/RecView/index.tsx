@@ -15,9 +15,11 @@ import CueButtonList from '@/components/features/projectEdit/CueButtonList';
 import PlayerControls from '@/components/features/audioPlayer/PlayerControls';
 import type { ProjectRecordType } from '@/hooks/useFetchProjectRecords';
 import {
+  useBluetoothDetectionStatus,
   useHeadphonesConnected,
   type HeadphoneConnection,
 } from '@/hooks/useHeadphonesConnected';
+import { resolveHeadphonesAtRecordStart } from '@/utils/headphonesAtRecordStart';
 import { useAiCleanupSetting } from '@/hooks/useAiCleanupSetting';
 import { getRecordingLatencyMsForSave } from '@/utils/recordingLatency';
 import { useModal } from '@/contexts/ModalContext';
@@ -84,6 +86,7 @@ export default function RecView({
   transitionRef.current = { navigator, showLoading, hideLoading };
 
   const headphoneConnection = useHeadphonesConnected();
+  const bluetoothDetectionStatus = useBluetoothDetectionStatus();
   // 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う）
   const headphonesAtRecordStartRef = useRef<HeadphoneConnection>(null);
   const { enabled: aiCleanupEnabled, setEnabled: setAiCleanupEnabled } =
@@ -95,7 +98,11 @@ export default function RecView({
   };
 
   const handleStartRecording = (positionMs: number) => {
-    headphonesAtRecordStartRef.current = headphoneConnection;
+    // Bluetooth 検知の権限が未許可の端末では「未接続」を値なしとして記録する (TASK-126)
+    headphonesAtRecordStartRef.current = resolveHeadphonesAtRecordStart(
+      headphoneConnection,
+      bluetoothDetectionStatus,
+    );
     setStartPositionMs(positionMs);
     setRecStartModalVisible(false);
     setTimeout(() => setRecordingModalVisible(true), MODAL_TRANSITION_DELAY_MS);
