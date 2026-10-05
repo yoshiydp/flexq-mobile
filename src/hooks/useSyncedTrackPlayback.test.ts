@@ -55,15 +55,18 @@ const renderSyncHook = (
     initialTrackSource?: string;
     headphoneConnection?: HeadphoneConnection;
     allowWithoutHeadphones?: boolean;
+    syncUnavailable?: boolean;
   } = {},
 ) =>
   renderHook(
     ({
       headphoneConnection,
       allowWithoutHeadphones,
+      syncUnavailable,
     }: {
       headphoneConnection: HeadphoneConnection;
       allowWithoutHeadphones?: boolean;
+      syncUnavailable?: boolean;
     }) =>
       useSyncedTrackPlayback({
         player: player as unknown as SyncedAudioPlayer,
@@ -72,6 +75,7 @@ const renderSyncHook = (
         initialTrackSource: options.initialTrackSource,
         headphoneConnection,
         allowWithoutHeadphones,
+        syncUnavailable,
       }),
     {
       initialProps: {
@@ -80,6 +84,7 @@ const renderSyncHook = (
             ? options.headphoneConnection ?? null
             : 'bluetooth',
         allowWithoutHeadphones: options.allowWithoutHeadphones,
+        syncUnavailable: options.syncUnavailable,
       },
     },
   );
@@ -150,6 +155,15 @@ describe('useSyncedTrackPlayback', () => {
       const { result } = renderSyncHook(player, {
         headphoneConnection: 'none',
         allowWithoutHeadphones: true,
+      });
+      expect(result.current.canSync).toBe(false);
+    });
+
+    it('syncUnavailable=true の間はイヤホン接続中でも false になる (TASK-126)', () => {
+      const { result } = renderSyncHook(player, {
+        projectId: 'project-1',
+        headphoneConnection: 'bluetooth',
+        syncUnavailable: true,
       });
       expect(result.current.canSync).toBe(false);
     });
@@ -495,6 +509,44 @@ describe('useSyncedTrackPlayback', () => {
         rerender({ headphoneConnection: 'none', allowWithoutHeadphones: true });
       });
       expect(result.current.syncEnabled).toBe(true);
+    });
+
+    it('声のみの同時再生中に syncUnavailable=true（スピーカー録音テイクの元の録音）へ切り替わったら、イヤホン接続中でも自動で無効化する (TASK-126)', async () => {
+      const { result, rerender } = renderSyncHook(player, {
+        projectId: 'project-1',
+        headphoneConnection: 'bluetooth',
+        allowWithoutHeadphones: true,
+      });
+      await act(async () => {
+        await result.current.enableSync();
+      });
+      expect(result.current.syncEnabled).toBe(true);
+
+      await act(async () => {
+        rerender({
+          headphoneConnection: 'bluetooth',
+          allowWithoutHeadphones: false,
+          syncUnavailable: true,
+        });
+      });
+      expect(result.current.canSync).toBe(false);
+      expect(result.current.syncEnabled).toBe(false);
+      expect(player.setTrack).toHaveBeenLastCalledWith(null, 0);
+    });
+
+    it('syncUnavailable=true の間は enableSync しても有効化されない (TASK-126)', async () => {
+      const { result } = renderSyncHook(player, {
+        projectId: 'project-1',
+        headphoneConnection: 'bluetooth',
+        syncUnavailable: true,
+      });
+      let enableResult: string | undefined;
+      await act(async () => {
+        enableResult = await result.current.enableSync();
+      });
+      expect(enableResult).toBe('load-failed');
+      expect(result.current.syncEnabled).toBe(false);
+      expect(player.setTrack).not.toHaveBeenCalled();
     });
   });
 });
