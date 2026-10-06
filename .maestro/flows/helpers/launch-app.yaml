@@ -13,6 +13,20 @@ appId: com.yoshiydp.lyricsapp
 - waitForAnimationToEnd:
     timeout: 5000
 
+# iCloud サインイン済みの iOS シミュレーターでは、起動の数秒後に OS の「Apple Account の確認」が
+# 出てランチャー画面を塞ぐ（下の待機が 120 秒でタイムアウトする）。出るまで少し待ち、出たら閉じる
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - extendedWaitUntil:
+          visible: 'Apple Account.*'
+          timeout: 10000
+          optional: true
+      - tapOn:
+          text: '今はしない'
+          optional: true
+
 # 起動直後はランチャー画面もログイン画面もまだ描画されていないため、
 # どちらかが出るまで待ってから分岐する（待たずに条件判定すると必ず false になり取りこぼす）
 - extendedWaitUntil:
