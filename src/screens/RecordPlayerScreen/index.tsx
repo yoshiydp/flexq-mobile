@@ -119,6 +119,11 @@ export default function RecordPlayerScreen() {
   // 声のみ（AI 分離済み音源）はトラック音がスピーカーから録音に混ざる懸念がないため、
   // イヤホン未接続でも同時再生を許可する (TASK-38)
   const headphoneConnection = useHeadphonesConnected();
+  // スピーカーで録音したテイク（録音開始時にイヤホン未接続）の「元の録音」はトラックの
+  // かぶり音が入っており、同時再生するとトラックが二重に鳴るだけのため無効化する。
+  // 「声のみ」は従来どおり使える。値なし（フラグ導入前のテイク・検知不可）は対象外 (TASK-126)
+  const isSpeakerTakeOriginal =
+    params?.recordedWithHeadphones === 'none' && activeSource === 'original';
   const syncPlayback = useSyncedTrackPlayback({
     player,
     projectId: params?.projectId,
@@ -127,6 +132,7 @@ export default function RecordPlayerScreen() {
     initialTrackSource: params?.trackSource,
     headphoneConnection,
     allowWithoutHeadphones: activeSource === 'separated',
+    syncUnavailable: isSpeakerTakeOriginal,
   });
 
   const confirmModalMessageRef = useRef<{
@@ -646,7 +652,8 @@ export default function RecordPlayerScreen() {
       Alert.alert('エラー', SYNC_PLAYBACK_LABELS.loadFailed);
       return;
     }
-    // ロード中にイヤホンが切断された場合はトグルが無効化されヒントが表示されるため何もしない。
+    // ロード中にイヤホンが切断された（または「元の録音」へ戻して有効化条件を失った /
+    // TASK-126）場合はトグルが無効化されヒントが表示されるため何もしない。
     // ロード中に画面を離れた（cancelled）場合もエラー表示は行わない
     if (result === 'headphones-disconnected' || result === 'cancelled') return;
     // トラック音源のローカルキャッシュに失敗してストリーミング再生になった場合は
@@ -900,7 +907,9 @@ export default function RecordPlayerScreen() {
             </View>
             {!syncPlayback.canSync && (
               <Text style={styles.syncHintText}>
-                {SYNC_PLAYBACK_LABELS.headphonesRequired}
+                {isSpeakerTakeOriginal
+                  ? SYNC_PLAYBACK_LABELS.speakerTakeOriginal
+                  : SYNC_PLAYBACK_LABELS.headphonesRequired}
               </Text>
             )}
             {syncPlayback.syncEnabled && (

@@ -9,9 +9,11 @@ import RecRecordingModal from '@/components/ui/modals/RecRecordingModal';
 import AiCleanupToggle from '@/components/features/record/AiCleanupToggle';
 import { HEADER_TOOLBAR_TEMPLATES } from '@/constants/headerToolBarButtons';
 import {
+  useBluetoothDetectionStatus,
   useHeadphonesConnected,
   type HeadphoneConnection,
 } from '@/hooks/useHeadphonesConnected';
+import { resolveHeadphonesAtRecordStart } from '@/utils/headphonesAtRecordStart';
 import { useAiCleanupSetting } from '@/hooks/useAiCleanupSetting';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import styles from './QuickRecordScreen.styles';
@@ -25,6 +27,7 @@ export default function QuickRecordScreen() {
   const [recordingModalVisible, setRecordingModalVisible] = useState(false);
 
   const headphoneConnection = useHeadphonesConnected();
+  const bluetoothDetectionStatus = useBluetoothDetectionStatus();
   // 録音開始時点のイヤホン接続状態（AI クリーンアップの処理タイプ自動選択に使う）
   const headphonesAtRecordStartRef = useRef<HeadphoneConnection>(null);
   const { enabled: aiCleanupEnabled, setEnabled: setAiCleanupEnabled } =
@@ -39,7 +42,11 @@ export default function QuickRecordScreen() {
   useBlockAndroidBackGesture(handleGoBack);
 
   const handleRecordPress = () => {
-    headphonesAtRecordStartRef.current = headphoneConnection;
+    // Bluetooth 検知の権限が未許可の端末では「未接続」を値なしとして記録する (TASK-126)
+    headphonesAtRecordStartRef.current = resolveHeadphonesAtRecordStart(
+      headphoneConnection,
+      bluetoothDetectionStatus,
+    );
     setRecordingModalVisible(true);
   };
 

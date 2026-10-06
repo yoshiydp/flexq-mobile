@@ -10,6 +10,9 @@
  * TASK-38: 声のみ（AI 分離済み音源, activeSource === 'separated'）を再生する場合は
  * allowWithoutHeadphones: true を useSyncedTrackPlayback へ渡し、
  * イヤホン未接続でも同時再生を許可する。
+ *
+ * TASK-126: スピーカーで録音したテイク（recordedWithHeadphones: 'none'）の「元の録音」は
+ * syncUnavailable: true を渡して同時再生を無効化し、専用のヒントを表示する。
  */
 import React from 'react';
 import { Alert } from 'react-native';
@@ -364,5 +367,88 @@ describe('RecordPlayerScreen トラック同時再生トグル', () => {
       });
       expect(mockPlayer.pause).toHaveBeenCalled();
     });
+  });
+
+  describe('スピーカーで録音したテイクの「元の録音」は同時再生を無効化する (TASK-126)', () => {
+    const setupSeparated = () => {
+      Object.assign(mockSeparation, {
+        status: 'done',
+        separatedSource: 'https://example.com/separated.m4a',
+      });
+    };
+    // 実フックと同じく syncUnavailable=true の間は canSync=false を返す
+    const useRealisticCanSync = () => {
+      mockedUseSyncedTrackPlayback.mockImplementation(
+        (options: { syncUnavailable?: boolean }) => ({
+          ...mockSyncPlayback,
+          canSync: !options.syncUnavailable,
+        }),
+      );
+    };
+
+    it('イヤホン接続中でも「元の録音」ではトグルが無効化され、専用のヒントが表示される', async () => {
+      mockParams = { ...mockParams, recordedWithHeadphones: 'none' };
+      useRealisticCanSync();
+      const { getByTestId, getByText, queryByText } = await renderScreen();
+      expect(mockedUseSyncedTrackPlayback).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          headphoneConnection: 'bluetooth',
+          syncUnavailable: true,
+        }),
+      );
+      expect(getByTestId('sync-playback-switch').props.disabled).toBe(true);
+      expect(getByText(SYNC_PLAYBACK_LABELS.speakerTakeOriginal)).toBeTruthy();
+      // イヤホン接続を促すヒントより優先する
+      expect(queryByText(SYNC_PLAYBACK_LABELS.headphonesRequired)).toBeNull();
+    });
+
+    it('「声のみ」へ切り替えるとトグルが有効になり、ヒントは表示されない', async () => {
+      mockParams = { ...mockParams, recordedWithHeadphones: 'none' };
+      setupSeparated();
+      useRealisticCanSync();
+      const { getByTestId, queryByText } = await renderScreen();
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-separated'));
+      });
+      expect(mockedUseSyncedTrackPlayback).toHaveBeenLastCalledWith(
+        expect.objectContaining({
+          allowWithoutHeadphones: true,
+          syncUnavailable: false,
+        }),
+      );
+      expect(getByTestId('sync-playback-switch').props.disabled).toBe(false);
+      expect(queryByText(SYNC_PLAYBACK_LABELS.speakerTakeOriginal)).toBeNull();
+    });
+
+    it('「声のみ」から「元の録音」へ戻すと syncUnavailable: true に戻り、専用のヒントが表示される', async () => {
+      mockParams = { ...mockParams, recordedWithHeadphones: 'none' };
+      setupSeparated();
+      useRealisticCanSync();
+      const { getByTestId, getByText } = await renderScreen();
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-separated'));
+      });
+      await act(async () => {
+        fireEvent.press(getByTestId('source-segment-original'));
+      });
+      expect(mockedUseSyncedTrackPlayback).toHaveBeenLastCalledWith(
+        expect.objectContaining({ syncUnavailable: true }),
+      );
+      expect(getByText(SYNC_PLAYBACK_LABELS.speakerTakeOriginal)).toBeTruthy();
+    });
+
+    it.each(['wired', 'bluetooth', undefined])(
+      'recordedWithHeadphones が %s のテイクは従来どおり（syncUnavailable: false・イヤホン接続のヒント）',
+      async (recordedWithHeadphones) => {
+        mockParams = { ...mockParams, recordedWithHeadphones };
+        mockSyncPlayback.canSync = false;
+        const { getByText, queryByText } = await renderScreen();
+        expect(mockedUseSyncedTrackPlayback).toHaveBeenLastCalledWith(
+          expect.objectContaining({ syncUnavailable: false }),
+        );
+        expect(getByText(SYNC_PLAYBACK_LABELS.headphonesRequired)).toBeTruthy();
+        expect(queryByText(SYNC_PLAYBACK_LABELS.speakerTakeOriginal)).toBeNull();
+      },
+    );
   });
 });

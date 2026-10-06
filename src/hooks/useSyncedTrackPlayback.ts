@@ -32,6 +32,12 @@ interface UseSyncedTrackPlaybackOptions {
   headphoneConnection: HeadphoneConnection;
   /** 声のみ（AI 分離済み音源）はイヤホン未接続でも同時再生を許可する (TASK-38) */
   allowWithoutHeadphones?: boolean;
+  /**
+   * イヤホンの接続状態に関わらず同時再生を無効化する (TASK-126)。
+   * スピーカーで録音したテイクの「元の録音」はトラックのかぶり音が入っており、
+   * 同時再生するとトラックが二重に鳴るだけのため
+   */
+  syncUnavailable?: boolean;
 }
 
 /**
@@ -49,6 +55,7 @@ export function useSyncedTrackPlayback({
   initialTrackSource,
   headphoneConnection,
   allowWithoutHeadphones = false,
+  syncUnavailable = false,
 }: UseSyncedTrackPlaybackOptions) {
   const trackBufferRef = useRef<AudioBuffer | null>(null);
   const syncEnabledRef = useRef(false);
@@ -68,7 +75,9 @@ export function useSyncedTrackPlayback({
   const headphonesConnected =
     headphoneConnection === 'wired' || headphoneConnection === 'bluetooth';
   const canSync =
-    Boolean(projectId) && (headphonesConnected || allowWithoutHeadphones);
+    Boolean(projectId) &&
+    !syncUnavailable &&
+    (headphonesConnected || allowWithoutHeadphones);
 
   // enableSync のロード中に有効化条件を失った場合を await 後に検知するための参照
   const canSyncRef = useRef(canSync);
@@ -232,6 +241,8 @@ export function useSyncedTrackPlayback({
   //   ため停止せず、そのままスピーカーで再生を継続する (TASK-38)
   // - 声のみ + イヤホン未接続で同時再生中に「元の録音」へ戻した場合は canSync が false に
   //   なるため自動で無効化する
+  // - スピーカーで録音したテイクは「声のみ」から「元の録音」へ戻すとイヤホン接続中でも
+  //   canSync が false になる（syncUnavailable=true）ため自動で無効化する (TASK-126)
   useEffect(() => {
     if (!canSync && syncEnabledRef.current) {
       disableSync();
@@ -248,7 +259,10 @@ export function useSyncedTrackPlayback({
   }, []);
 
   return {
-    /** projectId があり、かつイヤホン接続中（または allowWithoutHeadphones=true）のときのみ true */
+    /**
+     * projectId があり、かつイヤホン接続中（または allowWithoutHeadphones=true）のときのみ true。
+     * syncUnavailable=true の間は常に false (TASK-126)
+     */
     canSync,
     syncEnabled,
     trackLoading,
