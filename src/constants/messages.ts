@@ -5,6 +5,7 @@ export const REC_LABELS = {
   startModalTitle: '録音開始位置を選択',
   fromBeginning: 'はじめから',
   currentPosition: '現在位置',
+  startButton: 'REC START',
 };
 
 export const TRACK_UPLOAD_LABELS = {
@@ -103,6 +104,9 @@ export const BLUETOOTH_PERMISSION_MESSAGES = {
 export const SYNC_PLAYBACK_LABELS = {
   toggleLabel: 'トラック同時再生',
   headphonesRequired: 'イヤホン（有線 / Bluetooth）接続時に使用できます',
+  // スピーカーで録音したテイク（recordedWithHeadphones: none）の「元の録音」は
+  // トラックのかぶり音が入っているため同時再生を無効化する (TASK-126)
+  speakerTakeOriginal: 'スピーカーで録音したテイクは「声のみ」で使用できます',
   noTrack: 'プロジェクトにトラック音源がないため同時再生できません。',
   loadFailed: 'トラック音源の読み込みに失敗しました。',
   // ローカルキャッシュへのダウンロードに 2 回（最新 URL の再取得込み）失敗し、
