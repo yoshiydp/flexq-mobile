@@ -48,7 +48,7 @@ export const SHARE_LABELS = {
 
 // QUICK MEMO の共有（TASK-128）。テキストでの共有と .txt ファイルは別の操作として選ばせる
 export const MEMO_SHARE_LABELS = {
-  chooseTitle: 'メモを共有',
+  chooseTitle: 'クイックメモを共有',
   shareText: 'テキストで共有',
   shareFile: '.txt ファイル',
   // Android は共有シートに「ファイルに保存」相当の項目がないため、.txt の共有と保存を選ばせる

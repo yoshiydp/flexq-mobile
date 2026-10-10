@@ -242,7 +242,7 @@ describe('QuickMemoScreen 共有 (TASK-128)', () => {
 
       fireEvent.press(getByTestId('toolbar-share'));
       await waitFor(() => expect(alertSpy).toHaveBeenCalled());
-      expect(alertSpy.mock.calls[0][0]).toBe('メモを共有');
+      expect(alertSpy.mock.calls[0][0]).toBe('クイックメモを共有');
 
       pressAlertButton(alertSpy, 'テキストで共有');
       await waitFor(() =>

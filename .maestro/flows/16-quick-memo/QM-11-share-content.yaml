@@ -65,6 +65,7 @@ env:
 - extendedWaitUntil:
     visible: 'テキストで共有'
     timeout: 10000
+- assertVisible: 'クイックメモを共有'
 - assertVisible: '.txt ファイル'
 - assertVisible: 'キャンセル'
 - tapOn: 'テキストで共有'
