@@ -848,6 +848,9 @@ Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 
 - `src/utils/pendingWaveformData.ts` — 生成済み波形データをプロジェクト ID をキーにモジュールレベルでキャッシュ
 - `src/utils/recordingOptions.ts` — expo-av の高音質録音オプション定数（iOS / Android 対応）
 - `src/utils/animations.ts` — バウンスなど汎用アニメーション関数（Animated.Value ベース）
+- `src/utils/memoShareText.ts` — QUICK MEMO の本文 HTML を共有用の Markdown 記法テキストへ変換（段落 1 つを 1 行にして歌詞の改行を保つ・下線は太字に寄せる）、共有用のファイル名（`タイトル.txt`）を生成（TASK-128）
+- `src/utils/shareMemo.ts` — QUICK MEMO の共有。テキスト共有（`Share.share({ message })`）と .txt ファイル（iOS は共有シート、Android は expo-sharing の共有 / SAF でデバイスに保存）を別操作で提供（TASK-128）
+- `src/utils/saveToDeviceDirectory.ts` — Android の「デバイスに保存」（SAF）の保存先フォルダの選択・記憶・ファイル作成。録音（`useShareRecord`）とメモで同じフォルダを共用する
 
 ### S3 Presigned URL の使い方
 
