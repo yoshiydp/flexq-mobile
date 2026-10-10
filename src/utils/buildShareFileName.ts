@@ -21,12 +21,18 @@ export const buildShareFileName = (
     ? rawExtension.toLowerCase()
     : DEFAULT_EXTENSION;
 
-  const baseName = title
+  return `${sanitizeFileBaseName(title) || DEFAULT_BASE_NAME}.${extension}`;
+};
+
+/**
+ * タイトルをファイル名のベース部分（拡張子なし）として使える形に整える。
+ * ファイル名に使えない文字は `_` に置き換え、制御文字は取り除き、長さを制限する。
+ * 使える文字が残らない場合は空文字を返す（呼び出し側で既定名にフォールバックする）
+ */
+export const sanitizeFileBaseName = (title: string): string =>
+  title
     .replace(/[\\/:*?"<>|]/g, '_')
     .replace(/[\u0000-\u001f\u007f]/g, '')
     .trim()
     .slice(0, MAX_BASE_NAME_LENGTH)
     .trim();
-
-  return `${baseName || DEFAULT_BASE_NAME}.${extension}`;
-};

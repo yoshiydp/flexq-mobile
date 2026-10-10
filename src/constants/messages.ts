@@ -46,6 +46,24 @@ export const SHARE_LABELS = {
   saveFailed: 'デバイスへの保存に失敗しました。時間をおいて再度お試しください。',
 };
 
+// QUICK MEMO の共有（TASK-128）。テキストでの共有と .txt ファイルは別の操作として選ばせる
+export const MEMO_SHARE_LABELS = {
+  chooseTitle: 'クイックメモを共有',
+  shareText: 'テキストで共有',
+  shareFile: '.txt ファイル',
+  // Android は共有シートに「ファイルに保存」相当の項目がないため、.txt の共有と保存を選ばせる
+  chooseFileActionTitle: '.txt ファイル',
+  actionShare: '共有',
+  actionSave: 'デバイスに保存',
+  cancel: 'キャンセル',
+  menuShare: '共有',
+  menuDelete: '削除',
+  emptyTitle: '共有する内容がありません',
+  empty: 'タイトルか本文を入力してから共有してください。',
+  failed: '共有に失敗しました。時間をおいて再度お試しください。',
+  saveFailed: 'デバイスへの保存に失敗しました。時間をおいて再度お試しください。',
+};
+
 export const MIX_LABELS = {
   chooseTitle: '共有する音源',
   chooseSaveTitle: '保存する音源',
