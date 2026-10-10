@@ -1,0 +1,182 @@
+# ID: QM-11
+# シナリオ名: QUICK MEMO - 共有する内容（テキストで共有 / .txt ファイル / 書式の変換 / 未保存の編集）
+# 前提条件: dev API に接続できること（前提データはフロー内で API セットアップ・後始末する）。
+#           起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: API で書式付きの保存済みメモを作成 → ログイン → MEMO LIST → メモを開く
+#           → 3 点リーダー →「共有」→「テキストで共有」→ 共有シートの内容を確認して閉じる
+#           → 3 点リーダー →「共有」→「.txt ファイル」→ 共有シートの内容を確認して閉じる
+#           → タイトルを書き換えて（保存せずに）もう一度「テキストで共有」
+# 期待結果: 「テキストで共有 / .txt ファイル / キャンセル」の選択が出る。
+#           テキストは「# タイトル」+ 空行 + 本文で、段落 1 つが 1 行（空の段落は空行）、
+#           H1 / H2 → # / ##、太字・下線 → **、斜体 → *、箇条書き → -、番号付き → 1. になる（QM-11 / QM-15）。
+#           .txt はタイトル名のファイルで、サイズが UTF-8 + 末尾改行の 127 バイトになる（QM-13）。
+#           保存していないタイトルの変更も共有するテキストに反映される（QM-16）
+# 備考: TASK-128。共有シートは別プロセスの画面で、中の要素の座標がシート基準で返るため
+#       （tapOn すると閉じる領域を押してしまう）、シート内の操作（コピー・ファイルに保存）はせず、
+#       アクセシビリティに公開される本文全文・ファイル名・サイズをアサートして閉じる。
+#       実際の保存先（LINE・メモ・Keep・ファイル）での見え方は docs/test-cases.md の QM-11〜QM-14 を実機で確認する。
+#       共有シートのアサートは iOS のみ（Android の共有シートは OS の Chooser で表示が機種依存のため、
+#       Android は「.txt ファイル」の次に「共有 / デバイスに保存」の選択が出るところまでを確認する）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - QM
+  - QM-11
+  - QM-13
+  - QM-15
+  - QM-16
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+---
+# データセットアップ（書式付きの保存済みメモを API で作成し、メモ一覧の先頭に出す）
+- runScript: ../../scripts/qm10-setup.js
+
+# ログイン → DRAFTS → MEMO LIST → 作成したメモを開く
+- runFlow: ../helpers/login.yaml
+- tapOn:
+    id: 'nav-Drafts'
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: 'drafts-list-button'
+    timeout: 30000
+- tapOn:
+    id: 'drafts-list-button'
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: 'memo-list-scroll'
+    timeout: 15000
+- tapOn: '.*e2e-QM10-share.*'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'QUICK MEMO'
+
+# ---- テキストで共有（QM-11 / QM-15） ----
+- tapOn:
+    id: 'action-button-with-menu'
+- tapOn:
+    id: 'action-menu-item-0'
+- extendedWaitUntil:
+    visible: 'テキストで共有'
+    timeout: 10000
+- assertVisible: '.txt ファイル'
+- assertVisible: 'キャンセル'
+- tapOn: 'テキストで共有'
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # 共有シートのプレビューは本文全文をアクセシビリティに公開する（改行を含めて完全一致を確認）
+      - extendedWaitUntil:
+          visible: '(?s)# e2e-QM10-share\n\n# Verse\n夜明け前の街を\nline \*\*bold\*\* \*\*under\*\* \*italic\*\n\n## Hook\n- item a\n- item b\n1\. first\n2\. second.*'
+          timeout: 10000
+      # シートの外（閉じる領域）をタップして閉じる
+      - tapOn:
+          id: 'PopoverDismissRegion'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - back
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertVisible: 'QUICK MEMO'
+
+# ---- .txt ファイル（QM-13） ----
+- tapOn:
+    id: 'action-button-with-menu'
+- tapOn:
+    id: 'action-menu-item-0'
+- extendedWaitUntil:
+    visible: '.txt ファイル'
+    timeout: 10000
+- tapOn: '.txt ファイル'
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # ファイル名（拡張子なしで表示）と、UTF-8 + 末尾改行の 127 バイトであること
+      - extendedWaitUntil:
+          visible: 'e2e-QM10-share'
+          timeout: 10000
+      - assertVisible: '(テキスト書類|Plain Text Document).*127.*'
+      - tapOn:
+          id: 'PopoverDismissRegion'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      # Android の共有シートには保存の項目が無いため「共有 / デバイスに保存」を選ばせる
+      - extendedWaitUntil:
+          visible: 'デバイスに保存'
+          timeout: 10000
+      - assertVisible: '共有'
+      - tapOn: 'キャンセル'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertVisible: 'QUICK MEMO'
+
+# ---- 未保存の編集を共有（QM-16） ----
+# タイトルを書き換え、SAVE せずに共有する
+- tapOn: 'e2e-QM10-share'
+- eraseText: 30
+- inputText: 'e2e-QM10-edited'
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn:
+    id: 'action-button-with-menu'
+- tapOn:
+    id: 'action-menu-item-0'
+- extendedWaitUntil:
+    visible: 'テキストで共有'
+    timeout: 10000
+- tapOn: 'テキストで共有'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # 共有シート上部の 1 行表示（本文の改行は空白に置き換わる）で、書き換えたタイトルを確認する
+      - extendedWaitUntil:
+          visible: '(?s)# e2e-QM10-edited\n\n# Verse.*'
+          timeout: 10000
+      - tapOn:
+          id: 'PopoverDismissRegion'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - back
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# 一覧へ戻る（未保存の変更があるため破棄の確認 → OK）
+- tapOn:
+    id: 'toolbar-back'
+- extendedWaitUntil:
+    visible: 'OK'
+    timeout: 5000
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'memo-list-scroll'
+
+# 後始末（作成した e2e メモを API で削除）
+- runScript: ../../scripts/qm10-cleanup.js
