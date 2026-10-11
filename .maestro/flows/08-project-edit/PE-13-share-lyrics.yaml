@@ -71,9 +71,11 @@ env:
     when:
       platform: iOS
     commands:
-      # 共有シートのプレビューは本文全文をアクセシビリティに公開する（改行を含めて完全一致を確認）
+      # 共有シートは本文をアクセシビリティに公開する。全文のプレビュー（改行あり）は出ないことがあり、
+      # 上部の 1 行表示（段落内の改行が空白になり、空行は残る）は必ず出るため、どちらにも一致させる。
+      # 改行を含めた正確な中身は、下の .txt のバイト数で確認する
       - extendedWaitUntil:
-          visible: '(?s)# e2e-PE13-share\n\n# Verse\n夜明け前の街を\nline \*\*bold\*\* \*\*under\*\* \*italic\*\n\n## Hook\n- item a\n1\. first\n2\. second.*'
+          visible: '(?s)# e2e-PE13-share\n\n# Verse[\n ]夜明け前の街を[\n ]line \*\*bold\*\* \*\*under\*\* \*italic\*\n\n## Hook[\n ]- item a[\n ]1\. first[\n ]2\. second.*'
           timeout: 10000
       - tapOn:
           id: 'PopoverDismissRegion'
