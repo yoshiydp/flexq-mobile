@@ -1,0 +1,205 @@
+# ID: PE-13
+# シナリオ名: プロジェクト編集 - リリックの共有（ボタンの位置・共有する内容・歌詞が空のプロジェクト）
+# 前提条件: dev API に接続できること（前提データはフロー内で API セットアップ・後始末する）。
+#           起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: API で歌詞付き / 歌詞なしのプロジェクトを作成 → ログイン → 歌詞付きのプロジェクトを開く
+#           → ヘッダーの共有アイコン →「テキストで共有」→ 共有シートの内容を確認して閉じる
+#           → 共有アイコン →「.txt ファイル」→ 共有シートの内容を確認して閉じる
+#           → プロジェクト名を書き換えて（保存せずに）もう一度「テキストで共有」→ 戻る（SAVE）
+#           → 歌詞なしのプロジェクトを開いて共有アイコン
+# 期待結果: EDIT モードのヘッダー右側に共有アイコン（toolbar-share）と三本線（toolbar-hamburger）が並ぶ（PE-13）。
+#           「リリックを共有」の選択に「テキストで共有 / .txt ファイル / キャンセル」が出る。
+#           テキストは「# プロジェクト名」+ 空行 + 歌詞で、段落 1 つが 1 行（空の段落は空行）、
+#           H1 / H2 → # / ##、太字・下線 → **、斜体 → *、箇条書き → -、番号付き → 1. になる。
+#           トラック名は含まない（PE-14）。.txt はプロジェクト名のファイルで、UTF-8 + 末尾改行の 118 バイト（PE-14）。
+#           保存していないプロジェクト名の変更も共有するテキストに反映される（PE-15）。
+#           歌詞が空のプロジェクトは「共有する歌詞がありません」と表示され、共有の選択は出ない（PE-16）
+# 備考: TASK-129。共有の流れは QUICK MEMO（TASK-128 / QM-10・QM-11）と共通。
+#       iOS の共有シートは別プロセスの画面で中の要素の座標がシート基準で返るため、シート内は tapOn せず、
+#       アクセシビリティに公開される本文全文・ファイル名・サイズをアサートして PopoverDismissRegion で閉じる。
+#       共有シートのアサートは iOS のみ（Android は「.txt ファイル」の次に「共有 / デバイスに保存」が出るところまで）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - PE
+  - PE-13
+  - PE-14
+  - PE-15
+  - PE-16
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+---
+# データセットアップ（歌詞付きの e2e-PE13-share と歌詞なしの e2e-PE13-empty を API で作成）
+- runScript: ../../scripts/pe13-setup.js
+
+# ログイン
+- runFlow: ../helpers/login.yaml
+
+# 歌詞付きのプロジェクトを開く（作成直後のため、更新日降順のリスト最上部に表示される。
+# リスト項目のラベルは「プロジェクト名 + トラック名 + 更新日」の連結になるため部分一致で探す）
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible: '.*e2e-PE13-share.*'
+    timeout: 15000
+- tapOn: '.*e2e-PE13-share.*'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# ---- ボタンの位置（PE-13） ----
+- extendedWaitUntil:
+    visible:
+      id: 'toolbar-share'
+    timeout: 10000
+- assertVisible:
+    id: 'toolbar-hamburger'
+
+# ---- テキストで共有（PE-14） ----
+- tapOn:
+    id: 'toolbar-share'
+- extendedWaitUntil:
+    visible: 'リリックを共有'
+    timeout: 10000
+- assertVisible: 'テキストで共有'
+- assertVisible: '.txt ファイル'
+- assertVisible: 'キャンセル'
+- tapOn: 'テキストで共有'
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # 共有シートのプレビューは本文全文をアクセシビリティに公開する（改行を含めて完全一致を確認）
+      - extendedWaitUntil:
+          visible: '(?s)# e2e-PE13-share\n\n# Verse\n夜明け前の街を\nline \*\*bold\*\* \*\*under\*\* \*italic\*\n\n## Hook\n- item a\n1\. first\n2\. second.*'
+          timeout: 10000
+      - tapOn:
+          id: 'PopoverDismissRegion'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - back
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertVisible:
+    id: 'toolbar-hamburger'
+
+# ---- .txt ファイル（PE-14） ----
+- tapOn:
+    id: 'toolbar-share'
+- extendedWaitUntil:
+    visible: '.txt ファイル'
+    timeout: 10000
+- tapOn: '.txt ファイル'
+
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # ファイル名（拡張子なしで表示）と、UTF-8 + 末尾改行の 118 バイトであること
+      - extendedWaitUntil:
+          visible: 'e2e-PE13-share'
+          timeout: 10000
+      - assertVisible: '(テキスト書類|Plain Text Document).*118.*'
+      - tapOn:
+          id: 'PopoverDismissRegion'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - extendedWaitUntil:
+          visible: 'デバイスに保存'
+          timeout: 10000
+      - assertVisible: '共有'
+      - tapOn: 'キャンセル'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- assertVisible:
+    id: 'toolbar-hamburger'
+
+# ---- 未保存の編集を共有（PE-15） ----
+# プロジェクト名を書き換え、SAVE せずに共有する
+- tapOn: 'e2e-PE13-share'
+- eraseText: 30
+- inputText: 'e2e-PE13-edited'
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn:
+    id: 'toolbar-share'
+- extendedWaitUntil:
+    visible: 'テキストで共有'
+    timeout: 10000
+- tapOn: 'テキストで共有'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      # 共有シート上部の 1 行表示（本文の改行は空白に置き換わる）で、書き換えたプロジェクト名を確認する
+      - extendedWaitUntil:
+          visible: '(?s)# e2e-PE13-edited\n\n# Verse.*'
+          timeout: 10000
+      - tapOn:
+          id: 'PopoverDismissRegion'
+      - waitForAnimationToEnd:
+          timeout: 3000
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - waitForAnimationToEnd:
+          timeout: 3000
+      - back
+      - waitForAnimationToEnd:
+          timeout: 3000
+
+# プロジェクトリストへ戻る（保存確認 → SAVE。作成したプロジェクトは後始末で削除する）
+- tapOn:
+    id: 'toolbar-back'
+- extendedWaitUntil:
+    visible: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？'
+    timeout: 5000
+- tapOn: 'SAVE'
+- extendedWaitUntil:
+    visible: 'PROJECT'
+    timeout: 15000
+
+# ---- 歌詞が空のプロジェクト（PE-16） ----
+- extendedWaitUntil:
+    visible: '.*e2e-PE13-empty.*'
+    timeout: 15000
+- tapOn: '.*e2e-PE13-empty.*'
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: 'toolbar-share'
+    timeout: 10000
+- tapOn:
+    id: 'toolbar-share'
+- extendedWaitUntil:
+    visible: '共有する歌詞がありません'
+    timeout: 10000
+- assertNotVisible: 'テキストで共有'
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: 'toolbar-back'
+- extendedWaitUntil:
+    visible: '編集中のプロジェクトを保存してプロジェクトリストに戻りますか？'
+    timeout: 5000
+- tapOn: 'SAVE'
+- extendedWaitUntil:
+    visible: 'PROJECT'
+    timeout: 15000
+
+# 後始末（作成した e2e プロジェクトを API で削除）
+- runScript: ../../scripts/pe13-cleanup.js
