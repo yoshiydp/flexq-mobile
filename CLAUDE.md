@@ -652,6 +652,7 @@ E2E テストのフローは `.maestro/flows/` に YAML 形式で管理します
 - リスト項目の `Pressable` は子テキストがグループ化され、ラベルが「タイトル, 日付 …」の連結になるため `'.*タイトル.*'` の部分一致で探す。表示領域の狭い内側の ScrollView では枠外の項目も階層上は「表示中」扱いになり `scrollUntilVisible` → `tapOn` が枠外をタップして失敗するため、対象を先頭に出す前提データにする
 - ネイティブ UI を伴う操作のうち、**iOS の写真ピッカー（PHPicker）は Maestro から操作できる**ため自動化している（`07-new-project/NP-07`）。グリッドの写真は `id: PXGGridLayout-Info` + `index` で選び、`allowsEditing: true` のトリミング画面は `(選択|Choose)` をタップする（トリミング画面は端末が日本語でも英語表記になることがある）。事前にシミュレーターへ画像を入れておくこと（`xcrun simctl addmedia <udid> <画像>`）
 - DocumentPicker（ファイル選択）と Android の写真ピッカーは E2E 対象外（導線表示までを検証し、実操作は `docs/test-cases.md` の手動確認に残す）
+- **iOS の共有シート（`Share.share` が開く UIActivityViewController）の中は tapOn しない**: シートは別プロセスの画面で、中の要素の座標がシート基準で返るため、`tapOn: 'Copy'` などはシートの外（閉じる領域）を押してシートを閉じてしまう。内容はアクセシビリティに公開されるテキストでアサートし（テキスト共有は本文全文、ファイル共有はファイル名とサイズ。例: `16-quick-memo/QM-11`）、`tapOn: id: 'PopoverDismissRegion'` で閉じる。コピー・「ファイル」に保存まで確かめたい場合は、シート左上の絶対座標を足した `point` で押す（初回のタップは無視されることがあり 2 回押す）手動検証にとどめる
 
 **実行前提:**
 - `yarn start` で開発サーバーを起動済み（dev 環境に接続）。非対話で起動する場合は `CI=1 npx expo start`（ファイル監視なし。ソース変更後は再起動が必要）
@@ -848,6 +849,9 @@ Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 
 - `src/utils/pendingWaveformData.ts` — 生成済み波形データをプロジェクト ID をキーにモジュールレベルでキャッシュ
 - `src/utils/recordingOptions.ts` — expo-av の高音質録音オプション定数（iOS / Android 対応）
 - `src/utils/animations.ts` — バウンスなど汎用アニメーション関数（Animated.Value ベース）
+- `src/utils/memoShareText.ts` — QUICK MEMO の本文 HTML を共有用の Markdown 記法テキストへ変換（段落 1 つを 1 行にして歌詞の改行を保つ・下線は太字に寄せる）、共有用のファイル名（`タイトル.txt`）を生成（TASK-128）
+- `src/utils/shareMemo.ts` — QUICK MEMO の共有。テキスト共有（`Share.share({ message })`）と .txt ファイル（iOS は共有シート、Android は expo-sharing の共有 / SAF でデバイスに保存）を別操作で提供（TASK-128）
+- `src/utils/saveToDeviceDirectory.ts` — Android の「デバイスに保存」（SAF）の保存先フォルダの選択・記憶・ファイル作成。録音（`useShareRecord`）とメモで同じフォルダを共用する
 
 ### S3 Presigned URL の使い方
 

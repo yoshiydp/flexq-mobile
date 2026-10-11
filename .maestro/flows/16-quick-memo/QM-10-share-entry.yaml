@@ -1,0 +1,113 @@
+# ID: QM-10
+# シナリオ名: QUICK MEMO - 共有の導線（ヘッダーの配置・空のメモ）
+# 前提条件: dev API に接続できること（前提データはフロー内で API セットアップ・後始末する）。
+#           起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: API で保存済みメモを作成 → ログイン → DRAFTS → QUICK MEMO（新規）で共有アイコンをタップ
+#           → 戻る → MEMO LIST → 保存済みメモを開いて 3 点リーダーを開く
+# 期待結果: 新規メモは右上に共有アイコン（toolbar-share）が出て、3 点リーダーは出ない。
+#           タイトルも本文も空のまま共有すると「共有する内容がありません」と表示され、共有の選択は出ない（QM-17）。
+#           保存済みメモは共有アイコンを出さず、3 点リーダーの中に「共有」「削除」が並ぶ
+# 備考: TASK-128。ヘッダー中央の「QUICK MEMO」と重ならないよう、保存済みメモは共有・削除を
+#       3 点リーダーにまとめてアイコン数を 2 のまま維持している（録音の再生画面 TASK-45 と同じ構成）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - QM
+  - QM-10
+  - QM-17
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  E2E_EMAIL: 'demo@example.com'
+  E2E_PASSWORD: 'password123'
+---
+# データセットアップ（書式付きの保存済みメモを API で作成し、メモ一覧の先頭に出す）
+- runScript: ../../scripts/qm10-setup.js
+
+# ログイン（共通ヘルパー。iOS / Android 対応）
+- runFlow: ../helpers/login.yaml
+
+# DRAFTS 画面へ遷移
+- tapOn:
+    id: 'nav-Drafts'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'DRAFTS'
+
+# ---- 新規メモ: 共有アイコン + しおり ----
+- tapOn:
+    id: 'drafts-quick-memo-button'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'QUICK MEMO'
+- assertVisible:
+    id: 'toolbar-share'
+- assertNotVisible:
+    id: 'action-button-with-menu'
+
+# 空のメモで共有すると案内が出て、共有の選択（テキストで共有 / .txt ファイル）は出ない（QM-17）
+- tapOn:
+    id: 'toolbar-share'
+- extendedWaitUntil:
+    visible: '共有する内容がありません'
+    timeout: 10000
+- assertNotVisible: 'テキストで共有'
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+# DRAFTS に戻る（未入力のため破棄確認は出ない）
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'DRAFTS'
+
+# ---- 保存済みメモ: しおり + 3 点リーダー（共有 / 削除） ----
+# DRAFTS 画面のボタンはラベルを公開しないため testID で指定する（上段が MEMO）
+- extendedWaitUntil:
+    visible:
+      id: 'drafts-list-button'
+    timeout: 30000
+- tapOn:
+    id: 'drafts-list-button'
+    index: 0
+- waitForAnimationToEnd:
+    timeout: 5000
+- extendedWaitUntil:
+    visible:
+      id: 'memo-list-scroll'
+    timeout: 15000
+# 一覧の項目はラベルが「タイトル, 日付 …」の連結になるため部分一致で探す
+- tapOn: '.*e2e-QM10-share.*'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'QUICK MEMO'
+- assertNotVisible:
+    id: 'toolbar-share'
+- tapOn:
+    id: 'action-button-with-menu'
+- assertVisible:
+    id: 'action-menu'
+- assertVisible:
+    id: 'action-menu-item-0'
+    text: '共有'
+- assertVisible:
+    id: 'action-menu-item-1'
+    text: '削除'
+
+# メニューを閉じてから一覧へ戻る（保存済みメモは内容があるため破棄の確認が出る）
+- tapOn:
+    id: 'header-toolbar-menu-overlay'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: 'toolbar-back'
+- extendedWaitUntil:
+    visible: 'OK'
+    timeout: 5000
+- tapOn: 'OK'
+- waitForAnimationToEnd:
+    timeout: 5000
+
+# 後始末（作成した e2e メモを API で削除）
+- runScript: ../../scripts/qm10-cleanup.js

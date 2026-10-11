@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Platform, Share } from 'react-native';
 import { requireOptionalNativeModule } from 'expo-modules-core';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   cacheDirectory,
   copyAsync,
@@ -11,19 +10,17 @@ import {
   readAsStringAsync,
   writeAsStringAsync,
   EncodingType,
-  StorageAccessFramework,
 } from 'expo-file-system/legacy';
 import { buildShareFileName } from '@/utils/buildShareFileName';
 import {
   getAudioMimeType,
   FALLBACK_MIME_TYPE,
 } from '@/utils/getAudioMimeType';
+import { createFileInSaveDirectory } from '@/utils/saveToDeviceDirectory';
 
-/**
- * Android の「デバイスに保存」で選択した SAF ディレクトリ URI の保存キー。
- * 初回のみディレクトリ選択を求め、以降は同じフォルダへ保存する (TASK-55)
- */
-export const SAVE_DIRECTORY_STORAGE_KEY = 'shareRecord:safDirectoryUri';
+// 保存先フォルダの記憶キーはメモの保存（TASK-128）と共用するため utils へ移した。
+// 既存の import 先を変えないよう再エクスポートする
+export { SAVE_DIRECTORY_STORAGE_KEY } from '@/utils/saveToDeviceDirectory';
 
 /**
  * この端末のバイナリで録音データの共有機能が使えるかを返す。
@@ -144,30 +141,6 @@ export function useShareRecord() {
   }, []);
 
   /**
-   * 保存先の SAF ディレクトリ URI を返す。初回（または `forceRequest` 時）は
-   * ディレクトリ選択ダイアログを表示し、許可されたフォルダを次回以降のために記憶する。
-   * ユーザーがフォルダ選択をキャンセルした場合は null を返す
-   */
-  const resolveSaveDirectory = async (
-    forceRequest: boolean,
-  ): Promise<string | null> => {
-    if (!forceRequest) {
-      const stored = await AsyncStorage.getItem(
-        SAVE_DIRECTORY_STORAGE_KEY,
-      ).catch(() => null);
-      if (stored) return stored;
-    }
-    const permissions =
-      await StorageAccessFramework.requestDirectoryPermissionsAsync();
-    if (!permissions.granted) return null;
-    await AsyncStorage.setItem(
-      SAVE_DIRECTORY_STORAGE_KEY,
-      permissions.directoryUri,
-    ).catch(() => {});
-    return permissions.directoryUri;
-  };
-
-  /**
    * 音源をデバイスのストレージへ保存する（Android 専用 / SAF 経由）。
    *
    * - 初回はディレクトリ選択（SAF の許可取得）を求め、以降は同じフォルダへ保存する
@@ -196,27 +169,13 @@ export function useShareRecord() {
               ? fileName
               : fileName.replace(/\.[^.]+$/, '');
 
-          let directoryUri = await resolveSaveDirectory(false);
-          if (directoryUri == null) return 'cancelled';
-
-          let destinationUri: string;
-          try {
-            destinationUri = await StorageAccessFramework.createFileAsync(
-              directoryUri,
-              displayName,
-              mimeType,
-            );
-          } catch {
-            // 記憶済みフォルダの許可失効・フォルダ削除などに備えて、
-            // ディレクトリを再選択して 1 回だけリトライする
-            directoryUri = await resolveSaveDirectory(true);
-            if (directoryUri == null) return 'cancelled';
-            destinationUri = await StorageAccessFramework.createFileAsync(
-              directoryUri,
-              displayName,
-              mimeType,
-            );
-          }
+          // 記憶済みフォルダの許可失効・フォルダ削除などに備えて、
+          // 作成に失敗した場合はディレクトリを再選択して 1 回だけリトライする
+          const destinationUri = await createFileInSaveDirectory(
+            displayName,
+            mimeType,
+          );
+          if (destinationUri == null) return 'cancelled';
 
           try {
             // SAF URI へは copyAsync で直接書き出せないため base64 経由で書き込む
