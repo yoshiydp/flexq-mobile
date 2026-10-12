@@ -421,8 +421,15 @@ yarn start
 
 `dev` ブランチへのマージ（dev チャンネル）や `develop` へのマージ（staging チャンネル）で配信された OTA Update を実機で確認するには：
 
-1. 実機で開発ビルド（`FlexQ Dev`）を完全に終了して再起動
-2. ランチャーの **Updates** タブから対象のブランチ（`dev` など）の最新 update を選ぶ
+1. **初回だけ**、dev のチャンネル URL を開くリンクを実機で開く（iPhone は Safari のアドレスバーかメモアプリ、Android は LINE などで送ってタップ）
+
+   ```
+   exp+mobile://expo-development-client/?url=https%3A%2F%2Fu.expo.dev%2F216ca5f0-4ffc-4067-bfbf-5f56aba4924b%3Fchannel-name%3Ddev%26runtime-version%3D1.1.0
+   ```
+
+2. 以後は配信のたびに `FlexQ Dev` を**完全に終了して再起動**すれば最新の配信が開く
+
+> 開発ビルドは起動すると**前回開いた URL をそのまま開き、ランチャー画面を通りません**。上のリンクは「dev チャンネルの最新 update」を指す URL なので再起動のたびに最新が開きますが、ランチャーの **Updates** タブから update を選んで開いた場合はその版に固定され、再起動しても切り替わりません。その場合は開発メニュー（iPhone は端末を振る / 3 本指で画面を長押し、Android は端末を振る）の「**Go home**」→ **Updates** → `dev` → 最新を選び直すか、上のリンクをもう一度開きます。`runtimeVersion` を上げたときはリンクの `runtime-version` も変えます。どれもうまくいかないときは FlexQ Dev を入れ直すと起動時にランチャー画面が出ます（下の「インストール用ファイルの期限と再インストール」を参照）。
 
 EAS Update はプラットフォーム共通のため、各チャンネルの配信は iOS / Android 両方に届きます。
 
@@ -439,6 +446,17 @@ eas build --profile development-device --platform ios
 ```
 
 **ネイティブ依存を変えていない限り作り直しは不要**です。JS の変更は `dev` ブランチへのマージで OTA が届きます（`runtimeVersion` を上げたときだけ作り直す）。
+
+#### インストール用ファイルの期限と再インストール
+
+EAS の内部配布ビルドは、**インストール用ファイル（IPA / APK）が作成から約 2 週間で期限切れ**になります。入れたままのアプリは期限後も使えますが、**アンインストールした・別の端末に入れる場合は、ネイティブ依存を変えていなくても作り直しが必要**です。期限は `eas build:view <build ID> --json` の `expirationDate` で確認できます。
+
+1. 上の `eas build --profile development-device` で作り直す（ネイティブ依存が同じなら develop から作ってよい）
+2. 完了後に出るビルドページを端末で開き、**Install** をタップする（iOS は Safari。Android は APK をダウンロードしてインストールし、「提供元不明のアプリ」を許可する。署名が違うと上書きできないため、既存の FlexQ Dev は先にアンインストールする）
+3. FlexQ Dev を開くとランチャー画面が出るので、上の「実機（iPhone / Android）で確認」のチャンネル URL のリンクを開く（以後は再起動で最新が開く）
+4. メールアドレスとパスワードでログインする（開発ビルドでは Google ログインは使えません）
+
+詳細（update を直接開くリンク・期限の確認コマンドなど）は CLAUDE.md の「開発ビルド（実機検証用）」を参照してください。
 
 Android 実機でローカルの変更を直接確認する場合は、実機の「開発者向けオプション」で USB デバッグを有効化し、USB 接続して `yarn android` でインストールします。
 

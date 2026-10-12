@@ -26,6 +26,7 @@ import {
 } from '@10play/tentap-editor';
 import { AppEditorThemeBridge } from '@/components/features/inputs/BodyInput/appEditorThemeBridge';
 import { shouldSkipKeyboardDismiss } from '@/utils/keyboardDismissGuard';
+import { openProjectSettings } from './openProjectSettings';
 import { COLORS } from '@/globalStyles';
 import { Audio } from 'expo-av';
 import {
@@ -889,18 +890,16 @@ export default function ProjectEditScreen() {
   // web（ネイティブ API なし）と expo-sharing 未搭載の古い Android バイナリでは共有導線を出さない
   const shareAvailable = isShareAvailable();
 
-  const items: HeaderToolBarButton[] = [
-    { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
-    // Edit Mode ではヘッダー中央にイヤホン接続インジケーターを表示する
-    { ...HEADER_TOOLBAR_TEMPLATES.headphoneIndicator },
-    // 右側は「共有 → 三本線（プロジェクト設定）」の順。ヘッダー中央はイヤホン表示だけなので
-    // 2 アイコンでも重ならない。共有は REC モードではヘッダーごと隠れるため EDIT モードのみ
-    ...(shareAvailable
-      ? [{ ...HEADER_TOOLBAR_TEMPLATES.share, onPress: handleShareLyrics }]
-      : []),
-    {
-      ...HEADER_TOOLBAR_TEMPLATES.hamburger,
-      onPress: () =>
+  // 三本線 → プロジェクト設定。遷移より先に歌詞の編集モードとキーボードを閉じる
+  // （iOS は WKWebView のファーストレスポンダが別画面に被さっても辞任しないため、
+  // チェックマーク（PE-04）と同じ経路でアプリ側から明示的に閉じる。TASK-130）
+  const handleOpenProjectSettings = () =>
+    openProjectSettings({
+      isEditingLyrics,
+      toggleEditLyrics: handleToggleEditLyrics,
+      blurEditor,
+      dismissKeyboard: Keyboard.dismiss,
+      navigate: () =>
         navigation.navigate('ProjectSettings', {
           id: id ?? '',
           artwork: artworkUri
@@ -912,7 +911,18 @@ export default function ProjectEditScreen() {
           trackId: trackId ?? project?.trackId,
           trackName: trackName ?? project?.trackName,
         }),
-    },
+    });
+
+  const items: HeaderToolBarButton[] = [
+    { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
+    // Edit Mode ではヘッダー中央にイヤホン接続インジケーターを表示する
+    { ...HEADER_TOOLBAR_TEMPLATES.headphoneIndicator },
+    // 右側は「共有 → 三本線（プロジェクト設定）」の順。ヘッダー中央はイヤホン表示だけなので
+    // 2 アイコンでも重ならない。共有は REC モードではヘッダーごと隠れるため EDIT モードのみ
+    ...(shareAvailable
+      ? [{ ...HEADER_TOOLBAR_TEMPLATES.share, onPress: handleShareLyrics }]
+      : []),
+    { ...HEADER_TOOLBAR_TEMPLATES.hamburger, onPress: handleOpenProjectSettings },
   ];
 
   if (loading) {
