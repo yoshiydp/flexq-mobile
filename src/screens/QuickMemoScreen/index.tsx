@@ -26,11 +26,7 @@ import {
   HeaderToolBarButton,
 } from '@/constants/headerToolBarButtons';
 import { KEYBOARD_CHECKMARK_BUTTON_KEYBOARD_OFFSET } from '@/constants/keyboardCheckmarkButton';
-import {
-  MEMO_SHARE_LABELS,
-  MODAL_MESSAGES,
-  SHARE_LABELS,
-} from '@/constants/messages';
+import { MEMO_SHARE_LABELS, MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useCreateMemo } from '@/hooks/useCreateMemo';
 import { useUpdateMemo } from '@/hooks/useUpdateMemo';
@@ -42,15 +38,7 @@ import {
 import { insertTranscript } from '@/utils/transcriptInsertion';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { isShareAvailable } from '@/hooks/useShareRecord';
-import {
-  buildMemoShareFileName,
-  buildMemoShareText,
-} from '@/utils/memoShareText';
-import {
-  saveMemoFileToDevice,
-  shareMemoFile,
-  shareMemoText,
-} from '@/utils/shareMemo';
+import { readEditorHtml, startTextShareFlow } from '@/utils/textShareFlow';
 import styles from './QuickMemoScreen.styles';
 
 export default function QuickMemoScreen() {
@@ -229,75 +217,14 @@ export default function QuickMemoScreen() {
   // テキストでの共有（LINE・iOS メモ・Google Keep 向け）と .txt ファイルは別の操作として選ばせる。
   // 共有するのは保存済みの本文ではなく、画面上の現在の内容（未保存の編集を含む）
 
-  const runShareAction = async (action: () => Promise<void>) => {
-    try {
-      await action();
-    } catch (error) {
-      console.error('Failed to share memo:', error);
-      Alert.alert('エラー', MEMO_SHARE_LABELS.failed);
-    }
-  };
-
-  const runSaveToDevice = async (text: string, fileName: string) => {
-    try {
-      const result = await saveMemoFileToDevice(text, fileName);
-      if (result === 'saved') {
-        Alert.alert(SHARE_LABELS.saveDoneTitle, SHARE_LABELS.saveDone);
-      }
-    } catch (error) {
-      console.error('Failed to save memo to device:', error);
-      Alert.alert('エラー', MEMO_SHARE_LABELS.saveFailed);
-    }
-  };
-
-  // .txt ファイル: iOS は共有シートの「ファイルに保存」でデバイス保存もできるため直接共有する。
-  // Android の共有シートには保存の項目がないため「共有 / デバイスに保存」を選ばせる（TASK-55 と同じ）
-  const chooseFileAction = (text: string, fileName: string) => {
-    if (Platform.OS === 'android') {
-      Alert.alert(MEMO_SHARE_LABELS.chooseFileActionTitle, undefined, [
-        {
-          text: MEMO_SHARE_LABELS.actionShare,
-          onPress: () => void runShareAction(() => shareMemoFile(text, fileName)),
-        },
-        {
-          text: MEMO_SHARE_LABELS.actionSave,
-          onPress: () => void runSaveToDevice(text, fileName),
-        },
-        { text: MEMO_SHARE_LABELS.cancel, style: 'cancel' },
-      ]);
-      return;
-    }
-    void runShareAction(() => shareMemoFile(text, fileName));
-  };
-
-  const handleShare = async () => {
-    // body state はエディターからデバウンスして同期されるため、最新の本文はエディターから取る
-    let html = '';
-    try {
-      html = (await editor.getHTML()) || '';
-    } catch (error) {
-      console.error('Failed to read memo body for sharing:', error);
-      html = body;
-    }
-    const text = buildMemoShareText(title, html);
-    if (!text) {
-      Alert.alert(MEMO_SHARE_LABELS.emptyTitle, MEMO_SHARE_LABELS.empty);
-      return;
-    }
-    const fileName = buildMemoShareFileName(title);
-
-    Alert.alert(MEMO_SHARE_LABELS.chooseTitle, undefined, [
-      {
-        text: MEMO_SHARE_LABELS.shareText,
-        onPress: () => void runShareAction(() => shareMemoText(text)),
-      },
-      {
-        text: MEMO_SHARE_LABELS.shareFile,
-        onPress: () => chooseFileAction(text, fileName),
-      },
-      { text: MEMO_SHARE_LABELS.cancel, style: 'cancel' },
-    ]);
-  };
+  const handleShare = () =>
+    startTextShareFlow({
+      labels: MEMO_SHARE_LABELS,
+      getContent: async () => ({
+        title,
+        bodyHtml: await readEditorHtml(editor, body),
+      }),
+    });
 
   // web（ネイティブ API なし）と expo-sharing 未搭載の古い Android バイナリでは共有導線を出さない
   const shareAvailable = isShareAvailable();
