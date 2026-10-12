@@ -50,7 +50,7 @@ import {
 } from '@/constants/headerToolBarButtons';
 import { CUE_LABELS } from '@/constants/cueLabels';
 import { KEYBOARD_CHECKMARK_BUTTON_KEYBOARD_OFFSET } from '@/constants/keyboardCheckmarkButton';
-import { MODAL_MESSAGES } from '@/constants/messages';
+import { LYRICS_SHARE_LABELS, MODAL_MESSAGES } from '@/constants/messages';
 import { PLACEHOLDERS } from '@/constants/placeholders';
 import { useFetchProjectDetail } from '@/hooks/useFetchProjectDetail';
 import type { TrackType } from '@/hooks/useFetchTrack';
@@ -67,6 +67,8 @@ import {
   clearPendingProjectSettings,
 } from '@/utils/pendingProjectSettings';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
+import { isShareAvailable } from '@/hooks/useShareRecord';
+import { readEditorHtml, startTextShareFlow } from '@/utils/textShareFlow';
 import styles from './ProjectEditScreen.styles';
 
 export default function ProjectEditScreen() {
@@ -870,10 +872,32 @@ export default function ProjectEditScreen() {
     });
   };
 
+  // リリックの共有（TASK-129）。QUICK MEMO（TASK-128）と同じ流れで、テキストでの共有と
+  // .txt ファイルを選ばせる。共有するのは「# プロジェクト名」+ エディターの現在の歌詞
+  // （未保存の編集を含む）。トラック名・CUE は含めない。共有しても保存はしない
+  const handleShareLyrics = () =>
+    startTextShareFlow({
+      labels: LYRICS_SHARE_LABELS,
+      getContent: async () => ({
+        title: projectName,
+        bodyHtml: await readEditorHtml(editor, bodyRef.current),
+      }),
+      // プロジェクト名は必ずあるため、歌詞が空なら名前だけを共有しない
+      requireBody: true,
+    });
+
+  // web（ネイティブ API なし）と expo-sharing 未搭載の古い Android バイナリでは共有導線を出さない
+  const shareAvailable = isShareAvailable();
+
   const items: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     // Edit Mode ではヘッダー中央にイヤホン接続インジケーターを表示する
     { ...HEADER_TOOLBAR_TEMPLATES.headphoneIndicator },
+    // 右側は「共有 → 三本線（プロジェクト設定）」の順。ヘッダー中央はイヤホン表示だけなので
+    // 2 アイコンでも重ならない。共有は REC モードではヘッダーごと隠れるため EDIT モードのみ
+    ...(shareAvailable
+      ? [{ ...HEADER_TOOLBAR_TEMPLATES.share, onPress: handleShareLyrics }]
+      : []),
     {
       ...HEADER_TOOLBAR_TEMPLATES.hamburger,
       onPress: () =>
