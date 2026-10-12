@@ -90,7 +90,7 @@ iOS と同様、日常の開発は `yarn start` を起動し、ターミナル�
 
 **OTA Update の確認:**
 
-`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。Android 実機側で開発ビルドを完全終了 → 再起動すると最新 update が適用されます。**Expo Go は使えません**（理由と代替は「開発ビルド（実機検証用）」を参照）。
+`dev` ブランチへのマージで dev チャンネル、`develop` へのマージで staging チャンネルに GitHub Actions が EAS Update を配信します。配信はプラットフォーム共通のため、Android にも同じチャンネルで届きます。実機の開発ビルド（FlexQ Dev）は**完全終了 → 再起動しても前回開いた版がそのまま開く**ため、新しい配信は開発メニューの「Go home」からランチャーに戻って選び直します（手順は「開発ビルド（実機検証用）」の「新しい配信を開く」を参照）。**Expo Go は使えません**（理由と代替は「開発ビルド（実機検証用）」を参照）。
 
 > **Android のセットアップ状況:** Google ログイン（TASK-54）・Google Play Console・EAS submit・内部テスト配信まですべてセットアップ済みで運用可能。Google OAuth の Android クライアントは lyrics-app-492415 にデバッグ署名 / EAS アップロード鍵 / Play アプリ署名鍵の 3 つを登録済み（`EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID` は `.env` に設定済み）。**新規 Android クライアント作成時は「詳細設定 → カスタム URI スキームを有効にする」を ON にすること**（デフォルト無効のままだと OAuth が `400: invalid_request` になる）。
 
@@ -412,6 +412,62 @@ eas build --profile development-device --platform ios
 - [Expo Orbit](https://docs.expo.dev/build/orbit/)（macOS アプリ）を使うと、EAS のビルドをワンクリックで
   シミュレーター・実機にインストールできる（任意）
 
+#### 新しい配信を開く（前回の版がそのまま開く）
+
+開発ビルドは起動すると**前回開いた版（update）をそのまま開き、ランチャー画面を通らない**。
+完全終了して再起動しても同じ版が開くため、dev に新しい配信が届いても自動では切り替わらない
+（2026-10-12、TASK-129 の確認時に #439 の古い版が開き続け「共有ボタンが出ない」と誤認した）。
+
+新しい配信は次のどちらかで開く:
+
+1. **開発メニューの「Go home」からランチャーに戻る**（推奨）
+   - 開発メニューの出し方: iPhone は端末を振る / 3 本指で画面を長押し、Android は端末を振る
+   - ランチャー下部の **Updates** タブ → ブランチ `dev` → 一番上（最新）の update を選ぶ
+2. **update を直接開くリンク**を端末で開く（iPhone は Safari のアドレスバーかメモアプリ、Android は LINE などで送ってタップ）
+
+   ```
+   exp+mobile://expo-development-client/?url=<URL エンコードした https://u.expo.dev/216ca5f0-4ffc-4067-bfbf-5f56aba4924b/group/<group ID>>
+   ```
+
+   group ID は `eas update:list --branch dev --limit 3 --json` の `group` で確認する。
+   シミュレーター / エミュレーターでは `xcrun simctl openurl booted "<リンク>"` で同じ版を開け、
+   実機と同じ配信物の再現確認に使える（Metro は不要）
+
+どちらもうまくいかない場合は、FlexQ Dev をアンインストールして入れ直す（次項）。
+入れ直した直後は前回の版が無いため、起動時にランチャー画面が出る。
+
+#### インストール用ファイルの期限と再インストール
+
+EAS の内部配布（`development-device`）のビルドは、**インストール用ファイル（IPA / APK）が作成から
+約 2 週間で期限切れ**になる（実測: 9/27 作成 → 10/11 期限、10/12 作成 → 10/26 期限）。
+期限後はビルドページの Install もファイルの取得も失敗するため、**アンインストールした・別の端末に入れる
+場合は、ネイティブ依存を変えていなくても開発ビルドを作り直す必要がある**（入れたままのアプリは期限後も使える）。
+
+期限の確認:
+
+```bash
+eas build:list --platform ios --build-profile development-device --limit 3 --json --non-interactive \
+  | python3 -c "import json,sys; [print(b['id'], (b.get('expirationDate') or '')[:10]) for b in json.load(sys.stdin)]"
+```
+
+再インストールの手順:
+
+```bash
+# 1. 作り直す（ネイティブ依存が同じなら develop から作ってよい。JS は OTA で読み込むため）
+eas build --profile development-device --platform ios       # iOS（登録済み UDID 向けのアドホック配布）
+eas build --profile development-device --platform android   # Android（APK）
+```
+
+2. 完了後に出るビルドページ（`https://expo.dev/accounts/yoshiydp/projects/mobile/builds/<build ID>`）を端末で開き、**Install** をタップする
+   - iOS: Safari で開く。端末が未登録なら先に `eas device:create`
+   - Android: ブラウザで APK をダウンロードしてインストール（「提供元不明のアプリ」の許可を求められたら許可）。
+     署名が違うと上書きできないため、既存の FlexQ Dev を先にアンインストールする
+3. FlexQ Dev を開くとランチャー画面が出るので、**Updates** → `dev` → 最新の update を選ぶ
+4. メールアドレスとパスワードでログインする（開発バリアントでは Google ログイン不可）
+
+> 上り回線が遅いと EAS へのアップロード表示が「0 / 151 MB」のまま動かないことがあるが、送信は進んでいる
+> （約 200 KB/s の回線で 15 分）。止まったと判断して中断しない。
+
 #### チャンネルの対応（EAS Update）
 
 `eas.json` の `channel` と、GitHub Actions が配信する `eas update --branch` の名前が一致していないと
@@ -585,7 +641,7 @@ feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チ�
 
 1. feature ブランチから `dev` への PR を作成・マージ
 2. ワークフロー `Deploy to Dev (EAS Update)` が dev チャンネルへ配信（API URL は Secrets の `EXPO_PUBLIC_API_BASE_URL_DEV`）
-3. 実機で開発ビルド（`development-device` プロファイル）を完全終了 → 再起動すると最新 update が適用される
+3. 実機の開発ビルド（`development-device` プロファイル）で、開発メニューの「Go home」→ ランチャーの **Updates** → `dev` → 最新の update を選ぶ（再起動だけでは前回開いた版が開く。「開発ビルド（実機検証用）」の「新しい配信を開く」を参照）
 4. Lambda（`api/` 配下）に変更がある場合は、あわせて `lyrics-dev-api` へ手動 SAM デプロイ（`/deploy-api-dev`）
 
 #### staging への配信（リリース前検証）
