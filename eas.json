@@ -34,7 +34,7 @@
       "autoIncrement": true,
       "distribution": "store",
       "channel": "staging",
-      "node": "20.11.0",
+      "node": "24.22.1",
       "env": {
         "APP_VARIANT": "staging",
         "EXPO_PUBLIC_API_BASE_URL": "https://5pzt12icve.execute-api.ap-northeast-1.amazonaws.com/v1",
