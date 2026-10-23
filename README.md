@@ -398,7 +398,8 @@ lint・型チェック・test のいずれかが失敗した場合はデプロ�
 
 ### タスク管理
 
-タスクは Notion（Lyrics タスク管理 > タスク一覧）で管理し、Claude Code の `/notion` コマンドから操作します。ブランチ名・コミットタイトルに Notion の ID（`TASK-X`）を付け、PR URL を Notion タスクに紐付けます。詳細は CLAUDE.md「タスク管理（Notion × GitHub 連携）」を参照してください。
+タスクは Notion（FlexQ タスク管理 > アプリ タスク一覧）で管理し、Claude Code の `/notion` コマンドから操作します。ブランチ名・コミットタイトルに Notion の ID（`TASK-X`）を付け、PR URL を Notion タスクに紐付けます。詳細は CLAUDE.md「タスク管理（Notion × GitHub 連携）」を参照してください。
+Web（flexq-web-frontend）のタスクは別のデータベース「FlexQ タスク管理 > Web タスク一覧」（ID は `WEB-X`）で管理します。
 
 ---
 
