@@ -4,6 +4,8 @@
 
 ## コマンド
 
+> **Node.js は `.nvmrc` の 24.22.1 を使う**（`nvm use` で切り替え。Node 20 は 2026-04-30 に EOL で、2026-10-21 のセキュリティ修正〈Brotli デコーダ RCE など〉は 22 / 24 系にしか提供されない。TASK-131）。CI（GitHub Actions の `node-version`）・EAS（`eas.json` の `node`）・Lambda（`api/template.yaml` の `Runtime: nodejs24.x`）も同じ 24 系に揃えてあり、**いずれか 1 箇所だけ上げ下げしないこと**。
+
 ```bash
 # 開発
 yarn start                # Expo 開発サーバー起動 (.env の dev 環境 AWS に接続)
@@ -191,7 +193,7 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 - 既存 3 スタックが既定シークレットのままになっていないかは `docs/jwt-secret-verification.md` の手順で確認する（既定シークレットで署名した JWT が 401 になれば OK。既定値だった環境はシークレットを差し替えて再デプロイし、その環境の全ユーザーが再ログインになる）
 - 未認証の `GET /data`（モックデータ一括返却の `GetDataFunction`）は TASK-106 で API Gateway から削除済み。`api/openapi.yaml` の `/data` と `yarn mock:server` の `/data` はローカルモック専用
 
-**ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
+**ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)。Lambda ランタイムは `nodejs24.x`（`api/template.yaml` の `Globals.Function.Runtime` と `FfmpegLayer.CompatibleRuntimes` の 2 箇所。TASK-131）で、ランタイム変更は 3 スタックとも手動 SAM デプロイ（dev → staging → production）で反映する
 
 ### アカウント停止（BAN）運用
 
@@ -603,6 +605,10 @@ eas submit --profile staging --platform android
 - `.easignore` で不要ファイルを除外しないとアップロードに時間がかかる（または失敗する）
 - 除外対象: `node_modules`、`api`（Lambda コード）、`.aws-sam`（SAM ビルドキャッシュ）、`docs/` など
 - `.easignore` を変更した場合は必ずコミットしてからビルドを実行する
+
+**Node.js バージョン**
+- EAS Build サーバーの Node は `eas.json` の各ビルドプロファイルの `node` で固定する（`staging` に `24.22.1` を設定済み。`.nvmrc` / CI / Lambda ランタイムと同じ 24 系）
+- `development` / `development-device` / `production` プロファイルは `node` 未指定で EAS のイメージ既定値が使われる。production を Node 24 で確実にビルドしたい場合は同じ `node` を追加する
 
 **Yarn 4 (Berry) の認識**
 - EAS Build サーバーはデフォルトで Yarn Classic を想定している
