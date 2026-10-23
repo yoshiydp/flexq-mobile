@@ -607,8 +607,8 @@ eas submit --profile staging --platform android
 - `.easignore` を変更した場合は必ずコミットしてからビルドを実行する
 
 **Node.js バージョン**
-- EAS Build サーバーの Node は `eas.json` の各ビルドプロファイルの `node` で固定する（`staging` に `24.22.1` を設定済み。`.nvmrc` / CI / Lambda ランタイムと同じ 24 系）
-- `development` / `development-device` / `production` プロファイルは `node` 未指定で EAS のイメージ既定値が使われる。production を Node 24 で確実にビルドしたい場合は同じ `node` を追加する
+- EAS Build サーバーの Node は `eas.json` の各ビルドプロファイルの `node` で固定する（ストア配信用の `staging` / `production` に `24.22.1` を設定済み。`.nvmrc` / CI / Lambda ランタイムと同じ 24 系）
+- `development` / `development-device` プロファイルは `node` 未指定で EAS のイメージ既定値（SDK 54 のイメージは Node 20.19.4）が使われる。開発ビルドも Node 24 で揃えたい場合は同じ `node` を追加する
 
 **Yarn 4 (Berry) の認識**
 - EAS Build サーバーはデフォルトで Yarn Classic を想定している
