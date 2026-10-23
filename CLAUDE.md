@@ -1029,8 +1029,9 @@ Claude Code から Notion MCP を経由してタスク管理を行う。GitHub �
 
 ### Notion データベース
 
-- **場所**: Lyrics タスク管理 > タスク一覧
+- **場所**: FlexQ タスク管理 > アプリ タスク一覧
 - **URL**: https://www.notion.so/350780496c2f80dfaf79cba5e078123c
+- **Web（flexq-web-frontend）のタスクは別 DB「FlexQ タスク管理 > Web タスク一覧」（ID は `WEB-X`・https://www.notion.so/7dc1d4159dd34470a0134049d63bb280）で管理する**。このリポジトリの `/notion` はモバイルの `TASK-X` だけを扱う（2026-10-23 に分離）
 
 | プロパティ | 型 | 内容 |
 |-----------|-----|------|
