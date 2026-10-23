@@ -644,6 +644,8 @@ corepack prepare yarn@4.12.0 --activate
 
 > **ネイティブ依存を追加・更新したら `app.json` の `runtimeVersion` を必ず上げる**（固定文字列方式。例: TASK-121 の react-native-audio-api 追加で `1.0.0` → `1.1.0`）。上げずにマージすると、そのネイティブモジュールを持たない既存ビルド（TestFlight / Play 内部テスト / 開発ビルド）にも OTA が届き、起動時にモジュール未検出でクラッシュする。上げたあとは新しい runtimeVersion のビルド（`/testflight` / `/playstore`・開発ビルドは `yarn ios` / `yarn android`）を作るまで OTA は誰にも届かない。誤って配信した場合は `eas update:republish --branch <dev|staging|production> --group <直前の正常な group ID>` で旧 runtimeVersion 向けに戻す
 
+> **例外: 同一 Expo SDK 内のパッチ更新（`npx expo install --fix` で揃える `~x.y.z` の差分）は runtimeVersion を上げない**（TASK-131 で 2026-10-23 に判断）。JS からネイティブへの呼び出し面が旧版と同一であること（更新対象パッケージの build JS でネイティブモジュール呼び出しを base と比較）を確認したうえで据え置く。ネイティブ側の修正（expo-updates / expo-file-system のセキュリティ修正など）は OTA では届かず次回の TestFlight / Play / 開発ビルドで反映されるため、リリース時にビルドを作る。呼び出し面に差分がある場合やメジャー / SDK 更新は従来どおり上げる
+
 ```
 feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チャンネル（開発側 AWS: lyrics-dev-api）
       │  実機確認 OK 後
