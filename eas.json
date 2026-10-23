@@ -50,6 +50,7 @@
     "production": {
       "autoIncrement": true,
       "channel": "production",
+      "node": "24.22.1",
       "env": {
         "EXPO_PUBLIC_API_BASE_URL": "https://7ez5duggcc.execute-api.ap-northeast-1.amazonaws.com/v1"
       },
