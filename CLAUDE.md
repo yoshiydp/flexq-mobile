@@ -4,6 +4,8 @@
 
 ## コマンド
 
+> **Node.js は `.nvmrc` の 24.22.1 を使う**（`nvm use` で切り替え。Node 20 は 2026-04-30 に EOL で、2026-10-21 のセキュリティ修正〈Brotli デコーダ RCE など〉は 22 / 24 系にしか提供されない。TASK-131）。CI（GitHub Actions の `node-version`）・EAS（`eas.json` の `node`）・Lambda（`api/template.yaml` の `Runtime: nodejs24.x`）も同じ 24 系に揃えてあり、**いずれか 1 箇所だけ上げ下げしないこと**。
+
 ```bash
 # 開発
 yarn start                # Expo 開発サーバー起動 (.env の dev 環境 AWS に接続)
@@ -191,7 +193,7 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 - 既存 3 スタックが既定シークレットのままになっていないかは `docs/jwt-secret-verification.md` の手順で確認する（既定シークレットで署名した JWT が 401 になれば OK。既定値だった環境はシークレットを差し替えて再デプロイし、その環境の全ユーザーが再ログインになる）
 - 未認証の `GET /data`（モックデータ一括返却の `GetDataFunction`）は TASK-106 で API Gateway から削除済み。`api/openapi.yaml` の `/data` と `yarn mock:server` の `/data` はローカルモック専用
 
-**ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)
+**ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)。Lambda ランタイムは `nodejs24.x`（`api/template.yaml` の `Globals.Function.Runtime` と `FfmpegLayer.CompatibleRuntimes` の 2 箇所。TASK-131）で、ランタイム変更は 3 スタックとも手動 SAM デプロイ（dev → staging → production）で反映する
 
 ### アカウント停止（BAN）運用
 
@@ -604,6 +606,10 @@ eas submit --profile staging --platform android
 - 除外対象: `node_modules`、`api`（Lambda コード）、`.aws-sam`（SAM ビルドキャッシュ）、`docs/` など
 - `.easignore` を変更した場合は必ずコミットしてからビルドを実行する
 
+**Node.js バージョン**
+- EAS Build サーバーの Node は `eas.json` の各ビルドプロファイルの `node` で固定する（ストア配信用の `staging` / `production` に `24.22.1` を設定済み。`.nvmrc` / CI / Lambda ランタイムと同じ 24 系）
+- `development` / `development-device` プロファイルは `node` 未指定で EAS のイメージ既定値（SDK 54 のイメージは Node 20.19.4）が使われる。開発ビルドも Node 24 で揃えたい場合は同じ `node` を追加する
+
 **Yarn 4 (Berry) の認識**
 - EAS Build サーバーはデフォルトで Yarn Classic を想定している
 - このプロジェクトは Yarn 4.12.0 を使用しているため、`eas-build-pre-install.sh` で Corepack を有効化している
@@ -637,6 +643,8 @@ corepack prepare yarn@4.12.0 --activate
 > 型チェック（`yarn typecheck`）は PR / push の CI（`ci.yml`）と各デプロイワークフローの lint ジョブで実行されるため、ローカルでも `yarn lint` / `yarn test:ci` とあわせて通してからコミットする（TASK-109）。
 
 > **ネイティブ依存を追加・更新したら `app.json` の `runtimeVersion` を必ず上げる**（固定文字列方式。例: TASK-121 の react-native-audio-api 追加で `1.0.0` → `1.1.0`）。上げずにマージすると、そのネイティブモジュールを持たない既存ビルド（TestFlight / Play 内部テスト / 開発ビルド）にも OTA が届き、起動時にモジュール未検出でクラッシュする。上げたあとは新しい runtimeVersion のビルド（`/testflight` / `/playstore`・開発ビルドは `yarn ios` / `yarn android`）を作るまで OTA は誰にも届かない。誤って配信した場合は `eas update:republish --branch <dev|staging|production> --group <直前の正常な group ID>` で旧 runtimeVersion 向けに戻す
+
+> **例外: 同一 Expo SDK 内のパッチ更新（`npx expo install --fix` で揃える `~x.y.z` の差分）は runtimeVersion を上げない**（TASK-131 で 2026-10-23 に判断）。JS からネイティブへの呼び出し面が旧版と同一であること（更新対象パッケージの build JS でネイティブモジュール呼び出しを base と比較）を確認したうえで据え置く。ネイティブ側の修正（expo-updates / expo-file-system のセキュリティ修正など）は OTA では届かず次回の TestFlight / Play / 開発ビルドで反映されるため、リリース時にビルドを作る。呼び出し面に差分がある場合やメジャー / SDK 更新は従来どおり上げる
 
 ```
 feature/TASK-X ──PR──▶ dev ──────▶ EAS Update: dev チャンネル（開発側 AWS: lyrics-dev-api）
