@@ -41,7 +41,7 @@ Parameters:
 
 Globals:
   Function:
-    Runtime: nodejs20.x
+    Runtime: nodejs24.x
     Architectures:
       - arm64
     Timeout: 10
@@ -896,7 +896,7 @@ Resources:
       Description: Static ffmpeg binary (Linux arm64) for record mixing
       ContentUri: layers/ffmpeg/
       CompatibleRuntimes:
-        - nodejs20.x
+        - nodejs24.x
       RetentionPolicy: Delete
     Metadata:
       BuildMethod: makefile
