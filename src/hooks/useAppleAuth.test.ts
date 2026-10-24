@@ -99,12 +99,30 @@ describe('useAppleAuth', () => {
     expect(credential).toBeNull();
   });
 
-  it('キャンセル以外の失敗は throw する', async () => {
+  it('未サインイン端末の案内ダイアログを閉じた場合（ERR_REQUEST_UNKNOWN）も null を返す', async () => {
     Platform.OS = 'ios';
-    mockSignInAsync.mockRejectedValue(new Error('failed'));
+    mockSignInAsync.mockRejectedValue({ code: 'ERR_REQUEST_UNKNOWN' });
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
     const { result } = renderHook(() => useAppleAuth());
 
-    await expect(result.current.signIn()).rejects.toThrow('failed');
+    let credential;
+    await act(async () => {
+      credential = await result.current.signIn();
+    });
+
+    expect(credential).toBeNull();
+    expect(warn).toHaveBeenCalled();
+    warn.mockRestore();
+  });
+
+  it('キャンセル以外の失敗は throw する', async () => {
+    Platform.OS = 'ios';
+    mockSignInAsync.mockRejectedValue({ code: 'ERR_REQUEST_FAILED', message: 'failed' });
+    const { result } = renderHook(() => useAppleAuth());
+
+    await expect(result.current.signIn()).rejects.toEqual(
+      expect.objectContaining({ code: 'ERR_REQUEST_FAILED' }),
+    );
   });
 
   it('identityToken が返らなければ throw する', async () => {
