@@ -67,8 +67,9 @@ export default function SignInScreen() {
     }
   };
 
-  // Apple でサインイン（TASK-132・iOS のみ）。未登録ならサーバー側で
-  // アカウントを作成してそのままログインする（Google と違い新規登録へ誘導しない）
+  // Apple でサインイン（TASK-132・iOS のみ）。未登録なら loginWithApple が
+  // 作成してよいか確認し、同意されたら作成してそのままログインする
+  // （Google と違い新規登録画面へは誘導しない）
   const submitAppleSignIn = async () => {
     try {
       // キャンセル（null）は無通知で画面に留まる

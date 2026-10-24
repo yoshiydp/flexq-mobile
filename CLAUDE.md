@@ -204,13 +204,19 @@ SignIn / Register 画面の Apple ボタン（AppleSignInButton・OS 標準の�
   → useAppleAuth.signIn: nonce の SHA-256 を Apple に渡して identityToken を取得
   → POST /data/auth/apple（post-auth-apple.ts）: identityToken・authorizationCode・生の nonce・氏名（初回のみ）
       apple-auth.ts が Apple の公開鍵（JWKS）で署名・iss・aud・exp・nonce を検証
-      ① appleSub-index で照合 → ② 検証済みメールで既存アカウントにひも付け → ③ 新規作成
+      ① appleSub-index で照合 → ② 検証済みメールで既存アカウントにひも付け
+      → ③ mode: register なら新規作成 / mode: login（既定）なら 404 account_not_found
   → パスワードログインと同じ JWT を返す
+
+プロフィール（PROFILE タブ・プロフィール編集）の Link Social Accounts → Apple
+  → useLinkAppleAccount: useAppleAuth.signIn → POST /data/profile/link-apple（post-profile-link-apple.ts）
+      ログイン中のユーザーに appleSub を保存（別ユーザーに連携済みなら 409）・リフレッシュトークンも保存
 ```
 
-- **Google と違い、ログイン画面からでも未登録なら新規作成する**（Apple の HIG はボタン 1 つで使い始められる前提のため、「アカウントがありません」で止めると審査で不具合扱いになりうる）
-- 「メールを非公開」を選んだユーザーは中継アドレス（`@privaterelay.appleid.com`）になるため、既存アカウントとはメールで一致せず別アカウントになる（仕様）。表示名は Apple が初回の認可時にだけ渡す氏名（「姓 名」）、無ければメールのローカル部
-- **退会時は Apple のトークンを失効させる**（ガイドライン 5.1.1(v)）。ログインのたびに `authorizationCode` をリフレッシュトークンに交換して Users の `appleRefreshToken` / `appleClientId` を上書きし（Apple ID の設定で連携を解除してから再サインインすると古いトークンは使えなくなるため。交換に失敗したときは保存済みの値を残す）、`delete-profile` が Users を消す前に `https://appleid.apple.com/auth/revoke` を呼ぶ。Apple への通信は 1 回 5 秒で打ち切り、交換・失効の失敗ではログイン・退会を止めない。`get-profile` / `put-profile` はこの 2 属性を応答から除く
+- **新規作成と既存アカウントへの連携を分けている**: Register 画面の「Apple で登録」は `mode: 'register'` で即作成する。SignIn 画面の「Apple でサインイン」は `mode: 'login'` で送り、未登録（404 `account_not_found`）なら `AuthContext.loginWithApple` が「新しいアカウントを作成しますか？」と確認し、同意されたら**同じ identityToken を `mode: 'register'` で送り直す**（Apple の認証シートは開き直さない。404 の時点では使い捨ての `authorizationCode` を交換しない）。Google のように新規登録画面へ誘導して止めないのは、Apple の HIG がボタン 1 つで使い始められる前提で、行き止まりにすると審査で不具合扱いになりうるため。確認の本文で「既存アカウントがある場合はログイン後にプロフィール編集から連携できる」と案内する
+- ② のメール一致の自動ひも付けは、Apple が所有確認したメールのときだけ行う。「メールを非公開」を選んだユーザーは中継アドレス（`@privaterelay.appleid.com`）になり既存アカウントと一致しないため、**既存アカウントに Apple ID を足したいときはプロフィールから連携する**（`post-profile-link-apple`。sub だけで照合するためメールの検証状態は問わない）。連携・② のひも付け・③ の作成では `socialAccounts` の `apple` エントリを連携済みにする（表示用。`SOCIAL_ICON_MAP` に `apple` を追加）。Android には Apple でサインインが無いため、Apple の行の「Link Account」は「iPhone のアプリから行えます」の案内だけ出す（一覧から外すと保存時に apple エントリが消えるため行は残す）。**「Remove Link」は Google と同じく表示だけを戻し、`appleSub` は残る**（Apple でのサインインは引き続きできる）
+- 表示名は Apple が初回の認可時にだけ渡す氏名（「姓 名」）、無ければメールのローカル部
+- **退会時は Apple のトークンを失効させる**（ガイドライン 5.1.1(v)）。ログイン・プロフィールからの連携のたびに `authorizationCode` をリフレッシュトークンに交換して（`api/lambda/apple-refresh-token.ts`） Users の `appleRefreshToken` / `appleClientId` を上書きし（Apple ID の設定で連携を解除してから再サインインすると古いトークンは使えなくなるため。交換に失敗したときは保存済みの値を残す）、`delete-profile` が Users を消す前に `https://appleid.apple.com/auth/revoke` を呼ぶ。Apple への通信は 1 回 5 秒で打ち切り、交換・失効の失敗ではログイン・退会を止めない。`get-profile` / `put-profile` はこの 2 属性を応答から除く
 - 照合用の GSI `appleSub-index` を Users テーブルに追加している。**既存テーブルへの GSI 追加は in-place 更新**（テーブルの置換なし・作成中も読み書きは止まらない）だが、CloudFormation は 1 回の更新で GSI を 1 つしか足せないため、ほかの GSI 追加と同じデプロイに混ぜないこと。dev → staging → production の順に SAM デプロイする
 - ネイティブ依存（`expo-apple-authentication` / `expo-crypto`）と entitlement（`app.json` の `ios.usesAppleSignIn`）を追加したため **runtimeVersion を 1.2.0 に上げた**。開発ビルド・TestFlight・Play のビルドを作り直すまで新しい OTA は届かない。Apple ID の「Sign in with Apple」機能は EAS Build が entitlement を見てバンドル ID（本番 `com.yoshiydp.lyricsapp`・開発 `com.yoshiydp.lyricsapp.dev`）に自動で有効化する
 
@@ -223,7 +229,7 @@ SignIn / Register 画面の Apple ボタン（AppleSignInButton・OS 標準の�
 | `AppleKeyId` | 空 | 「Sign in with Apple」用の鍵（.p8）の Key ID |
 | `ApplePrivateKey` | 空（NoEcho） | .p8 の中身。改行は `\n` で 1 行にする |
 
-`AppleKeyId` / `ApplePrivateKey` が空でもサインインはできるが、**リフレッシュトークンを取得できないため退会時の失効が行われない**。鍵は Apple Developer の Certificates, Identifiers & Profiles → Keys で「Sign in with Apple」にチェックを入れて作成し（Primary App ID は `com.yoshiydp.lyricsapp`）、.p8 は 1 回しかダウンロードできないので安全な場所に保管する。これらの値は Apple 関連の 2 関数（`PostAuthAppleFunction` / `DeleteProfileFunction`）にだけ環境変数として渡す（秘密鍵を全関数に配らない）。
+`AppleKeyId` / `ApplePrivateKey` が空でもサインインはできるが、**リフレッシュトークンを取得できないため退会時の失効が行われない**。鍵は Apple Developer の Certificates, Identifiers & Profiles → Keys で「Sign in with Apple」にチェックを入れて作成し（Primary App ID は `com.yoshiydp.lyricsapp`）、.p8 は 1 回しかダウンロードできないので安全な場所に保管する。これらの値は Apple 関連の 3 関数（`PostAuthAppleFunction` / `PostProfileLinkAppleFunction` / `DeleteProfileFunction`）にだけ環境変数として渡す（秘密鍵を全関数に配らない）。
 
 ```bash
 # 例: staging（.p8 を 1 行にして渡す）
@@ -236,7 +242,7 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-stg-a
 
 **動作確認:**
 - E2E（`.maestro/flows/02-sign-in/`）: SI-10（ボタンが iOS だけに表示される）・SI-11（Apple の画面を閉じてもエラーにならない）・SI-12（不正なトークンを API が 400 / 401 で拒否する。runScript で dev API を直接呼ぶため、**dev に TASK-132 の Lambda をデプロイしてから**実行する）
-- 手動: SI-07〜SI-09 / RG-10（サインイン成功・既存アカウントへのひも付け）と PF-04（退会時の失効）。本物の Apple の署名付きトークンはテストから作れないため。シミュレーターでも設定アプリで Apple ID にサインインしていれば動く
+- 手動: SI-07〜SI-09 / SI-13 / RG-10（サインイン成功・作成の確認・既存アカウントへのひも付け）、PD-10〜PD-12（プロフィールからの連携）と PF-04（退会時の失効）。本物の Apple の署名付きトークンはテストから作れないため。シミュレーターでも設定アプリで Apple ID にサインインしていれば動く
 
 ### アカウント停止（BAN）運用
 
@@ -886,6 +892,7 @@ Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 
 - `api/lambda/post-auth-register.ts` — ユーザー登録
 - `api/lambda/post-auth-reset-password.ts` — パスワードリセット
 - `api/lambda/post-auth-apple.ts` — Apple でサインイン（identityToken を検証して照合・ひも付け・新規作成。TASK-132）
+- `api/lambda/apple-refresh-token.ts` — Apple の authorizationCode をリフレッシュトークンに交換して保存（サインインと連携で共用・TASK-132）
 - `api/lambda/apple-auth.ts` — Apple の identityToken 検証（JWKS）・client_secret の署名・トークンの交換と失効
 
 *トラック*
@@ -919,6 +926,7 @@ Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 
 *プロフィール*
 - `api/lambda/get-profile.ts` — プロフィール取得（S3 Presigned GET URL を生成）
 - `api/lambda/put-profile.ts` — プロフィール更新（username・thumbnailKey）
+- `api/lambda/post-profile-link-apple.ts` — プロフィールからの Apple ID 連携（ログイン中のユーザーに appleSub を保存。TASK-132）
 - `api/lambda/delete-profile.ts` — アカウント削除（退会。DynamoDB 全テーブル + S3 の該当ユーザーデータを物理削除）
 
 **フロントエンド（hooks）**
@@ -926,6 +934,7 @@ Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 
 *認証*
 - `src/hooks/useGoogleAuth.ts` — Google OAuth 認証（expo-auth-session）
 - `src/hooks/useAppleAuth.ts` — Apple でサインイン（expo-apple-authentication・iOS のみ。nonce は expo-crypto で生成。TASK-132）
+- `src/hooks/useLinkAppleAccount.ts` — プロフィールからの Apple ID 連携（認証シート → link API・Android は案内のみ。TASK-132）
 
 *トラック*
 - `src/hooks/useFetchTrack.ts` — トラック一覧取得（updatedAt 降順ソート）

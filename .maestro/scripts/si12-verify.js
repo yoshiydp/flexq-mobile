@@ -9,7 +9,9 @@
 //   ④ Apple の鍵 ID（kid）を名乗るが、署名が Apple の鍵によるものではない JWT
 //                                         → 401（署名検証で弾かれる）
 //   ⑤ Apple に存在しない kid の JWT       → 401（鍵の取り直し後も見つからず弾かれる）
-// どのケースでもアカウントは作られない（401 / 400 で照合・作成の前に止まる）。
+//   ⑥ ④ を mode: register で送る          → 401（新規作成を許す mode でも検証は省略されない）
+//   ⑦ POST /data/profile/link-apple に未ログインで送る → 401 Unauthorized
+// どのケースでもアカウントの作成・連携は行われない（401 / 400 で照合・作成の前に止まる）。
 //
 // フロー側の env で API_BASE_URL を渡すこと。
 
@@ -112,6 +114,31 @@ expectStatus(
   }),
   401,
   'Invalid Apple identity token',
+);
+
+// 新規作成を許す mode: register でも署名検証は省略されない（TASK-132）
+expectStatus(
+  '⑥ forged signature with mode register',
+  postApple({
+    identityToken: forgedToken(appleKid),
+    rawNonce: 'e2e-nonce',
+    mode: 'register',
+  }),
+  401,
+  'Invalid Apple identity token',
+);
+// プロフィールからの Apple ID 連携はログインが必須（Authorization なしは 401）
+expectStatus(
+  '⑦ link-apple without login',
+  http.post(API_BASE_URL + '/data/profile/link-apple', {
+    headers: headersJson,
+    body: JSON.stringify({
+      identityToken: forgedToken(appleKid),
+      rawNonce: 'e2e-nonce',
+    }),
+  }),
+  401,
+  'Unauthorized',
 );
 
 output.si12 = 'ok';
