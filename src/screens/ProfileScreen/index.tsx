@@ -18,6 +18,7 @@ import type { SocialAccount } from '@/hooks/useFetchProfile';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
 import { useDeleteAccount } from '@/hooks/useDeleteAccount';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { useLinkAppleAccount } from '@/hooks/useLinkAppleAccount';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 import styles from './ProfileScreen.styles';
@@ -29,6 +30,7 @@ export default function ProfileScreen() {
   const { profile, loading, refreshProfile } = useFetchProfile();
   const { updateProfile } = useUpdateProfile();
   const { signIn: googleSignIn } = useGoogleAuth();
+  const { linkApple } = useLinkAppleAccount();
   const { showConfirmModal, showLoading, hideLoading, closeModal } = useModal();
   const { logout } = useAuthContext();
   const { deleteAccount } = useDeleteAccount();
@@ -174,9 +176,33 @@ export default function ProfileScreen() {
         hideLoading();
       }
     }
+
+    if (target.provider === 'apple') {
+      // appleSub の保存（post-profile-link-apple）は useLinkAppleAccount が行う (TASK-132)
+      const username = await linkApple();
+      if (username === null) return;
+
+      showLoading();
+      try {
+        const updated = (profile?.socialAccounts ?? []).map((acc, i) =>
+          i === index ? { ...acc, username, isLinked: true } : acc,
+        );
+        await saveSocialAccounts(
+          updated.map((acc) => ({
+            ...acc,
+            icon: SOCIAL_ICON_MAP[acc.provider as keyof typeof SOCIAL_ICON_MAP] ?? acc.icon,
+          })),
+        );
+      } catch (err) {
+        console.error('Failed to save the Apple ID link:', err);
+        Alert.alert('エラー', 'Apple ID の連携に失敗しました。');
+      } finally {
+        hideLoading();
+      }
+    }
     // TODO: X連携を実装したら provider === 'x' の分岐を追加する
     // TODO: Instagram連携を実装したら provider === 'instagram' の分岐を追加する
-  }, [profile, googleSignIn, saveSocialAccounts, showLoading, hideLoading]);
+  }, [profile, googleSignIn, linkApple, saveSocialAccounts, showLoading, hideLoading]);
 
   if (loading || !profile) {
     return (

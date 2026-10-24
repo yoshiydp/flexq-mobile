@@ -12,6 +12,7 @@ import { useFetchProfile } from '@/hooks/useFetchProfile';
 import type { SocialAccount } from '@/hooks/useFetchProfile';
 import { useUpdateProfile } from '@/hooks/useUpdateProfile';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { useLinkAppleAccount } from '@/hooks/useLinkAppleAccount';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { DefaultService } from '@/apiClient/services/DefaultService';
@@ -25,6 +26,7 @@ const SOCIAL_DISPLAY_NAMES: Record<string, string> = {
   // instagram: 'Instagram',
 
   google: 'Google',
+  apple: 'Apple',
 };
 
 const DEFAULT_SOCIAL_ACCOUNTS: SocialAccount[] = (
@@ -44,6 +46,7 @@ export default function ProfileEditScreen() {
   const { pickThumbnail, uploadThumbnail, updateProfile } = useUpdateProfile();
   const { showConfirmModal, showInputModal, showLoading, hideLoading, closeModal } = useModal();
   const { signIn: googleSignIn } = useGoogleAuth();
+  const { linkApple } = useLinkAppleAccount();
 
   const handleGoBack = () => navigation.goBack();
   // Android のシステム back ジェスチャー / 戻るボタンを ✕ ボタンと同じ処理に接続する（TASK-113）
@@ -136,6 +139,25 @@ export default function ProfileEditScreen() {
     }
   }, [googleSignIn, localSocialAccounts, saveSocialAccounts, showLoading, hideLoading]);
 
+  // appleSub の保存（post-profile-link-apple）は useLinkAppleAccount が行う (TASK-132)
+  const linkWithApple = useCallback(async (index: number) => {
+    const username = await linkApple();
+    if (username === null) return;
+
+    showLoading();
+    try {
+      const updated = localSocialAccounts.map((acc, i) =>
+        i === index ? { ...acc, username, isLinked: true } : acc,
+      );
+      await saveSocialAccounts(updated);
+    } catch (err) {
+      console.error('Failed to save the Apple ID link:', err);
+      Alert.alert('エラー', 'Apple ID の連携に失敗しました。');
+    } finally {
+      hideLoading();
+    }
+  }, [linkApple, localSocialAccounts, saveSocialAccounts, showLoading, hideLoading]);
+
   const linkWithInput = useCallback((index: number) => {
     const target = localSocialAccounts[index];
     if (!target) return;
@@ -167,10 +189,12 @@ export default function ProfileEditScreen() {
 
     if (target.provider === 'google') {
       linkWithGoogle(index);
+    } else if (target.provider === 'apple') {
+      linkWithApple(index);
     } else {
       linkWithInput(index);
     }
-  }, [localSocialAccounts, linkWithGoogle, linkWithInput]);
+  }, [localSocialAccounts, linkWithGoogle, linkWithApple, linkWithInput]);
 
   const onPressRemoveLink = useCallback((index: number) => {
     const target = localSocialAccounts[index];

@@ -189,7 +189,7 @@ export default function RegisterScreen() {
       if (!result) return;
 
       showLoading();
-      const succeeded = await loginWithApple(result);
+      const succeeded = await loginWithApple(result, 'register');
       if (succeeded) {
         navigation.navigate('HomeTabs');
       }

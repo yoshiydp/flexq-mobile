@@ -1166,8 +1166,9 @@ Resources:
       CodeUri: ./
       Timeout: 120
       Environment:
-        # Apple でサインインの設定は使う関数（post-auth-apple / delete-profile）にだけ渡す
-        # （秘密鍵を全関数の環境変数に置かない・TASK-132）。Globals の変数とマージされる
+        # Apple でサインインの設定は使う関数（post-auth-apple / post-profile-link-apple /
+        # delete-profile）にだけ渡す（秘密鍵を全関数の環境変数に置かない・TASK-132）。
+        # Globals の変数とマージされる
         Variables:
           APPLE_BUNDLE_IDS: !Ref AppleBundleIds
           APPLE_TEAM_ID: !Ref AppleTeamId
@@ -1389,8 +1390,9 @@ Resources:
       CodeUri: ./
       Timeout: 20
       Environment:
-        # Apple でサインインの設定は使う関数（post-auth-apple / delete-profile）にだけ渡す
-        # （秘密鍵を全関数の環境変数に置かない・TASK-132）。Globals の変数とマージされる
+        # Apple でサインインの設定は使う関数（post-auth-apple / post-profile-link-apple /
+        # delete-profile）にだけ渡す（秘密鍵を全関数の環境変数に置かない・TASK-132）。
+        # Globals の変数とマージされる
         Variables:
           APPLE_BUNDLE_IDS: !Ref AppleBundleIds
           APPLE_TEAM_ID: !Ref AppleTeamId
@@ -1444,6 +1446,42 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/post-profile-link-google.ts
+
+  # プロフィールからの Apple ID 連携 (TASK-132)。post-auth-apple と同じく Apple の
+  # 公開鍵の取得・トークン交換で外部 API を呼ぶため、タイムアウトを長めにする
+  PostProfileLinkAppleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-profile-link-apple.handler
+      CodeUri: ./
+      Timeout: 20
+      Environment:
+        # Apple でサインインの設定は使う関数（post-auth-apple / post-profile-link-apple /
+        # delete-profile）にだけ渡す（秘密鍵を全関数の環境変数に置かない・TASK-132）。
+        # Globals の変数とマージされる
+        Variables:
+          APPLE_BUNDLE_IDS: !Ref AppleBundleIds
+          APPLE_TEAM_ID: !Ref AppleTeamId
+          APPLE_KEY_ID: !Ref AppleKeyId
+          APPLE_PRIVATE_KEY: !Ref ApplePrivateKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+      Events:
+        PostProfileLinkApple:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/profile/link-apple
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-profile-link-apple.ts
 
   PostAuthResetPasswordFunction:
     Type: AWS::Serverless::Function
