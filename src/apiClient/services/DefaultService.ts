@@ -849,7 +849,7 @@ export class DefaultService {
     }
     /**
      * Sign in with Apple
-     * Verifies a Sign in with Apple identity token, links it to the existing account with the same verified email or creates a new account, and returns the same auth payload as login (TASK-132). Unlike Google, a new account is created from both the SignIn and Register screens.
+     * Verifies a Sign in with Apple identity token, links it to the existing account with the same verified email or creates a new account, and returns the same auth payload as login (TASK-132). When no account matches, mode login returns 404 (code: account_not_found) so the SignIn screen can confirm and resend the same token with mode register.
      * @param requestBody
      * @returns any OK (existing user signed in)
      * @throws ApiError
@@ -868,6 +868,10 @@ export class DefaultService {
              * The raw nonce whose SHA-256 (hex) was passed to Apple; must match the nonce claim of the identity token
              */
             rawNonce: string;
+            /**
+             * login returns 404 when no account matches; register creates a new account
+             */
+            mode?: 'login' | 'register';
             /**
              * Name shared by Apple on the first authorization only
              */
@@ -897,6 +901,46 @@ export class DefaultService {
                 400: `Bad Request`,
                 401: `Invalid Apple identity token, or the Apple account email is missing or not verified (body code: email_not_verified)`,
                 403: `Account suspended`,
+                404: `No account matches and mode is login (body code: account_not_found)`,
+                502: `Failed to fetch Apple public keys`,
+            },
+        });
+    }
+    /**
+     * Link an Apple ID to the signed-in user
+     * Verifies a Sign in with Apple identity token and stores the Apple ID (sub) on the signed-in user, so the linked Apple ID can sign in to this user afterwards (TASK-132).
+     * @param requestBody
+     * @returns any OK
+     * @throws ApiError
+     */
+    public static postDataProfileLinkApple(
+        requestBody: {
+            /**
+             * identityToken (JWT) returned by AuthenticationServices
+             */
+            identityToken: string;
+            /**
+             * One-time authorization code. Exchanged for a refresh token that is revoked when the account is deleted
+             */
+            authorizationCode?: string | null;
+            /**
+             * The raw nonce whose SHA-256 (hex) was passed to Apple; must match the nonce claim of the identity token
+             */
+            rawNonce: string;
+        },
+    ): CancelablePromise<{
+        linked?: boolean;
+        email?: string;
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/profile/link-apple',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Unauthorized or invalid Apple identity token`,
+                409: `Apple ID already linked to another user`,
                 502: `Failed to fetch Apple public keys`,
             },
         });

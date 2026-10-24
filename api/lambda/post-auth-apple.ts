@@ -3,10 +3,8 @@ import { randomUUID } from 'crypto';
 import { docClient } from './db';
 import { sendEmail } from './ses';
 import { createResponse } from './utils';
-import {
-  exchangeAppleAuthorizationCode,
-  verifyAppleIdentityToken,
-} from './apple-auth';
+import { verifyAppleIdentityToken } from './apple-auth';
+import { saveAppleRefreshToken } from './apple-refresh-token';
 import { isSuspendedUser, suspendedResponse } from './account-suspension';
 import { issueTokens } from './auth-tokens';
 import { readConsistentUserRecord } from './user-snapshot';
@@ -19,22 +17,41 @@ import { readConsistentUserRecord } from './user-snapshot';
 // ユーザーの照合は post-auth-google と同じ 3 段階:
 //   ① appleSub（Apple ID のアプリごとの不変 ID）で検索
 //   ② メールアドレスで検索（一致したら appleSub を自動ひも付け）
-//   ③ どちらもなければ新規作成（パスワードなし）
+//   ③ どちらもなければ mode に応じて分岐:
+//      - mode: 'register'（Register 画面・SignIn 画面で作成を確認した後）→ 新規作成（パスワードなし）
+//      - mode: 'login'（SignIn 画面・デフォルト）→ 404（code: account_not_found）
 //
-// Google と違い、ログイン画面からでも③の新規作成を行う（mode を見ない）。
-// Apple のヒューマンインターフェイスガイドラインは「Apple でサインイン」を
-// 押せばそのまま使い始められることを前提にしており、ログイン画面で
-// 「アカウントがありません」と止めると審査で不具合と判断されうるため。
+// 404 を受けた SignIn 画面は「新しいアカウントを作成しますか？」と確認し、
+// 同意されたら同じ identityToken を mode: 'register' で送り直す（Apple の認証シートを
+// 2 回出さない）。Google のように新規登録画面へ誘導して止めないのは、Apple の
+// ヒューマンインターフェイスガイドラインが「Apple でサインイン」を押せばそのまま
+// 使い始められることを前提にしており、審査で行き止まりと判断されうるため。
+// 404 の時点では authorizationCode を交換しない（使い捨てのため送り直しで使う）。
 //
 // ② は Apple が所有確認したメール（email_verified）のときだけ行う。
 // 「メールを非公開」を選んだユーザーは中継アドレス（privaterelay.appleid.com）
-// になるため既存アカウントとは一致せず、③ で別アカウントが作られる（仕様）。
+// になるため既存アカウントとは一致しない。既存アカウントに連携したい場合は、
+// そのアカウントでログインしてからプロフィールの連携（post-profile-link-apple）で行う。
 //
-// 退会時のトークン失効（審査ガイドライン 5.1.1(v)）に備え、authorizationCode を
-// リフレッシュトークンに交換して Users に保存する。ログインのたびに最新の認可で
-// 上書きする（ユーザーが Apple ID の設定で連携を解除してから再度サインインすると、
-// 保存済みのトークンは失効済みの古い認可のものになるため）。
-// 署名鍵が未設定・交換に失敗してもログインは止めず、保存済みの値も残す。
+// 退会時のトークン失効（審査ガイドライン 5.1.1(v)）に備え、ログインのたびに
+// authorizationCode をリフレッシュトークンに交換して保存する（apple-refresh-token.ts）。
+
+// apple 連携の socialAccounts エントリを isLinked: true で upsert する
+// （プロフィールの「Link Social Accounts」に連携済みとして表示するため）
+export const upsertAppleSocialAccount = (
+  socialAccounts: any[] | undefined,
+  appleEmail: string,
+) => {
+  const accounts = Array.isArray(socialAccounts) ? [...socialAccounts] : [];
+  const index = accounts.findIndex((acc) => acc?.provider === 'apple');
+  const entry = { provider: 'apple', username: appleEmail, isLinked: true };
+  if (index >= 0) {
+    accounts[index] = { ...accounts[index], ...entry };
+  } else {
+    accounts.push(entry);
+  }
+  return accounts;
+};
 
 /** 新規作成時の表示名。Apple は氏名を初回の認可時にしか渡さない */
 const buildUsername = (
@@ -50,7 +67,9 @@ const buildUsername = (
 
 export const handler = async (event: any) => {
   const body = JSON.parse(event.body || '{}');
-  const { identityToken, authorizationCode, rawNonce, fullName } = body;
+  const { identityToken, authorizationCode, rawNonce, fullName, mode } = body;
+  // 未指定・不明値は安全側（新規作成しない）の 'login' として扱う
+  const allowCreate = mode === 'register';
 
   if (!identityToken || typeof identityToken !== 'string') {
     return createResponse({ message: 'Apple identity token is required' }, 400);
@@ -124,18 +143,23 @@ export const handler = async (event: any) => {
       }
       // 書き込み結果（ALL_NEW）を正のスナップショットとして使う。結果整合の
       // 事前 BAN 判定をすり抜けても、停止中なら条件付き書き込みで止める（TASK-105）
+      const socialAccounts = upsertAppleSocialAccount(
+        emailSnapshot.socialAccounts,
+        email,
+      );
       let updated;
       try {
         updated = await docClient.send(
           new UpdateCommand({
             TableName: process.env.USERS_TABLE!,
             Key: { userId: emailSnapshot.userId },
-            UpdateExpression: 'SET appleSub = :sub',
+            UpdateExpression: 'SET appleSub = :sub, socialAccounts = :socialAccounts',
             ConditionExpression:
               'attribute_not_exists(#status) OR #status <> :suspended',
             ExpressionAttributeNames: { '#status': 'status' },
             ExpressionAttributeValues: {
               ':sub': appleUser.sub,
+              ':socialAccounts': socialAccounts,
               ':suspended': 'suspended',
             },
             ReturnValues: 'ALL_NEW',
@@ -147,7 +171,20 @@ export const handler = async (event: any) => {
         }
         throw err;
       }
-      user = updated.Attributes ?? { ...emailSnapshot, appleSub: appleUser.sub };
+      user = updated.Attributes ?? {
+        ...emailSnapshot,
+        appleSub: appleUser.sub,
+        socialAccounts,
+      };
+    } else if (!allowCreate) {
+      // ③' SignIn 画面からは確認前に作成しない（クライアントが確認して送り直す）
+      return createResponse(
+        {
+          code: 'account_not_found',
+          message: 'Account not found. Confirm to create a new account.',
+        },
+        404,
+      );
     } else {
       // ③ 新規作成
       isNewUser = true;
@@ -158,7 +195,7 @@ export const handler = async (event: any) => {
         username,
         thumbnail: null,
         appleSub: appleUser.sub,
-        socialAccounts: [],
+        socialAccounts: upsertAppleSocialAccount([], email),
         tokenVersion: 0,
         createdAt: new Date().toISOString(),
       };
@@ -197,34 +234,8 @@ export const handler = async (event: any) => {
     return suspendedResponse();
   }
 
-  // 退会時のトークン失効に使うリフレッシュトークンを最新の認可で保存する。
-  // authorizationCode は使い捨て・有効期限 5 分のため、このリクエストの中で交換する
-  if (typeof authorizationCode === 'string' && authorizationCode) {
-    const refreshToken = await exchangeAppleAuthorizationCode(
-      authorizationCode,
-      appleUser.audience,
-    );
-    if (refreshToken) {
-      try {
-        await docClient.send(
-          new UpdateCommand({
-            TableName: process.env.USERS_TABLE!,
-            Key: { userId: user.userId },
-            UpdateExpression:
-              'SET appleRefreshToken = :token, appleClientId = :clientId',
-            ConditionExpression: 'attribute_exists(userId)',
-            ExpressionAttributeValues: {
-              ':token': refreshToken,
-              ':clientId': appleUser.audience,
-            },
-          }),
-        );
-      } catch (err) {
-        // 保存に失敗してもログインは続ける（失効が行えないだけ）
-        console.warn('Failed to store the Apple refresh token:', err);
-      }
-    }
-  }
+  // 退会時のトークン失効に使うリフレッシュトークンを最新の認可で保存する
+  await saveAppleRefreshToken(user.userId, authorizationCode, appleUser.audience);
 
   return createResponse(
     {

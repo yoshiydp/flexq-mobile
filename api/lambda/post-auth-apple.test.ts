@@ -186,6 +186,40 @@ describe('post-auth-apple', () => {
     expect(link.ExpressionAttributeValues[':sub']).toBe(APPLE_SUB);
     expect(link.ConditionExpression).toContain('<> :suspended');
     expect(link.ReturnValues).toBe('ALL_NEW');
+    // プロフィールの連携欄に連携済みとして出す
+    expect(link.ExpressionAttributeValues[':socialAccounts']).toEqual([
+      { provider: 'apple', username: EMAIL, isLinked: true },
+    ]);
+  });
+
+  it('② 既存の socialAccounts は残したまま apple のエントリだけ更新する', async () => {
+    setResults({
+      byEmail: [
+        {
+          userId: 'u2',
+          email: EMAIL,
+          socialAccounts: [
+            { provider: 'google', username: 'G', isLinked: true },
+            { provider: 'apple', username: '', isLinked: false },
+          ],
+        },
+      ],
+    });
+
+    await invoke();
+
+    expect(
+      commandsOf('Update')[0].input.ExpressionAttributeValues[':socialAccounts'],
+    ).toEqual([
+      { provider: 'google', username: 'G', isLinked: true },
+      { provider: 'apple', username: EMAIL, isLinked: true },
+    ]);
+  });
+
+  it('② のひも付けは mode: login（既定）でも行う', async () => {
+    setResults({ byEmail: [{ userId: 'u2', email: EMAIL }] });
+    const res = await invoke({ mode: undefined });
+    expect(res.statusCode).toBe(200);
   });
 
   it('② 停止中のアカウントにはひも付けず 403', async () => {
@@ -216,10 +250,30 @@ describe('post-auth-apple', () => {
     expect(res.statusCode).toBe(403);
   });
 
-  it('③ 未登録ならログイン画面からでも新規作成する（氏名は「姓 名」）', async () => {
+  it('③ 未登録で mode 未指定（login）なら作成せず 404 account_not_found を返す', async () => {
+    setResults({});
+    mockExchange.mockResolvedValue('apple-refresh-token');
+
+    const res = await invoke({ mode: undefined });
+
+    expect(res.statusCode).toBe(404);
+    expect(parse(res).code).toBe('account_not_found');
+    expect(commandsOf('Put')).toHaveLength(0);
+    // authorizationCode は使い捨て。確認後の送り直し（mode: register）で使うため交換しない
+    expect(mockExchange).not.toHaveBeenCalled();
+  });
+
+  it('③ 不明な mode も login として扱う', async () => {
+    setResults({});
+    const res = await invoke({ mode: 'create' });
+    expect(res.statusCode).toBe(404);
+  });
+
+  it('③ 未登録で mode: register なら新規作成する（氏名は「姓 名」）', async () => {
     setResults({});
 
     const res = await invoke({
+      mode: 'register',
       fullName: { givenName: 'Taro', familyName: 'Yamada' },
     });
 
@@ -230,6 +284,7 @@ describe('post-auth-apple', () => {
       username: 'Yamada Taro',
       appleSub: APPLE_SUB,
       tokenVersion: 0,
+      socialAccounts: [{ provider: 'apple', username: EMAIL, isLinked: true }],
     });
     expect(item.passwordHash).toBeUndefined();
     expect(parse(res).userId).toBe(item.userId);
@@ -237,14 +292,14 @@ describe('post-auth-apple', () => {
 
   it('③ 氏名がなければメールアドレスのローカル部を表示名にする', async () => {
     setResults({});
-    await invoke({ fullName: null });
+    await invoke({ mode: 'register', fullName: null });
     expect(commandsOf('Put')[0].input.Item.username).toBe('user');
   });
 
   it('③ 登録メールの送信に失敗しても登録は成功する', async () => {
     setResults({});
     mockSendEmail.mockRejectedValueOnce(new Error('ses down') as never);
-    const res = await invoke();
+    const res = await invoke({ mode: 'register' });
     expect(res.statusCode).toBe(201);
   });
 
@@ -252,7 +307,7 @@ describe('post-auth-apple', () => {
     setResults({});
     mockVerify.mockResolvedValue(verifiedUser({ email: undefined }));
 
-    const res = await invoke();
+    const res = await invoke({ mode: 'register' });
 
     expect(res.statusCode).toBe(401);
     expect(commandsOf('Put')).toHaveLength(0);
@@ -262,7 +317,7 @@ describe('post-auth-apple', () => {
     setResults({ byEmail: [{ userId: 'u2', email: EMAIL }] });
     mockVerify.mockResolvedValue(verifiedUser({ emailVerified: false }));
 
-    const res = await invoke();
+    const res = await invoke({ mode: 'register' });
 
     expect(res.statusCode).toBe(401);
     expect(parse(res).code).toBe('email_not_verified');

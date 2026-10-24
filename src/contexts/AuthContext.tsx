@@ -26,10 +26,28 @@ interface AuthContextValue {
     googleAccessToken: string,
     mode?: 'login' | 'register'
   ) => Promise<boolean>;
-  loginWithApple: (credential: AppleSignInResult) => Promise<boolean>;
+  loginWithApple: (
+    credential: AppleSignInResult,
+    mode?: 'login' | 'register'
+  ) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
+
+// SignIn 画面で未登録の Apple ID だったときの作成確認（TASK-132）。
+// 既存アカウントがある人が別アカウントを作ってしまわないよう、連携の方法も案内する
+const confirmCreateAppleAccount = () =>
+  new Promise<boolean>((resolve) => {
+    Alert.alert(
+      'アカウントが見つかりません',
+      'この Apple ID で登録された FlexQ のアカウントはありません。新しいアカウントを作成しますか？\n\nすでにアカウントをお持ちの場合は、メールアドレスなどでログインしてから、プロフィール編集の「Link Social Accounts」で Apple ID を連携できます。',
+      [
+        { text: 'キャンセル', style: 'cancel', onPress: () => resolve(false) },
+        { text: '作成する', onPress: () => resolve(true) },
+      ],
+      { cancelable: false }
+    );
+  });
 
 const AuthContext = createContext<AuthContextValue>({
   user: null,
@@ -109,17 +127,40 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     []
   );
 
-  // Apple でサインイン（TASK-132）。Google と違いログイン画面・新規登録画面の
-  // どちらから呼んでも、未登録ならサーバー側でアカウントを作成してログインする
+  // Apple でサインイン（TASK-132）。
+  // mode: 'register'（Register 画面）は未登録ならそのまま作成する。
+  // mode: 'login'（SignIn 画面・デフォルト）は未登録（404 account_not_found）なら
+  // 作成してよいか確認し、同意されたら同じ credential を 'register' で送り直す
+  // （Apple の認証シートを 2 回出さない。行き止まりにしないのは審査対策・post-auth-apple 参照）
   const loginWithApple = useCallback(
-    async (credential: AppleSignInResult): Promise<boolean> => {
-      try {
-        const res = await DefaultService.postDataAuthApple({
+    async (
+      credential: AppleSignInResult,
+      mode: 'login' | 'register' = 'login'
+    ): Promise<boolean> => {
+      const signInWith = (requestMode: 'login' | 'register') =>
+        DefaultService.postDataAuthApple({
           identityToken: credential.identityToken,
           authorizationCode: credential.authorizationCode,
           rawNonce: credential.rawNonce,
           fullName: credential.fullName,
+          mode: requestMode,
         });
+
+      try {
+        let res;
+        try {
+          res = await signInWith(mode);
+        } catch (err: any) {
+          if (
+            mode !== 'login' ||
+            err?.status !== 404 ||
+            err?.body?.code !== 'account_not_found'
+          ) {
+            throw err;
+          }
+          if (!(await confirmCreateAppleAccount())) return false;
+          res = await signInWith('register');
+        }
         const { accessToken, refreshToken } = res?.token ?? {};
         if (!accessToken || !refreshToken) {
           throw new Error('Apple login failed');
