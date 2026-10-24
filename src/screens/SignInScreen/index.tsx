@@ -101,7 +101,7 @@ export default function SignInScreen() {
       <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
         <View style={styles.container}>
           <View style={styles.appLogoContainer}>
-            <AppLogo />
+            <AppLogo width={180} />
           </View>
           <View style={styles.formControlContainer}>
             <EditableFormControl
