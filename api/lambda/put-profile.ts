@@ -73,7 +73,7 @@ export const handler = async (event: any) => {
     ReturnValues: 'ALL_NEW',
   }));
 
-  const { passwordHash, thumbnailKey: tKey, thumbnail: legacyThumbnail, ...profile } = result.Attributes!;
+  const { passwordHash, appleRefreshToken, appleClientId, thumbnailKey: tKey, thumbnail: legacyThumbnail, ...profile } = result.Attributes!;
 
   let thumbnail = legacyThumbnail ?? '';
   if (tKey) {

@@ -25,6 +25,7 @@ const API_URL = `${BASE}/data/project`;
 const REFRESH_URL = `${BASE}/data/auth/refresh`;
 const LOGIN_URL = `${BASE}/data/auth/login`;
 const GOOGLE_LOGIN_URL = `${BASE}/data/auth/google`;
+const APPLE_LOGIN_URL = `${BASE}/data/auth/apple`;
 
 const jsonResponse = (body: unknown, status = 200) =>
   ({
@@ -196,6 +197,19 @@ describe('authTokenInterceptor', () => {
       const authFetch = createAuthFetch(originalFetch);
 
       const res = await authFetch(GOOGLE_LOGIN_URL, { method: 'POST' });
+
+      expect(res.status).toBe(401);
+      expect(originalFetch).toHaveBeenCalledTimes(1);
+      expect(onSessionExpired).not.toHaveBeenCalled();
+    });
+
+    it('Apple でサインインの 401 ではリフレッシュしない', async () => {
+      // identityToken の検証失敗などで 401 になっても、
+      // 既存セッションのリフレッシュを走らせない（TASK-132）
+      const originalFetch = jest.fn().mockResolvedValue(jsonResponse({}, 401));
+      const authFetch = createAuthFetch(originalFetch);
+
+      const res = await authFetch(APPLE_LOGIN_URL, { method: 'POST' });
 
       expect(res.status).toBe(401);
       expect(originalFetch).toHaveBeenCalledTimes(1);

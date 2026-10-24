@@ -195,6 +195,58 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-prod-
 
 **ツール要件:** AWS SAM CLI (`brew install aws-sam-cli`), esbuild (`npm install -g esbuild`)。Lambda ランタイムは `nodejs24.x`（`api/template.yaml` の `Globals.Function.Runtime` と `FfmpegLayer.CompatibleRuntimes` の 2 箇所。TASK-131）で、ランタイム変更は 3 スタックとも手動 SAM デプロイ（dev → staging → production）で反映する
 
+### Apple でサインイン（TASK-132）
+
+App Store 審査ガイドライン 4.8（Google などの外部ログインを提供するアプリは、同等のプライバシー配慮があるログイン手段も用意する）への対応として、**iOS のサインイン画面・新規登録画面に「Apple でサインイン」を表示する**（Android には出さない）。
+
+```
+SignIn / Register 画面の Apple ボタン（AppleSignInButton・OS 標準のボタン）
+  → useAppleAuth.signIn: nonce の SHA-256 を Apple に渡して identityToken を取得
+  → POST /data/auth/apple（post-auth-apple.ts）: identityToken・authorizationCode・生の nonce・氏名（初回のみ）
+      apple-auth.ts が Apple の公開鍵（JWKS）で署名・iss・aud・exp・nonce を検証
+      ① appleSub-index で照合 → ② 検証済みメールで既存アカウントにひも付け
+      → ③ mode: register なら新規作成 / mode: login（既定）なら 404 account_not_found
+  → パスワードログインと同じ JWT を返す
+
+プロフィール（PROFILE タブ・プロフィール編集）の Link Social Accounts → Apple
+  → useLinkAppleAccount: useAppleAuth.signIn → POST /data/profile/link-apple（post-profile-link-apple.ts）
+      ログイン中のユーザーに appleSub を保存（別ユーザーに連携済みなら 409）・リフレッシュトークンも保存
+```
+
+- **新規作成と既存アカウントへの連携を分けている**: Register 画面の「Apple で登録」は `mode: 'register'` で即作成する。SignIn 画面の「Apple でサインイン」は `mode: 'login'` で送り、未登録（404 `account_not_found`）なら `AuthContext.loginWithApple` が「新しいアカウントを作成しますか？」と確認し、同意されたら**同じ identityToken を `mode: 'register'` で送り直す**（Apple の認証シートは開き直さない。404 の時点では使い捨ての `authorizationCode` を交換しない）。Google のように新規登録画面へ誘導して止めないのは、Apple の HIG がボタン 1 つで使い始められる前提で、行き止まりにすると審査で不具合扱いになりうるため。確認の本文で「既存アカウントがある場合はログイン後にプロフィール編集から連携できる」と案内する
+- ② のメール一致の自動ひも付けは、Apple が所有確認したメールのときだけ行う。「メールを非公開」を選んだユーザーは中継アドレス（`@privaterelay.appleid.com`）になり既存アカウントと一致しないため、**既存アカウントに Apple ID を足したいときはプロフィールから連携する**（`post-profile-link-apple`。sub だけで照合するためメールの検証状態は問わない）。連携・② のひも付け・③ の作成では `socialAccounts` の `apple` エントリを連携済みにする（表示用。`SOCIAL_ICON_MAP` に `apple` を追加）。Android には Apple でサインインが無いため、Apple の行の「Link Account」は「iPhone のアプリから行えます」の案内だけ出す（一覧から外すと保存時に apple エントリが消えるため行は残す）。**「Remove Link」は Google と同じく表示だけを戻し、`appleSub` は残る**（Apple でのサインインは引き続きできる）
+- 表示名は Apple が初回の認可時にだけ渡す氏名（「姓 名」）、無ければメールのローカル部
+- **退会時は Apple のトークンを失効させる**（ガイドライン 5.1.1(v)）。ログイン・プロフィールからの連携のたびに `authorizationCode` をリフレッシュトークンに交換して（`api/lambda/apple-refresh-token.ts`） Users の `appleRefreshToken` / `appleClientId` を上書きし（Apple ID の設定で連携を解除してから再サインインすると古いトークンは使えなくなるため。交換に失敗したときは保存済みの値を残す）、`delete-profile` が Users を消す前に `https://appleid.apple.com/auth/revoke` を呼ぶ。Apple への通信は 1 回 5 秒で打ち切り、交換・失効の失敗ではログイン・退会を止めない。`get-profile` / `put-profile` はこの 2 属性を応答から除く
+- 照合用の GSI `appleSub-index` を Users テーブルに追加している。**既存テーブルへの GSI 追加は in-place 更新**（テーブルの置換なし・作成中も読み書きは止まらない）だが、CloudFormation は 1 回の更新で GSI を 1 つしか足せないため、ほかの GSI 追加と同じデプロイに混ぜないこと。dev → staging → production の順に SAM デプロイする
+- ネイティブ依存（`expo-apple-authentication` / `expo-crypto`）と entitlement（`app.json` の `ios.usesAppleSignIn`）を追加したため **runtimeVersion を 1.2.0 に上げた**。開発ビルド・TestFlight・Play のビルドを作り直すまで新しい OTA は届かない。Apple ID の「Sign in with Apple」機能は EAS Build が entitlement を見てバンドル ID（本番 `com.yoshiydp.lyricsapp`・開発 `com.yoshiydp.lyricsapp.dev`）に自動で有効化する
+
+**SAM パラメータ（`api/template.yaml`）:**
+
+| パラメータ | 既定値 | 内容 |
+|-----------|-------|------|
+| `AppleBundleIds` | `com.yoshiydp.lyricsapp,com.yoshiydp.lyricsapp.dev` | identityToken の `aud` として受け付けるバンドル ID |
+| `AppleTeamId` | `GSAWY4TUK9` | client_secret の署名に使うチーム ID |
+| `AppleKeyId` | 空 | 「Sign in with Apple」用の鍵（.p8）の Key ID |
+| `ApplePrivateKey` | 空（NoEcho） | .p8 の中身。改行は `\n` で 1 行にする |
+
+`AppleKeyId` / `ApplePrivateKey` が空でもサインインはできるが、**リフレッシュトークンを取得できないため退会時の失効が行われない**。鍵は Apple Developer の Certificates, Identifiers & Profiles → Keys で「Sign in with Apple」にチェックを入れて作成し（Primary App ID は `com.yoshiydp.lyricsapp`）、.p8 は 1 回しかダウンロードできないので安全な場所に保管する。これらの値は Apple 関連の 3 関数（`PostAuthAppleFunction` / `PostProfileLinkAppleFunction` / `DeleteProfileFunction`）にだけ環境変数として渡す（秘密鍵を全関数に配らない）。
+
+```bash
+# 例: staging（.p8 を 1 行にして渡す）
+cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-stg-api \
+  --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset \
+  --parameter-overrides "AppleKeyId=<Key ID>" \
+  "ApplePrivateKey=\"$(awk 'NF {printf "%s\\n", $0}' AuthKey_XXXX.p8)\""
+```
+
+> **値全体を `\"…\"` で囲むこと。** SAM の `--parameter-overrides` は値を空白で区切るため、囲まないと PEM の `-----BEGIN PRIVATE KEY-----` の空白で切れて `-----BEGIN`（10 文字）だけが保存される（2026-10-24 に dev で発生）。設定後は値を表示せずに長さだけ確認する（ヘッダー・フッター込みで 260 文字前後、`\n` が 6 個前後）。鍵が Apple に通るかは、ダミーの認可コードで `https://appleid.apple.com/auth/token` を呼んで `invalid_grant`（鍵の認証は成功・コードだけ無効）が返ることで確かめられる（`invalid_client` なら鍵か client_id の誤り）
+
+**中継アドレスへのメール:** 「メールを非公開」のユーザーに SES からメール（登録完了・認証コードなど）を届けるには、Apple Developer の Services → Sign in with Apple for Email Communication で送信元ドメイン `flexqstudio.com` と送信元アドレス `noreply@flexqstudio.com` を登録する（SPF が必要。未登録の間は中継アドレス宛のメールが届かないが、サインイン自体には影響しない）。
+
+**動作確認:**
+- E2E（`.maestro/flows/02-sign-in/`）: SI-10（ボタンが iOS だけに表示される）・SI-11（Apple の画面を閉じてもエラーにならない）・SI-12（不正なトークンを API が 400 / 401 で拒否する。runScript で dev API を直接呼ぶため、**dev に TASK-132 の Lambda をデプロイしてから**実行する）
+- 手動: SI-07〜SI-09 / SI-13 / RG-10（サインイン成功・作成の確認・既存アカウントへのひも付け）、PD-10〜PD-12（プロフィールからの連携）と PF-04（退会時の失効）。本物の Apple の署名付きトークンはテストから作れないため。シミュレーターでも設定アプリで Apple ID にサインインしていれば動く
+
 ### アカウント停止（BAN）運用
 
 規約違反・迷惑行為ユーザーのアカウントを停止する手順（TASK-81）。**物理削除ではなく論理削除**（Users レコードの `status` を `suspended` に切り替え）で行うため、同じ email / Google アカウントでの再登録をブロックでき、誤判定時は完全に復旧できる。詳細な方針・保持期間は `docs/account-suspension-policy.md` を参照。
@@ -422,18 +474,20 @@ eas build --profile development-device --platform ios
 開かれるため、完全終了して再起動しても同じ版が開き、dev に新しい配信が届いても切り替わらない
 （2026-10-12、TASK-129 の確認時に #439 の古い版が開き続け「共有ボタンが出ない」と誤認した）。
 
-**推奨: dev のチャンネル URL で一度開いておく。** 次のリンクを端末で開く（iPhone は Safari のアドレスバーかメモアプリ、
-Android は LINE などで送ってタップ）:
+**推奨: dev のチャンネル URL で一度開いておく。** 次のリンクを端末で開く（iPhone は Safari のアドレスバーかメモアプリ。
+Android は `exp+mobile://` のリンクが LINE などでタップできないことがあるため、開発メニュー（端末を振る）→「Go home」→
+ランチャーの「Enter URL manually」に下の `https://u.expo.dev/…` をそのまま貼って Connect する）:
 
 ```
-exp+mobile://expo-development-client/?url=https%3A%2F%2Fu.expo.dev%2F216ca5f0-4ffc-4067-bfbf-5f56aba4924b%3Fchannel-name%3Ddev%26runtime-version%3D1.1.0
+exp+mobile://expo-development-client/?url=https%3A%2F%2Fu.expo.dev%2F216ca5f0-4ffc-4067-bfbf-5f56aba4924b%3Fchannel-name%3Ddev%26runtime-version%3D1.2.0
 ```
 
-- `url=` の中身は `https://u.expo.dev/216ca5f0-4ffc-4067-bfbf-5f56aba4924b?channel-name=dev&runtime-version=1.1.0` を URL エンコードしたもの。
-  この URL は **dev チャンネル・runtime 1.1.0 の最新 update** を返し、platform はアプリが送るヘッダーで決まるため iOS / Android で同じリンクが使える
+- `url=` の中身は `https://u.expo.dev/216ca5f0-4ffc-4067-bfbf-5f56aba4924b?channel-name=dev&runtime-version=1.2.0` を URL エンコードしたもの。
+  この URL は **dev チャンネル・runtime 1.2.0 の最新 update** を返し、platform はアプリが送るヘッダーで決まるため iOS / Android で同じリンクが使える
 - 開発ビルドは前回開いた URL を起動のたびに取得し直す（埋め込み update なし・常に確認）ため、このリンクで一度開いておけば
   **以後は FlexQ Dev を完全終了 → 再起動するだけで最新の配信が開く**
 - `runtime-version` は `app.json` の `runtimeVersion` と一致させる。runtimeVersion を上げたときはリンクも書き換える（そのときは開発ビルドの作り直しも必要）
+- **runtimeVersion を上げた開発ビルドを上書きインストールしたら、新しいリンクで開き直す**。前回の URL（旧 runtime のチャンネル URL や特定の版）がそのまま開き、新機能が出ないように見える（2026-10-24、TASK-132 の 1.2.0 ビルドで iOS / Android とも発生。iOS は Apple のボタン、Android はプロフィールの Apple の行が出なかった）
 - 動作確認が取れていないのは「次の dev 配信後の再起動で版が切り替わること」のみ（チャンネル URL が最新 update を返すことは 2026-10-12 に curl で確認済み）。
   切り替わらない場合は下の「Go home」の手順で開き直す
 
@@ -559,6 +613,8 @@ eas submit --profile staging --platform ios
 | Bundle ID | `com.yoshiydp.lyricsapp` |
 | TestFlight URL | https://appstoreconnect.apple.com/apps/6762039606/testflight/ios |
 
+> **iPad は非対応（`app.json` の `ios.supportsTablet: false`・TASK-132 で変更）。** iPad では iPhone 版が拡大表示（互換モード）で動き、インストール自体はできる。`true` のままだと App Store 申請に iPad 13 インチのスクリーンショットが必須になり、iPad のレイアウト（横向き・分割表示）も審査対象になる。**App Store では一度 iPad 対応で公開したアプリから iPad 対応を外せない**ため、初回リリースは非対応とし、リリース後に App Store Connect のアナリティクスで iPad からのダウンロード数を見て、iPad 用レイアウトを設計してから対応する（2026-10-24 決定）
+
 #### Google Play 内部テスト配信（Android の TestFlight 相当）
 
 Android のテスター配布は Google Play Console の **内部テスト** トラックを使います（審査なし・最大 100 名・アップロード後数分で配信）。より広い範囲でのテストが必要になったら「クローズドテスト」（初回審査あり）へ昇格します。
@@ -642,7 +698,7 @@ corepack prepare yarn@4.12.0 --activate
 
 > 型チェック（`yarn typecheck`）は PR / push の CI（`ci.yml`）と各デプロイワークフローの lint ジョブで実行されるため、ローカルでも `yarn lint` / `yarn test:ci` とあわせて通してからコミットする（TASK-109）。
 
-> **ネイティブ依存を追加・更新したら `app.json` の `runtimeVersion` を必ず上げる**（固定文字列方式。例: TASK-121 の react-native-audio-api 追加で `1.0.0` → `1.1.0`）。上げずにマージすると、そのネイティブモジュールを持たない既存ビルド（TestFlight / Play 内部テスト / 開発ビルド）にも OTA が届き、起動時にモジュール未検出でクラッシュする。上げたあとは新しい runtimeVersion のビルド（`/testflight` / `/playstore`・開発ビルドは `yarn ios` / `yarn android`）を作るまで OTA は誰にも届かない。誤って配信した場合は `eas update:republish --branch <dev|staging|production> --group <直前の正常な group ID>` で旧 runtimeVersion 向けに戻す
+> **ネイティブ依存を追加・更新したら `app.json` の `runtimeVersion` を必ず上げる**（固定文字列方式。例: TASK-121 の react-native-audio-api 追加で `1.0.0` → `1.1.0`、TASK-132 の expo-apple-authentication / expo-crypto 追加で `1.1.0` → `1.2.0`）。上げずにマージすると、そのネイティブモジュールを持たない既存ビルド（TestFlight / Play 内部テスト / 開発ビルド）にも OTA が届き、起動時にモジュール未検出でクラッシュする。上げたあとは新しい runtimeVersion のビルド（`/testflight` / `/playstore`・開発ビルドは `yarn ios` / `yarn android`）を作るまで OTA は誰にも届かない。誤って配信した場合は `eas update:republish --branch <dev|staging|production> --group <直前の正常な group ID>` で旧 runtimeVersion 向けに戻す
 
 > **例外: 同一 Expo SDK 内のパッチ更新（`npx expo install --fix` で揃える `~x.y.z` の差分）は runtimeVersion を上げない**（TASK-131 で 2026-10-23 に判断）。JS からネイティブへの呼び出し面が旧版と同一であること（更新対象パッケージの build JS でネイティブモジュール呼び出しを base と比較）を確認したうえで据え置く。ネイティブ側の修正（expo-updates / expo-file-system のセキュリティ修正など）は OTA では届かず次回の TestFlight / Play / 開発ビルドで反映されるため、リリース時にビルドを作る。呼び出し面に差分がある場合やメジャー / SDK 更新は従来どおり上げる
 
@@ -840,6 +896,9 @@ Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 
 - `api/lambda/post-auth-logout.ts` — ログアウト
 - `api/lambda/post-auth-register.ts` — ユーザー登録
 - `api/lambda/post-auth-reset-password.ts` — パスワードリセット
+- `api/lambda/post-auth-apple.ts` — Apple でサインイン（identityToken を検証して照合・ひも付け・新規作成。TASK-132）
+- `api/lambda/apple-refresh-token.ts` — Apple の authorizationCode をリフレッシュトークンに交換して保存（サインインと連携で共用・TASK-132）
+- `api/lambda/apple-auth.ts` — Apple の identityToken 検証（JWKS）・client_secret の署名・トークンの交換と失効
 
 *トラック*
 - `api/lambda/get-track.ts` — トラック一覧取得（S3 Presigned GET URL を生成）
@@ -872,12 +931,15 @@ Lambda 側の入力上限（`api/lambda/validation.ts`）: username 100 / email 
 *プロフィール*
 - `api/lambda/get-profile.ts` — プロフィール取得（S3 Presigned GET URL を生成）
 - `api/lambda/put-profile.ts` — プロフィール更新（username・thumbnailKey）
+- `api/lambda/post-profile-link-apple.ts` — プロフィールからの Apple ID 連携（ログイン中のユーザーに appleSub を保存。TASK-132）
 - `api/lambda/delete-profile.ts` — アカウント削除（退会。DynamoDB 全テーブル + S3 の該当ユーザーデータを物理削除）
 
 **フロントエンド（hooks）**
 
 *認証*
 - `src/hooks/useGoogleAuth.ts` — Google OAuth 認証（expo-auth-session）
+- `src/hooks/useAppleAuth.ts` — Apple でサインイン（expo-apple-authentication・iOS のみ。nonce は expo-crypto で生成。TASK-132）
+- `src/hooks/useLinkAppleAccount.ts` — プロフィールからの Apple ID 連携（認証シート → link API・Android は案内のみ。TASK-132）
 
 *トラック*
 - `src/hooks/useFetchTrack.ts` — トラック一覧取得（updatedAt 降順ソート）
