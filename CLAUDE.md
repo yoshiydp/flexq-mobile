@@ -474,8 +474,9 @@ eas build --profile development-device --platform ios
 開かれるため、完全終了して再起動しても同じ版が開き、dev に新しい配信が届いても切り替わらない
 （2026-10-12、TASK-129 の確認時に #439 の古い版が開き続け「共有ボタンが出ない」と誤認した）。
 
-**推奨: dev のチャンネル URL で一度開いておく。** 次のリンクを端末で開く（iPhone は Safari のアドレスバーかメモアプリ、
-Android は LINE などで送ってタップ）:
+**推奨: dev のチャンネル URL で一度開いておく。** 次のリンクを端末で開く（iPhone は Safari のアドレスバーかメモアプリ。
+Android は `exp+mobile://` のリンクが LINE などでタップできないことがあるため、開発メニュー（端末を振る）→「Go home」→
+ランチャーの「Enter URL manually」に下の `https://u.expo.dev/…` をそのまま貼って Connect する）:
 
 ```
 exp+mobile://expo-development-client/?url=https%3A%2F%2Fu.expo.dev%2F216ca5f0-4ffc-4067-bfbf-5f56aba4924b%3Fchannel-name%3Ddev%26runtime-version%3D1.2.0
@@ -486,6 +487,7 @@ exp+mobile://expo-development-client/?url=https%3A%2F%2Fu.expo.dev%2F216ca5f0-4f
 - 開発ビルドは前回開いた URL を起動のたびに取得し直す（埋め込み update なし・常に確認）ため、このリンクで一度開いておけば
   **以後は FlexQ Dev を完全終了 → 再起動するだけで最新の配信が開く**
 - `runtime-version` は `app.json` の `runtimeVersion` と一致させる。runtimeVersion を上げたときはリンクも書き換える（そのときは開発ビルドの作り直しも必要）
+- **runtimeVersion を上げた開発ビルドを上書きインストールしたら、新しいリンクで開き直す**。前回の URL（旧 runtime のチャンネル URL や特定の版）がそのまま開き、新機能が出ないように見える（2026-10-24、TASK-132 の 1.2.0 ビルドで iOS / Android とも発生。iOS は Apple のボタン、Android はプロフィールの Apple の行が出なかった）
 - 動作確認が取れていないのは「次の dev 配信後の再起動で版が切り替わること」のみ（チャンネル URL が最新 update を返すことは 2026-10-12 に curl で確認済み）。
   切り替わらない場合は下の「Go home」の手順で開き直す
 
