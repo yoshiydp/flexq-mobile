@@ -1088,6 +1088,92 @@ paths:
           description: Unauthorized
         '409':
           description: Google account already linked to another user
+  /data/auth/apple:
+    post:
+      summary: Sign in with Apple
+      description: >-
+        Verifies a Sign in with Apple identity token, links it to the existing
+        account with the same verified email or creates a new account, and
+        returns the same auth payload as login (TASK-132). Unlike Google, a new
+        account is created from both the SignIn and Register screens.
+      operationId: postDataAuthApple
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identityToken
+                - rawNonce
+              properties:
+                identityToken:
+                  type: string
+                  description: identityToken (JWT) returned by AuthenticationServices
+                authorizationCode:
+                  type: string
+                  nullable: true
+                  description: >-
+                    One-time authorization code. Exchanged for a refresh token
+                    that is revoked when the account is deleted
+                rawNonce:
+                  type: string
+                  description: >-
+                    The raw nonce whose SHA-256 (hex) was passed to Apple; must
+                    match the nonce claim of the identity token
+                fullName:
+                  type: object
+                  nullable: true
+                  description: Name shared by Apple on the first authorization only
+                  properties:
+                    givenName:
+                      type: string
+                      nullable: true
+                    familyName:
+                      type: string
+                      nullable: true
+      responses:
+        '200':
+          description: OK (existing user signed in)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  username:
+                    type: string
+                  email:
+                    type: string
+                  thumbnail:
+                    type: string
+                    nullable: true
+                  socialAccounts:
+                    type: array
+                    items:
+                      type: object
+                  token:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      expiresIn:
+                        type: integer
+        '201':
+          description: Created (new user registered and signed in)
+        '400':
+          description: Bad Request
+        '401':
+          description: >-
+            Invalid Apple identity token, or the Apple account email is missing
+            or not verified (body code: email_not_verified)
+        '403':
+          description: Account suspended
+        '502':
+          description: Failed to fetch Apple public keys
   /data/auth/google:
     post:
       summary: Sign in with a Google account

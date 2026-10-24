@@ -14,6 +14,8 @@ import { useResendCountdown } from '@/hooks/useResendCountdown';
 import { useModal } from '@/contexts/ModalContext';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useGoogleAuth } from '@/hooks/useGoogleAuth';
+import { useAppleAuth } from '@/hooks/useAppleAuth';
+import AppleSignInButton from '@/components/ui/buttons/AppleSignInButton';
 import {
   HEADER_TOOLBAR_TEMPLATES,
   HeaderToolBarButton,
@@ -30,8 +32,9 @@ import styles from './RegisterScreen.styles';
 export default function RegisterScreen() {
   const navigation =
     useNavigation<StackNavigationProp<RootStackParamList>>();
-  const { login, loginWithGoogle } = useAuthContext();
+  const { login, loginWithGoogle, loginWithApple } = useAuthContext();
   const { signIn: googleSignIn, ready: googleReady } = useGoogleAuth();
+  const { signIn: appleSignIn, available: appleAvailable } = useAppleAuth();
   const { uploadThumbnail, updateProfile } = useUpdateProfile();
   const { showLoading, hideLoading } = useModal();
 
@@ -177,6 +180,27 @@ export default function RegisterScreen() {
     }
   };
 
+  // Apple で登録（TASK-132・iOS のみ）。未登録ならサーバー側で自動作成して
+  // そのままログインする。メール所有は Apple 側で検証済みのため認証コードは不要
+  const handleAppleRegister = async () => {
+    try {
+      // キャンセル（null）は無通知で画面に留まる
+      const result = await appleSignIn();
+      if (!result) return;
+
+      showLoading();
+      const succeeded = await loginWithApple(result);
+      if (succeeded) {
+        navigation.navigate('HomeTabs');
+      }
+    } catch (err) {
+      console.error('Apple register failed:', err);
+      Alert.alert('エラー', 'Apple での登録に失敗しました。');
+    } finally {
+      hideLoading();
+    }
+  };
+
   const headerItems: HeaderToolBarButton[] = [
     { ...HEADER_TOOLBAR_TEMPLATES.back, onPress: handleGoBack },
     {
@@ -241,6 +265,14 @@ export default function RegisterScreen() {
             <GoogleIcon width={20} height={20} />
             <Text style={styles.googleButtonLabel}>Google で登録</Text>
           </Pressable>
+          {appleAvailable && (
+            <AppleSignInButton
+              variant="signUp"
+              onPress={handleAppleRegister}
+              style={styles.appleButton}
+              testID="apple-register-button"
+            />
+          )}
         </ScrollView>
       ) : (
         <ScrollView contentContainerStyle={styles.scrollContent} keyboardDismissMode="on-drag" keyboardShouldPersistTaps="handled">
