@@ -234,7 +234,9 @@ cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-stg-a
 
 **中継アドレスへのメール:** 「メールを非公開」のユーザーに SES からメール（登録完了・認証コードなど）を届けるには、Apple Developer の Services → Sign in with Apple for Email Communication で送信元ドメイン `flexqstudio.com` と送信元アドレス `noreply@flexqstudio.com` を登録する（SPF が必要。未登録の間は中継アドレス宛のメールが届かないが、サインイン自体には影響しない）。
 
-**動作確認:** シミュレーターでも設定アプリで Apple ID にサインインしていれば動く。手動確認は `docs/test-cases.md` の SI-07〜SI-09 / RG-10 / PF-04（Apple の認証シートは別プロセスの UI のため E2E 対象外）
+**動作確認:**
+- E2E（`.maestro/flows/02-sign-in/`）: SI-10（ボタンが iOS だけに表示される）・SI-11（Apple の画面を閉じてもエラーにならない）・SI-12（不正なトークンを API が 400 / 401 で拒否する。runScript で dev API を直接呼ぶため、**dev に TASK-132 の Lambda をデプロイしてから**実行する）
+- 手動: SI-07〜SI-09 / RG-10（サインイン成功・既存アカウントへのひも付け）と PF-04（退会時の失効）。本物の Apple の署名付きトークンはテストから作れないため。シミュレーターでも設定アプリで Apple ID にサインインしていれば動く
 
 ### アカウント停止（BAN）運用
 
