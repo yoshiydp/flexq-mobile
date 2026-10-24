@@ -229,8 +229,11 @@ SignIn / Register 画面の Apple ボタン（AppleSignInButton・OS 標準の�
 # 例: staging（.p8 を 1 行にして渡す）
 cd api && sam build && AWS_PROFILE=flexq-ops sam deploy --stack-name flexq-stg-api \
   --region ap-northeast-1 --resolve-s3 --capabilities CAPABILITY_IAM --no-confirm-changeset \
-  --parameter-overrides AppleKeyId="<Key ID>" ApplePrivateKey="$(awk 'NF {printf "%s\\n", $0}' AuthKey_XXXX.p8)"
+  --parameter-overrides "AppleKeyId=<Key ID>" \
+  "ApplePrivateKey=\"$(awk 'NF {printf "%s\\n", $0}' AuthKey_XXXX.p8)\""
 ```
+
+> **値全体を `\"…\"` で囲むこと。** SAM の `--parameter-overrides` は値を空白で区切るため、囲まないと PEM の `-----BEGIN PRIVATE KEY-----` の空白で切れて `-----BEGIN`（10 文字）だけが保存される（2026-10-24 に dev で発生）。設定後は値を表示せずに長さだけ確認する（ヘッダー・フッター込みで 260 文字前後、`\n` が 6 個前後）。鍵が Apple に通るかは、ダミーの認可コードで `https://appleid.apple.com/auth/token` を呼んで `invalid_grant`（鍵の認証は成功・コードだけ無効）が返ることで確かめられる（`invalid_client` なら鍵か client_id の誤り）
 
 **中継アドレスへのメール:** 「メールを非公開」のユーザーに SES からメール（登録完了・認証コードなど）を届けるには、Apple Developer の Services → Sign in with Apple for Email Communication で送信元ドメイン `flexqstudio.com` と送信元アドレス `noreply@flexqstudio.com` を登録する（SPF が必要。未登録の間は中継アドレス宛のメールが届かないが、サインイン自体には影響しない）。
 
