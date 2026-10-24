@@ -848,6 +848,60 @@ export class DefaultService {
         });
     }
     /**
+     * Sign in with Apple
+     * Verifies a Sign in with Apple identity token, links it to the existing account with the same verified email or creates a new account, and returns the same auth payload as login (TASK-132). Unlike Google, a new account is created from both the SignIn and Register screens.
+     * @param requestBody
+     * @returns any OK (existing user signed in)
+     * @throws ApiError
+     */
+    public static postDataAuthApple(
+        requestBody: {
+            /**
+             * identityToken (JWT) returned by AuthenticationServices
+             */
+            identityToken: string;
+            /**
+             * One-time authorization code. Exchanged for a refresh token that is revoked when the account is deleted
+             */
+            authorizationCode?: string | null;
+            /**
+             * The raw nonce whose SHA-256 (hex) was passed to Apple; must match the nonce claim of the identity token
+             */
+            rawNonce: string;
+            /**
+             * Name shared by Apple on the first authorization only
+             */
+            fullName?: {
+                givenName?: string | null;
+                familyName?: string | null;
+            } | null;
+        },
+    ): CancelablePromise<{
+        userId?: string;
+        username?: string;
+        email?: string;
+        thumbnail?: string | null;
+        socialAccounts?: Array<Record<string, any>>;
+        token?: {
+            accessToken?: string;
+            refreshToken?: string;
+            expiresIn?: number;
+        };
+    }> {
+        return __request(OpenAPI, {
+            method: 'POST',
+            url: '/data/auth/apple',
+            body: requestBody,
+            mediaType: 'application/json',
+            errors: {
+                400: `Bad Request`,
+                401: `Invalid Apple identity token, or the Apple account email is missing or not verified (body code: email_not_verified)`,
+                403: `Account suspended`,
+                502: `Failed to fetch Apple public keys`,
+            },
+        });
+    }
+    /**
      * Sign in with a Google account
      * Verifies a Google OAuth access token, creates the user automatically if the email is not registered yet, and returns the same auth payload as login.
      * @param requestBody

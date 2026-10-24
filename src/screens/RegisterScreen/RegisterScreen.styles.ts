@@ -52,6 +52,10 @@ export default StyleSheet.create({
     borderWidth: 1,
     borderColor: COLORS.font.label,
   },
+  // Apple でサインインのボタン（TASK-132）。Google ボタンと同じ左右の余白
+  appleButton: {
+    marginHorizontal: 20,
+  },
   googleButtonLabel: {
     color: COLORS.font.default,
     fontSize: 14,

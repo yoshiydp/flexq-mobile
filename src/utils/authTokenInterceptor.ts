@@ -25,6 +25,7 @@ const EXCLUDED_PATHS = [
   '/data/auth/logout',
   '/data/auth/register',
   '/data/auth/google',
+  '/data/auth/apple',
   '/data/auth/reset-password',
   REFRESH_PATH,
 ];

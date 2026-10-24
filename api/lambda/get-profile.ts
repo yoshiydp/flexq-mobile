@@ -21,7 +21,7 @@ export const handler = async (event: any) => {
     return createResponse({ message: 'Profile not found' }, 404);
   }
 
-  const { passwordHash, thumbnailKey, thumbnail: legacyThumbnail, socialAccounts, ...profile } = result.Item;
+  const { passwordHash, appleRefreshToken, appleClientId, thumbnailKey, thumbnail: legacyThumbnail, socialAccounts, ...profile } = result.Item;
 
   let thumbnail = legacyThumbnail ?? '';
   if (thumbnailKey) {
