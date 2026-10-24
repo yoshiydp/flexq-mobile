@@ -25,7 +25,7 @@ export default StyleSheet.create({
     display: 'flex',
     flexDirection: 'column',
     rowGap: 16,
-    marginTop: 40,
+    marginTop: 28,
   },
   resetPasswordLink: {
     alignSelf: 'flex-end',
