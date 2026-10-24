@@ -3,7 +3,7 @@
 # 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
 # 操作手順: 「Apple でサインイン」をタップ → 表示された Apple の画面を閉じる
 #           （端末が Apple ID にサインイン済みならサインインのシートの「閉じる」、
-#             未サインインなら表示される案内のダイアログのキャンセル）
+#             未サインインなら「Apple Account にサインインしてください」のダイアログの「閉じる」）
 # 期待結果: エラーのアラートは出ず、サインイン画面のまま（その後もメール/パスワードでログインできる）
 # 備考: TASK-132。Apple のシートは別プロセスの UI だが、要素の座標は画面基準で返るため
 #       iOS の共有シート（CLAUDE.md の E2E 注意事項）と違って「閉じる」を tapOn できる。
@@ -23,24 +23,17 @@ tags:
     commands:
       - tapOn:
           id: 'apple-signin-button'
-      # Apple の画面が出るまで待つ（サインイン済みはシート、未サインインは案内のダイアログ）
+      # Apple の画面が出るまで待つ（サインイン済みはシート、未サインインは
+      # 「Apple Account にサインインしてください」のダイアログ）。
+      # 「Apple Account」の間はノーブレークスペース（U+00A0）のため "." で受ける
       - extendedWaitUntil:
-          visible: '(Appleでサインイン|Apple でサインイン|Sign in with Apple|Sign In with Apple|.*Apple Account.*|.*Apple ID.*)'
+          visible: '(Apple.?でサインイン|Sign [Ii]n [Ww]ith Apple|.*Apple.Account.*|.*Apple.ID.*)'
           timeout: 15000
       # シートが下から出てくる途中の座標で押すと別のボタンに当たるため、表示しきってから押す
       - waitForAnimationToEnd:
           timeout: 5000
-      - runFlow:
-          when:
-            visible:
-              id: 'Sign In With Apple'
-          commands:
-            - tapOn: '(閉じる|Close)'
-      - runFlow:
-          when:
-            visible: '(キャンセル|Cancel)'
-          commands:
-            - tapOn: '(キャンセル|Cancel)'
+      # シートの × もダイアログの左のボタンも「閉じる」（英語環境は Close / Cancel）
+      - tapOn: '(閉じる|Close|キャンセル|Cancel)'
       - waitForAnimationToEnd:
           timeout: 5000
       # シートが閉じ、エラーのアラートを出さずにサインイン画面へ戻る

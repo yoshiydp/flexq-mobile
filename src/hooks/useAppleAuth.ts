@@ -26,6 +26,14 @@ export interface AppleSignInResult {
 
 /** ユーザーが Apple の認証シートを閉じたときのエラーコード */
 const CANCELED_CODE = 'ERR_REQUEST_CANCELED';
+/**
+ * 端末が Apple ID にサインインしていないと、OS が「Apple Account に
+ * サインインしてください」のダイアログを出し、「閉じる」を押すと
+ * キャンセルではなくこのコード（ASAuthorizationError.unknown）で返る。
+ * ユーザーが自分で閉じた操作なので、キャンセルと同じく無通知にする
+ * （本当に原因不明で失敗した場合も黙るため、調査用に warn だけ残す）
+ */
+const UNKNOWN_CODE = 'ERR_REQUEST_UNKNOWN';
 
 export function useAppleAuth() {
   const [available, setAvailable] = useState(false);
@@ -46,8 +54,9 @@ export function useAppleAuth() {
   }, []);
 
   /**
-   * Apple の認証シートを開く。キャンセル時は null を返して無通知にし、
-   * それ以外の失敗は throw して呼び出し側の catch（エラーアラート）へつなげる
+   * Apple の認証シートを開く。キャンセル（未サインイン端末の案内ダイアログを
+   * 閉じた場合を含む）は null を返して無通知にし、それ以外の失敗は throw して
+   * 呼び出し側の catch（エラーアラート）へつなげる
    */
   const signIn = useCallback(async (): Promise<AppleSignInResult | null> => {
     const rawNonce = Crypto.randomUUID();
@@ -67,6 +76,10 @@ export function useAppleAuth() {
       });
     } catch (err: any) {
       if (err?.code === CANCELED_CODE) return null;
+      if (err?.code === UNKNOWN_CODE) {
+        console.warn('Apple sign-in ended without a credential:', err);
+        return null;
+      }
       throw err;
     }
 
