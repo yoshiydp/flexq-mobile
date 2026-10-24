@@ -72,7 +72,13 @@
           "speechRecognitionPermission": "音声をテキストに変換するために音声認識の使用を許可してください。"
         }
       ],
-      "react-native-audio-api"
+      [
+        "react-native-audio-api",
+        {
+          "androidForegroundService": false,
+          "androidPermissions": []
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true
