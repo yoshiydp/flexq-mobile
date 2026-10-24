@@ -27,6 +27,32 @@ Parameters:
     Description: >-
       Comma-separated Google OAuth client IDs (iOS / Android) allowed for
       Google sign-in token verification (empty skips the aud check)
+  # Apple でサインイン (TASK-132)
+  AppleBundleIds:
+    Type: String
+    Default: "com.yoshiydp.lyricsapp,com.yoshiydp.lyricsapp.dev"
+    Description: >-
+      Comma-separated iOS bundle IDs allowed as the audience of Sign in with
+      Apple identity tokens (production / staging share the first one; the
+      second one is the development build variant)
+  AppleTeamId:
+    Type: String
+    Default: "GSAWY4TUK9"
+    Description: Apple Developer team ID used to sign the Sign in with Apple client secret
+  AppleKeyId:
+    Type: String
+    Default: ""
+    Description: >-
+      Key ID of the Sign in with Apple private key (.p8). Empty skips the token
+      exchange / revocation (sign-in still works, but account deletion cannot
+      revoke Apple tokens)
+  ApplePrivateKey:
+    Type: String
+    NoEcho: true
+    Default: ""
+    Description: >-
+      Contents of the Sign in with Apple private key (.p8) with newlines written
+      as \n. Empty skips the token exchange / revocation
   ReplicateSeparateModel:
     Type: String
     Default: "ryan5453/demucs"
@@ -87,6 +113,8 @@ Resources:
           AttributeType: S
         - AttributeName: googleSub
           AttributeType: S
+        - AttributeName: appleSub
+          AttributeType: S
       KeySchema:
         - AttributeName: userId
           KeyType: HASH
@@ -101,6 +129,16 @@ Resources:
         - IndexName: googleSub-index
           KeySchema:
             - AttributeName: googleSub
+              KeyType: HASH
+          Projection:
+            ProjectionType: ALL
+        # 連携済み Apple ID（sub）でのログイン照合用 (TASK-132)。
+        # 既存テーブルへの GSI 追加は in-place 更新（テーブルの置換なし）で、
+        # 作成中（Backfilling）も既存の読み書きは止まらない。CloudFormation は
+        # 1 回の更新で GSI を 1 つしか追加できないため、ほかの GSI と同時に足さないこと
+        - IndexName: appleSub-index
+          KeySchema:
+            - AttributeName: appleSub
               KeyType: HASH
           Projection:
             ProjectionType: ALL
@@ -266,7 +304,7 @@ Resources:
           HttpMethod: '*'
           ThrottlingRateLimit: 50
           ThrottlingBurstLimit: 100
-        # 認証系（厳しめ）: パスワードログイン・登録・リセット・認証コード発行・Google ログイン
+        # 認証系（厳しめ）: パスワードログイン・登録・リセット・認証コード発行・Google / Apple ログイン
         - ResourcePath: '/~1data~1auth~1login'
           HttpMethod: POST
           ThrottlingRateLimit: 5
@@ -284,6 +322,10 @@ Resources:
           ThrottlingRateLimit: 5
           ThrottlingBurstLimit: 10
         - ResourcePath: '/~1data~1auth~1google'
+          HttpMethod: POST
+          ThrottlingRateLimit: 5
+          ThrottlingBurstLimit: 10
+        - ResourcePath: '/~1data~1auth~1apple'
           HttpMethod: POST
           ThrottlingRateLimit: 5
           ThrottlingBurstLimit: 10
@@ -1123,6 +1165,14 @@ Resources:
       Handler: lambda/delete-profile.handler
       CodeUri: ./
       Timeout: 120
+      Environment:
+        # Apple でサインインの設定は使う関数（post-auth-apple / delete-profile）にだけ渡す
+        # （秘密鍵を全関数の環境変数に置かない・TASK-132）。Globals の変数とマージされる
+        Variables:
+          APPLE_BUNDLE_IDS: !Ref AppleBundleIds
+          APPLE_TEAM_ID: !Ref AppleTeamId
+          APPLE_KEY_ID: !Ref AppleKeyId
+          APPLE_PRIVATE_KEY: !Ref ApplePrivateKey
       Policies:
         - DynamoDBCrudPolicy:
             TableName: !Ref UsersTable
@@ -1329,6 +1379,47 @@ Resources:
         Sourcemap: false
         EntryPoints:
           - lambda/post-auth-google.ts
+
+  # Apple でサインイン (TASK-132)。Apple の公開鍵の取得・トークン交換で外部 API を
+  # 2 回呼ぶことがあるため、既定の 10 秒より長めのタイムアウトにする
+  PostAuthAppleFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: lambda/post-auth-apple.handler
+      CodeUri: ./
+      Timeout: 20
+      Environment:
+        # Apple でサインインの設定は使う関数（post-auth-apple / delete-profile）にだけ渡す
+        # （秘密鍵を全関数の環境変数に置かない・TASK-132）。Globals の変数とマージされる
+        Variables:
+          APPLE_BUNDLE_IDS: !Ref AppleBundleIds
+          APPLE_TEAM_ID: !Ref AppleTeamId
+          APPLE_KEY_ID: !Ref AppleKeyId
+          APPLE_PRIVATE_KEY: !Ref ApplePrivateKey
+      Policies:
+        - DynamoDBCrudPolicy:
+            TableName: !Ref UsersTable
+        - Statement:
+            - Effect: Allow
+              Action: ses:SendEmail
+              Resource:
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:identity/*'
+                - !Sub 'arn:aws:ses:${AWS::Region}:${AWS::AccountId}:configuration-set/*'
+      Events:
+        PostAuthApple:
+          Type: Api
+          Properties:
+            RestApiId: !Ref LyricsApi
+            Path: /data/auth/apple
+            Method: post
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: false
+        Target: es2020
+        Sourcemap: false
+        EntryPoints:
+          - lambda/post-auth-apple.ts
 
   PostProfileLinkGoogleFunction:
     Type: AWS::Serverless::Function

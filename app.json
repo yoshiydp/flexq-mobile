@@ -9,8 +9,9 @@
     "userInterfaceStyle": "automatic",
     "newArchEnabled": true,
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.yoshiydp.lyricsapp",
+      "usesAppleSignIn": true,
       "infoPlist": {
         "CFBundleURLTypes": [
           {
@@ -82,7 +83,7 @@
         "projectId": "216ca5f0-4ffc-4067-bfbf-5f56aba4924b"
       }
     },
-    "runtimeVersion": "1.1.0",
+    "runtimeVersion": "1.2.0",
     "updates": {
       "url": "https://u.expo.dev/216ca5f0-4ffc-4067-bfbf-5f56aba4924b"
     }

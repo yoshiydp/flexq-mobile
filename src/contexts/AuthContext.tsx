@@ -15,6 +15,7 @@ import { setOnSessionExpired } from '@/utils/authTokenInterceptor';
 import { ensureValidSession } from '@/utils/ensureValidSession';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import type { AuthUser } from '@/types/auth';
+import type { AppleSignInResult } from '@/hooks/useAppleAuth';
 
 interface AuthContextValue {
   user: AuthUser | null;
@@ -25,6 +26,7 @@ interface AuthContextValue {
     googleAccessToken: string,
     mode?: 'login' | 'register'
   ) => Promise<boolean>;
+  loginWithApple: (credential: AppleSignInResult) => Promise<boolean>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 }
@@ -35,6 +37,7 @@ const AuthContext = createContext<AuthContextValue>({
   loading: false,
   login: async () => {},
   loginWithGoogle: async () => false,
+  loginWithApple: async () => false,
   logout: async () => {},
   refreshProfile: async () => {},
 });
@@ -98,6 +101,44 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
           Alert.alert(
             'ログインに失敗しました',
             'Google アカウントでのログインに失敗しました。時間をおいて再度お試しください。'
+          );
+        }
+        return false;
+      }
+    },
+    []
+  );
+
+  // Apple でサインイン（TASK-132）。Google と違いログイン画面・新規登録画面の
+  // どちらから呼んでも、未登録ならサーバー側でアカウントを作成してログインする
+  const loginWithApple = useCallback(
+    async (credential: AppleSignInResult): Promise<boolean> => {
+      try {
+        const res = await DefaultService.postDataAuthApple({
+          identityToken: credential.identityToken,
+          authorizationCode: credential.authorizationCode,
+          rawNonce: credential.rawNonce,
+          fullName: credential.fullName,
+        });
+        const { accessToken, refreshToken } = res?.token ?? {};
+        if (!accessToken || !refreshToken) {
+          throw new Error('Apple login failed');
+        }
+
+        await saveAuthTokens({ accessToken, refreshToken });
+        setUser(res as AuthUser);
+        return true;
+      } catch (err: any) {
+        console.error('Apple login failed:', err);
+        if (err?.status === 403) {
+          Alert.alert(
+            'ログインできません',
+            'このアカウントは利用を停止しています。'
+          );
+        } else {
+          Alert.alert(
+            'ログインに失敗しました',
+            'Apple でのサインインに失敗しました。時間をおいて再度お試しください。'
           );
         }
         return false;
@@ -186,6 +227,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
         loading,
         login,
         loginWithGoogle,
+        loginWithApple,
         logout,
         refreshProfile,
       }}

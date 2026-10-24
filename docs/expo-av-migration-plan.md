@@ -23,7 +23,7 @@ expo-av（録音・トラック再生・音声セッション管理）を撤去�
 
 ### 1.2 ビルドへの影響（runtimeVersion / TestFlight・Play）
 
-- expo-av の撤去（ネイティブモジュールの削除）・expo-audio の追加はどちらも**ネイティブ変更**。`CLAUDE.md`「デプロイフロー」の規則どおり `app.json` の `runtimeVersion`（現在 `1.1.0`）を **`1.2.0` に上げる**。上げずにマージすると旧ビルドに OTA が届いて起動時にクラッシュしうる
+- expo-av の撤去（ネイティブモジュールの削除）・expo-audio の追加はどちらも**ネイティブ変更**。`CLAUDE.md`「デプロイフロー」の規則どおり `app.json` の `runtimeVersion`（現在 `1.2.0`。TASK-132 で `1.1.0` から更新済み）を **`1.3.0` に上げる**。上げずにマージすると旧ビルドに OTA が届いて起動時にクラッシュしうる
 - 移行後は開発ビルドの再作成（`yarn ios` / `yarn android`）と TestFlight / Play 内部テストの新ビルド（`/testflight` / `/playstore`）が必要で、**OTA だけでは届かない**。新 runtimeVersion のビルドが出るまで OTA は誰にも届かない
 - 現在 iOS の音声セッションを書き換えている **Yarn パッチ `.yarn/patches/expo-av-npm-16.0.8-3f40a40d18.patch` も同時に消える**（第 2 章参照）。代替の担保がないまま消すと Bluetooth イヤホン + スピーカー録音の挙動が変わる
 - 推奨する順序: **SDK 54 のまま移行を完了 → 実機検証 → 別タスクで SDK 55+ へ更新**（変数を分離する）。SDK 55 更新と同時に行うと不具合の切り分けができない

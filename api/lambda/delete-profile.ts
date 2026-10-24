@@ -13,6 +13,7 @@ import { s3Client } from './s3';
 import { createResponse } from './utils';
 import { verifyToken, unauthorizedResponse } from './auth-middleware';
 import { chunkForBatchWrite, userS3Prefixes } from './account-deletion';
+import { revokeAppleToken } from './apple-auth';
 
 /**
  * アカウント削除（退会）: DELETE /data/profile (TASK-80)
@@ -22,8 +23,10 @@ import { chunkForBatchWrite, userS3Prefixes } from './account-deletion';
  *   profiles/ 配下の該当ユーザー分
  * - DynamoDB: Projects / Tracks / Records / Memos の全レコード（PK=userId）
  * - 発行済みメール認証コード（VerificationCodes。TTL の削除遅延を待たず即時削除）
- * - Users レコード（email / googleSub も消えるため同じメール・Google
- *   アカウントでの再登録が可能になる）
+ * - Users レコード（email / googleSub / appleSub も消えるため同じメール・
+ *   Google / Apple アカウントでの再登録が可能になる）
+ * - Apple でサインインしたアカウントは Apple のトークンを失効させる
+ *   （ガイドライン 5.1.1(v)・TASK-132。失効に失敗しても退会は続行する）
  *
  * 途中で失敗した場合に再実行できるよう、Users レコードは最後に削除する
  * （ユーザーが残っていれば同じトークンでリトライ可能）。削除完了後の
@@ -170,7 +173,15 @@ export const handler = async (event: any) => {
     }
   }
 
-  // 4. 最後に Users レコードを削除（email / googleSub の GSI エントリも消える）
+  // 4. Apple でサインインしていた場合はトークンを失効させる（TASK-132）。
+  //    Users の削除より前に行う（削除後はリフレッシュトークンを参照できない）。
+  //    失効の失敗で退会を止めない（ユーザーは Apple ID の設定からも解除できる）
+  const { appleRefreshToken, appleClientId } = userResult.Item;
+  if (appleRefreshToken && appleClientId) {
+    await revokeAppleToken(appleRefreshToken, appleClientId);
+  }
+
+  // 5. 最後に Users レコードを削除（email / googleSub / appleSub の GSI エントリも消える）
   await docClient.send(
     new DeleteCommand({
       TableName: process.env.USERS_TABLE!,
