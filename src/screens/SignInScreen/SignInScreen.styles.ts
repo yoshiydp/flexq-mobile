@@ -2,8 +2,15 @@ import { StyleSheet } from 'react-native';
 import { COLORS } from '@/globalStyles';
 
 export default StyleSheet.create({
-  container: {
+  scrollView: {
     flex: 1,
+    backgroundColor: COLORS.base.bgDefault,
+  },
+  scrollContent: {
+    flexGrow: 1,
+  },
+  container: {
+    flexGrow: 1,
     display: 'flex',
     flexDirection: 'column',
     justifyContent: 'center',
@@ -18,7 +25,7 @@ export default StyleSheet.create({
     display: 'flex',
     flexDirection: 'column',
     rowGap: 16,
-    marginTop: 40,
+    marginTop: 28,
   },
   resetPasswordLink: {
     alignSelf: 'flex-end',

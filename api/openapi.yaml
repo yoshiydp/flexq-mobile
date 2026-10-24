@@ -1088,6 +1088,157 @@ paths:
           description: Unauthorized
         '409':
           description: Google account already linked to another user
+  /data/auth/apple:
+    post:
+      summary: Sign in with Apple
+      description: >-
+        Verifies a Sign in with Apple identity token, links it to the existing
+        account with the same verified email or creates a new account, and
+        returns the same auth payload as login (TASK-132). When no account
+        matches, mode login returns 404 (code: account_not_found) so the SignIn
+        screen can confirm and resend the same token with mode register.
+      operationId: postDataAuthApple
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identityToken
+                - rawNonce
+              properties:
+                identityToken:
+                  type: string
+                  description: identityToken (JWT) returned by AuthenticationServices
+                authorizationCode:
+                  type: string
+                  nullable: true
+                  description: >-
+                    One-time authorization code. Exchanged for a refresh token
+                    that is revoked when the account is deleted
+                rawNonce:
+                  type: string
+                  description: >-
+                    The raw nonce whose SHA-256 (hex) was passed to Apple; must
+                    match the nonce claim of the identity token
+                mode:
+                  type: string
+                  enum:
+                    - login
+                    - register
+                  default: login
+                  description: >-
+                    login returns 404 when no account matches; register creates
+                    a new account
+                fullName:
+                  type: object
+                  nullable: true
+                  description: Name shared by Apple on the first authorization only
+                  properties:
+                    givenName:
+                      type: string
+                      nullable: true
+                    familyName:
+                      type: string
+                      nullable: true
+      responses:
+        '200':
+          description: OK (existing user signed in)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  userId:
+                    type: string
+                  username:
+                    type: string
+                  email:
+                    type: string
+                  thumbnail:
+                    type: string
+                    nullable: true
+                  socialAccounts:
+                    type: array
+                    items:
+                      type: object
+                  token:
+                    type: object
+                    properties:
+                      accessToken:
+                        type: string
+                      refreshToken:
+                        type: string
+                      expiresIn:
+                        type: integer
+        '201':
+          description: Created (new user registered and signed in)
+        '400':
+          description: Bad Request
+        '401':
+          description: >-
+            Invalid Apple identity token, or the Apple account email is missing
+            or not verified (body code: email_not_verified)
+        '403':
+          description: Account suspended
+        '404':
+          description: >-
+            No account matches and mode is login (body code: account_not_found)
+        '502':
+          description: Failed to fetch Apple public keys
+  /data/profile/link-apple:
+    post:
+      summary: Link an Apple ID to the signed-in user
+      description: >-
+        Verifies a Sign in with Apple identity token and stores the Apple ID
+        (sub) on the signed-in user, so the linked Apple ID can sign in to this
+        user afterwards (TASK-132).
+      operationId: postDataProfileLinkApple
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - identityToken
+                - rawNonce
+              properties:
+                identityToken:
+                  type: string
+                  description: identityToken (JWT) returned by AuthenticationServices
+                authorizationCode:
+                  type: string
+                  nullable: true
+                  description: >-
+                    One-time authorization code. Exchanged for a refresh token
+                    that is revoked when the account is deleted
+                rawNonce:
+                  type: string
+                  description: >-
+                    The raw nonce whose SHA-256 (hex) was passed to Apple; must
+                    match the nonce claim of the identity token
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  linked:
+                    type: boolean
+                  email:
+                    type: string
+        '400':
+          description: Bad Request
+        '401':
+          description: Unauthorized or invalid Apple identity token
+        '409':
+          description: Apple ID already linked to another user
+        '502':
+          description: Failed to fetch Apple public keys
   /data/auth/google:
     post:
       summary: Sign in with a Google account

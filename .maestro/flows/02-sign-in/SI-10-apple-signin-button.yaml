@@ -1,0 +1,67 @@
+# ID: SI-10
+# シナリオ名: Apple でサインインのボタン表示（iOS のみ）
+# 前提条件: 起動時にアプリ状態を初期化しログイン画面から開始する（手動ログアウト不要）
+# 操作手順: サインイン画面を確認 → 「新規登録へ」で新規登録画面を確認 → 戻る
+# 期待結果: iOS はサインイン画面に apple-signin-button、新規登録画面に apple-register-button が
+#           表示される。Android はどちらも表示されない（Google のボタンは両 OS で表示される）
+# 備考: TASK-132。ボタンは OS 標準の AppleAuthenticationButton で文言は端末の言語に依存するため、
+#       testID でアサートする。サインインの成功系（SI-07〜SI-09）は本物の Apple ID が必要なため手動確認
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - SI
+  - SI-10
+---
+- runFlow: ../helpers/launch-app.yaml
+
+# サインイン画面
+- assertVisible:
+    id: 'google-signin-button'
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - assertVisible:
+          id: 'apple-signin-button'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertNotVisible:
+          id: 'apple-signin-button'
+
+# 新規登録画面（小さい画面ではリンクがボタンの下に隠れうるため、見えるまでスクロールする）
+- scrollUntilVisible:
+    element: '新規登録へ'
+    direction: DOWN
+- tapOn: '新規登録へ'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'REGISTER'
+- scrollUntilVisible:
+    element:
+      id: 'google-register-button'
+    direction: DOWN
+- runFlow:
+    when:
+      platform: iOS
+    commands:
+      - scrollUntilVisible:
+          element:
+            id: 'apple-register-button'
+          direction: DOWN
+      - assertVisible:
+          id: 'apple-register-button'
+- runFlow:
+    when:
+      platform: Android
+    commands:
+      - assertNotVisible:
+          id: 'apple-register-button'
+
+# サインイン画面に戻る
+- tapOn:
+    id: 'toolbar-back'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible: 'Your Email'
