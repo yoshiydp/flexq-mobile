@@ -15,3 +15,12 @@
   - `src/apiClient/` は自動生成のため手動編集不可（`api/openapi.yaml` → `yarn openapi` で再生成）
   - AWS は dev / staging / production の 3 環境構成。SAM デプロイでは `--stack-name` の明示が必須
   - コミットは英語タイトル（Conventional Commits）+ 日本語本文の規約に従う
+
+## Cursor Cloud specific instructions
+
+Linux の Cloud Agent では iOS シミュレーターと Android エミュレーターは使えない。`yarn ios` / `yarn android` と Maestro は実行しない。Expo Go もネイティブモジュールが無く起動できない。
+
+- Node.js 20.11.0 は `$HOME/.local/node` にインストールされ、`~/.bashrc` と `/etc/profile.d/nodejs.sh` が PATH の先頭に置く。Yarn は Corepack の 4.12.0。
+- 依存関係は `yarn install --immutable`。CI と同じ確認は `yarn lint --max-warnings=0`、`yarn typecheck`、`yarn test:ci`。
+- 起動時はモック API（`yarn mock:server`）が port 3000 で動く。Swagger UI は http://localhost:3000/api-docs 。シードログインは `src/data/authData.ts` の `testuser@example.com` / `password123`。新規登録の認証コードは `123456`。
+- `.env` の API URL は開発用 AWS。ローカルの API 確認はモックサーバーを使う。環境セットアップの過程で SAM デプロイや staging / production の変更はしない。
