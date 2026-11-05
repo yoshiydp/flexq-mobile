@@ -13,6 +13,9 @@
       "bundleIdentifier": "com.yoshiydp.lyricsapp",
       "usesAppleSignIn": true,
       "infoPlist": {
+        "CFBundleAllowMixedLocalizations": true,
+        "CFBundleDevelopmentRegion": "ja",
+        "CFBundleLocalizations": ["ja"],
         "CFBundleURLTypes": [
           {
             "CFBundleURLSchemes": [
@@ -39,6 +42,9 @@
         "android.permission.MODIFY_AUDIO_SETTINGS",
         "android.permission.BLUETOOTH_CONNECT"
       ]
+    },
+    "locales": {
+      "ja": "./languages/ja.json"
     },
     "web": {
       "bundler": "metro",
