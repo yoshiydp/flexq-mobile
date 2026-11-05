@@ -315,7 +315,7 @@ RecordPlayer「AI クリーンアップ」
 - **出力形式は wav 固定 + Lambda 側で位置合わせ（TASK-44。変更しないこと）**: demucs は入力 m4a の AAC priming（先頭無音 2112 サンプル ≈48ms）を含めてデコードするため、mp3/flac/wav のどれを選んでも出力の頭に無音が残り、トラックとの同時再生で声が一定時間遅れる。wav で受けて保存時に `audio-align.ts` が「出力の長さ − 元録音の長さ」を先頭からトリムし、16-bit PCM 化（サイズは 24-bit flac と同程度）して保存する。位置合わせ済みレコードには `separationAligned: true` が付き、フラグのない古い分離音源（mp3 / flac 移行期）は API が未処理（none）として返すので「AI クリーンアップ」ボタンから再生成できる（完了時に旧ファイルは削除される）
 - 本来の denoise 候補だった `resemble-enhance` は **m4a コンテナ自体を読めない**（wav / mp3 / flac のみ）ため demucs で代用中。専用モデルに戻す場合は `ReplicateDenoiseModel` を差し替える（`inputFor` がモデル名で入力スキーマを切り替える）
 - **iOS 録音は AAC 必須**: `src/utils/recordingOptions.ts` の `outputFormat: Audio.IOSOutputFormat.MPEG4AAC` を削除しないこと。未指定だと PCM-in-M4A という特殊形式になり全モデルが読めず、ファイルサイズも約 5 倍になる（TASK-42 で修正）。**AAC 化以前の録音は AI クリーンアップ不可**（failed 遷移 → 再実行可能）
-- **iOS の録音は画面ロック・バックグラウンドでも継続する（TASK-111）**: `RecRecordingSection` の録音モード（`Audio.setAudioModeAsync`）で `staysActiveInBackground: true`（iOS のみ）を指定し、アンマウント時に false へ戻す。expo-av は false のままバックグラウンドへ入ると音声セッションを停止して全録音・全再生を止める。前提の Info.plist `UIBackgroundModes: ["audio"]` は react-native-audio-api の設定プラグイン（既定 `iosBackgroundMode: true`）が追加している（runtimeVersion 1.1.0 以降のビルドに含まれる）ため専用のネイティブ変更は不要。録音中は `expo-keep-awake` の `useKeepAwake()` で自動ロックを抑止し、復帰時・停止時の長さは録音側の `durationMillis` で合わせる（JS タイマーはバックグラウンドで間引かれる）。**Android はバックグラウンド遷移で録音を停止して保存する（TASK-112）**: Android 14 以降はバックグラウンドでのマイクアクセスに microphone 型のフォアグラウンドサービスが必要（react-native-audio-api の設定プラグインが追加する `CentralizedForegroundService` は mediaPlayback 型で、audio-api の再生時にしか起動しないため expo-av の録音は守られない）で、音声セッションを維持しても録音は無音になる。さらに expo-av の Android 実装（`AVManager.onHostPause`）は `staysActiveInBackground: false` のときトラック再生を止めて音声フォーカスを手放すため同期の前提も崩れる。そこで Android では `staysActiveInBackground` を false のままにし、`RecRecordingSection` が AppState の `background` を受けたら通常の停止フロー（STOP ボタンと同じ経路。`stopHandledRef` で二重停止を防ぐ）を実行して「ここまで」を保存経路（`onStop`）へ渡す。録音開始前（カウントダウン中）は中止（`onAbort`）に落とす。バックグラウンド中の `Alert` は表示されず、停止と同時にモーダルが閉じてコンポーネントもアンマウントされるため、案内はコンポーネントの外（モジュールスコープの `scheduleForegroundNotice`）で張る一度きりの AppState 購読でフォアグラウンド復帰時に出す。**案内は「停止結果の確定」と「フォアグラウンド復帰」の両方が揃ってから 1 回だけ表示する**（購読は復帰の取りこぼしを防ぐため停止処理の前に登録するが、暫定の文言を先に出して後から訂正する方式は採らない。停止完了より復帰が早いと、破棄されたテイクを「残っている」と誤って伝えてしまう）。停止した時点のテイクはまだ永続化されていない（`onStop` は録音再生画面へ渡すだけで、アップロードは `RecordPlayerScreen.handleSave` = 画面下部の「SAVE」ボタン）ため、案内の文言（`REC_BACKGROUND_MESSAGES.stoppedNeedsSave`）では保存操作が必要であることを明示する。停止失敗・長さ 0 で破棄した場合は中止の案内（`cancelledBeforeStart`）にする。**Android のマイク許可ダイアログはアクティビティを一時停止させ `background` として通知されるため、許可の取得完了前は反応しない**（初回録音がダイアログ応答だけで中止される）。microphone 型フォアグラウンドサービス化（Android でもバックグラウンド録音を継続する案）は TASK-114 の移行と同時に検討する。手動確認は `docs/test-cases.md` の PR-13〜PR-15 / QR-06 / QR-07
+- **iOS の録音は画面ロック・バックグラウンドでも継続する（TASK-111）**: `RecRecordingSection` の録音モード（`Audio.setAudioModeAsync`）で `staysActiveInBackground: true`（iOS のみ）を指定し、アンマウント時に false へ戻す。expo-av は false のままバックグラウンドへ入ると音声セッションを停止して全録音・全再生を止める。前提の Info.plist `UIBackgroundModes: ["audio"]` は react-native-audio-api の設定プラグイン（既定 `iosBackgroundMode: true`）が追加している（runtimeVersion 1.1.0 以降のビルドに含まれる）ため専用のネイティブ変更は不要。録音中は `expo-keep-awake` の `useKeepAwake()` で自動ロックを抑止し、復帰時・停止時の長さは録音側の `durationMillis` で合わせる（JS タイマーはバックグラウンドで間引かれる）。**Android はバックグラウンド遷移で録音を停止して保存する（TASK-112）**: Android 14 以降はバックグラウンドでのマイクアクセスに microphone 型のフォアグラウンドサービスが必要（react-native-audio-api の `CentralizedForegroundService` は mediaPlayback 型で、audio-api のメディア通知を表示したときにしか起動しないため expo-av の録音は守られない。FlexQ は通知を使わないので、TASK-135 で設定プラグインの `androidForegroundService: false` / `androidPermissions: []` によりサービスと権限ごとマニフェストから外している）で、音声セッションを維持しても録音は無音になる。さらに expo-av の Android 実装（`AVManager.onHostPause`）は `staysActiveInBackground: false` のときトラック再生を止めて音声フォーカスを手放すため同期の前提も崩れる。そこで Android では `staysActiveInBackground` を false のままにし、`RecRecordingSection` が AppState の `background` を受けたら通常の停止フロー（STOP ボタンと同じ経路。`stopHandledRef` で二重停止を防ぐ）を実行して「ここまで」を保存経路（`onStop`）へ渡す。録音開始前（カウントダウン中）は中止（`onAbort`）に落とす。バックグラウンド中の `Alert` は表示されず、停止と同時にモーダルが閉じてコンポーネントもアンマウントされるため、案内はコンポーネントの外（モジュールスコープの `scheduleForegroundNotice`）で張る一度きりの AppState 購読でフォアグラウンド復帰時に出す。**案内は「停止結果の確定」と「フォアグラウンド復帰」の両方が揃ってから 1 回だけ表示する**（購読は復帰の取りこぼしを防ぐため停止処理の前に登録するが、暫定の文言を先に出して後から訂正する方式は採らない。停止完了より復帰が早いと、破棄されたテイクを「残っている」と誤って伝えてしまう）。停止した時点のテイクはまだ永続化されていない（`onStop` は録音再生画面へ渡すだけで、アップロードは `RecordPlayerScreen.handleSave` = 画面下部の「SAVE」ボタン）ため、案内の文言（`REC_BACKGROUND_MESSAGES.stoppedNeedsSave`）では保存操作が必要であることを明示する。停止失敗・長さ 0 で破棄した場合は中止の案内（`cancelledBeforeStart`）にする。**Android のマイク許可ダイアログはアクティビティを一時停止させ `background` として通知されるため、許可の取得完了前は反応しない**（初回録音がダイアログ応答だけで中止される）。microphone 型フォアグラウンドサービス化（Android でもバックグラウンド録音を継続する案）は TASK-114 の移行と同時に検討する。手動確認は `docs/test-cases.md` の PR-13〜PR-15 / QR-06 / QR-07
 
 #### Replicate アカウント・トークンのセットアップ
 
@@ -614,6 +614,15 @@ eas submit --profile staging --platform ios
 | TestFlight URL | https://appstoreconnect.apple.com/apps/6762039606/testflight/ios |
 
 > **iPad は非対応（`app.json` の `ios.supportsTablet: false`・TASK-132 で変更）。** iPad では iPhone 版が拡大表示（互換モード）で動き、インストール自体はできる。`true` のままだと App Store 申請に iPad 13 インチのスクリーンショットが必須になり、iPad のレイアウト（横向き・分割表示）も審査対象になる。**App Store では一度 iPad 対応で公開したアプリから iPad 対応を外せない**ため、初回リリースは非対応とし、リリース後に App Store Connect のアナリティクスで iPad からのダウンロード数を見て、iPad 用レイアウトを設計してから対応する（2026-10-24 決定）
+
+#### App Store の言語欄（TASK-136）
+
+App Store の「言語」は**ストアの掲載情報ではなく、提出したアプリの中の `.lproj` フォルダで決まる**（[Apple DTS の回答](https://developer.apple.com/forums/thread/771741)。`CFBundleLocalizations` はフォルダがない場合の補助）。UI の文言は JS にあるためフォルダが自動では作られず、1.0.0 は開発言語の既定値のまま「英語」と表示された。
+
+- `app.json` の `locales` と `languages/ja.json` で `ja.lproj/InfoPlist.strings` を生成し、`ios.infoPlist` の `CFBundleDevelopmentRegion` / `CFBundleLocalizations` も日本語にしている
+- **権限の説明文は `app.json` と `languages/ja.json` の両方にある**。変更するときは両方を揃える（日本語環境では `languages/ja.json` の文言が表示される）
+- `languages/ja.json` に `CFBundleDisplayName` を入れないこと。バリアントのアプリ名（FlexQ STG / FlexQ Dev）を上書きしてしまう
+- ネイティブ設定なので OTA では届かず、反映には新しいビルドが必要。IPA の確認は `unzip -l <ipa> | grep lproj`、公開後の確認は `curl -s 'https://itunes.apple.com/lookup?id=6762039606&country=jp'` の `languageCodesISO2A`
 
 #### Google Play 内部テスト配信（Android の TestFlight 相当）
 
@@ -1109,10 +1118,35 @@ Claude Code から Notion MCP を経由してタスク管理を行う。GitHub �
 | タイトル | テキスト | タスク名 |
 | 簡単な詳細 | テキスト | 概要（1行） |
 | デバイス | セレクト | Android / iPhone |
+| フェーズ | セレクト | Phase 1 / Phase 1.5 / Phase 2 / 未定（**新規起票時は必須**。下記「フェーズ運用」参照） |
+| 種別 | セレクト | 機能 / バグ / 運用 / 技術的負債 |
 | 優先度 | セレクト | Low / Middle / High |
 | ステータス | ステータス | Not started / In progress / Done / Pending |
 | GitHub PR | URL | 対応する PR の URL |
 | 備考 | テキスト | 補足メモ |
+
+### フェーズ運用
+
+タスクは **1 つの DB のまま「フェーズ」プロパティとビューで分ける**（2026-10-31 決定）。DB を分割しないのは、`/notion` の採番（DB 内の最大 TASK-X）・`/task-done`・`/pr-master` のリリースチェック抽出・ブランチ名の `TASK-X` がすべてこの DB を前提にしていることと、フェーズをまたいで同じコード（Replicate 基盤・S3 Presigned URL・Users テーブルなど）を触るタスクが多いため。**ID は `TASK-X` の単一連番を維持し、フェーズを prefix にしない**。ブランチ・PR・リリースの流れ（feature → dev → develop → master）もフェーズで変えず、未完成の Phase 1.5 / 2 の機能は機能フラグで隠してマージする（長期のフェーズブランチは作らない）。
+
+| フェーズ | 範囲 |
+|---------|------|
+| Phase 1 | リリース済みの現行アプリ。保守・バグ修正・審査対応・運用スクリプト。2026-10-31 時点の既存 135 件はすべてここ |
+| Phase 1.5 | AI サンプル音源の生成（既存プリセットの活用など）。スコープは未確定 |
+| Phase 2 | ユーザー同士のメッセージ・ファイル共有・SNS 機能。スコープは未確定。UGC を扱うため App Store 審査ガイドライン 1.2（通報・ブロック・モデレーション・利用規約）への対応タスクも同じフェーズで起票する |
+| 未定 | フェーズの判断待ち（例: i18n の TASK-74〜76 をどこに置くか） |
+
+ビュー（「アプリ タスク一覧」のタブ）:
+
+| ビュー | 条件 |
+|-------|------|
+| （既定のテーブル） | 全件 |
+| Phase 1（保守） | フェーズ = Phase 1 かつ ステータス ≠ Done |
+| Phase 1.5 / Phase 2 | フェーズで絞ったステータス別ボード |
+| リリース待ち | リリース = ON（フェーズ横断。従来のリリース運用はそのまま） |
+| 未分類 | フェーズが空 or 未定（起票漏れの検知用。定期的に振り分ける） |
+
+Phase 2 に着手するときは、機能ごと（メッセージ / ファイル共有 / SNS）に親タスクを 1 件立て、Notion のサブアイテム（親タスク / サブタスク の自己リレーション）でぶら下げる。Phase 1 / 1.5 では使わないため、プロパティの追加は Phase 2 の着手時に行う。「Web タスク一覧」にも同じ「フェーズ」プロパティを追加済み（種別は無し）。
 
 ### ブランチ命名規則
 
@@ -1139,6 +1173,8 @@ Notion タスク管理操作は `/notion` スラッシュコマンドで実行�
 タイトル：〇〇〇
 詳細：〇〇〇〇
 デバイス：iPhone
+フェーズ：Phase 1
+種別：バグ
 優先度：High
 ```
 
@@ -1146,6 +1182,15 @@ Notion タスク管理操作は `/notion` スラッシュコマンドで実行�
 - データベースの最大 TASK-X 番号を確認して次の ID を採番
 - Notion にタスクを作成（ステータス: Not started）
 - ページ本文に `## 詳細` セクションを挿入
+
+フェーズは必須（省略された場合は確認し、判断がつかなければ「未定」で起票する）。種別は省略時に依頼内容から判断して設定する。
+
+#### フェーズ・種別の更新
+
+```
+/notion TASK-X を Phase 2 にして
+/notion TASK-X の種別をバグにして
+```
 
 #### ステータス更新
 

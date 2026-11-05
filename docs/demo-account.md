@@ -9,26 +9,20 @@ App Store / Google Play の審査で使う専用アカウントと、その中�
 |------|---|
 | メールアドレス / パスワード | `demo-assets/credentials.txt`（gitignore 済み） |
 | 表示名 | FlexQ Demo |
-| 投入済み | staging（`flexq-stg-api`）2026-09-05 |
-| 未投入 | production（`flexq-prod-api`） |
+| 投入済み | staging（`flexq-stg-api`）2026-09-05 / production（`flexq-prod-api`）2026-10-24 |
+| 審査への登録 | App Store Connect の App Review 情報に登録済み（1.0.0 / build 36 で初回申請・2026-10-25） |
 
-**認証情報はリポジトリに置かない。** 後述のとおりパスワード再設定に本人確認が無く、
-メールアドレスだけでアカウントを乗っ取れる状態のため、メールアドレスも含めてコミットしない。
+**認証情報はリポジトリに置かない。** 審査担当者に渡す共有アカウントのため、メールアドレスも含めてコミットしない。
 
-- 審査で実際に使われるのは**リリースするバイナリが向く production** なので、最終的には prod にも同じデータを投入する
+- 審査で実際に使われるのは**リリースするバイナリが向く production**。prod のデータを入れ直すときも下記の投入手順を使う
 - 認証情報の登録先: App Store Connect の「App Review Information > Sign-In Required」、Google Play Console の「アプリのアクセス権」
 - ログイン（`post-auth-login.ts`）はメールとパスワードの照合のみで、メール確認も 2FA も無い。審査担当者がメールを受信する場面は無い
-- `post-auth-register.ts` は SES の送信失敗を握りつぶすため、SES がサンドボックスのままでもアカウントは作成できる（登録メールは届かない）
-
-### 申請前に対応が必要な既知の問題
-
-1. **パスワード再設定に本人確認が無い** — `post-auth-reset-password.ts` は `{email, newPassword}` だけで
-   パスワードを書き換える（トークン検証なし）。審査担当者が「パスワードをお忘れですか」を試すと
-   App Store Connect に登録した認証情報が使えなくなる。実ユーザーに対しては
-   メールアドレスだけで乗っ取れるという脆弱性でもあるため、申請前に修正すること
-2. **SES がサンドボックスのまま**（運営者アカウント・`ProductionAccess: false`）。
-   検証済み ID は `yoshihisa.watanabe.info@gmail.com` のみで、`+flexq-review` エイリアスは別 ID 扱いのため
-   現状メールは届かない。届かせるならエイリアスを SES で検証するか本番承認を取り直す（TASK-85）
+- パスワード再設定は登録メール宛ての認証コードが必須（TASK-85）。審査担当者が「パスワードをお忘れですか」を
+  試してもコードを受け取れないため、App Store Connect に登録した認証情報が勝手に変わることはない
+- SES は本番アクセス承認済み（2026-09-16）で、`+flexq-review` エイリアス宛ての認証コードも
+  `yoshihisa.watanabe.info@gmail.com` の受信箱に届く
+- 審査用の録音（プロジェクトに紐付くテイク 1〜2 本・うち 1 本は AI クリーンアップ済み）は、
+  production の TestFlight ビルドから実機で追加済み（2026-10-25。後述「実機で追加する分」）
 
 ## 素材とライセンス
 

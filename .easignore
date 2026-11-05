@@ -28,6 +28,11 @@ ios/
 # Build artifacts
 dist/
 
+# Xcode の派生データ（Xcode 27 でのローカルビルド時に xcodebuild が生成する
+# CompilationCache / ModuleCache など）。3GB 超あり、含めると EAS へのアップロードが
+# 146MB → 1.2GB になる（TestFlight build 31 / Play versionCode 16 で発生）
+build/
+
 # Docs
 docs/
 
