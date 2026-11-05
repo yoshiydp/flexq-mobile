@@ -615,6 +615,15 @@ eas submit --profile staging --platform ios
 
 > **iPad は非対応（`app.json` の `ios.supportsTablet: false`・TASK-132 で変更）。** iPad では iPhone 版が拡大表示（互換モード）で動き、インストール自体はできる。`true` のままだと App Store 申請に iPad 13 インチのスクリーンショットが必須になり、iPad のレイアウト（横向き・分割表示）も審査対象になる。**App Store では一度 iPad 対応で公開したアプリから iPad 対応を外せない**ため、初回リリースは非対応とし、リリース後に App Store Connect のアナリティクスで iPad からのダウンロード数を見て、iPad 用レイアウトを設計してから対応する（2026-10-24 決定）
 
+#### App Store の言語欄（TASK-136）
+
+App Store の「言語」は**ストアの掲載情報ではなく、提出したアプリの中の `.lproj` フォルダで決まる**（[Apple DTS の回答](https://developer.apple.com/forums/thread/771741)。`CFBundleLocalizations` はフォルダがない場合の補助）。UI の文言は JS にあるためフォルダが自動では作られず、1.0.0 は開発言語の既定値のまま「英語」と表示された。
+
+- `app.json` の `locales` と `languages/ja.json` で `ja.lproj/InfoPlist.strings` を生成し、`ios.infoPlist` の `CFBundleDevelopmentRegion` / `CFBundleLocalizations` も日本語にしている
+- **権限の説明文は `app.json` と `languages/ja.json` の両方にある**。変更するときは両方を揃える（日本語環境では `languages/ja.json` の文言が表示される）
+- `languages/ja.json` に `CFBundleDisplayName` を入れないこと。バリアントのアプリ名（FlexQ STG / FlexQ Dev）を上書きしてしまう
+- ネイティブ設定なので OTA では届かず、反映には新しいビルドが必要。IPA の確認は `unzip -l <ipa> | grep lproj`、公開後の確認は `curl -s 'https://itunes.apple.com/lookup?id=6762039606&country=jp'` の `languageCodesISO2A`
+
 #### Google Play 内部テスト配信（Android の TestFlight 相当）
 
 Android のテスター配布は Google Play Console の **内部テスト** トラックを使います（審査なし・最大 100 名・アップロード後数分で配信）。より広い範囲でのテストが必要になったら「クローズドテスト」（初回審査あり）へ昇格します。
