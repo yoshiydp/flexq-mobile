@@ -20,8 +20,21 @@ Notionのタスク管理操作を行うコマンドです。以下の操作に�
 - ステータス（status）: デフォルト "Not started"
 - 優先度（select）: Low / Middle / High
 - デバイス（select）: Android / iPhone
+- フェーズ（select）: Phase 1 / Phase 1.5 / Phase 2 / 未定（**必須**。指定がなければユーザーに確認する。どのフェーズか判断がつかない依頼は「未定」で起票し、その旨を報告する）
+- 種別（select）: 機能 / バグ / 運用 / 技術的負債（指定がなければ依頼内容から判断して設定する）
 - 簡単な詳細（rich_text）: 任意
 - リリース（checkbox）: 作成時は OFF のまま
+
+フェーズの区分（詳細は CLAUDE.md「タスク管理」の「フェーズ運用」）:
+- Phase 1: リリース済みの現行アプリ（保守・バグ修正・審査対応・運用スクリプト）
+- Phase 1.5: AI サンプル音源の生成（既存プリセットの活用など）
+- Phase 2: ユーザー同士のメッセージ・ファイル共有・SNS 機能
+- 未定: フェーズの判断待ち。DB の「未分類」ビューに出るので定期的に振り分ける
+
+### フェーズ・種別の更新
+「TASK-X を Phase 2 にして」「TASK-X の種別をバグにして」と伝えられたら以下を実行：
+1. データベースをクエリして対象ページIDを取得
+2. `PATCH /v1/pages/{page_id}` でフェーズ（select）/ 種別（select）を更新
 
 ### ステータス更新
 「TASK-X を〇〇にして」と伝えられたら以下を実行：
@@ -51,7 +64,8 @@ Notionのタスク管理操作を行うコマンドです。以下の操作に�
 ## 実装ルール
 
 - Notion MCP ツール（`mcp__notion__*`）が利用可能な場合は優先して使用する
-- SQL クエリ系の MCP ツール（`query-data-sources`）は Notion のプラン制限で使えないため、ページ取得は `fetch`、検索は `search`、更新は `update-page` / `create-pages` を使う
+- SQL クエリ系の MCP ツール（`query-data-sources`）は Notion のプラン制限で使えないことがあるため、使えない場合はページ取得は `fetch`、検索は `search`、更新は `update-page` / `create-pages` を使う
+- フェーズ別の一覧は DB のビュー（「Phase 1（保守）」「Phase 1.5」「Phase 2」「リリース待ち」「未分類」）を使う。全件のテーブルビューも残してある
 - MCP が利用できない場合は curl で Notion REST API を直接呼び出す。API トークンはリポジトリの `.claude/settings.local.json`（`mcpServers.*.env` の `NOTION_API_KEY`）を参照し、見つからない場合はユーザーに確認する
 - レスポンスの `object` が `page` / `list` / `block` であれば成功
 - コードブロックの language は Notion が受け付ける値を使うこと（例: `objective-c` ではなく `objective-c` が無効なら `plain text`）
