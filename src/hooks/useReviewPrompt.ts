@@ -9,20 +9,12 @@ import {
   markReviewCompleted,
 } from '@/utils/reviewPromptStorage';
 
-// expo-store-review はネイティブモジュールのため、モジュール未搭載の旧バイナリが
-// OTA update（EAS Update）でこのコードを受け取っても起動クラッシュしないよう
-// try/catch 付きで解決する。解決できない場合はストアページへのフォールバックで動作する
-let StoreReview: typeof import('expo-store-review') | null = null;
-try {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  StoreReview = require('expo-store-review');
-} catch {
-  StoreReview = null;
-}
-
-// OS のネイティブレビューダイアログが使えない端末向けのフォールバック URL。
+// ストアのレビュー画面の URL。
+// OS のアプリ内レビューダイアログ（expo-store-review）は表示するかどうかを OS が決め、
+// 表示されなかったことをアプリ側で検知できない（iOS は年 3 回まで等）。
+// 「レビューする」を押しても何も起きないことがあるため、常にストアを開く。
 // Android は Play ストアアプリがない端末で market:// を開けないため、
-// Web 版 Play ストアの URL へさらにフォールバックする
+// Web 版 Play ストアの URL へフォールバックする
 const APP_STORE_REVIEW_URL =
   'https://apps.apple.com/app/id6762039606?action=write-review';
 const PLAY_STORE_REVIEW_URL =
@@ -30,39 +22,30 @@ const PLAY_STORE_REVIEW_URL =
 const PLAY_STORE_REVIEW_URL_WEB =
   'https://play.google.com/store/apps/details?id=com.yoshiydp.lyricsapp&showAllReviews=true';
 
-// OS ネイティブのアプリ内レビューダイアログを表示する。
-// 利用できない場合（旧 OS・ストア未インストール等）はストアのレビューページを開く
-async function requestStoreReview(): Promise<void> {
-  try {
-    if (StoreReview && (await StoreReview.isAvailableAsync())) {
-      await StoreReview.requestReview();
-      return;
-    }
-  } catch (err) {
-    console.warn('StoreReview.requestReview failed:', err);
-  }
-
-  const fallbackUrls =
+// ストアのレビュー画面を開く。開けた場合は true を返す
+async function openStoreReviewPage(): Promise<boolean> {
+  const urls =
     Platform.OS === 'android'
       ? [PLAY_STORE_REVIEW_URL, PLAY_STORE_REVIEW_URL_WEB]
       : [APP_STORE_REVIEW_URL];
-  for (const url of fallbackUrls) {
+  for (const url of urls) {
     try {
       await Linking.openURL(url);
-      return;
+      return true;
     } catch (err) {
       console.warn(`Failed to open store review page (${url}):`, err);
     }
   }
+  return false;
 }
 
 /**
  * レビュー依頼モーダル（TASK-79）。
  * ログイン後のホーム（ProjectList）マウント時に起動回数をカウントし、
  * 表示条件（reviewPromptStorage）を満たしていれば ConfirmModal で依頼を表示する。
- * - 「レビューする」→ OS のレビューダイアログ（不可ならストアページ）へ
+ * - 「レビューする」→ ストアのレビュー画面を開く
  * - 「あとで」→ 30 日後に再依頼
- * - レビュー実行後は表示しない
+ * - ストアを開いたあとは表示しない（開けなかった場合は 30 日後に再依頼）
  */
 export function useReviewPrompt() {
   const { showConfirmModal, closeModal } = useModal();
@@ -85,8 +68,9 @@ export function useReviewPrompt() {
           label: MODAL_MESSAGES.reviewPrompt.submitButtonLabel,
           onPress: async () => {
             closeModal();
-            await markReviewCompleted();
-            await requestStoreReview();
+            if (await openStoreReviewPage()) {
+              await markReviewCompleted();
+            }
           },
         },
         closeLabel: MODAL_MESSAGES.reviewPrompt.closeLabel,
