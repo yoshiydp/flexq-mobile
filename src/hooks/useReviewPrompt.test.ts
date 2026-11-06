@@ -1,12 +1,11 @@
 /**
  * useReviewPrompt のユニットテスト (TASK-79)
  * - 表示条件を満たすときのみ ConfirmModal を表示する
- * - 「レビューする」でレビュー実行済みを記録し、OS のレビューダイアログを呼ぶ
- * - ネイティブダイアログが使えない場合はストアのレビューページへフォールバックする
+ * - 「レビューする」でストアのレビュー画面を開き、開けたときだけレビュー実行済みを記録する
+ * - Android は Play ストアアプリを開けない場合に Web 版 Play ストアへフォールバックする
  */
 import { renderHook, waitFor } from '@testing-library/react-native';
-import { Linking } from 'react-native';
-import * as StoreReview from 'expo-store-review';
+import { Linking, Platform } from 'react-native';
 import { useReviewPrompt } from './useReviewPrompt';
 import {
   incrementLaunchCount,
@@ -25,11 +24,6 @@ jest.mock('@/contexts/ModalContext', () => ({
   }),
 }));
 
-jest.mock('expo-store-review', () => ({
-  isAvailableAsync: jest.fn(),
-  requestReview: jest.fn(),
-}));
-
 jest.mock('@/utils/reviewPromptStorage', () => ({
   incrementLaunchCount: jest.fn().mockResolvedValue(1),
   shouldShowReviewPrompt: jest.fn(),
@@ -38,10 +32,21 @@ jest.mock('@/utils/reviewPromptStorage', () => ({
 }));
 
 describe('useReviewPrompt', () => {
+  const originalOS = Platform.OS;
+  let openURLSpy: jest.SpyInstance;
+  let warnSpy: jest.SpyInstance;
+
   beforeEach(() => {
     jest.clearAllMocks();
-    (StoreReview.isAvailableAsync as jest.Mock).mockResolvedValue(true);
-    (StoreReview.requestReview as jest.Mock).mockResolvedValue(undefined);
+    openURLSpy = jest.spyOn(Linking, 'openURL');
+    // ストアを開けなかったときの console.warn でテスト出力を汚さない
+    warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+  });
+
+  afterEach(() => {
+    Platform.OS = originalOS;
+    openURLSpy.mockRestore();
+    warnSpy.mockRestore();
   });
 
   it('表示条件を満たさない場合はモーダルを表示せずカウントのみ行う', async () => {
@@ -63,8 +68,10 @@ describe('useReviewPrompt', () => {
     expect(markReviewPromptShown).toHaveBeenCalledTimes(1);
   });
 
-  it('「レビューする」でレビュー実行済みを記録し OS のレビューダイアログを呼ぶ', async () => {
+  it('「レビューする」で iOS は App Store のレビュー画面を開き、レビュー実行済みを記録する', async () => {
+    Platform.OS = 'ios';
     (shouldShowReviewPrompt as jest.Mock).mockResolvedValue(true);
+    openURLSpy.mockResolvedValue(undefined as never);
 
     renderHook(() => useReviewPrompt());
     await waitFor(() => expect(mockShowConfirmModal).toHaveBeenCalledTimes(1));
@@ -73,15 +80,34 @@ describe('useReviewPrompt', () => {
     await submitButton.onPress();
 
     expect(mockCloseModal).toHaveBeenCalledTimes(1);
+    expect(openURLSpy.mock.calls).toEqual([
+      ['https://apps.apple.com/app/id6762039606?action=write-review'],
+    ]);
     expect(markReviewCompleted).toHaveBeenCalledTimes(1);
-    expect(StoreReview.requestReview).toHaveBeenCalledTimes(1);
   });
 
-  it('ネイティブダイアログが使えない場合はストアのレビューページを開く', async () => {
+  it('「レビューする」で Android は Play ストアアプリのレビュー画面を開く', async () => {
+    Platform.OS = 'android';
     (shouldShowReviewPrompt as jest.Mock).mockResolvedValue(true);
-    (StoreReview.isAvailableAsync as jest.Mock).mockResolvedValue(false);
-    const openURLSpy = jest
-      .spyOn(Linking, 'openURL')
+    openURLSpy.mockResolvedValue(undefined as never);
+
+    renderHook(() => useReviewPrompt());
+    await waitFor(() => expect(mockShowConfirmModal).toHaveBeenCalledTimes(1));
+
+    const { submitButton } = mockShowConfirmModal.mock.calls[0][0];
+    await submitButton.onPress();
+
+    expect(openURLSpy.mock.calls).toEqual([
+      ['market://details?id=com.yoshiydp.lyricsapp&showAllReviews=true'],
+    ]);
+    expect(markReviewCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it('Android で Play ストアアプリを開けない場合は Web 版 Play ストアを開く', async () => {
+    Platform.OS = 'android';
+    (shouldShowReviewPrompt as jest.Mock).mockResolvedValue(true);
+    openURLSpy
+      .mockRejectedValueOnce(new Error('No Activity found'))
       .mockResolvedValue(undefined as never);
 
     renderHook(() => useReviewPrompt());
@@ -90,8 +116,29 @@ describe('useReviewPrompt', () => {
     const { submitButton } = mockShowConfirmModal.mock.calls[0][0];
     await submitButton.onPress();
 
-    expect(StoreReview.requestReview).not.toHaveBeenCalled();
+    expect(openURLSpy.mock.calls).toEqual([
+      ['market://details?id=com.yoshiydp.lyricsapp&showAllReviews=true'],
+      [
+        'https://play.google.com/store/apps/details?id=com.yoshiydp.lyricsapp&showAllReviews=true',
+      ],
+    ]);
+    expect(markReviewCompleted).toHaveBeenCalledTimes(1);
+  });
+
+  it('ストアを開けなかった場合はレビュー実行済みを記録しない', async () => {
+    Platform.OS = 'ios';
+    (shouldShowReviewPrompt as jest.Mock).mockResolvedValue(true);
+    openURLSpy.mockRejectedValue(new Error('Unable to open URL'));
+
+    renderHook(() => useReviewPrompt());
+    await waitFor(() => expect(mockShowConfirmModal).toHaveBeenCalledTimes(1));
+
+    const { submitButton } = mockShowConfirmModal.mock.calls[0][0];
+    await submitButton.onPress();
+
+    expect(mockCloseModal).toHaveBeenCalledTimes(1);
     expect(openURLSpy).toHaveBeenCalledTimes(1);
+    expect(markReviewCompleted).not.toHaveBeenCalled();
   });
 
   it('再レンダーされても起動カウントは 1 回だけ行う', async () => {
