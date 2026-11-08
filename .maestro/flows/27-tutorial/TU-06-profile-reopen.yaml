@@ -1,0 +1,36 @@
+# ID: TU-06
+# シナリオ名: PROFILE の「HOW TO USE」からチュートリアルを見返せる
+# 前提条件: demo アカウント（プロジェクトあり・初回の自動表示は出ない）
+# 操作手順: ログイン → PROFILE タブ → HOW TO USE → ようこそページを確認 → スキップ
+# 期待結果: ようこそページから表示され、スキップで閉じて PROFILE に戻る
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - TU
+  - TU-06
+---
+- runFlow: ../helpers/login.yaml
+- tapOn:
+    id: 'nav-Profile'
+- waitForAnimationToEnd:
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: 'tutorial-open-button'
+    direction: DOWN
+    timeout: 15000
+    # 画面下端ではボトムタブの裏に隠れてタブのほうを押してしまうため、中央までスクロールする
+    centerElement: true
+- tapOn:
+    id: 'tutorial-open-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'tutorial-title-welcome'
+- tapOn:
+    id: 'tutorial-skip-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'tutorial-modal'
+- assertVisible: 'HOW TO USE'

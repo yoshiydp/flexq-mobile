@@ -9,6 +9,8 @@ interface SubmitButtonProps {
   onPress: () => void;
   disabled?: boolean;
   testID?: string;
+  /** ラベルの文字サイズの拡大上限（端末の文字サイズ設定に対する倍率）。未指定なら上限なし */
+  maxFontSizeMultiplier?: number;
 }
 
 export default function SubmitButton({
@@ -18,6 +20,7 @@ export default function SubmitButton({
   onPress,
   disabled = false,
   testID,
+  maxFontSizeMultiplier,
 }: SubmitButtonProps) {
   const containerStyle = [
     styles.container,
@@ -46,7 +49,9 @@ export default function SubmitButton({
       needsOffscreenAlphaCompositing={disabled}
       testID={testID || 'submit-button'}
     >
-      <Text style={labelStyle}>{label}</Text>
+      <Text style={labelStyle} maxFontSizeMultiplier={maxFontSizeMultiplier}>
+        {label}
+      </Text>
     </Pressable>
   );
 }

@@ -388,6 +388,15 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
 
+### 初回チュートリアル（TASK-139）
+
+ログイン後の PROJECT LIST で、プロジェクト 0 件のユーザーに 2 ページのポップアップ（ようこそ → 新規作成の動画）を 1 回だけ表示する。
+
+- 表示判定は `src/hooks/useOnboardingTutorial.ts`: プロジェクト一覧の取得が**成功した**最初のタイミングで 1 回だけ判定し、完了済み（`src/utils/tutorialStorage.ts`・AsyncStorage の端末単位）なら出さない。**プロジェクトが 1 件以上あれば出さずに完了扱い**にする（OTA 配信時にリリース済みのユーザー全員へ出さないため）。スキップ・「あとで」・「プロジェクトを作成する」・Android の戻るのどれでも完了を記録する
+- 未完了の間はレビュー依頼（`useReviewPrompt`）を出さない（同じ画面で重ならないように。起動回数のカウントは続ける）
+- PROFILE の「HOW TO USE」でいつでも見返せる。ページの文言・動画は `src/constants/tutorial.ts`、描画は `src/components/features/tutorial/TutorialModal`
+- 動画（`src/assets/video/tutorial-new-project.mp4` と読み込み中のポスター `-poster.jpg`）は expo-av の `Video` で無音・ループ再生する（ネイティブ変更なし・OTA で届く）。**UI を変えたら撮り直す**: dev の Metro を起動し、開発ビルドを入れたシミュレーターで `.maestro/tutorial/record.sh <udid>` を実行すると、チュートリアル用アカウントの初期化 → ログイン → 録画 → ステータスバーの切り落とし → 静止区間の短縮（`trim.py`）→ ポスター生成まで行う（要 ffmpeg）。撮影用トラックのアートワークは `scripts/generate-tutorial-artwork.py` で生成したもの（写真・イラスト素材は使わない）
+
 ### 開発ビルド（実機検証用）
 
 #### Expo Go は使えない
@@ -828,6 +837,7 @@ maestro test .maestro/flows/04-password-reset/PW-04-invalid-verification-code.ya
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
 **テストアカウント（dev）:** `demo@example.com` / `password123`
+**チュートリアル用アカウント（dev）:** `yoshihisa.watanabe.info+tutorial@gmail.com` / `password123`（`27-tutorial` のフローとチュートリアル動画の撮影専用。プロジェクト 0 件の状態が前提のため、各フローが `.maestro/scripts/tutorial-account-reset.js` でプロジェクトを全件削除してから始める。トラック「Sample Beat」1 本だけを持つ。demo アカウントはプロジェクトがあるため初回チュートリアルは出ない）
 **BAN 検証用アカウント（dev）:** `e2e-ban@example.com` / `password123`（`25-account-suspension` のフロー専用。`scripts/e2e-ban.sh` が BAN → フロー実行 → 解除を行う。demo アカウントを BAN すると他の全 E2E が巻き添えになるため共用しない。アカウントが無い場合はアプリの新規登録（メール認証コードあり）で作成する）
 
 **前提データ:** `PL-05` / `PE-01` / `PS-03` / `PS-04` は demo アカウントに 1 件以上のプロジェクト、`AP-01` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。

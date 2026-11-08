@@ -1,0 +1,21 @@
+# ID: TU-05
+# シナリオ名: プロジェクトがある既存ユーザーには初回チュートリアルを表示しない
+# 前提条件: demo アカウントにプロジェクトが 1 件以上あること（PL-05 と同じ）
+# 操作手順: demo アカウントでログイン → プロジェクト一覧の表示を待つ
+# 期待結果: チュートリアルは表示されない（clearState で完了フラグが無い状態でも出ない）
+# 備考: OTA 配信時にリリース済みのユーザー全員へ出ないことの確認
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - TU
+  - TU-05
+---
+- runFlow: ../helpers/login.yaml
+- extendedWaitUntil:
+    visible:
+      id: 'project-item-0'
+    timeout: 20000
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'tutorial-modal'
