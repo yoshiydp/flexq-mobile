@@ -79,4 +79,14 @@ describe('SubmitButton コンポーネント', () => {
 
     expect(getByTestId('custom-submit-button')).toBeTruthy();
   });
+
+  it('maxFontSizeMultiplier を指定するとラベルの文字の拡大に上限を設け、未指定なら上限なし', () => {
+    const { getByText, rerender } = render(
+      <SubmitButton onPress={jest.fn()} maxFontSizeMultiplier={1.6} />,
+    );
+    expect(getByText('SAVE').props.maxFontSizeMultiplier).toBe(1.6);
+
+    rerender(<SubmitButton onPress={jest.fn()} />);
+    expect(getByText('SAVE').props.maxFontSizeMultiplier).toBeUndefined();
+  });
 });

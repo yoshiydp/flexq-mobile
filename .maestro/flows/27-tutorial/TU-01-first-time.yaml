@@ -1,0 +1,58 @@
+# ID: TU-01（TU-02 も兼ねる）
+# シナリオ名: プロジェクト 0 件のユーザーに初回チュートリアルが表示され、「あとで」で閉じられる
+# 前提条件: dev API に接続できること・チュートリアル用アカウント（下の env）が存在すること
+#           （フロー内の API セットアップでプロジェクトを全件削除して 0 件にする）
+# 操作手順: ログイン → ようこそページを確認 → 次へ → 作成ページ（動画）を確認 → あとで
+# 期待結果: ようこそ → 作成ページの順に表示され、「あとで」で閉じると空の PROJECT LIST が見える
+# 備考: launch-app.yaml の clearState で完了フラグ（AsyncStorage）が消えるため、毎回初回として表示される。
+#       動画の再生（無音・ループ）はネイティブ描画のため手動確認（docs/test-cases.md TU-07）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - TU
+  - TU-01
+  - TU-02
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  TUTORIAL_EMAIL: 'yoshihisa.watanabe.info+tutorial@gmail.com'
+  TUTORIAL_PASSWORD: 'password123'
+---
+- runScript: ../../scripts/tutorial-account-reset.js
+- runFlow:
+    file: ../helpers/login-as.yaml
+    env:
+      LOGIN_EMAIL: ${TUTORIAL_EMAIL}
+      LOGIN_PASSWORD: ${TUTORIAL_PASSWORD}
+
+# ようこそページ（主な機能の紹介）
+- extendedWaitUntil:
+    visible:
+      id: 'tutorial-title-welcome'
+    timeout: 20000
+# 新しいシミュレーターでは iOS の「パスワードを保存しますか？」がチュートリアルの上に遅れて出ることがあるため閉じる
+- runFlow: ../helpers/dismiss-password-save.yaml
+- assertVisible: 'FlexQ へようこそ'
+- assertVisible: 'DRAFTS'
+- assertVisible: 'TRACK LIST'
+- assertVisible: 'スキップ'
+
+# 作成ページ（動画付き）
+- tapOn:
+    id: 'tutorial-next-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'tutorial-title-create-project'
+- assertVisible: 'まずはプロジェクトを作ろう'
+- assertVisible:
+    id: 'tutorial-video'
+- assertVisible: 'プロジェクトを作成する'
+
+# 「あとで」で閉じる
+- tapOn:
+    id: 'tutorial-skip-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'tutorial-modal'
+- assertVisible: 'プロジェクトがありません'
