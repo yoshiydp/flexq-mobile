@@ -8,6 +8,7 @@ import {
   markReviewPromptShown,
   markReviewCompleted,
 } from '@/utils/reviewPromptStorage';
+import { isOnboardingTutorialCompleted } from '@/utils/tutorialStorage';
 
 // ストアのレビュー画面の URL。
 // OS のアプリ内レビューダイアログ（expo-store-review）は表示するかどうかを OS が決め、
@@ -46,6 +47,7 @@ async function openStoreReviewPage(): Promise<boolean> {
  * - 「レビューする」→ ストアのレビュー画面を開く
  * - 「あとで」→ 30 日後に再依頼
  * - ストアを開いたあとは表示しない（開けなかった場合は 30 日後に再依頼）
+ * - 初回チュートリアル（TASK-139）が未完了の間は表示しない
  */
 export function useReviewPrompt() {
   const { showConfirmModal, closeModal } = useModal();
@@ -58,6 +60,9 @@ export function useReviewPrompt() {
 
     (async () => {
       await incrementLaunchCount();
+      // 初回チュートリアル（TASK-139）が未完了の間は同じ画面で重ならないよう依頼しない
+      // （起動回数のカウントは続ける。既存ユーザーはプロジェクト取得後に完了扱いになり、次回以降に依頼される）
+      if (!(await isOnboardingTutorialCompleted())) return;
       if (!(await shouldShowReviewPrompt())) return;
 
       await markReviewPromptShown();

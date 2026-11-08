@@ -42,4 +42,14 @@ describe('CancelButton コンポーネント', () => {
 
     expect(getByTestId('custom-cancel-button')).toBeTruthy();
   });
+
+  it('maxFontSizeMultiplier を指定するとラベルの文字の拡大に上限を設け、未指定なら上限なし', () => {
+    const { getByText, rerender } = render(
+      <CancelButton onPress={jest.fn()} maxFontSizeMultiplier={1.6} />,
+    );
+    expect(getByText('CANCEL').props.maxFontSizeMultiplier).toBe(1.6);
+
+    rerender(<CancelButton onPress={jest.fn()} />);
+    expect(getByText('CANCEL').props.maxFontSizeMultiplier).toBeUndefined();
+  });
 });
