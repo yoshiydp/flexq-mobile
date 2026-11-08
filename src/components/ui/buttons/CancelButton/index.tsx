@@ -8,6 +8,8 @@ interface CancelButtonProps {
   labelClassName?: any;
   onPress: () => void;
   testID?: string;
+  /** ラベルの文字サイズの拡大上限（端末の文字サイズ設定に対する倍率）。未指定なら上限なし */
+  maxFontSizeMultiplier?: number;
 }
 
 export default function CancelButton({
@@ -16,6 +18,7 @@ export default function CancelButton({
   labelClassName,
   onPress,
   testID,
+  maxFontSizeMultiplier,
 }: CancelButtonProps) {
   const containerStyle = [
     styles.container,
@@ -37,7 +40,9 @@ export default function CancelButton({
       onPress={onPress}
       testID={testID || 'cancel-button'}
     >
-      <Text style={labelStyle}>{label}</Text>
+      <Text style={labelStyle} maxFontSizeMultiplier={maxFontSizeMultiplier}>
+        {label}
+      </Text>
     </Pressable>
   );
 }

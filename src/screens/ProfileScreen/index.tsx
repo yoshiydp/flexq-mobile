@@ -1,4 +1,4 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { Animated, View, ActivityIndicator, Alert } from 'react-native';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -21,6 +21,8 @@ import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 import { useLinkAppleAccount } from '@/hooks/useLinkAppleAccount';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
+import TutorialModal from '@/components/features/tutorial/TutorialModal';
+import { ONBOARDING_TUTORIAL_PAGES } from '@/constants/tutorial';
 import styles from './ProfileScreen.styles';
 
 export default function ProfileScreen() {
@@ -61,6 +63,14 @@ export default function ProfileScreen() {
   });
 
   const handleProfileEditPress = () => navigation.navigate('ProfileEdit');
+
+  // 初回チュートリアル（TASK-139）を見返すための「HOW TO USE」
+  const [tutorialVisible, setTutorialVisible] = useState(false);
+  const closeTutorial = useCallback(() => setTutorialVisible(false), []);
+  const handleTutorialComplete = () => {
+    setTutorialVisible(false);
+    navigation.navigate('NewProject');
+  };
 
   const onSubmitLogout = async () => {
     closeModal();
@@ -204,6 +214,17 @@ export default function ProfileScreen() {
     // TODO: Instagram連携を実装したら provider === 'instagram' の分岐を追加する
   }, [profile, googleSignIn, linkApple, saveSocialAccounts, showLoading, hideLoading]);
 
+  // 読み込み中の表示と通常の表示で同じ位置（先頭の子）に置き、プロフィールの再取得（タブ復帰）で
+  // 再マウント・非表示にならないようにする
+  const tutorialModal = (
+    <TutorialModal
+      visible={tutorialVisible}
+      pages={ONBOARDING_TUTORIAL_PAGES}
+      onClose={closeTutorial}
+      onComplete={handleTutorialComplete}
+    />
+  );
+
   if (loading || !profile) {
     return (
       <HomeTabsScreenTemplate
@@ -211,6 +232,7 @@ export default function ProfileScreen() {
         titleAnim1={titleAnim1}
         titleAnim2={titleAnim2}
       >
+        {tutorialModal}
         <View style={styles.loadingContainer}>
           <ActivityIndicator size="large" />
         </View>
@@ -224,6 +246,7 @@ export default function ProfileScreen() {
       titleAnim1={titleAnim1}
       titleAnim2={titleAnim2}
     >
+      {tutorialModal}
       <HeaderActionButton
         icon="edit"
         onPress={handleProfileEditPress}
@@ -245,6 +268,12 @@ export default function ProfileScreen() {
           />
         </View>
         <View style={styles.border} />
+        <CancelButton
+          containerClassName={styles.logoutButton}
+          label="HOW TO USE"
+          onPress={() => setTutorialVisible(true)}
+          testID="tutorial-open-button"
+        />
         <CancelButton
           containerClassName={styles.logoutButton}
           label="LOGOUT"

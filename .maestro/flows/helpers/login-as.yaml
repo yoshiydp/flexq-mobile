@@ -1,0 +1,30 @@
+# 指定アカウントでのログインフロー（iOS / Android 対応）
+# login.yaml の demo アカウント固定版に対し、アカウントを env で受け取る。
+# 使い方:
+#   - runFlow:
+#       file: ../helpers/login-as.yaml
+#       env:
+#         LOGIN_EMAIL: 'someone@example.com'
+#         LOGIN_PASSWORD: 'password123'
+# ログイン後の画面の確認は呼び出し側で行う（プロジェクト 0 件のアカウントでは
+# 初回チュートリアル（TASK-139）が一覧の上に表示されるため）
+
+appId: com.yoshiydp.lyricsapp
+---
+- runFlow: ./launch-app.yaml
+# 起動直後の最初の入力はフォーカスとの競合で入力が失われることがあるため、
+# 入力結果を assert し、失われていた場合はリトライする
+- retry:
+    maxRetries: 2
+    commands:
+      - tapOn: 'メールアドレスを入力してください'
+      - inputText: ${LOGIN_EMAIL}
+      - assertVisible: ${LOGIN_EMAIL}
+- tapOn: 'パスワードを入力してください'
+- inputText: ${LOGIN_PASSWORD}
+- runFlow: ./hide-keyboard.yaml
+- runFlow: ./dismiss-password-save.yaml
+- tapOn: 'SIGN IN'
+- waitForAnimationToEnd:
+    timeout: 10000
+- runFlow: ./dismiss-password-save.yaml

@@ -18,6 +18,12 @@ tags:
     id: 'nav-Profile'
 - waitForAnimationToEnd:
     timeout: 5000
+# LOGOUT は画面下部（「HOW TO USE」の下）にあり、ボトムタブの裏に隠れることがあるため中央までスクロールする
+- scrollUntilVisible:
+    element: 'LOGOUT'
+    direction: DOWN
+    timeout: 15000
+    centerElement: true
 - tapOn: 'LOGOUT'
 - tapOn: 'OK'
 - waitForAnimationToEnd:

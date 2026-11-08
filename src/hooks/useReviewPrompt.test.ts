@@ -13,6 +13,7 @@ import {
   markReviewPromptShown,
   markReviewCompleted,
 } from '@/utils/reviewPromptStorage';
+import { isOnboardingTutorialCompleted } from '@/utils/tutorialStorage';
 
 const mockShowConfirmModal = jest.fn();
 const mockCloseModal = jest.fn();
@@ -31,6 +32,10 @@ jest.mock('@/utils/reviewPromptStorage', () => ({
   markReviewCompleted: jest.fn().mockResolvedValue(undefined),
 }));
 
+jest.mock('@/utils/tutorialStorage', () => ({
+  isOnboardingTutorialCompleted: jest.fn(),
+}));
+
 describe('useReviewPrompt', () => {
   const originalOS = Platform.OS;
   let openURLSpy: jest.SpyInstance;
@@ -38,6 +43,8 @@ describe('useReviewPrompt', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    // 既定は初回チュートリアル完了済み（TASK-139 の抑止は専用のテストで確認する）
+    (isOnboardingTutorialCompleted as jest.Mock).mockResolvedValue(true);
     openURLSpy = jest.spyOn(Linking, 'openURL');
     // ストアを開けなかったときの console.warn でテスト出力を汚さない
     warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
@@ -55,6 +62,18 @@ describe('useReviewPrompt', () => {
     renderHook(() => useReviewPrompt());
 
     await waitFor(() => expect(incrementLaunchCount).toHaveBeenCalledTimes(1));
+    expect(mockShowConfirmModal).not.toHaveBeenCalled();
+    expect(markReviewPromptShown).not.toHaveBeenCalled();
+  });
+
+  it('初回チュートリアルが未完了の間は表示条件を満たしても表示せず、カウントのみ行う (TASK-139)', async () => {
+    (isOnboardingTutorialCompleted as jest.Mock).mockResolvedValue(false);
+    (shouldShowReviewPrompt as jest.Mock).mockResolvedValue(true);
+
+    renderHook(() => useReviewPrompt());
+
+    await waitFor(() => expect(isOnboardingTutorialCompleted).toHaveBeenCalled());
+    expect(incrementLaunchCount).toHaveBeenCalledTimes(1);
     expect(mockShowConfirmModal).not.toHaveBeenCalled();
     expect(markReviewPromptShown).not.toHaveBeenCalled();
   });
