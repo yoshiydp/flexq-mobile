@@ -1,0 +1,26 @@
+# ヒント動画（TASK-140）「CUE: タップで位置を登録」: 再生 → Cue A・Cue B を登録 → Cue A をタップしてその位置へ戻る
+# 前提: 編集画面（CUE は未登録・停止中）
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'player-play-button'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'cue-button-0'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: 'cue-button-1'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'cue-button-0'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'player-play-button'
+- waitForAnimationToEnd:
+    timeout: 1500

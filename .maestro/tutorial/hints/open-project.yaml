@@ -1,0 +1,11 @@
+# PROJECT LIST の先頭のプロジェクト（My First Song）を開き、編集画面の表示を待つ（録画しない）
+appId: com.yoshiydp.lyricsapp
+---
+- tapOn:
+    id: 'project-item-0'
+- extendedWaitUntil:
+    visible:
+      id: 'rec-mode-button'
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 3000

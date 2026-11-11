@@ -1,0 +1,45 @@
+# ヒント動画（TASK-140）「REC で録音する」: REC MODE → REC → 開始位置に Hook（Cue A）を選んで録音
+# → 数秒録って停止 → 録音の再生画面。テイクは SAVE しない（dev にデータを残さない）
+# 前提: Cue A が「Hook」で登録済み・マイクを許可済み
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'rec-mode-button'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'rec-ready-section-pressable'
+- extendedWaitUntil:
+    visible: '録音開始位置を選択'
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'rec-start-option-cue-0'
+- waitForAnimationToEnd:
+    timeout: 1000
+# ここからは画面のタイマーが動き続けるため、要素を読み取らずに待ち、停止ボタンは座標で押す
+# （座標は iPhone 18 Pro の録音中のモーダルの停止ボタン。端末を変えたら測り直す）
+- tapOn:
+    id: 'rec-start-button'
+    waitToSettleTimeoutMs: 0
+# カウントダウン 5 秒 + 録音 3 秒
+- runScript:
+    file: wait.js
+    env:
+      WAIT_MS: '8500'
+- tapOn:
+    point: '50%, 67%'
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible:
+      id: 'submit-button'
+    timeout: 20000
+# 再生画面は音源の読み込みで描画が数秒止まることがあり、要素が見えても画面に出るのが遅れる。
+# 出てこない要素を待つことで、画面が出きるまで一定時間待つ（optional なので失敗にしない）
+- extendedWaitUntil:
+    visible: 'tutorial-recording-wait-never-shown'
+    timeout: 5000
+    optional: true

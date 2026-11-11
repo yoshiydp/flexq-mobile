@@ -5,6 +5,7 @@ import CancelButton from '@/components/ui/buttons/CancelButton';
 import SubmitButton from '@/components/ui/buttons/SubmitButton';
 import { containsJapaneseText } from '@/utils/containsJapaneseText';
 import styles from './BaseModal.styles';
+import TouchIndicatorBoundary from '@/components/dev/TouchIndicatorBoundary';
 
 interface SubmitButtonProps {
   /** 省略時は SubmitButton 側の既定ラベル（SAVE）を使う */
@@ -72,58 +73,61 @@ export default function BaseModal({
       statusBarTranslucent
       navigationBarTranslucent
     >
-      <Animated.View
-        style={styles.overlay}
-        entering={FadeIn.duration(200)}
-        exiting={FadeOut.duration(200).withCallback(() =>
-          runOnJS(handleFadeOutEnd)(),
-        )}
-      >
+      {/* ヒント動画の撮影用のタップ位置表示（開発ビルドのみ・TASK-140） */}
+      <TouchIndicatorBoundary>
         <Animated.View
-          style={styles.container}
+          style={styles.overlay}
           entering={FadeIn.duration(200)}
-          exiting={FadeOut.duration(200)}
-          onStartShouldSetResponder={() => {
-            Keyboard.dismiss();
-            return false;
-          }}
+          exiting={FadeOut.duration(200).withCallback(() =>
+            runOnJS(handleFadeOutEnd)(),
+          )}
         >
-          {children}
-          <View style={styles.buttonWrapper}>
-            <CancelButton
-              onPress={onClose}
-              label={closeLabel}
-              containerClassName={[
-                styles.buttonContainer,
-                styles.cancelButton,
-                closeIsJapanese && styles.buttonContainerJa,
-              ]}
-              labelClassName={[
-                styles.buttonText,
-                styles.cancelButtonText,
-                closeIsJapanese && styles.buttonTextJa,
-              ]}
-            />
-            {submitButton && (
-              <SubmitButton
-                onPress={submitButton.onPress}
-                label={submitButton.label}
+          <Animated.View
+            style={styles.container}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(200)}
+            onStartShouldSetResponder={() => {
+              Keyboard.dismiss();
+              return false;
+            }}
+          >
+            {children}
+            <View style={styles.buttonWrapper}>
+              <CancelButton
+                onPress={onClose}
+                label={closeLabel}
                 containerClassName={[
                   styles.buttonContainer,
-                  styles.submitButton,
-                  submitIsJapanese && styles.buttonContainerJa,
+                  styles.cancelButton,
+                  closeIsJapanese && styles.buttonContainerJa,
                 ]}
                 labelClassName={[
                   styles.buttonText,
-                  styles.submitButtonText,
-                  submitIsJapanese && styles.buttonTextJa,
+                  styles.cancelButtonText,
+                  closeIsJapanese && styles.buttonTextJa,
                 ]}
-                disabled={submitButton.disabled}
               />
-            )}
-          </View>
+              {submitButton && (
+                <SubmitButton
+                  onPress={submitButton.onPress}
+                  label={submitButton.label}
+                  containerClassName={[
+                    styles.buttonContainer,
+                    styles.submitButton,
+                    submitIsJapanese && styles.buttonContainerJa,
+                  ]}
+                  labelClassName={[
+                    styles.buttonText,
+                    styles.submitButtonText,
+                    submitIsJapanese && styles.buttonTextJa,
+                  ]}
+                  disabled={submitButton.disabled}
+                />
+              )}
+            </View>
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      </TouchIndicatorBoundary>
     </Modal>
   );
 }

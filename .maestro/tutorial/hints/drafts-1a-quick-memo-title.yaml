@@ -1,0 +1,22 @@
+# ヒント動画（TASK-140）「QUICK MEMO」前半: PROJECT LIST → DRAFTS → QUICK MEMO → タイトルを入力
+# 前提: prepare-drafts.yaml を実行済み（PROJECT LIST・DRAFTS のヒントは閉じてある）
+# 後半（本文入り → SAVE → MEMO LIST）は drafts-1b で撮り、record-hints.sh がつなげる
+appId: com.yoshiydp.lyricsapp
+env:
+  MEMO_TITLE: 'Midnight idea'
+---
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'nav-Drafts'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'drafts-quick-memo-button'
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn: 'タイトルを入力してください'
+- inputText: ${MEMO_TITLE}
+- runFlow: ../../flows/helpers/hide-keyboard.yaml
+- waitForAnimationToEnd:
+    timeout: 1200

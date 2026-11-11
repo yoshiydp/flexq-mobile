@@ -40,6 +40,7 @@ export default function CueButtonList({
             containerAddStyle={{ flex: 1 }}
             onPress={() => onPress(index)}
             onLongPress={() => onLongPress(index)}
+            testID={`cue-button-${index}`}
           />
         );
       })}

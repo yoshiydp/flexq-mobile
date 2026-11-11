@@ -1,0 +1,14 @@
+# ヒント動画（TASK-140）「QUICK MEMO」後半: 本文が入った状態 → SAVE → MEMO LIST に並ぶ
+# 前提: drafts-memo-open.yaml を実行済み（本文入りのメモを開いている）
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible:
+      id: 'memo-list-scroll'
+    timeout: 15000
+- waitForAnimationToEnd:
+    timeout: 2500

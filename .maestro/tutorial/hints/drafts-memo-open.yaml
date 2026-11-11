@@ -1,0 +1,32 @@
+# drafts-1a と drafts-1b の合間（録画しない）: 入力中のメモを破棄して、API で作った本文入りの同名メモを開く
+appId: com.yoshiydp.lyricsapp
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  TUTORIAL_EMAIL: 'yoshihisa.watanabe.info+tutorial@gmail.com'
+  TUTORIAL_PASSWORD: 'password123'
+  MEMO_TITLE: 'Midnight idea'
+---
+- runScript: ../../scripts/tutorial-create-memo.js
+- tapOn:
+    id: 'toolbar-back'
+- extendedWaitUntil:
+    visible: '編集中のメモは保存されませんが、よろしいですか？'
+    timeout: 5000
+- tapOn: 'OK'
+- extendedWaitUntil:
+    visible:
+      id: 'drafts-list-button'
+    timeout: 30000
+- tapOn:
+    id: 'drafts-list-button'
+    index: 0
+- extendedWaitUntil:
+    visible:
+      id: 'memo-list-scroll'
+    timeout: 15000
+- tapOn: '.*${MEMO_TITLE}.*'
+- extendedWaitUntil:
+    visible: 'QUICK MEMO'
+    timeout: 10000
+- waitForAnimationToEnd:
+    timeout: 3000
