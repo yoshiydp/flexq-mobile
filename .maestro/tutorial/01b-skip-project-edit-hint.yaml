@@ -1,0 +1,10 @@
+# 初回チュートリアルの動画（TASK-139）撮影の前準備（録画しない・01-login.yaml の直後に実行する）:
+# 撮影の最後に開く編集画面でプロジェクト編集の初回ヒント（TASK-140）が出ないよう、API で 2 件目の
+# プロジェクトを足しておく。表示中の一覧（空状態）は読み直さないため、撮影には映らない
+appId: com.yoshiydp.lyricsapp
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  TUTORIAL_EMAIL: 'yoshihisa.watanabe.info+tutorial@gmail.com'
+  TUTORIAL_PASSWORD: 'password123'
+---
+- runScript: ../scripts/tutorial-add-placeholder-project.js

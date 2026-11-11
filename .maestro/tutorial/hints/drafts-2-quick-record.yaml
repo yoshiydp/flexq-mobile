@@ -1,0 +1,32 @@
+# ヒント動画（TASK-140）「QUICK RECORD」: DRAFTS → QUICK RECORD → REC（すぐ録音が始まる）→ 停止 → 録音の再生画面。
+# テイクは SAVE しない（dev にデータを残さない）。前提: DRAFTS 画面・マイクを許可済み
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'drafts-quick-record-button'
+- waitForAnimationToEnd:
+    timeout: 2000
+# ここからは画面のタイマーが動き続けるため、要素を読み取らずに待ち、停止ボタンは座標で押す
+# （座標は iPhone 18 Pro の停止ボタン。端末を変えたら測り直す）
+- tapOn:
+    id: 'rec-ready-section-pressable'
+    waitToSettleTimeoutMs: 0
+# 録音 3 秒
+- runScript:
+    file: wait.js
+    env:
+      WAIT_MS: '3500'
+- tapOn:
+    point: '50%, 55%'
+    waitToSettleTimeoutMs: 0
+- extendedWaitUntil:
+    visible:
+      id: 'submit-button'
+    timeout: 20000
+# 再生画面は音源の読み込みで描画が数秒止まることがあるため、画面が出きるまで一定時間待つ
+- extendedWaitUntil:
+    visible: 'tutorial-recording-wait-never-shown'
+    timeout: 5000
+    optional: true

@@ -10,6 +10,7 @@ interface CueButtonProps {
   onPress?: () => void;
   onLongPress?: () => void;
   containerAddStyle?: object;
+  testID?: string;
 }
 
 export default function CueButton({
@@ -19,12 +20,14 @@ export default function CueButton({
   onPress,
   onLongPress,
   containerAddStyle,
+  testID,
 }: CueButtonProps) {
   return (
     <Pressable
       style={[styles.container, containerAddStyle, isActive && styles.active]}
       onPress={onPress}
       onLongPress={onLongPress}
+      testID={testID}
     >
       {label && (
         <Text

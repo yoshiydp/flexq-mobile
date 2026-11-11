@@ -1,0 +1,17 @@
+# シーンの合間に編集画面を開き直す（録画しない）。再生を止め、歌詞の編集状態を閉じた状態に戻す
+appId: com.yoshiydp.lyricsapp
+---
+- tapOn:
+    id: 'toolbar-back'
+# 「編集中のプロジェクトを保存してプロジェクトリストに戻りますか？」の SAVE
+- extendedWaitUntil:
+    visible:
+      id: 'submit-button'
+    timeout: 5000
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible:
+      id: 'project-item-0'
+    timeout: 15000
+- runFlow: open-project.yaml

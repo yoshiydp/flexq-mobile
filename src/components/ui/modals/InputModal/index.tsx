@@ -44,6 +44,7 @@ export default function InputModal({
         formValue={value}
         onChangeText={setValue}
         placeholder={placeholder}
+        testID="input-modal-text-input"
       />
     </BaseModal>
   );

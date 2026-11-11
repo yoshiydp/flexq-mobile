@@ -1,0 +1,35 @@
+# ヒント動画（TASK-140）「CUE: タップで位置を登録」: 再生 → Cue A を登録 → 波形をスワイプして曲の後半へ進める
+# → Cue B を登録 → Cue A をタップしてその位置へ戻る
+# Cue A と Cue B の間隔が開いて見えるよう、再生を待たずに波形のスワイプ（シーク）で進める。
+# 前提: 編集画面（CUE は未登録・停止中）。波形の座標（y=44%）は iPhone 18 Pro の EDIT モード
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'player-play-button'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'cue-button-0'
+- waitForAnimationToEnd:
+    timeout: 2000
+# 波形を左端から 4 割ほどまでなぞる（離した位置へシークして再生が続く）
+- swipe:
+    start: '8%, 44%'
+    end: '42%, 44%'
+    duration: 1200
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: 'cue-button-1'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'cue-button-0'
+- waitForAnimationToEnd:
+    timeout: 2500
+- tapOn:
+    id: 'player-play-button'
+- waitForAnimationToEnd:
+    timeout: 1500

@@ -40,6 +40,7 @@ export default function EditableFormControl({
   socialAccounts,
   keyboardType,
   maxLength,
+  testID,
   onChangeText,
   onPressRemoveLink,
   onPressLinkAccount,
@@ -86,6 +87,7 @@ export default function EditableFormControl({
             onChangeText={handleChangeText}
             secureTextEntry={isSecure}
             editable={!readOnly}
+            testID={testID}
           />
           <Pressable
             style={styles.eyeButton}
@@ -112,6 +114,7 @@ export default function EditableFormControl({
           editable={!readOnly}
           keyboardType={keyboardType}
           maxLength={maxLength}
+          testID={testID}
         />
       )}
     </View>
