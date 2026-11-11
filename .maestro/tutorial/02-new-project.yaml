@@ -1,0 +1,43 @@
+# チュートリアル動画（TASK-139）の撮影本体: 空の PROJECT LIST から
+# NEW PROJECT → FROM TRACK LIST でトラックを選ぶ → 名前を入力 → CREATE → 編集画面
+# までを、見ている人が追える間（ま）を空けて操作する。
+#
+# 前提: 01-login.yaml を実行済みで、空の PROJECT LIST が表示されていること
+
+appId: com.yoshiydp.lyricsapp
+env:
+  PROJECT_NAME: 'My First Song'
+---
+# 録画開始直後の静止（空状態を見せる）
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn: 'NEW PROJECT'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: 'CREATE'
+
+- tapOn: 'FROM TRACK LIST'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible: 'SELECT TRACK'
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'track-picker-item-0'
+- waitForAnimationToEnd:
+    timeout: 3000
+
+- tapOn: 'プロジェクト名を入力してください'
+- inputText: ${PROJECT_NAME}
+- runFlow: ../flows/helpers/hide-keyboard.yaml
+- waitForAnimationToEnd:
+    timeout: 1500
+- tapOn:
+    id: 'new-project-create-button'
+
+# 作成後のプロジェクト編集画面（アップロードを含むため長めに待つ）
+- extendedWaitUntil:
+    visible: ${PROJECT_NAME}
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 3000
