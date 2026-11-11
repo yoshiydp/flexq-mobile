@@ -115,17 +115,25 @@ export default StyleSheet.create({
     rowGap: 10,
     marginTop: 18,
   },
-  // ラベルが日本語のため BaseModal の日本語ボタン（NotoSansJP ボールド + 上下中央）に揃える
+  // ラベルが日本語のため BaseModal の日本語ボタン（NotoSansJP ボールド + 上下中央）に揃える。
+  // SubmitButton は既定で高さ 52 に固定されており、Android では Noto Sans JP のフォント余白で
+  // 中身が伸びる CancelButton とだけ高さが変わり、ラベルも上下にずれていた。固定の高さを外し、
+  // 同じ行の 2 つのボタンが行の高さにそろうようにする（flexWrap の行内で stretch される）
   buttonContainer: {
+    height: 'auto',
+    minHeight: 48,
     minWidth: 96,
     paddingHorizontal: 14,
     paddingTop: 9,
     paddingBottom: 9,
   },
-  // 行の高さは固定しない（文字サイズを大きくしたときにラベルの上下が切れるため）
+  // 行の高さは固定しない（文字サイズを大きくしたときにラベルの上下が切れるため）。
+  // Android はフォントの上下の余白を除いて中央に置く（iOS では無視されるプロパティ）
   buttonText: {
     fontFamily: 'NotoSansJP_700Bold',
     fontSize: 15,
+    includeFontPadding: false,
+    textAlignVertical: 'center',
   },
   cancelButton: {
     backgroundColor: COLORS.form.default.background,

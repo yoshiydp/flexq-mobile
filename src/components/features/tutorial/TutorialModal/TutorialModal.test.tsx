@@ -3,6 +3,7 @@
  */
 import React from 'react';
 import { fireEvent, render } from '@testing-library/react-native';
+import { StyleSheet } from 'react-native';
 import TutorialModal from './index';
 import {
   ONBOARDING_TUTORIAL_PAGES,
@@ -105,6 +106,20 @@ describe('TutorialModal', () => {
     expect(
       getByTestId('tutorial-title-welcome').props.maxFontSizeMultiplier,
     ).toBe(1.6);
+  });
+
+  it('2 つのボタンは固定の高さを持たず、同じ最小の高さでそろう（Android で高さがずれた不具合）', () => {
+    const { getByTestId } = renderModal();
+    const skip = StyleSheet.flatten(
+      getByTestId('tutorial-skip-button').props.style,
+    );
+    const next = StyleSheet.flatten(
+      getByTestId('tutorial-next-button').props.style,
+    );
+    // SubmitButton の既定の height: 52 を打ち消していること
+    expect(next.height).toBe('auto');
+    expect(skip.height ?? 'auto').toBe('auto');
+    expect(next.minHeight).toBe(skip.minHeight);
   });
 
   it('completeLabel で最終ページの主ボタンの文言を変えられる', () => {
