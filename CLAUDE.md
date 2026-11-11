@@ -388,14 +388,16 @@ aws lambda get-function-configuration --function-name "$FN" --region ap-northeas
 | failed になる | [Replicate ダッシュボード](https://replicate.com)の prediction ログ。AAC 化以前の録音（PCM-in-M4A）は読めず failed になる（仕様） |
 | processing のまま進まない | 一時エラーはポーリングごとにリトライされ、連続 5 回失敗で failed に落ちる。`GetRecordSeparateStatusFunction` の CloudWatch ログを確認 |
 
-### 初回チュートリアル（TASK-139）
+### 初回チュートリアル・画面ごとのヒント（TASK-139 / TASK-140）
 
 ログイン後の PROJECT LIST で、プロジェクト 0 件のユーザーに 2 ページのポップアップ（ようこそ → 新規作成の動画）を 1 回だけ表示する。
 
 - 表示判定は `src/hooks/useOnboardingTutorial.ts`: プロジェクト一覧の取得が**成功した**最初のタイミングで 1 回だけ判定し、完了済み（`src/utils/tutorialStorage.ts`・AsyncStorage の端末単位）なら出さない。**プロジェクトが 1 件以上あれば出さずに完了扱い**にする（OTA 配信時にリリース済みのユーザー全員へ出さないため）。スキップ・「あとで」・「プロジェクトを作成する」・Android の戻るのどれでも完了を記録する
 - 未完了の間はレビュー依頼（`useReviewPrompt`）を出さない（同じ画面で重ならないように。起動回数のカウントは続ける）
-- PROFILE の「HOW TO USE」でいつでも見返せる。ページの文言・動画は `src/constants/tutorial.ts`、描画は `src/components/features/tutorial/TutorialModal`
+- PROFILE の「HOW TO USE」で案内の一覧（はじめに / プロジェクト編集 / DRAFTS。`TutorialGuideModal`）を開き、いつでも見返せる（見返しても完了の記録は変えない）。ページの文言・動画は `src/constants/tutorial.ts`、描画は `src/components/features/tutorial/TutorialModal`（中身は `TutorialCarousel`）
+- **画面ごとのヒント（TASK-140）**: プロジェクト編集（歌詞 → CUE のタップ / ダブルタップ / 長押し → REC の 5 ページ）と DRAFTS（クイックメモ / クイック録音の 2 ページ）を、その画面を初めて開いたときに 1 回だけ出す。判定は `src/hooks/useScreenHints.ts`（共通の流れは `useFirstTimeTutorial`・完了フラグは `tutorialStorage` の画面別のキー `tutorial.<id>.completed`）。**使い慣れたユーザーには出さずに完了扱い**: プロジェクト編集は「開いたプロジェクトに録音か歌詞がある」か「プロジェクトが 2 件以上」（最初の 1 件を作った直後の新規ユーザーにだけ出る。件数は未完了の端末で 1 回だけ API で取る）、DRAFTS は「メモか録音が 1 件でもある」。demo アカウントはどちらにも当てはまるため、既存の E2E はヒントで塞がれない
 - 動画（`src/assets/video/tutorial-new-project.mp4` と読み込み中のポスター `-poster.jpg`）は expo-av の `Video` で無音・ループ再生する（ネイティブ変更なし・OTA で届く）。**UI を変えたら撮り直す**: dev の Metro を起動し、開発ビルドを入れたシミュレーターで `.maestro/tutorial/record.sh <udid>` を実行すると、チュートリアル用アカウントの初期化 → ログイン → 録画 → ステータスバーの切り落とし → 静止区間の短縮（`trim.py`）→ ポスター生成まで行う（要 ffmpeg）。撮影用トラックのアートワークは `scripts/generate-tutorial-artwork.py` で生成したもの（写真・イラスト素材は使わない）
+- **ヒントの動画（`src/assets/video/hint-*.mp4`）の撮り直し**: Metro を `EXPO_PUBLIC_SHOW_TOUCHES=1 npx expo start` で起動し（タップした位置に印を出す撮影用の表示。`src/components/dev/TouchIndicatorBoundary`・`__DEV__` 限定で配信・本番には出ない）、`.maestro/tutorial/record-hints.sh <udid> [project-edit|drafts|all]` を実行する。前準備（`hints/prepare-*.yaml`）→ シーンごとの録画（`record-scene.sh`）→ 変換まで行う。撮影モードでは CUE のダブルタップの判定を 600ms に広げ（Maestro の連続タップは約 290ms 間隔で 250ms に収まらない）、LogBox と録音再生画面のデバッグ表示を消す。**歌詞とメモ本文のエディタ（WebView）はシミュレーターで自動入力できない**ため、歌詞は API で入れた状態から見せ、クイックメモは「タイトル入力」と「API で作った本文入りのメモを保存」の 2 区間をつなげている。録音中の停止ボタンは座標で押す（iPhone 18 Pro 基準。端末を変えたら `hints/pe-5-rec.yaml` / `drafts-2-quick-record.yaml` の座標を測り直す）。変換だけやり直すときは `FROM_RAW=<録画> record-scene.sh` を使う
 
 ### 開発ビルド（実機検証用）
 
@@ -837,7 +839,7 @@ maestro test .maestro/flows/04-password-reset/PW-04-invalid-verification-code.ya
 > Android エミュレーターは `adb reverse tcp:8081 tcp:8081` により `localhost:8081` で Metro に接続できる（`expo start` から `a` で起動すれば自動設定）。
 
 **テストアカウント（dev）:** `demo@example.com` / `password123`
-**チュートリアル用アカウント（dev）:** `yoshihisa.watanabe.info+tutorial@gmail.com` / `password123`（`27-tutorial` のフローとチュートリアル動画の撮影専用。プロジェクト 0 件の状態が前提のため、各フローが `.maestro/scripts/tutorial-account-reset.js` でプロジェクトを全件削除してから始める。トラック「Sample Beat」1 本だけを持つ。demo アカウントはプロジェクトがあるため初回チュートリアルは出ない）
+**チュートリアル用アカウント（dev）:** `yoshihisa.watanabe.info+tutorial@gmail.com` / `password123`（`27-tutorial` のフローとチュートリアル・ヒント動画の撮影専用。プロジェクト・メモ・録音が 0 件の状態が前提のため、各フローが `.maestro/scripts/tutorial-account-reset.js` でそれらを全件削除してから始める。トラック「Sample Beat」1 本だけを持つ。demo アカウントはプロジェクトがあるため初回チュートリアルは出ない）
 **BAN 検証用アカウント（dev）:** `e2e-ban@example.com` / `password123`（`25-account-suspension` のフロー専用。`scripts/e2e-ban.sh` が BAN → フロー実行 → 解除を行う。demo アカウントを BAN すると他の全 E2E が巻き添えになるため共用しない。アカウントが無い場合はアプリの新規登録（メール認証コードあり）で作成する）
 
 **前提データ:** `PL-05` / `PE-01` / `PS-03` / `PS-04` は demo アカウントに 1 件以上のプロジェクト、`AP-01` は 1 件以上のトラックが dev 環境に存在することを前提とする。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートする。

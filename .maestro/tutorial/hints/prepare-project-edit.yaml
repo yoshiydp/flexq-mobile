@@ -1,0 +1,71 @@
+# ヒント動画（TASK-140）のプロジェクト編集シーンの前準備（録画しない）:
+# チュートリアル用アカウントを初期化してログイン → マイクを許可して再起動 →
+# NEW PROJECT で「My First Song」を作成 → 初回ヒントを閉じる → 一覧に戻って API で歌詞を入れる →
+# 開き直して編集画面で止める（歌詞のエディタは自動入力できないため入力済みの状態から見せる）。
+# 以降のシーン（pe-*.yaml）はこの状態から順に撮る（CUE の状態を次のシーンへ引き継ぐ）。
+
+appId: com.yoshiydp.lyricsapp
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  TUTORIAL_EMAIL: 'yoshihisa.watanabe.info+tutorial@gmail.com'
+  TUTORIAL_PASSWORD: 'password123'
+  PROJECT_NAME: 'My First Song'
+---
+- runFlow: ../01-login.yaml
+# 録音シーンでマイクの許可ダイアログが映らないよう、許可した状態で起動し直す（ログインは保たれる）
+- launchApp:
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible: 'NEW PROJECT'
+    timeout: 60000
+- waitForAnimationToEnd:
+    timeout: 3000
+# 再起動直後はタップを受け付けないことがあるため、作成画面が開くまでリトライする
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn: 'NEW PROJECT'
+      - extendedWaitUntil:
+          visible: 'FROM TRACK LIST'
+          timeout: 10000
+- tapOn: 'FROM TRACK LIST'
+- extendedWaitUntil:
+    visible:
+      id: 'track-picker-item-0'
+    timeout: 15000
+- tapOn:
+    id: 'track-picker-item-0'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn: 'プロジェクト名を入力してください'
+- inputText: ${PROJECT_NAME}
+- runFlow: ../../flows/helpers/hide-keyboard.yaml
+- tapOn:
+    id: 'new-project-create-button'
+# 作成した直後のプロジェクト（録音・歌詞なし・プロジェクト 1 件）なので初回ヒントが出る
+- extendedWaitUntil:
+    visible:
+      id: 'tutorial-title-project-edit-lyrics'
+    timeout: 60000
+- tapOn:
+    id: 'tutorial-skip-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertVisible:
+    id: 'rec-mode-button'
+- tapOn:
+    id: 'toolbar-back'
+# 「編集中のプロジェクトを保存してプロジェクトリストに戻りますか？」の SAVE
+- extendedWaitUntil:
+    visible:
+      id: 'submit-button'
+    timeout: 5000
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible:
+      id: 'project-item-0'
+    timeout: 15000
+- runScript: ../../scripts/tutorial-set-lyrics.js
+- runFlow: open-project.yaml

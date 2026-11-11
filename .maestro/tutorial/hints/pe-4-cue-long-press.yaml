@@ -1,0 +1,26 @@
+# ヒント動画（TASK-140）「CUE: 長押しで名前を変更」: 登録済みの Cue A を長押し → 名前を「Hook」にして保存
+# 前提: Cue A が登録済み
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1500
+- longPressOn:
+    id: 'cue-button-0'
+- extendedWaitUntil:
+    visible:
+      id: 'input-modal-text-input'
+    timeout: 5000
+- waitForAnimationToEnd:
+    timeout: 1000
+# 入力欄は自動ではフォーカスされないため、タップしてから既定名（Cue A）を消して入力する
+- tapOn:
+    id: 'input-modal-text-input'
+- eraseText: 10
+- inputText: 'Hook'
+- runFlow: ../../flows/helpers/hide-keyboard.yaml
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'submit-button'
+- waitForAnimationToEnd:
+    timeout: 2500

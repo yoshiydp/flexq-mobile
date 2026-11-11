@@ -21,8 +21,7 @@ import { useGoogleAuth } from '@/hooks/useGoogleAuth';
 import { useLinkAppleAccount } from '@/hooks/useLinkAppleAccount';
 import { DefaultService } from '@/apiClient/services/DefaultService';
 import { SOCIAL_ICON_MAP } from '@/constants/socialIconMap';
-import TutorialModal from '@/components/features/tutorial/TutorialModal';
-import { ONBOARDING_TUTORIAL_PAGES } from '@/constants/tutorial';
+import TutorialGuideModal from '@/components/features/tutorial/TutorialGuideModal';
 import styles from './ProfileScreen.styles';
 
 export default function ProfileScreen() {
@@ -64,7 +63,7 @@ export default function ProfileScreen() {
 
   const handleProfileEditPress = () => navigation.navigate('ProfileEdit');
 
-  // 初回チュートリアル（TASK-139）を見返すための「HOW TO USE」
+  // 初回チュートリアル（TASK-139）と画面ごとのヒント（TASK-140）を見返すための「HOW TO USE」
   const [tutorialVisible, setTutorialVisible] = useState(false);
   const closeTutorial = useCallback(() => setTutorialVisible(false), []);
   const handleTutorialComplete = () => {
@@ -217,11 +216,10 @@ export default function ProfileScreen() {
   // 読み込み中の表示と通常の表示で同じ位置（先頭の子）に置き、プロフィールの再取得（タブ復帰）で
   // 再マウント・非表示にならないようにする
   const tutorialModal = (
-    <TutorialModal
+    <TutorialGuideModal
       visible={tutorialVisible}
-      pages={ONBOARDING_TUTORIAL_PAGES}
       onClose={closeTutorial}
-      onComplete={handleTutorialComplete}
+      onCreateProject={handleTutorialComplete}
     />
   );
 

@@ -12,6 +12,7 @@ import { ForegroundRefreshProvider } from '@/contexts/ForegroundRefreshContext';
 import RootNavigator from '@/navigation/RootNavigator';
 import AnimatedSplashScreen from '@/components/ui/AnimatedSplashScreen';
 import { COLORS } from '@/globalStyles';
+import TouchIndicatorBoundary from '@/components/dev/TouchIndicatorBoundary';
 import { OpenAPI } from '@/apiClient';
 import { getAccessToken } from '@/utils/authStorage';
 import { installAuthTokenInterceptor } from '@/utils/authTokenInterceptor';
@@ -74,11 +75,14 @@ export default function Layout() {
           edge-to-edge 有効時は backgroundColor / translucent は指定不可のため
           style のみ設定する */}
       <StatusBar style="light" />
-      <AuthProvider>
-        <ForegroundRefreshProvider>
-          <AppContent />
-        </ForegroundRefreshProvider>
-      </AuthProvider>
+      {/* ヒント動画の撮影用のタップ位置表示（開発ビルド + EXPO_PUBLIC_SHOW_TOUCHES=1 のみ・TASK-140） */}
+      <TouchIndicatorBoundary>
+        <AuthProvider>
+          <ForegroundRefreshProvider>
+            <AppContent />
+          </ForegroundRefreshProvider>
+        </AuthProvider>
+      </TouchIndicatorBoundary>
     </SafeAreaProvider>
   );
 }

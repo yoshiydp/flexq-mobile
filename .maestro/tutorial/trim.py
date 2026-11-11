@@ -10,12 +10,18 @@ ffmpeg の freezedetect で静止区間を検出し、次のように残して�
   python3 .maestro/tutorial/trim.py <入力.mp4> <出力.mp4>
 """
 
+import os
 import re
 import subprocess
 import sys
 
-LEAD, HOLD, TAIL = 1.0, 1.3, 2.6
-NOISE, MIN_FREEZE = 0.003, 0.8
+# 環境変数で上書きできる（ヒント動画〈TASK-140〉は再生中の小さな動きやタップの印を静止とみなして
+# 切り落とさないよう、record-hints.sh が NOISE を下げ HOLD を伸ばして呼ぶ）
+LEAD = float(os.environ.get('TRIM_LEAD', 1.0))
+HOLD = float(os.environ.get('TRIM_HOLD', 1.3))
+TAIL = float(os.environ.get('TRIM_TAIL', 2.6))
+NOISE = float(os.environ.get('TRIM_NOISE', 0.003))
+MIN_FREEZE = float(os.environ.get('TRIM_MIN_FREEZE', 0.8))
 FFMPEG = 'ffmpeg'
 
 

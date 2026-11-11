@@ -1,0 +1,105 @@
+# ID: TU-14（TU-15 も兼ねる）
+# シナリオ名: 使い慣れたユーザーにはヒントを自動表示せず、PROFILE の「HOW TO USE」から見返せる（TASK-140）
+# 前提条件: demo アカウント（プロジェクト 2 件以上・メモあり）
+# 操作手順: ログイン → 先頭のプロジェクトを開く（ヒントが出ないこと）→ 戻る → DRAFTS（ヒントが出ないこと）
+#           → PROFILE → HOW TO USE → プロジェクト編集（5 ページ・最後は「閉じる」）→ HOW TO USE → DRAFTS（2 ページ）
+# 期待結果: 自動表示はされない（TU-15）。HOW TO USE の一覧からそれぞれのヒントを最初のページから開け、
+#           最後の「閉じる」で PROFILE に戻る
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - TU
+  - TU-14
+  - TU-15
+---
+- runFlow: ../helpers/login.yaml
+
+# プロジェクト編集: プロジェクトが 2 件以上あるため出さない
+- tapOn:
+    id: 'project-item-0'
+- extendedWaitUntil:
+    visible:
+      id: 'rec-mode-button'
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertNotVisible:
+    id: 'tutorial-modal'
+- tapOn:
+    id: 'toolbar-back'
+- runFlow:
+    when:
+      visible:
+        id: 'submit-button'
+    commands:
+      - tapOn:
+          id: 'submit-button'
+- extendedWaitUntil:
+    visible:
+      id: 'nav-Drafts'
+    timeout: 15000
+
+# DRAFTS: メモがあるため出さない
+- tapOn:
+    id: 'nav-Drafts'
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertVisible:
+    id: 'drafts-quick-memo-button'
+- assertNotVisible:
+    id: 'tutorial-modal'
+
+# HOW TO USE → プロジェクト編集
+- tapOn:
+    id: 'nav-Profile'
+- waitForAnimationToEnd:
+    timeout: 5000
+- scrollUntilVisible:
+    element:
+      id: 'tutorial-open-button'
+    direction: DOWN
+    timeout: 15000
+    centerElement: true
+- tapOn:
+    id: 'tutorial-open-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: 'tutorial-guide-projectEdit'
+- assertVisible:
+    id: 'tutorial-title-project-edit-lyrics'
+- repeat:
+    times: 4
+    commands:
+      - tapOn:
+          id: 'tutorial-next-button'
+- assertVisible:
+    id: 'tutorial-title-project-edit-rec'
+- assertVisible: '閉じる'
+- tapOn:
+    id: 'tutorial-next-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'tutorial-guide-modal'
+
+# HOW TO USE → DRAFTS（開き直すと一覧から始まる）
+- tapOn:
+    id: 'tutorial-open-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: 'tutorial-guide-drafts'
+- assertVisible:
+    id: 'tutorial-title-drafts-quick-memo'
+- tapOn:
+    id: 'tutorial-next-button'
+- assertVisible:
+    id: 'tutorial-title-drafts-quick-record'
+- tapOn:
+    id: 'tutorial-next-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'tutorial-guide-modal'
+- assertVisible: 'HOW TO USE'
