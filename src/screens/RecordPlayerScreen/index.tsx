@@ -50,6 +50,7 @@ import {
   getEffectiveStartPositionMs,
 } from '@/utils/syncStartPosition';
 import styles from './RecordPlayerScreen.styles';
+import { isTouchIndicatorEnabled } from '@/components/dev/TouchIndicatorBoundary';
 
 /**
  * 同期状態の可視化（TASK-89）。
@@ -60,7 +61,10 @@ import styles from './RecordPlayerScreen.styles';
  * OTA バンドル（dev / staging チャンネル）でも表示され、TestFlight / Play 内部テストの
  * 実機を計測器として使える（production では設定しないこと）
  */
-const SYNC_DEBUG_ENABLED = __DEV__ || process.env.EXPO_PUBLIC_SYNC_DEBUG === '1';
+// ヒント動画の撮影中（タップ位置の表示を有効にした開発ビルド・TASK-140）は映り込まないよう出さない
+const SYNC_DEBUG_ENABLED =
+  (__DEV__ || process.env.EXPO_PUBLIC_SYNC_DEBUG === '1') &&
+  !isTouchIndicatorEnabled();
 const SYNC_DEBUG_INTERVAL_MS = 500;
 
 export default function RecordPlayerScreen() {

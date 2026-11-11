@@ -1,8 +1,10 @@
 # ID: TU-06
 # シナリオ名: PROFILE の「HOW TO USE」からチュートリアルを見返せる
 # 前提条件: demo アカウント（プロジェクトあり・初回の自動表示は出ない）
-# 操作手順: ログイン → PROFILE タブ → HOW TO USE → ようこそページを確認 → スキップ
-# 期待結果: ようこそページから表示され、スキップで閉じて PROFILE に戻る
+# 操作手順: ログイン → PROFILE タブ → HOW TO USE → 一覧（はじめに / プロジェクト編集 / DRAFTS）を確認
+#           → はじめに → ようこそページを確認 → スキップ
+# 期待結果: 案内の一覧が表示され、「はじめに」はようこそページから始まり、スキップで閉じて PROFILE に戻る
+# 備考: プロジェクト編集・DRAFTS のヒントを開く確認は TU-14（TASK-140）
 
 appId: com.yoshiydp.lyricsapp
 tags:
@@ -25,6 +27,17 @@ tags:
     id: 'tutorial-open-button'
 - waitForAnimationToEnd:
     timeout: 3000
+# 案内の一覧（TASK-140）
+- assertVisible:
+    id: 'tutorial-guide-onboarding'
+- assertVisible:
+    id: 'tutorial-guide-projectEdit'
+- assertVisible:
+    id: 'tutorial-guide-drafts'
+- tapOn:
+    id: 'tutorial-guide-onboarding'
+- waitForAnimationToEnd:
+    timeout: 3000
 - assertVisible:
     id: 'tutorial-title-welcome'
 - tapOn:
@@ -32,5 +45,5 @@ tags:
 - waitForAnimationToEnd:
     timeout: 3000
 - assertNotVisible:
-    id: 'tutorial-modal'
+    id: 'tutorial-guide-modal'
 - assertVisible: 'HOW TO USE'
