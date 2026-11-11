@@ -4,10 +4,9 @@
 import React from 'react';
 import { Text } from 'react-native';
 import { act, fireEvent, render } from '@testing-library/react-native';
+import Boundary, { isTouchIndicatorEnabled } from './index';
 
 const ORIGINAL = process.env.EXPO_PUBLIC_SHOW_TOUCHES;
-
-import Boundary, { isTouchIndicatorEnabled } from './index';
 
 const setFlag = (flag: string | undefined) => {
   if (flag === undefined) delete process.env.EXPO_PUBLIC_SHOW_TOUCHES;

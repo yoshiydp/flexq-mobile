@@ -943,6 +943,17 @@ export default function ProjectEditScreen() {
     { ...HEADER_TOOLBAR_TEMPLATES.hamburger, onPress: handleOpenProjectSettings },
   ];
 
+  // 判定にプロジェクト一覧の取得を挟むため、表示が決まる前にユーザーが操作を始めていることがある。
+  // REC モード（録音の Modal を含む）・歌詞の編集中・トラックの選択中は割り込まず、EDIT モードに
+  // 戻って手が空いたときに出す
+  const showProjectEditHint =
+    projectEditHint.visible &&
+    isFocused &&
+    currentView === 'edit' &&
+    mode === 'edit' &&
+    !isEditingLyrics &&
+    !showTrackPicker;
+
   if (loading) {
     return (
       <View
@@ -1150,7 +1161,7 @@ export default function ProjectEditScreen() {
       />
 
       <TutorialModal
-        visible={projectEditHint.visible && isFocused}
+        visible={showProjectEditHint}
         pages={PROJECT_EDIT_HINT_PAGES}
         onClose={projectEditHint.dismiss}
         onComplete={projectEditHint.dismiss}
