@@ -1,0 +1,12 @@
+# ヒント動画（TASK-140）「CUE: ダブルタップでリセット」: 登録済みの Cue B をダブルタップして未登録に戻す
+# 前提: pe-2-cue-tap.yaml の直後（Cue A・Cue B が登録済み・停止中）
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1500
+# Maestro の doubleTapOn は iOS で 2 回のタップの間隔が約 290ms あり、アプリの判定（250ms 以内）に収まらない。
+# 撮影モード（EXPO_PUBLIC_SHOW_TOUCHES=1）ではアプリ側の判定を 600ms に広げてあるため、そのまま撮れる
+- doubleTapOn:
+    id: 'cue-button-1'
+- waitForAnimationToEnd:
+    timeout: 2500

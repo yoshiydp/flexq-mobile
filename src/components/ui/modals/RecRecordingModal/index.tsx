@@ -10,6 +10,7 @@ import {
 } from '@10play/tentap-editor';
 import RecRecordingSection from '@/components/features/record/RecRecordingSection';
 import styles from './RecRecordingModal.styles';
+import TouchIndicatorBoundary from '@/components/dev/TouchIndicatorBoundary';
 
 const RecLyricsThemeBridge = new BridgeExtension({
   extendCSS: `
@@ -99,30 +100,33 @@ export default function RecRecordingModal({
       statusBarTranslucent
       navigationBarTranslucent
     >
-      <Animated.View
-        style={styles.overlay}
-        entering={FadeIn.duration(200)}
-        exiting={FadeOut.duration(200)}
-      >
+      {/* ヒント動画の撮影用のタップ位置表示（開発ビルドのみ・TASK-140） */}
+      <TouchIndicatorBoundary>
         <Animated.View
-          style={[styles.container, hasLyrics && styles.containerWithLyrics]}
+          style={styles.overlay}
           entering={FadeIn.duration(200)}
           exiting={FadeOut.duration(200)}
         >
-          {hasLyrics && (
-            <View style={styles.lyricsContainer}>
-              <RichText editor={editor} />
-            </View>
-          )}
-          <RecRecordingSection
-            onStop={onStop}
-            onAbort={onClose}
-            trackSource={trackSource}
-            startPositionMs={startPositionMs}
-            countdownSeconds={countdownSeconds}
-          />
+          <Animated.View
+            style={[styles.container, hasLyrics && styles.containerWithLyrics]}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(200)}
+          >
+            {hasLyrics && (
+              <View style={styles.lyricsContainer}>
+                <RichText editor={editor} />
+              </View>
+            )}
+            <RecRecordingSection
+              onStop={onStop}
+              onAbort={onClose}
+              trackSource={trackSource}
+              startPositionMs={startPositionMs}
+              countdownSeconds={countdownSeconds}
+            />
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      </TouchIndicatorBoundary>
     </Modal>
   );
 }

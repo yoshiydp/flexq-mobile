@@ -1,0 +1,113 @@
+# ID: TU-13（TU-12 も兼ねる）
+# シナリオ名: 初回チュートリアルから最初のプロジェクトを作ると、プロジェクト編集のヒント（5 ページ）が出る（TASK-140）
+# 前提条件: dev API に接続できること・チュートリアル用アカウント（下の env）が存在すること
+#           （フロー内の API セットアップでプロジェクトを全件削除する。トラック「Sample Beat」を 1 本持つ）
+# 操作手順: ログイン → 初回チュートリアルの「プロジェクトを作成する」→ FROM TRACK LIST でトラックを選び名前を付けて CREATE
+#           → 編集画面のヒントを 歌詞 → CUE（タップ / ダブルタップ / 長押し）→ REC の順に確認して閉じる
+#           → 一覧に戻って（保存）開き直す
+# 期待結果: ヒントが 5 ページの順で表示され、最後の「閉じる」で編集画面が見える。開き直してもヒントは出ない（TU-12）
+
+appId: com.yoshiydp.lyricsapp
+tags:
+  - TU
+  - TU-13
+env:
+  API_BASE_URL: 'https://e02397anue.execute-api.ap-northeast-1.amazonaws.com/v1'
+  TUTORIAL_EMAIL: 'yoshihisa.watanabe.info+tutorial@gmail.com'
+  TUTORIAL_PASSWORD: 'password123'
+  PROJECT_NAME: 'e2e-TU13'
+---
+- runScript: ../../scripts/tutorial-account-reset.js
+- runFlow:
+    file: ../helpers/login-as.yaml
+    env:
+      LOGIN_EMAIL: ${TUTORIAL_EMAIL}
+      LOGIN_PASSWORD: ${TUTORIAL_PASSWORD}
+- extendedWaitUntil:
+    visible:
+      id: 'tutorial-title-welcome'
+    timeout: 20000
+- tapOn:
+    id: 'tutorial-next-button'
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    id: 'tutorial-next-button'
+- extendedWaitUntil:
+    visible: 'FROM TRACK LIST'
+    timeout: 10000
+- tapOn:
+    text: '今はしない'
+    optional: true
+- tapOn: 'FROM TRACK LIST'
+- extendedWaitUntil:
+    visible:
+      id: 'track-picker-item-0'
+    timeout: 15000
+- tapOn:
+    id: 'track-picker-item-0'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn: 'プロジェクト名を入力してください'
+- inputText: ${PROJECT_NAME}
+- runFlow: ../helpers/hide-keyboard.yaml
+- tapOn:
+    id: 'new-project-create-button'
+
+# ヒント: 歌詞 → CUE の 3 操作 → REC
+- extendedWaitUntil:
+    visible:
+      id: 'tutorial-title-project-edit-lyrics'
+    timeout: 60000
+- assertVisible:
+    id: 'tutorial-video'
+- tapOn:
+    id: 'tutorial-next-button'
+- assertVisible:
+    id: 'tutorial-title-project-edit-cue-tap'
+- tapOn:
+    id: 'tutorial-next-button'
+- assertVisible:
+    id: 'tutorial-title-project-edit-cue-double-tap'
+- tapOn:
+    id: 'tutorial-next-button'
+- assertVisible:
+    id: 'tutorial-title-project-edit-cue-long-press'
+- tapOn:
+    id: 'tutorial-next-button'
+- assertVisible:
+    id: 'tutorial-title-project-edit-rec'
+- assertNotVisible:
+    id: 'tutorial-skip-button'
+- tapOn:
+    id: 'tutorial-next-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- assertNotVisible:
+    id: 'tutorial-modal'
+- assertVisible:
+    id: 'rec-mode-button'
+
+# 一覧に戻って（保存の確認で SAVE）開き直しても出ない（TU-12）
+- tapOn:
+    id: 'toolbar-back'
+- extendedWaitUntil:
+    visible:
+      id: 'submit-button'
+    timeout: 5000
+- tapOn:
+    id: 'submit-button'
+- extendedWaitUntil:
+    visible:
+      id: 'project-item-0'
+    timeout: 15000
+- tapOn:
+    id: 'project-item-0'
+- extendedWaitUntil:
+    visible:
+      id: 'rec-mode-button'
+    timeout: 30000
+- waitForAnimationToEnd:
+    timeout: 5000
+- assertNotVisible:
+    id: 'tutorial-modal'

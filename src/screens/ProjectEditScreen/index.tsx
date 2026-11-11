@@ -33,6 +33,7 @@ import {
   useNavigation,
   useRoute,
   useFocusEffect,
+  useIsFocused,
   RouteProp,
 } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -70,7 +71,16 @@ import {
 import { useBlockAndroidBackGesture } from '@/hooks/useBlockAndroidBackGesture';
 import { isShareAvailable } from '@/hooks/useShareRecord';
 import { readEditorHtml, startTextShareFlow } from '@/utils/textShareFlow';
+import TutorialModal from '@/components/features/tutorial/TutorialModal';
+import { PROJECT_EDIT_HINT_PAGES, TUTORIAL_LABELS } from '@/constants/tutorial';
+import { useProjectEditHint } from '@/hooks/useScreenHints';
+import { isTouchIndicatorEnabled } from '@/components/dev/TouchIndicatorBoundary';
 import styles from './ProjectEditScreen.styles';
+
+// CUE のダブルタップ（リセット）と判定する 2 回目のタップまでの間隔。
+// ヒント動画の撮影中（タップ位置の表示を有効にした開発ビルド・TASK-140）だけは、Maestro の連続タップが
+// 250ms に収まらず 2 回のシングルタップになってしまうため広げる（本番・配信のバンドルは常に 250ms）
+const CUE_DOUBLE_TAP_WINDOW_MS = isTouchIndicatorEnabled() ? 600 : 250;
 
 export default function ProjectEditScreen() {
   const MIN_BODY_HEIGHT = 140;
@@ -98,6 +108,14 @@ export default function ProjectEditScreen() {
     error: recordError,
     refreshProjectRecords,
   } = useFetchProjectRecords(id);
+
+  // 初めて開いたときの使い方のヒント（TASK-140）。プロジェクト設定などへ遷移している間は出さない
+  const isFocused = useIsFocused();
+  const projectEditHint = useProjectEditHint({
+    ready: !loading && !error && !!project && !recordLoading && !recordError,
+    recordCount: projectRecords.length,
+    lyricsHtml: (project as any)?.body,
+  });
 
   const recordLoadingRef = useRef(recordLoading);
   const recordErrorRef = useRef(recordError);
@@ -688,7 +706,7 @@ export default function ProjectEditScreen() {
       tapTimeout.current = setTimeout(() => {
         handleCueButtonPress(index);
         lastTapIndex.current = null;
-      }, 250);
+      }, CUE_DOUBLE_TAP_WINDOW_MS);
     }
   };
 
@@ -925,6 +943,17 @@ export default function ProjectEditScreen() {
     { ...HEADER_TOOLBAR_TEMPLATES.hamburger, onPress: handleOpenProjectSettings },
   ];
 
+  // 判定にプロジェクト一覧の取得を挟むため、表示が決まる前にユーザーが操作を始めていることがある。
+  // REC モード（録音の Modal を含む）・歌詞の編集中・トラックの選択中は割り込まず、EDIT モードに
+  // 戻って手が空いたときに出す
+  const showProjectEditHint =
+    projectEditHint.visible &&
+    isFocused &&
+    currentView === 'edit' &&
+    mode === 'edit' &&
+    !isEditingLyrics &&
+    !showTrackPicker;
+
   if (loading) {
     return (
       <View
@@ -1129,6 +1158,15 @@ export default function ProjectEditScreen() {
         visible={showTrackPicker}
         onClose={() => setShowTrackPicker(false)}
         onSelect={handlePickTrack}
+      />
+
+      <TutorialModal
+        visible={showProjectEditHint}
+        pages={PROJECT_EDIT_HINT_PAGES}
+        onClose={projectEditHint.dismiss}
+        onComplete={projectEditHint.dismiss}
+        completeLabel={TUTORIAL_LABELS.close}
+        laterLabel={null}
       />
     </View>
   );

@@ -6,7 +6,9 @@ import { fireEvent, render } from '@testing-library/react-native';
 import { StyleSheet } from 'react-native';
 import TutorialModal from './index';
 import {
+  DRAFTS_HINT_PAGES,
   ONBOARDING_TUTORIAL_PAGES,
+  PROJECT_EDIT_HINT_PAGES,
   TUTORIAL_LABELS,
 } from '@/constants/tutorial';
 
@@ -126,5 +128,40 @@ describe('TutorialModal', () => {
     const { getByTestId, getByText } = renderModal({ completeLabel: 'OK' });
     fireEvent.press(getByTestId('tutorial-next-button'));
     expect(getByText('OK')).toBeTruthy();
+  });
+
+  describe('画面ごとのヒント（TASK-140）', () => {
+    it('laterLabel=null なら最終ページは「閉じる」だけを出す', () => {
+      const { getByTestId, queryByTestId, getByText, onComplete } = renderModal({
+        pages: DRAFTS_HINT_PAGES,
+        completeLabel: TUTORIAL_LABELS.close,
+        laterLabel: null,
+      });
+      // 途中のページはスキップできる
+      expect(getByTestId('tutorial-skip-button')).toBeTruthy();
+      fireEvent.press(getByTestId('tutorial-next-button'));
+
+      expect(getByTestId('tutorial-title-drafts-quick-record')).toBeTruthy();
+      expect(queryByTestId('tutorial-skip-button')).toBeNull();
+      fireEvent.press(getByText(TUTORIAL_LABELS.close));
+      expect(onComplete).toHaveBeenCalledTimes(1);
+    });
+
+    it('プロジェクト編集は 歌詞 → CUE の 3 操作 → REC の順で 5 枚', () => {
+      expect(PROJECT_EDIT_HINT_PAGES.map((p) => p.id)).toEqual([
+        'project-edit-lyrics',
+        'project-edit-cue-tap',
+        'project-edit-cue-double-tap',
+        'project-edit-cue-long-press',
+        'project-edit-rec',
+      ]);
+      const { getByTestId } = renderModal({ pages: PROJECT_EDIT_HINT_PAGES });
+      PROJECT_EDIT_HINT_PAGES.forEach((page, i) => {
+        expect(getByTestId(`tutorial-title-${page.id}`)).toBeTruthy();
+        if (i < PROJECT_EDIT_HINT_PAGES.length - 1) {
+          fireEvent.press(getByTestId('tutorial-next-button'));
+        }
+      });
+    });
   });
 });

@@ -1,0 +1,32 @@
+# ヒント動画（TASK-140）の DRAFTS シーンの前準備（録画しない）:
+# チュートリアル用アカウントを初期化（メモ・録音も削除）してログイン → マイクを許可して再起動 →
+# DRAFTS を開いて初回ヒントを閉じ → PROJECT LIST に戻して止める。
+# 以降のシーン（drafts-*.yaml）は PROJECT LIST から DRAFTS タブを開くところから撮る。
+
+appId: com.yoshiydp.lyricsapp
+---
+- runFlow: ../01-login.yaml
+- launchApp:
+    permissions:
+      all: allow
+- extendedWaitUntil:
+    visible:
+      id: 'nav-Drafts'
+    timeout: 60000
+- retry:
+    maxRetries: 3
+    commands:
+      - tapOn:
+          id: 'nav-Drafts'
+      - extendedWaitUntil:
+          visible:
+            id: 'tutorial-title-drafts-quick-memo'
+          timeout: 20000
+- tapOn:
+    id: 'tutorial-skip-button'
+- waitForAnimationToEnd:
+    timeout: 3000
+- tapOn:
+    id: 'nav-ProjectList'
+- waitForAnimationToEnd:
+    timeout: 3000

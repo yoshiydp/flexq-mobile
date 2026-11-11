@@ -1,0 +1,11 @@
+# drafts-1b と drafts-2 の合間（録画しない）: MEMO LIST から DRAFTS に戻る
+appId: com.yoshiydp.lyricsapp
+---
+- tapOn:
+    id: 'toolbar-back'
+- extendedWaitUntil:
+    visible:
+      id: 'drafts-quick-record-button'
+    timeout: 15000
+- waitForAnimationToEnd:
+    timeout: 3000

@@ -1,8 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import {
-  isOnboardingTutorialCompleted,
-  markOnboardingTutorialCompleted,
-} from '@/utils/tutorialStorage';
+import { useFirstTimeTutorial } from './useFirstTimeTutorial';
 
 interface Params {
   /** プロジェクト一覧の取得中か（取得が終わるまで判定しない） */
@@ -25,32 +21,8 @@ export function useOnboardingTutorial({
   error,
   projectCount,
 }: Params) {
-  const [visible, setVisible] = useState(false);
-  const decidedRef = useRef(false);
-
-  useEffect(() => {
-    if (decidedRef.current || loading || error) return;
-    decidedRef.current = true;
-
-    (async () => {
-      if (await isOnboardingTutorialCompleted()) return;
-      if (projectCount > 0) {
-        await markOnboardingTutorialCompleted();
-        return;
-      }
-      setVisible(true);
-    })().catch((err) => {
-      // チュートリアルはアプリ機能に必須ではないため、失敗しても無通知で握りつぶす
-      console.warn('Onboarding tutorial check failed:', err);
-    });
-  }, [loading, error, projectCount]);
-
-  const dismiss = useCallback(() => {
-    setVisible(false);
-    markOnboardingTutorialCompleted().catch((err) => {
-      console.warn('Failed to save onboarding tutorial state:', err);
-    });
-  }, []);
-
-  return { visible, dismiss };
+  return useFirstTimeTutorial('onboarding', {
+    ready: !loading && !error,
+    shouldSkip: () => projectCount > 0,
+  });
 }

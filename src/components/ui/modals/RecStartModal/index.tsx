@@ -19,6 +19,7 @@ import { formatTime } from '@/utils/formatTime';
 import { REC_LABELS } from '@/constants/messages';
 import type { CuePointType } from '@/types/cuePointType';
 import styles from './RecStartModal.styles';
+import TouchIndicatorBoundary from '@/components/dev/TouchIndicatorBoundary';
 
 /**
  * 選択中の録音開始位置。行のタップは選択だけを行い、録音は REC START ボタンで
@@ -226,176 +227,179 @@ export default function RecStartModal({
       statusBarTranslucent
       navigationBarTranslucent
     >
-      <Animated.View style={styles.overlay} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
-        <Animated.View style={styles.container} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
-          <Text style={styles.title}>{REC_LABELS.startModalTitle}</Text>
+      {/* ヒント動画の撮影用のタップ位置表示（開発ビルドのみ・TASK-140） */}
+      <TouchIndicatorBoundary>
+        <Animated.View style={styles.overlay} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+          <Animated.View style={styles.container} entering={FadeIn.duration(200)} exiting={FadeOut.duration(200)}>
+            <Text style={styles.title}>{REC_LABELS.startModalTitle}</Text>
 
-          {trackSource && (
-            <View style={styles.seekSection}>
-              <WaveformPlayer
-                sound={localSound}
-                waveformJson={waveformData}
-                cuePoints={cueButtons}
-                onSeek={handleSeek}
-                onPlaybackFinish={handlePlaybackFinish}
-                onPlaybackStatusUpdate={handlePlaybackStatus}
-              />
-              <View style={styles.controls}>
-                <PlayerControls
-                  onPlayPause={handlePlayPause}
-                  isPlaying={isModalPlaying}
-                  prevButtonVisible={false}
-                  nextButtonVisible={false}
-                  repeatButtonVisible={false}
-                  cueRepeatButtonVisible={false}
-                  allCueResetButtonVisible={false}
+            {trackSource && (
+              <View style={styles.seekSection}>
+                <WaveformPlayer
+                  sound={localSound}
+                  waveformJson={waveformData}
+                  cuePoints={cueButtons}
+                  onSeek={handleSeek}
+                  onPlaybackFinish={handlePlaybackFinish}
+                  onPlaybackStatusUpdate={handlePlaybackStatus}
                 />
+                <View style={styles.controls}>
+                  <PlayerControls
+                    onPlayPause={handlePlayPause}
+                    isPlaying={isModalPlaying}
+                    prevButtonVisible={false}
+                    nextButtonVisible={false}
+                    repeatButtonVisible={false}
+                    cueRepeatButtonVisible={false}
+                    allCueResetButtonVisible={false}
+                  />
+                </View>
               </View>
-            </View>
-          )}
+            )}
 
-          {/* 選択肢が多い・画面が小さい端末でモーダルが画面からはみ出さないよう、
-              開始位置のリストだけをスクロールさせる（波形と REC START / CANCEL は
-              常に表示する / TASK-127） */}
-          <View style={styles.optionListWrapper}>
-            <ScrollView
-              ref={optionListRef}
-              style={styles.optionList}
-              showsVerticalScrollIndicator={false}
-              onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
-              onContentSizeChange={(_width, height) => {
-                setListContentHeight(height);
-                if (scrollToCustomOnLayoutRef.current) {
-                  scrollToCustomOnLayoutRef.current = false;
-                  scrollToCustomPosition();
-                }
-              }}
-              onScroll={RNAnimated.event(
-                [{ nativeEvent: { contentOffset: { y: listScrollY } } }],
-                { useNativeDriver: false },
-              )}
-              scrollEventThrottle={16}
-              testID="rec-start-option-list"
-            >
-              <Pressable
-                style={[
-                  styles.optionItem,
-                  isBeginningSelected && styles.optionItemSelected,
-                ]}
-                onPress={() => setSelection({ type: 'beginning' })}
-                accessibilityRole="radio"
-                accessibilityState={{ selected: isBeginningSelected }}
-                testID="rec-start-option-beginning"
+            {/* 選択肢が多い・画面が小さい端末でモーダルが画面からはみ出さないよう、
+                開始位置のリストだけをスクロールさせる（波形と REC START / CANCEL は
+                常に表示する / TASK-127） */}
+            <View style={styles.optionListWrapper}>
+              <ScrollView
+                ref={optionListRef}
+                style={styles.optionList}
+                showsVerticalScrollIndicator={false}
+                onLayout={(e) => setListHeight(e.nativeEvent.layout.height)}
+                onContentSizeChange={(_width, height) => {
+                  setListContentHeight(height);
+                  if (scrollToCustomOnLayoutRef.current) {
+                    scrollToCustomOnLayoutRef.current = false;
+                    scrollToCustomPosition();
+                  }
+                }}
+                onScroll={RNAnimated.event(
+                  [{ nativeEvent: { contentOffset: { y: listScrollY } } }],
+                  { useNativeDriver: false },
+                )}
+                scrollEventThrottle={16}
+                testID="rec-start-option-list"
               >
-                <Text
-                  style={[
-                    styles.optionLabel,
-                    isBeginningSelected && styles.optionLabelSelected,
-                  ]}
-                >
-                  {REC_LABELS.fromBeginning}
-                </Text>
-                <Text style={styles.optionTime}>{formatTime(0)}</Text>
-              </Pressable>
-              {activeCues.map((btn, i) => {
-                const isSelected = selectedCue === btn;
-                return (
-                  <Pressable
-                    key={i}
-                    style={[
-                      styles.optionItem,
-                      isSelected && styles.optionItemSelected,
-                    ]}
-                    onPress={() => setSelection({ type: 'cue', index: i })}
-                    accessibilityRole="radio"
-                    accessibilityState={{ selected: isSelected }}
-                    testID={`rec-start-option-cue-${i}`}
-                  >
-                    <Text
-                      style={[
-                        styles.optionLabel,
-                        isSelected && styles.optionLabelSelected,
-                      ]}
-                    >
-                      {btn.label ?? `CUE ${i + 1}`}
-                    </Text>
-                    <Text style={styles.optionTime}>{formatTime(btn.time!)}</Text>
-                  </Pressable>
-                );
-              })}
-              {showCustomPosition && (
                 <Pressable
                   style={[
                     styles.optionItem,
-                    styles.optionItemCustom,
-                    isCustomSelected && styles.optionItemSelected,
+                    isBeginningSelected && styles.optionItemSelected,
                   ]}
-                  onPress={() => setSelection({ type: 'custom' })}
+                  onPress={() => setSelection({ type: 'beginning' })}
                   accessibilityRole="radio"
-                  accessibilityState={{ selected: isCustomSelected }}
-                  testID="rec-start-option-custom"
+                  accessibilityState={{ selected: isBeginningSelected }}
+                  testID="rec-start-option-beginning"
                 >
                   <Text
                     style={[
                       styles.optionLabel,
-                      isCustomSelected && styles.optionLabelSelected,
+                      isBeginningSelected && styles.optionLabelSelected,
                     ]}
                   >
-                    {REC_LABELS.currentPosition}
+                    {REC_LABELS.fromBeginning}
                   </Text>
-                  <Text style={styles.optionTime}>{formatTime(customPositionMs!)}</Text>
+                  <Text style={styles.optionTime}>{formatTime(0)}</Text>
                 </Pressable>
+                {activeCues.map((btn, i) => {
+                  const isSelected = selectedCue === btn;
+                  return (
+                    <Pressable
+                      key={i}
+                      style={[
+                        styles.optionItem,
+                        isSelected && styles.optionItemSelected,
+                      ]}
+                      onPress={() => setSelection({ type: 'cue', index: i })}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected: isSelected }}
+                      testID={`rec-start-option-cue-${i}`}
+                    >
+                      <Text
+                        style={[
+                          styles.optionLabel,
+                          isSelected && styles.optionLabelSelected,
+                        ]}
+                      >
+                        {btn.label ?? `CUE ${i + 1}`}
+                      </Text>
+                      <Text style={styles.optionTime}>{formatTime(btn.time!)}</Text>
+                    </Pressable>
+                  );
+                })}
+                {showCustomPosition && (
+                  <Pressable
+                    style={[
+                      styles.optionItem,
+                      styles.optionItemCustom,
+                      isCustomSelected && styles.optionItemSelected,
+                    ]}
+                    onPress={() => setSelection({ type: 'custom' })}
+                    accessibilityRole="radio"
+                    accessibilityState={{ selected: isCustomSelected }}
+                    testID="rec-start-option-custom"
+                  >
+                    <Text
+                      style={[
+                        styles.optionLabel,
+                        isCustomSelected && styles.optionLabelSelected,
+                      ]}
+                    >
+                      {REC_LABELS.currentPosition}
+                    </Text>
+                    <Text style={styles.optionTime}>{formatTime(customPositionMs!)}</Text>
+                  </Pressable>
+                )}
+              </ScrollView>
+              {isListScrollable && (
+                <View
+                  style={styles.scrollbarTrack}
+                  pointerEvents="none"
+                  testID="rec-start-scrollbar"
+                >
+                  <RNAnimated.View
+                    style={[
+                      styles.scrollbarThumb,
+                      {
+                        height: scrollbarThumbHeight,
+                        transform: [
+                          {
+                            translateY: listScrollY.interpolate({
+                              inputRange: [0, listContentHeight - listHeight],
+                              outputRange: [0, listHeight - scrollbarThumbHeight],
+                              extrapolate: 'clamp',
+                            }),
+                          },
+                        ],
+                      },
+                    ]}
+                  />
+                </View>
               )}
-            </ScrollView>
-            {isListScrollable && (
-              <View
-                style={styles.scrollbarTrack}
-                pointerEvents="none"
-                testID="rec-start-scrollbar"
-              >
-                <RNAnimated.View
-                  style={[
-                    styles.scrollbarThumb,
-                    {
-                      height: scrollbarThumbHeight,
-                      transform: [
-                        {
-                          translateY: listScrollY.interpolate({
-                            inputRange: [0, listContentHeight - listHeight],
-                            outputRange: [0, listHeight - scrollbarThumbHeight],
-                            extrapolate: 'clamp',
-                          }),
-                        },
-                      ],
-                    },
-                  ]}
+            </View>
+
+            {onAiCleanupChange && (
+              <View style={styles.aiCleanupToggleWrapper}>
+                <AiCleanupToggle
+                  value={aiCleanupEnabled}
+                  onChange={onAiCleanupChange}
                 />
               </View>
             )}
-          </View>
 
-          {onAiCleanupChange && (
-            <View style={styles.aiCleanupToggleWrapper}>
-              <AiCleanupToggle
-                value={aiCleanupEnabled}
-                onChange={onAiCleanupChange}
-              />
-            </View>
-          )}
-
-          <SubmitButton
-            label={REC_LABELS.startButton}
-            onPress={() => {
-              if (selectedPositionMs !== null) handleStart(selectedPositionMs);
-            }}
-            disabled={selectedPositionMs === null}
-            containerClassName={styles.startButton}
-            labelClassName={styles.startButtonLabel}
-            testID="rec-start-button"
-          />
-          <CancelButton onPress={onClose} containerClassName={styles.cancelButton} labelClassName={styles.cancelButtonLabel} />
+            <SubmitButton
+              label={REC_LABELS.startButton}
+              onPress={() => {
+                if (selectedPositionMs !== null) handleStart(selectedPositionMs);
+              }}
+              disabled={selectedPositionMs === null}
+              containerClassName={styles.startButton}
+              labelClassName={styles.startButtonLabel}
+              testID="rec-start-button"
+            />
+            <CancelButton onPress={onClose} containerClassName={styles.cancelButton} labelClassName={styles.cancelButtonLabel} />
+          </Animated.View>
         </Animated.View>
-      </Animated.View>
+      </TouchIndicatorBoundary>
     </Modal>
   );
 }

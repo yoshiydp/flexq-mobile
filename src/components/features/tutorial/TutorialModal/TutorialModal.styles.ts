@@ -1,6 +1,9 @@
 import { StyleSheet } from 'react-native';
 import { COLORS } from '@/globalStyles';
 
+// 文字サイズを最大まで大きくしても 1 ページの内容が読める範囲に収めるための上限倍率
+export const MAX_FONT_SCALE = 1.6;
+
 export default StyleSheet.create({
   overlay: {
     flex: 1,
@@ -146,5 +149,34 @@ export default StyleSheet.create({
   },
   submitButtonText: {
     color: COLORS.accent.purple,
+  },
+  // PROFILE の「HOW TO USE」の一覧（TASK-140）
+  guideList: {
+    alignSelf: 'stretch',
+    marginTop: 20,
+    rowGap: 10,
+  },
+  guideItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: 'rgba(13, 13, 13, 0.35)',
+  },
+  // 見出しに日本語が入るため BebasNeue（英字のみ）ではなく NotoSansJP にする
+  guideLabel: {
+    fontFamily: 'NotoSansJP_700Bold',
+    fontSize: 15,
+    lineHeight: 22,
+    color: COLORS.accent.goldPrimary,
+  },
+  guideItemPressed: {
+    opacity: 0.7,
+  },
+  guideChevron: {
+    color: COLORS.font.default,
+    opacity: 0.6,
   },
 });

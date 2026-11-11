@@ -1,0 +1,14 @@
+# ヒント動画（TASK-140）「歌詞を書く」: トラックを再生 → 歌詞のエリアをタップして編集状態に広げる。
+# 前提: prepare-project-edit.yaml を実行済み（歌詞入りの My First Song の編集画面）
+appId: com.yoshiydp.lyricsapp
+---
+- waitForAnimationToEnd:
+    timeout: 1000
+- tapOn:
+    id: 'player-play-button'
+- waitForAnimationToEnd:
+    timeout: 2000
+- tapOn:
+    point: '50%, 30%'
+- waitForAnimationToEnd:
+    timeout: 3500
