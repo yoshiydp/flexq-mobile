@@ -4,6 +4,7 @@
   <p>WRITE / RECORD / PLAY — 一瞬で名曲を生み出すために</p>
   <p>
     <a href="https://flexqstudio.com/">公式サイト</a> ·
+    <a href="https://apps.apple.com/jp/app/flexq/id6762039606">App Store</a> ·
     <a href="#アプリ概要">アプリ概要</a> ·
     <a href="#app-preview">App Preview</a> ·
     <a href="#技術スタック">技術スタック</a> ·
@@ -21,9 +22,7 @@
 
 音源の好きな位置から何度でもすぐに再生できる「CUE 機能」で、作詞・歌詞制作をよりスムーズに。さらに「REC 機能」を使えば、思いついたフレーズや歌声をその場ですぐに録音し、簡単に共有できます。聴く、書く、録る、共有する。FlexQ が、あなたの音楽制作をもっと自由に、もっとスピーディーにします。
 
-iPhone / Android の両方に対応し、全機能を無料で利用できる予定です。
-
-> **リリース状況:** 現在は TestFlight / Google Play 内部テストでテスターに配布している段階で、App Store / Google Play での一般公開は **2026 年内**を予定しています。
+iPhone 版は [App Store](https://apps.apple.com/jp/app/flexq/id6762039606) で配信中です（2026 年 11 月公開）。全機能を無料で利用できます。Android 版は Google Play での公開に向けて準備中で、現在は Google Play 内部テストでテスターに配布しています。
 
 ### 3 CORE FEATURES
 
@@ -40,7 +39,8 @@ iPhone / Android の両方に対応し、全機能を無料で利用できる予
 - **クイックメモ / クイック録音** — プロジェクトを作らなくても、思いついた歌詞やメロディをすぐに書き留め・録音できる（DRAFTS タブ）。音声入力による歌詞の文字起こしにも対応
 - **音源の取り込み** — 端末内の mp3 / wav をプロジェクトに取り込み、ID3 タグのアートワークも自動で読み取る
 - **共有・書き出し** — 歌詞はテキストとして、録音は音声ファイル（トラックとのミックス込み）として他のアプリへ共有できる
-- **アカウント** — メールアドレス（認証コード付き）または Google アカウントで登録。パスワードリセット・退会に対応
+- **アカウント** — メールアドレス（認証コード付き）・Google アカウント・Apple でサインイン（iOS のみ）で登録。既存アカウントへの Apple ID の連携・パスワードリセット・退会に対応
+- **初回チュートリアル・ヒント** — はじめてのユーザーに使い方を動画付きで案内（初回ログイン時・プロジェクト編集 / DRAFTS を初めて開いたとき）。PROFILE の「HOW TO USE」からいつでも見返せる
 
 ---
 
@@ -69,7 +69,7 @@ iPhone / Android の両方に対応し、全機能を無料で利用できる予
 | 項目         | バージョン / 内容 |
 | ------------ | ----------------- |
 | React Native | 0.81.5（New Architecture 有効） |
-| Expo SDK     | 54（`runtimeVersion` 1.1.0） |
+| Expo SDK     | 54（`runtimeVersion` 1.2.0） |
 | React        | 19.1.0            |
 | TypeScript   | 5.9.3             |
 | Node.js      | 24.22.1（`.nvmrc`） |
@@ -77,7 +77,7 @@ iPhone / Android の両方に対応し、全機能を無料で利用できる予
 
 ### ナビゲーション
 
-- **React Navigation**（Stack + Bottom Tabs）を採用。`src/app/_layout.tsx` がエントリーポイントで、フォント読み込み・API クライアント初期化・`RootNavigator` のレンダリングを担当します
+- **React Navigation**（Stack + Bottom Tabs）を採用。`src/app/_layout.tsx` がエントリーポイント（`package.json` の `main` は `expo-router/entry`）で、フォント読み込み・API クライアント初期化・`RootNavigator` のレンダリングを担当します
   - `@react-navigation/native` / `stack` / `bottom-tabs` 7.x
   - `RootNavigator` が認証ゲート（認証済み → `HomeTabs`、未認証 → `SignIn`）
   - `HomeTabsNavigator` はカスタム `NavigationBar` を使った 4 タブ（PROJECT LIST / TRACK LIST / PROFILE / DRAFTS）
@@ -94,6 +94,7 @@ iPhone / Android の両方に対応し、全機能を無料で利用できる予
 | 音声入力               | expo-speech-recognition                                                    |
 | 認証トークン保存       | expo-secure-store（JWT）/ @react-native-async-storage/async-storage（設定値） |
 | Google ログイン        | expo-auth-session                                                          |
+| Apple でサインイン     | expo-apple-authentication / expo-crypto（nonce の生成・iOS のみ）           |
 | ファイル・画像選択     | expo-document-picker / expo-image-picker                                   |
 | 共有                   | expo-sharing                                                               |
 | アニメーション         | react-native-reanimated 4 / moti                                            |
@@ -153,7 +154,7 @@ DynamoDB       S3            Replicate (AI クリーンアップ)
 
 | テーブル          | SAM リソース名           | SK           | 備考                               |
 | ----------------- | ------------------------ | ------------ | ---------------------------------- |
-| Users             | `UsersTable`             | `userId`     | GSI: `email-index` / `googleSub-index` |
+| Users             | `UsersTable`             | `userId`     | GSI: `email-index` / `googleSub-index` / `appleSub-index` |
 | Projects          | `ProjectsTable`          | `projectId`  |                                    |
 | Tracks            | `TracksTable`            | `trackId`    |                                    |
 | Records           | `RecordsTable`           | `recordId`   | 録音・分離音源・ミックスのメタデータ |
@@ -310,6 +311,7 @@ scripts/e2e-ban.sh                                          # アカウント停
 | --- | --- | --- |
 | 通常の E2E | `demo@example.com` | `password123` |
 | アカウント停止（BAN）の検証専用 | `e2e-ban@example.com` | `password123` |
+| 初回チュートリアル（`27-tutorial`）・ヒント動画の撮影専用 | CLAUDE.md「E2E テスト（Maestro）」を参照 | `password123` |
 
 一部のフローは demo アカウントに 1 件以上のプロジェクト / トラックが dev 環境に存在することを前提とします。プロジェクト名などの可変データはアサートせず、固定 UI 要素（id）でアサートします。
 
@@ -323,8 +325,9 @@ scripts/e2e-ban.sh                                          # アカウント停
 | `06-project-list` | プロジェクト一覧（PL） | `22-profile-edit` | プロフィール編集（PD） |
 | `07-new-project` | 新規プロジェクト作成（NP） | `23-project-settings` | プロジェクト設定（PS） |
 | `08-project-edit` | プロジェクト編集（PE） | `24-common` | 共通の挙動（CM） |
-| `13-sync-playback` | トラック同時再生（SY） | `25-account-suspension` | アカウント停止（AS・`requires-ban`） |
-| `15-drafts` | DRAFTS タブ（DR） | `26-s3-key-validation` | API 入力検証（SK） |
+| `10-project-rec` | プロジェクト編集 — REC モード（PR） | `25-account-suspension` | アカウント停止（AS・`requires-ban`） |
+| `13-sync-playback` | トラック同時再生（SY） | `26-s3-key-validation` | API 入力検証（SK） |
+| `15-drafts` | DRAFTS タブ（DR） | `27-tutorial` | 初回チュートリアル（TU） |
 | `16-quick-memo` / `17-memo-list` | クイックメモ / メモ一覧（QM / ML） | `18-quick-record` | クイック録音（QR） |
 
 フロー作成時のルール（プレースホルダーを `tapOn` の対象にする・`inputText` は ASCII のみ・`hide-keyboard` ヘルパーの利用など）は CLAUDE.md「E2E テスト（Maestro）」を参照してください。
@@ -425,7 +428,7 @@ yarn start
 1. **初回だけ**、dev のチャンネル URL を開くリンクを実機で開く（iPhone は Safari のアドレスバーかメモアプリ、Android は LINE などで送ってタップ）
 
    ```
-   exp+mobile://expo-development-client/?url=https%3A%2F%2Fu.expo.dev%2F216ca5f0-4ffc-4067-bfbf-5f56aba4924b%3Fchannel-name%3Ddev%26runtime-version%3D1.1.0
+   exp+mobile://expo-development-client/?url=https%3A%2F%2Fu.expo.dev%2F216ca5f0-4ffc-4067-bfbf-5f56aba4924b%3Fchannel-name%3Ddev%26runtime-version%3D1.2.0
    ```
 
 2. 以後は配信のたびに `FlexQ Dev` を**完全に終了して再起動**すれば最新の配信が開く
@@ -543,7 +546,7 @@ SAM パラメータ `ReplicateApiToken` が未設定です（スタックを新�
 | ファイル | 内容 |
 | --- | --- |
 | `CLAUDE.md` | 開発ガイド全体（コマンド・アーキテクチャ・AWS 運用・AI クリーンアップ・E2E・タスク管理）。本 README より詳細 |
-| `docs/test-cases.md` | 手動テストケース一覧（セクション 1〜26・テスター配布用） |
+| `docs/test-cases.md` | 手動テストケース一覧（セクション 1〜27・テスター配布用） |
 | `docs/aws-account-migration-guide.md` | 運営者アカウントへの 3 環境移行の経緯と手順 |
 | `docs/staging-production-setup.md` | staging / production 環境のセットアップ |
 | `docs/account-suspension-policy.md` | アカウント停止（BAN）の方針・保持期間 |
