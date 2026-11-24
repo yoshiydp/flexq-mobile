@@ -103,7 +103,7 @@ iOS と同様、日常の開発は `yarn start` を起動し、ターミナル�
 アプリのルーターには expo-router ではなく **React Navigation**（Stack + Bottom Tabs）を使用しています。`src/app/` ディレクトリは最小限で、ルートレイアウトのラップのみを担当します。
 
 - `src/app/_layout.tsx` — エントリーポイント（`package.json` の `main` は `expo-router/entry`。expo-router はこのルートレイアウトを読み込むためだけに使っている）。フォント読み込み・`OpenAPI.BASE` の設定・認証トークンのインターセプター登録・`AuthProvider` などのプロバイダーと `RootNavigator` のレンダリング
-- `src/App.tsx` は旧エントリーポイントの残骸で、どこからも読み込まれていない（編集しても反映されない）
+- ルートの `App.tsx`（`src/App.tsx` を読み込むだけ）と `src/App.tsx` は旧エントリーポイントの残骸で、どこからも読み込まれていない（編集しても反映されない。削除は TASK-142 で対応予定）
 - `src/navigation/RootNavigator.tsx` — 認証ゲート: 認証済み → `HomeTabs`、未認証 → `SignIn`
 - `src/navigation/HomeTabsNavigator.tsx` — カスタム `NavigationBar` を使った 4 つのボトムタブ (ProjectList, TrackList, Profile, Drafts)
 - モーダル/オーバーレイ系画面 (ProjectEdit, AudioPlayer, QuickRecord, ProfileEdit など) はスタックナビゲーターにプッシュ
